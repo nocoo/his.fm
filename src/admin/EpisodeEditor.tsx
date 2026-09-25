@@ -10,9 +10,10 @@ import {
 } from '@nocoo/basalt/components/select';
 import { ArrowLeft, ArrowUpRight, Save } from 'lucide-react';
 import { type FormEvent, useEffect, useState } from 'react';
-import { Link, useBeforeUnload, useNavigate, useParams } from 'react-router';
+import { Link, useNavigate, useParams } from 'react-router';
 import { categories, type Episode } from '../shared/episode';
 import { emptyEpisode, errorMessage, readEpisodeForm, toLocalDateTime } from './model';
+import { useUnsavedChanges } from './production/useUnsavedChanges';
 import { adminService } from './service';
 
 export function EpisodeEditor() {
@@ -25,12 +26,7 @@ export function EpisodeEditor() {
   const [pending, setPending] = useState(false);
   const [dirty, setDirty] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  useBeforeUnload((event) => {
-    if (dirty) {
-      event.preventDefault();
-      event.returnValue = '';
-    }
-  });
+  useUnsavedChanges(dirty);
   // biome-ignore lint/correctness/useExhaustiveDependencies: The retry key intentionally restarts the request.
   useEffect(() => {
     setError('');
@@ -53,7 +49,7 @@ export function EpisodeEditor() {
   }, [id, attempt]);
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (pending) return;
+    if (pending || episode?.sourceProductionId) return;
     const result = readEpisodeForm(new FormData(event.currentTarget));
     setErrors(result.errors ?? {});
     setError('');
@@ -74,6 +70,35 @@ export function EpisodeEditor() {
     }
   }
   const value = episode ?? emptyEpisode;
+  if (episode?.sourceProductionId) {
+    return (
+      <div className="admin-page">
+        <PageHeader
+          title={episode.title}
+          description="这是制作流程同步的已发布快照。请回到制作记录管理内容与发布。"
+          actions={
+            <>
+              <Button variant="ghost" asChild>
+                <Link to="/admin/catalog">节目库</Link>
+              </Button>
+              <Button asChild>
+                <Link to={`/admin/productions/${episode.sourceProductionId}`}>打开制作记录</Link>
+              </Button>
+            </>
+          }
+        />
+        <LayerCard>
+          <div className="studio-stack">
+            <strong>已发布节目 · 第 {episode.episodeNumber} 期</strong>
+            <p className="studio-prose">{episode.summary}</p>
+            <Link className="studio-link" to={`/episodes/${episode.slug}`} target="_blank">
+              查看节目页面 ↗
+            </Link>
+          </div>
+        </LayerCard>
+      </div>
+    );
+  }
   return (
     <div className="admin-page">
       <PageHeader
@@ -82,7 +107,7 @@ export function EpisodeEditor() {
         actions={
           <>
             <Button variant="ghost" asChild>
-              <Link to="/admin">
+              <Link to="/admin/catalog">
                 <ArrowLeft size={16} />
                 节目库
               </Link>

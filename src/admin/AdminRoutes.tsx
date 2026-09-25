@@ -10,8 +10,14 @@ import { EpisodeEditor } from './EpisodeEditor';
 import { EpisodeList } from './EpisodeList';
 import { LoginBadge } from './LoginBadge';
 import { errorMessage } from './model';
+import { NewProduction } from './production/NewProduction';
+import { ProductionEditor } from './production/ProductionEditor';
+import { ProductionList } from './production/ProductionList';
+import { StudioSettings } from './production/StudioSettings';
+import { VoiceReferences } from './production/VoiceReferences';
 import { ApiError, adminService, type Session } from './service';
 import './admin.css';
+import './production/production.css';
 
 function RouterLink({
   href,
@@ -97,7 +103,12 @@ function SessionGate() {
   return (
     <AdminShell session={session}>
       <Routes>
-        <Route index element={<EpisodeList />} />
+        <Route index element={<ProductionList />} />
+        <Route path="catalog" element={<EpisodeList />} />
+        <Route path="productions/new" element={<NewProduction />} />
+        <Route path="productions/:id" element={<ProductionEditor />} />
+        <Route path="settings" element={<StudioSettings />} />
+        <Route path="voices" element={<VoiceReferences />} />
         <Route path="episodes/new" element={<EpisodeEditor />} />
         <Route path="episodes/:id" element={<EpisodeEditor />} />
         <Route path="*" element={<Navigate to="/admin" replace />} />

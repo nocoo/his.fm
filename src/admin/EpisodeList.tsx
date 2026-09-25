@@ -147,7 +147,14 @@ export function EpisodeList() {
       accessor: (episode) => (
         <div className="admin-row-actions">
           <Button asChild variant="ghost" size="icon">
-            <Link to={`/admin/episodes/${episode.id}`} aria-label={`编辑 ${episode.title}`}>
+            <Link
+              to={
+                episode.sourceProductionId
+                  ? `/admin/productions/${episode.sourceProductionId}`
+                  : `/admin/episodes/${episode.id}`
+              }
+              aria-label={`${episode.sourceProductionId ? '打开制作' : '编辑'} ${episode.title}`}
+            >
               <Pencil size={15} />
             </Link>
           </Button>
@@ -158,17 +165,19 @@ export function EpisodeList() {
               </Link>
             </Button>
           )}
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label={`删除 ${episode.title}`}
-            onClick={() => {
-              setDeleting(episode);
-              setDeleteError('');
-            }}
-          >
-            <Trash2 size={15} />
-          </Button>
+          {!episode.sourceProductionId && (
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label={`删除 ${episode.title}`}
+              onClick={() => {
+                setDeleting(episode);
+                setDeleteError('');
+              }}
+            >
+              <Trash2 size={15} />
+            </Button>
+          )}
         </div>
       ),
     },

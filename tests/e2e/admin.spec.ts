@@ -7,6 +7,7 @@ async function login(page: Page) {
   await expect(page.getByRole('heading', { name: '欢迎回到工作室' })).toBeVisible();
   await page.getByRole('button', { name: '进入本地工作室' }).click();
   await expect(page).toHaveURL(/\/admin\/?$/);
+  await page.goto('/admin/catalog');
   await expect(page.getByRole('table', { name: '播客节目列表' })).toBeVisible();
 }
 
@@ -114,9 +115,9 @@ test.describe('phone workspace', () => {
     await menu.click();
     const drawer = page.getByRole('dialog', { name: '工作室导航' });
     await expect(drawer).toBeVisible();
-    await drawer.getByRole('button', { name: '新建节目', exact: true }).click();
+    await drawer.getByRole('button', { name: '新建制作', exact: true }).click();
     await expect(drawer).toBeHidden();
-    await expect(page).toHaveURL(/\/admin\/episodes\/new$/);
+    await expect(page).toHaveURL(/\/admin\/productions\/new$/);
     await expect(menu).toBeFocused();
     await menu.click();
     await expect(drawer).toBeVisible();
