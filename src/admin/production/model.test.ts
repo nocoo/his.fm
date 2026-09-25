@@ -1,6 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import { fixture, readyFixture } from '../../../tests/worker/production-fixture';
-import { audioBusy, dateLabel, emptyBrief, finalMissing, latestPublication, readBrief } from './model';
+import {
+  agentTask,
+  audioBusy,
+  completedSteps,
+  currentStep,
+  dateLabel,
+  emptyBrief,
+  finalMissing,
+  latestPublication,
+  readBrief,
+} from './model';
 
 function form(values: Record<string, string>) {
   const result = new FormData();
@@ -103,5 +113,56 @@ describe('final review readiness', () => {
       );
     expect(dateLabel(null)).toBe('尚无记录');
     expect(dateLabel('2026-09-25T00:00:00Z')).toContain('2026');
+  });
+});
+
+describe('single-owner studio stages', () => {
+  it('maps persisted agent states to the five owner views', () => {
+    expect(
+      ['draft', 'brief_review', 'scripting', 'script_review', 'production', 'final_review', 'ready'].map(
+        (stage) => currentStep(stage as ReturnType<typeof fixture>['stage']),
+      ),
+    ).toEqual(['brief', 'brief', 'script', 'script', 'assets', 'review', 'publish']);
+    expect(completedSteps(fixture())).toEqual({
+      brief: false,
+      script: false,
+      assets: false,
+      review: false,
+      publish: false,
+    });
+    expect(completedSteps(readyFixture())).toEqual({
+      brief: true,
+      script: true,
+      assets: true,
+      review: true,
+      publish: false,
+    });
+    expect(completedSteps(readyFixture({ scriptVersion: 2 })).assets).toBe(false);
+  });
+  it('marks publication complete only for the latest confirmed content', () => {
+    const publication = {
+      platform: 'wechat' as const,
+      url: 'https://mp.weixin.qq.com/s/example',
+      publishedAt: '2026-09-24T00:00:00Z',
+      confirmedAt: '2026-09-25T00:00:00Z',
+      confirmedBy: 'owner',
+      version: 3,
+    };
+    const production = readyFixture({ publications: [publication] });
+    expect(completedSteps(production).publish).toBe(true);
+    production.approvals.final = { by: 'owner', at: '2026-09-25T01:00:00Z' };
+    expect(completedSteps(production).publish).toBe(false);
+    production.approvals.final = null;
+    expect(completedSteps(production).review).toBe(false);
+  });
+  it('builds a credential-free task for the selected API environment', () => {
+    for (const base of ['https://his.fm', 'https://hisfm.dev.hexly.ai']) {
+      const task = agentTask('整理素材', fixture(), base);
+      expect(task).toContain(`${base}/api/agent/productions/production-test`);
+      expect(task).toContain('HISFM_TOKEN');
+      expect(task).toContain('最新 version');
+      expect(task).toContain('整理素材');
+      expect(task).not.toContain('hisfm_one_time');
+    }
   });
 });

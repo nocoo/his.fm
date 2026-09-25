@@ -12,10 +12,14 @@ export function BriefForm({
   pending,
   onSave,
   onDirty,
+  onComplete,
+  completed = false,
 }: {
   value: ProductionBrief;
   pending: boolean;
   onSave: (brief: ProductionBrief) => Promise<void>;
+  onComplete?: (brief: ProductionBrief) => Promise<void>;
+  completed?: boolean;
   onDirty: () => void;
 }) {
   const [sources, setSources] = useState(() =>
@@ -34,7 +38,11 @@ export function BriefForm({
           sources.map(({ key: _, ...source }) => source),
         );
         setError(result.error);
-        if (result.data) await onSave(result.data);
+        if (result.data) {
+          const complete = (event.nativeEvent as SubmitEvent).submitter?.getAttribute('value') === 'complete';
+          if (complete && onComplete) await onComplete(result.data);
+          else await onSave(result.data);
+        }
       }}
     >
       {error && <Failure error={error} />}
@@ -60,6 +68,7 @@ export function BriefForm({
               hint="告诉 Hermes 你想表达的观点、目标听众、讲述角度和不想涉及的内容。"
             >
               <InputArea
+                className="studio-autosize"
                 id="production-intent"
                 name="intent"
                 defaultValue={value.intent}
@@ -143,7 +152,7 @@ export function BriefForm({
           </LayerCard.Header>
           <LayerCard.Body className="studio-stack studio-padding">
             {!sources.length && (
-              <p className="admin-muted">添加文章链接、GitHub 仓库或文本。提交审核前至少需要一份素材。</p>
+              <p className="admin-muted">添加文章链接、GitHub 仓库或文本。标记完成前至少需要一份素材。</p>
             )}
             {sources.map((source, index) => {
               const change = (field: 'type' | 'title' | 'content', next: string) => {
@@ -194,6 +203,7 @@ export function BriefForm({
                     required
                   >
                     <InputArea
+                      className={source.type === 'text' ? 'studio-autosize' : undefined}
                       id={`source-content-${source.key}`}
                       value={source.content}
                       maxLength={80000}
@@ -207,44 +217,20 @@ export function BriefForm({
             })}
           </LayerCard.Body>
         </LayerCard>
-        <div className="studio-row">
-          <p className="admin-muted">先保存选题，再提交给编辑审核。</p>
-          <Button type="submit" loading={pending}>
-            保存选题
-          </Button>
+        <div className="studio-stage-footer">
+          <p className="admin-muted">明确素材与讲述意图，确认后进入逐字稿。随时可以回来调整。</p>
+          <div className="studio-actions">
+            <Button type="submit" variant={onComplete ? 'outline' : 'default'} loading={pending}>
+              保存选题
+            </Button>
+            {onComplete && (
+              <Button type="submit" value="complete" loading={pending}>
+                {completed ? '确认选题并继续' : '标记选题完成'}
+              </Button>
+            )}
+          </div>
         </div>
       </fieldset>
     </form>
-  );
-}
-
-export function BriefRead({ value }: { value: ProductionBrief }) {
-  return (
-    <LayerCard padding="none">
-      <LayerCard.Header>
-        <strong>选题与原始素材</strong>
-      </LayerCard.Header>
-      <LayerCard.Body className="studio-stack studio-padding">
-        <p className="studio-prose">{value.intent || '尚未填写创作意图'}</p>
-        <p className="admin-muted">
-          第 {value.episodeNumber} 期 · 目标 {value.targetDurationSeconds / 60} 分钟 ·{' '}
-          {value.tags.join(' / ') || '无标签'}
-        </p>
-        {value.sources.map((source, index) => (
-          <details key={`${source.type}-${source.title}-${source.content}`}>
-            <summary>
-              {source.title || `素材 ${index + 1}`} · {source.type === 'text' ? '文本' : '链接'}
-            </summary>
-            {source.type === 'text' ? (
-              <p className="studio-prose">{source.content}</p>
-            ) : (
-              <a className="studio-link" href={source.content} target="_blank" rel="noopener noreferrer">
-                {source.content}
-              </a>
-            )}
-          </details>
-        ))}
-      </LayerCard.Body>
-    </LayerCard>
   );
 }

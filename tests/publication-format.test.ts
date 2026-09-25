@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { cleanText, formatWechat, formatXiaoyuzhou } from '../src/shared/publication-format';
+import { cleanText, formatReading, formatWechat, formatXiaoyuzhou } from '../src/shared/publication-format';
 
 const content = {
   title: '下班之后',
@@ -74,5 +74,30 @@ describe('manual platform publication materials', () => {
       }).html,
     ).not.toContain('<img');
     expect(cleanText('')).toBe('');
+  });
+});
+
+describe('long-form review rendering', () => {
+  it('renders headings, quotes, lists and tables while keeping links safe', () => {
+    const html = formatReading(
+      '# 阅读标题\n\n> 具体引用\n\n- 一个细节\n\n| 时间 | 内容 |\n| --- | --- |\n| 今天 | 吃饭 |\n\n[来源](https://example.com/?a=1&b=2)',
+    );
+    expect(html).toContain('<h1>阅读标题</h1>');
+    expect(html).toContain('<blockquote>');
+    expect(html).toContain('<li>一个细节</li>');
+    expect(html).toContain('<table>');
+    expect(html).toContain('href="https://example.com/?a=1&amp;b=2"');
+    expect(html).toContain('rel="noopener noreferrer"');
+  });
+  it('removes active HTML, external images and unsafe URLs from agent content', () => {
+    const html = formatReading(
+      content.transcript +
+        '\n\n[账户](https://user:pass@example.org)\n\n[相对](/admin)\n\n<iframe src="https://evil.example"></iframe>\n\n`<script>code</script>`',
+    );
+    expect(html).not.toMatch(/<script|<iframe|<img|javascript:|user:pass|href="\/admin/);
+    expect(html).not.toContain('evil.example');
+    expect(html).toContain('&lt;script&gt;code&lt;/script&gt;');
+    expect(html).toContain('危险链接');
+    expect(formatReading('')).toBe('');
   });
 });

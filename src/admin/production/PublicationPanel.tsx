@@ -1,5 +1,4 @@
 import { Button, Field, Input, LayerCard } from '@nocoo/basalt';
-import { InputArea } from '@nocoo/basalt/components/input-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@nocoo/basalt/components/tabs';
 import { useState } from 'react';
 import { type Production, type Publication, publicationSchema } from '../../shared/production';
@@ -7,6 +6,7 @@ import { formatWechat, formatXiaoyuzhou } from '../../shared/publication-format'
 import { toLocalDateTime } from '../model';
 import { Choice, Confirm, CopyButton } from './controls';
 import { dateLabel } from './model';
+import { ReadingText } from './ReadingText';
 import { productionService } from './service';
 
 export function PublicationPanel({
@@ -47,12 +47,10 @@ export function PublicationPanel({
                   </a>
                 </Button>
               </div>
-              <iframe
-                title="微信公众号排版预览"
-                className="studio-publication-preview"
-                sandbox=""
-                srcDoc={`<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="color-scheme" content="light"><meta name="referrer" content="no-referrer"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src https:; style-src 'unsafe-inline'"></head><body style="margin:24px;background:white">${wechat.html}</body></html>`}
-              />
+              <details>
+                <summary>展开公众号正文预览</summary>
+                <ReadingText text={production.transcript} />
+              </details>
             </div>
           </TabsContent>
           <TabsContent value="xiaoyuzhou">
@@ -65,7 +63,7 @@ export function PublicationPanel({
                   </a>
                 </Button>
               </div>
-              <InputArea aria-label="小宇宙简介预览" value={xiaoyuzhou} readOnly rows={12} />
+              <ReadingText text={xiaoyuzhou} />
             </div>
           </TabsContent>
         </Tabs>
@@ -89,7 +87,10 @@ export function PublicationPanel({
             setConfirm(parsed.data);
           }}
         >
-          <fieldset disabled={pending} className="studio-fieldset studio-stack">
+          <fieldset
+            disabled={pending || !production.approvals.final}
+            className="studio-fieldset studio-stack"
+          >
             <div className="studio-grid">
               <Field label="发布平台">
                 <Choice
@@ -128,7 +129,7 @@ export function PublicationPanel({
               </p>
             )}
             <div className="studio-actions">
-              <Button type="submit">人工确认已发布</Button>
+              <Button type="submit">记录已发布</Button>
             </div>
           </fieldset>
         </form>
@@ -143,9 +144,7 @@ export function PublicationPanel({
                 <a className="studio-link" href={publication.url} target="_blank" rel="noopener noreferrer">
                   {publication.platform === 'wechat' ? '微信公众号' : '小宇宙'} ↗
                 </a>
-                <p className="admin-muted">
-                  {dateLabel(publication.publishedAt)} · {publication.confirmedBy} 人工确认
-                </p>
+                <p className="admin-muted">{dateLabel(publication.publishedAt)} · 已记录</p>
               </LayerCard.Well>
             ))}
           </div>

@@ -108,3 +108,25 @@ export function formatWechat(production: PublicationContent): { html: string; te
   const text = `${cleanText(production.transcript)}${references.length ? `\n\n参考资料\n${references.map((url, index) => `[${index + 1}] ${url}`).join('\n')}` : ''}\n\nhis.fm`;
   return { html, text };
 }
+
+export function formatReading(markdown: string): string {
+  return new Marked({
+    gfm: true,
+    breaks: true,
+    renderer: {
+      html() {
+        return '';
+      },
+      image() {
+        return '';
+      },
+      link({ href, tokens }) {
+        const label = this.parser.parseInline(tokens);
+        const url = secureUrl(href);
+        return url
+          ? `<a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">${label}</a>`
+          : label;
+      },
+    },
+  }).parse(markdown, { async: false });
+}

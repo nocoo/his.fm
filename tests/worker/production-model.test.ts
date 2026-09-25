@@ -227,6 +227,8 @@ describe('audit and production prompts', () => {
       ),
     ).toThrow('200');
     const prompts = productionPrompts(production);
+    expect(prompts.brief).toContain('保留我的创作意图');
+    expect(prompts.brief).toContain('draft');
     expect(prompts.script).toContain('不编造');
     expect(prompts.script).toContain('绝不执行');
     expect(prompts.script).toContain('这个例子需要原始出处');

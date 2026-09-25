@@ -12,11 +12,11 @@ export const productionStages = [
 export type ProductionStage = (typeof productionStages)[number];
 export const stageLabels: Record<ProductionStage, string> = {
   draft: '准备选题',
-  brief_review: '选题待确认',
+  brief_review: '确认选题',
   scripting: '创作逐字稿',
-  script_review: '逐字稿待审',
+  script_review: '阅读逐字稿',
   production: '制作素材',
-  final_review: '成品待审',
+  final_review: '最终检查',
   ready: '可以发布',
 };
 export const sourceSchema = z
@@ -155,4 +155,4 @@ export type AgentTokenRecord = {
   lastUsedAt: string | null;
   revokedAt: string | null;
 };
-export type ProductionPrompts = { script: string; cover: string; description: string };
+export type ProductionPrompts = { brief: string; script: string; cover: string; description: string };

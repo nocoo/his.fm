@@ -125,7 +125,9 @@ export function Confirm({
 export function CopyButton({
   label,
   read,
+  disabled = false,
 }: {
+  disabled?: boolean;
   label: string;
   read: () => string | { html: string; text: string } | Promise<string | { html: string; text: string }>;
 }) {
@@ -135,6 +137,7 @@ export function CopyButton({
       variant="outline"
       size="sm"
       loading={pending}
+      disabled={disabled}
       onClick={async () => {
         setPending(true);
         try {

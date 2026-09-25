@@ -1,22 +1,30 @@
 # AI podcast production
 
-The production record is the coordination boundary between Hermes, local creative agents, Cloudflare and the human editor. Sources are stored as references or text; the server does not fetch arbitrary URLs. The editorial intent belongs to the brief and guides all three generation prompts. Local agents verify the original sources before writing.
+The production record is the coordination boundary between Hermes, local creative agents, Cloudflare and the owner. Sources are stored as references or text; the server does not fetch arbitrary URLs. The editorial intent belongs to the brief and guides all generation prompts. Local agents verify the original sources before writing.
 
 | Stage | Executor | Human decision |
 | --- | --- | --- |
-| Brief | Hermes collects article/GitHub URLs or text and intent | Approve the proposed angle, or return with feedback |
-| Transcript | Hermes delegates to local Codex or another agent | Read, request revisions, approve exact script version |
+| Brief | Hermes collects article/GitHub URLs or text and intent | Mark the angle complete, or keep editing |
+| Transcript | Hermes delegates to local Codex or another agent | Read and edit the full text, then mark the exact script version complete |
 | Parallel production | Local GPT Image 2.5 cover; local description; Cloudflare Gemini audio | Review the cover, introduction and complete recording |
 | Ready | Platform material preparation | Confirm final assets |
-| Manual publication | Editor pastes into WeChat or Xiaoyuzhou | Record actual URL/time and synchronize approved website snapshot |
+| Manual publication | Owner pastes into WeChat or Xiaoyuzhou | Record actual URL/time and synchronize approved website snapshot |
 
 An agent bearer token can create, read, revise and delete unpublished production records, upload cover images, fetch prompts, submit for review, and dispatch audio. It cannot approve any review or record platform publication. Token creation/revocation is protected by Cloudflare Access; raw tokens are displayed once and only SHA-256 hashes are stored. Agent routes live outside `/admin` at `/api/agent`, so Access does not intercept the independent bearer authentication.
 
 Every write requires the current `version`. A stale write returns 409; refetch and review changes before retrying. Agents edit only fields allowed in the current stage. The owner can edit any stage directly and mark the brief or script complete without a separate submission step. Completion actions can include validated `changes`, saved atomically with the transition. Earlier edits revoke dependent confirmations and make existing media stale while preserving text, files and publication history. A task preserves feedback and review history. Public episodes are immutable publication snapshots; editing those through the old catalog CRUD is blocked. An existing published snapshot remains available while a new revision is prepared.
 
+## Owner studio
+
+The top navigation exposes five stages through `?step=brief|script|assets|review|publish`. Any stage can be viewed immediately, without changing stored state. Completion turns its marker green and opens the next view. Required materials and owner confirmations still protect paid generation and publication. Earlier content remains editable; changing it revokes dependent confirmations while preserving the existing material. Reopening a completed stage allows local agents to work again without deleting the previous version.
+
+Only one stage is mounted at a time. Cover, copy and audio have their own task tabs, with drafts retained between them. Unsaved changes require confirmation before switching stages or environments. Long text uses the same Charter/TsangerJinKai02 typography as xray Channel, safe Markdown and natural page height. Editing fields grow with content; fonts are private admin assets with provenance in their NOTICE.
+
+Every stage identifies its execution location. Agent task buttons copy the selected environment, production ID, current API contract and saved content into a ready task; credentials are referenced only by environment variable name. Copying is disabled until unsaved content is saved. The owner can explicitly refresh after local agent work.
+
 ## Local creative work
 
-`GET /api/agent/productions/:id/prompts` returns script, cover and description prompts containing the intent, sources, approved script, review feedback and channel policy. Internal editorial rules guide preparation but must never be recited in published text.
+`GET /api/agent/productions/:id/prompts` returns brief, script, cover and description prompts containing the intent, sources, approved script, review feedback and channel policy. Internal editorial rules guide preparation but must never be recited in published text.
 
 Use the Workflow `agi-image-generation` skill, default deployment `gpt-image-2.5-sunburst`, for cover artwork. Save the original and exact prompt. The artwork itself contains no generated typography. Apply the canonical cream/grass-green brand frame and episode number:
 

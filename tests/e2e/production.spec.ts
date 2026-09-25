@@ -1,13 +1,9 @@
 import { randomUUID } from 'node:crypto';
 import { mkdir } from 'node:fs/promises';
 import { expect, type Page, test } from '@playwright/test';
-import type {
-  AgentTokenRecord,
-  Production,
-  ProductionAction,
-  ProductionSettings,
-} from '../../src/shared/production';
-import { fixture, readyFixture } from '../worker/production-fixture';
+import type { AgentTokenRecord, ProductionAction, ProductionSettings } from '../../src/shared/production';
+import { applyAction, applyPatch } from '../../worker/production-model';
+import { fixture, human, readyFixture } from '../worker/production-fixture';
 
 async function studio(page: Page, initial = fixture()) {
   let production = initial;
@@ -75,6 +71,7 @@ async function studio(page: Page, initial = fixture()) {
     }
     if (path.endsWith('/prompts'))
       return send({
+        brief: '核实素材并保留我的创作意图',
         script: '根据已经批准的选题编写逐字稿',
         cover: '绘制节目封面',
         description: '整理发布简介',
@@ -147,35 +144,13 @@ async function studio(page: Page, initial = fixture()) {
     expect(input.version).toBe(production.version);
     if (path.endsWith('/actions')) {
       actions.push(input);
-      const stages: Partial<Record<ProductionAction['action'], Production['stage']>> = {
-        submit_brief: 'brief_review',
-        approve_brief: 'scripting',
-        revise_brief: 'draft',
-        submit_script: 'script_review',
-        approve_script: 'production',
-        revise_script: 'scripting',
-        submit_final: 'final_review',
-        approve_final: 'ready',
-        revise_assets: 'production',
-        reopen_assets: 'production',
-        reopen_script: 'scripting',
-        reopen_brief: 'draft',
-      };
       const action = input as ProductionAction;
-      production = {
-        ...production,
-        stage: stages[action.action] ?? production.stage,
-        version: production.version + 1,
-      };
-      const approval = { by: 'editor@his.fm', at: new Date().toISOString() };
-      if (action.action === 'approve_script')
-        production = {
-          ...production,
-          scriptVersion: 1,
-          approvals: { ...production.approvals, script: approval },
-        };
-      if (action.action === 'approve_brief') production.approvals.brief = approval;
-      if (action.action === 'approve_final') production.approvals.final = approval;
+      production = applyAction(
+        action.changes ? applyPatch(production, action.changes, human) : production,
+        action,
+        human,
+      );
+      production = { ...production, version: production.version + 1 };
       return send({ production });
     }
     if (path.endsWith('/audio')) {
@@ -204,7 +179,8 @@ async function studio(page: Page, initial = fixture()) {
       };
       return send({ production });
     }
-    production = { ...production, ...input, version: production.version + 1 };
+    const { version: _, ...fields } = input;
+    production = { ...applyPatch(production, fields, human), version: production.version + 1 };
     return send({ production });
   });
   return {
@@ -223,19 +199,7 @@ async function studio(page: Page, initial = fixture()) {
   };
 }
 
-async function confirmAction(page: Page, label: string, feedback?: string) {
-  await page.getByRole('button', { name: label, exact: true }).click();
-  const dialog = page.getByRole('alertdialog');
-  await expect(dialog).toBeVisible();
-  if (feedback) await dialog.getByLabel('修改意见').fill(feedback);
-  await dialog.getByRole('button', { name: label, exact: true }).click();
-  await expect(dialog).toBeHidden();
-}
-
-test('complete studio workflow preserves failed edits and requires human approvals', async ({
-  page,
-  context,
-}) => {
+test('five stages preserve failed edits and advance with owner completion', async ({ page, context }) => {
   const state = await studio(page);
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
@@ -251,27 +215,31 @@ test('complete studio workflow preserves failed edits and requires human approva
   await page.getByLabel('素材正文', { exact: true }).fill('一份经过核实的真实素材');
   await page.getByRole('button', { name: '保存选题', exact: true }).click();
   await expect(page).toHaveURL(/\/productions\/new-production$/);
-  await confirmAction(page, '提交选题审核');
-  await confirmAction(page, '人工确认选题');
-  await page.getByRole('button', { name: '复制 Hermes 逐字稿提示词' }).click();
-  await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toContain('已');
+  await page.getByRole('button', { name: '标记选题完成', exact: true }).click();
+  await expect(page.getByRole('tab', { name: '选题，已完成', exact: true })).toHaveAttribute(
+    'data-complete',
+    'true',
+  );
+  await page.getByRole('button', { name: '复制逐字稿任务' }).click();
+  await expect
+    .poll(() => page.evaluate(() => navigator.clipboard.readText()))
+    .toContain('/api/agent/productions/new-production');
   await page.getByLabel('完整逐字稿').fill('这份逐字稿在版本冲突时应该保留。');
   state.conflict();
   await page.getByRole('button', { name: '保存逐字稿', exact: true }).click();
   await expect(page.getByText('内容已更新，请刷新后重试', { exact: true })).toBeVisible();
   await expect(page.getByLabel('完整逐字稿')).toHaveValue('这份逐字稿在版本冲突时应该保留。');
-  await page.getByRole('button', { name: '加载最新版本' }).click();
+  await page.getByRole('button', { name: '刷新内容' }).click();
   await page.getByRole('alertdialog').getByRole('button', { name: '确认加载最新版本' }).click();
   await expect(page.getByRole('alertdialog')).toBeHidden();
-  await page.getByLabel('完整逐字稿').fill('## 晚饭之前\n\n你好，欢迎收听 his.fm。');
-  await page.getByRole('button', { name: '保存逐字稿', exact: true }).click();
-  await confirmAction(page, '提交逐字稿审核');
-  await confirmAction(page, '退回修改逐字稿', '补充结尾的具体建议');
-  expect(state.actions.at(-1)?.feedback).toBe('补充结尾的具体建议');
   await page.getByLabel('完整逐字稿').fill('## 晚饭之前\n\n你好，欢迎收听 his.fm。\n\n今晚先吃饭。');
-  await page.getByRole('button', { name: '保存逐字稿', exact: true }).click();
-  await confirmAction(page, '提交逐字稿审核');
-  await confirmAction(page, '人工批准逐字稿');
+  await page.getByRole('button', { name: '标记逐字稿完成', exact: true }).click();
+  await expect(page.getByRole('tab', { name: '逐字稿，已完成', exact: true })).toHaveAttribute(
+    'data-complete',
+    'true',
+  );
+  await expect(page.getByLabel('完整逐字稿')).toHaveCount(0);
+  await page.getByRole('tab', { name: '发布文案', exact: true }).click();
   await page.getByLabel('节目摘要', { exact: true }).fill('一次关于工作边界的对话');
   await page.getByLabel('发布简介', { exact: true }).fill('## 本期内容\n\n**先吃饭**，再继续工作。');
   await page.getByRole('button', { name: '保存发布文案' }).click();
@@ -283,6 +251,7 @@ test('complete studio workflow preserves failed edits and requires human approva
       'base64',
     ),
   };
+  await page.getByRole('tab', { name: '封面', exact: true }).click();
   await expect(page.getByRole('button', { name: '选择封面: 上传节目封面' })).toBeEnabled();
   await page.locator('input[type=file]').setInputFiles(cover);
   state.failUpload();
@@ -290,13 +259,14 @@ test('complete studio workflow preserves failed edits and requires human approva
   await expect(page.getByText('上传失败，请重试', { exact: true })).toBeVisible();
   await expect(page.getByText('cover.png', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: '上传封面', exact: true }).click();
+  await page.getByRole('tab', { name: '音频', exact: true }).click();
   await page.getByRole('button', { name: '生成完整音频', exact: true }).click();
   await expect(page.getByText('音频制作完成', { exact: true })).toBeVisible();
-  await confirmAction(page, '提交成品审核');
+  await page.getByRole('button', { name: '标记成品制作完成', exact: true }).click();
   await expect(page.locator('audio')).toHaveCount(1);
   await expect(page.getByText('一次关于工作边界的对话', { exact: true })).toBeVisible();
-  await confirmAction(page, '人工确认全部成品');
-  await expect(page.getByTitle('微信公众号排版预览')).toBeVisible();
+  await page.getByRole('button', { name: '标记最终检查完成', exact: true }).click();
+  await expect(page.getByText('展开公众号正文预览', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: '复制公众号富文本' }).click();
   await expect
     .poll(() => page.evaluate(async () => (await navigator.clipboard.read())[0].types))
@@ -307,13 +277,25 @@ test('complete studio workflow preserves failed edits and requires human approva
     .poll(() => page.evaluate(() => navigator.clipboard.readText()))
     .toBe('本期内容\n\n先吃饭，再继续工作。');
   await page.getByLabel('已发布的节目链接').fill('https://mp.weixin.qq.com/s/studio-acceptance');
-  await page.getByRole('button', { name: '人工确认已发布', exact: true }).click();
+  await page.getByRole('button', { name: '记录已发布', exact: true }).click();
   await page.getByRole('alertdialog').getByRole('button', { name: '确认记录此次发布' }).click();
   await expect(page.getByRole('alertdialog')).toBeHidden();
   expect(state.production.publications).toHaveLength(1);
+  await expect(page.locator('.studio-step-nav [data-complete=true]')).toHaveCount(5);
   await mkdir('.local', { recursive: true });
   await page.getByRole('heading', { name: '制作工作台完整验收', exact: true }).scrollIntoViewIfNeeded();
   await page.screenshot({ path: '.local/studio-ready.png', fullPage: true });
+  await page.getByRole('tab', { name: '逐字稿，已完成', exact: true }).click();
+  await page.getByRole('button', { name: '重新打开本阶段', exact: true }).click();
+  await page.getByRole('alertdialog').getByRole('button', { name: '重新打开本阶段', exact: true }).click();
+  await expect(page.getByRole('alertdialog')).toBeHidden();
+  await expect(page.getByRole('tab', { name: '逐字稿', exact: true })).toHaveAttribute(
+    'data-complete',
+    'false',
+  );
+  expect(state.production.stage).toBe('scripting');
+  expect(state.production.assets.audio).not.toBeNull();
+  await expect(page.locator('.studio-transcript')).toContainText('今晚先吃饭');
   expect(errors).toEqual([]);
 });
 
@@ -437,16 +419,24 @@ test('real local API persists a production through human review and cleans it up
     expect(created.status()).toBe(201);
     id = (await created.json()).production.id;
     await expect(page).toHaveURL(new RegExp(`/admin/productions/${id}$`));
-    await confirmAction(page, '提交选题审核');
-    await confirmAction(page, '人工确认选题');
+    await page.getByRole('button', { name: '标记选题完成', exact: true }).click();
     await page.getByLabel('完整逐字稿').fill('你好，这是本地工作室的真实接口验收稿。');
-    await page.getByRole('button', { name: '保存逐字稿', exact: true }).click();
-    await confirmAction(page, '提交逐字稿审核');
-    await confirmAction(page, '退回修改逐字稿', '请增加可核实的引用来源');
+    await page.getByRole('button', { name: '标记逐字稿完成', exact: true }).click();
+    await page.getByRole('tab', { name: '选题，已完成', exact: true }).click();
+    await page.getByLabel('创作意图', { exact: true }).fill('调整选题，已有逐字稿必须保留。');
+    await page.getByRole('button', { name: '保存选题', exact: true }).click();
+    await expect(page.getByRole('tab', { name: '选题', exact: true })).toHaveAttribute(
+      'data-complete',
+      'false',
+    );
+    await expect(page.getByRole('tab', { name: '逐字稿', exact: true })).toHaveAttribute(
+      'data-complete',
+      'false',
+    );
+    await page.getByRole('tab', { name: '逐字稿', exact: true }).click();
     await page.reload();
-    await expect(page.getByLabel('完整逐字稿')).toHaveValue('你好，这是本地工作室的真实接口验收稿。');
-    await page.getByText(/^查看全部记录/).click();
-    await expect(page.getByText('请增加可核实的引用来源', { exact: true })).toBeVisible();
+    await expect(page.locator('.studio-transcript')).toHaveText('你好，这是本地工作室的真实接口验收稿。');
+    await expect(page.getByRole('button', { name: '标记逐字稿完成', exact: true })).toBeDisabled();
     await mkdir('.local', { recursive: true });
     await page.getByRole('heading', { name: '真实接口制作流程验收', exact: true }).scrollIntoViewIfNeeded();
     await page.screenshot({ path: '.local/studio-real-api.png', fullPage: true });
@@ -585,11 +575,79 @@ test('imported draft materials are readable before approval and platform timesta
   await expect(table.getByText('小宇宙 · 未发布', { exact: true })).toBeVisible();
   await expect(table.locator('time')).toHaveAttribute('datetime', publication.publishedAt);
   await page.getByRole('link', { name: '下一条提示之前，先吃饭', exact: true }).click();
-  for (const text of ['已导入的真实逐字稿，可在选题阶段阅读。', '已导入的节目摘要', '已导入的研究与发布简介'])
-    await expect(page.getByText(text, { exact: true })).toBeVisible();
+  await expect(page.getByText('已导入的真实逐字稿，可在选题阶段阅读。', { exact: true })).toHaveCount(0);
+  await page.getByRole('tab', { name: '逐字稿', exact: true }).click();
+  await expect(page.locator('.studio-transcript')).toHaveText('已导入的真实逐字稿，可在选题阶段阅读。');
   await expect(page.getByLabel('完整逐字稿', { exact: true })).toHaveCount(0);
-  await expect(page.getByRole('button', { name: '保存发布文案' })).toHaveCount(0);
-  await confirmAction(page, '提交选题审核');
-  await expect(page.getByText('已导入的真实逐字稿，可在选题阶段阅读。', { exact: true })).toBeVisible();
+  await page.getByRole('tab', { name: '成品制作', exact: true }).click();
+  await page.getByRole('tab', { name: '发布文案', exact: true }).click();
+  await expect(page.getByText('已导入的节目摘要', { exact: true })).toBeVisible();
   await expect(page.getByText('已导入的研究与发布简介', { exact: true })).toBeVisible();
+  await page.getByRole('tab', { name: '发布', exact: true }).click();
+  await expect(page.getByRole('button', { name: '记录已发布', exact: true })).toBeDisabled();
+});
+
+test('phone stages preserve drafts on canceled navigation and grow long text without nested scrolling', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 393, height: 852 });
+  const text = `# 今晚先吃饭\n\n${'工作结束之后，给自己留下一段散步的时间。\n\n'.repeat(60)}`;
+  const state = await studio(page, readyFixture({ transcript: text }));
+  await page.goto('/admin/productions/production-test?step=script');
+  await expect(page.locator('.studio-transcript h1')).toHaveText('今晚先吃饭');
+  const reader = await page.locator('.studio-transcript').evaluate(async (element) => {
+    await document.fonts.ready;
+    return {
+      font: getComputedStyle(element).fontFamily,
+      loaded: document.fonts.check('18px TsangerJinKai02', '今晚先吃饭'),
+      height: element.clientHeight,
+      scroll: element.scrollHeight,
+    };
+  });
+  expect(reader.font).toContain('TsangerJinKai02');
+  expect(reader.loaded).toBe(true);
+  expect(reader.scroll).toBeLessThanOrEqual(reader.height + 1);
+  await page.getByRole('radio', { name: '编辑', exact: true }).click();
+  const input = page.getByLabel('完整逐字稿', { exact: true });
+  await input.fill(`${text}留下这个未保存的结尾。`);
+  const size = await input.evaluate((element) => ({
+    height: element.clientHeight,
+    scroll: element.scrollHeight,
+  }));
+  expect(size.height).toBeGreaterThan(1000);
+  expect(size.scroll).toBeLessThanOrEqual(size.height + 1);
+  await page.getByRole('tab', { name: '成品制作，已完成', exact: true }).click();
+  const dialog = page.getByRole('alertdialog');
+  await expect(dialog).toContainText('未保存');
+  await dialog.getByRole('button', { name: '取消', exact: true }).click();
+  await expect(input).toHaveValue(`${text}留下这个未保存的结尾。`);
+  expect(state.actions).toHaveLength(0);
+  await page.getByRole('tab', { name: '成品制作，已完成', exact: true }).click();
+  await dialog.getByRole('button', { name: '切换阶段', exact: true }).click();
+  await expect(input).toHaveCount(0);
+  await page.getByRole('tab', { name: '发布文案', exact: true }).click();
+  await page.getByRole('radio', { name: '编辑', exact: true }).click();
+  await page.getByLabel('节目摘要', { exact: true }).fill('跨素材切换仍然保留的摘要');
+  await page.getByRole('tab', { name: '封面', exact: true }).click();
+  await page.getByRole('tab', { name: '发布文案', exact: true }).click();
+  await expect(page.getByLabel('节目摘要', { exact: true })).toHaveValue('跨素材切换仍然保留的摘要');
+  await page.getByRole('button', { name: '保存发布文案', exact: true }).click();
+  await expect(page.getByRole('tab', { name: '最终检查', exact: true })).toHaveAttribute(
+    'data-complete',
+    'false',
+  );
+  await page.getByRole('tab', { name: '逐字稿，已完成', exact: true }).click();
+  await expect(page.locator('.studio-transcript')).not.toContainText('留下这个未保存的结尾');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  const nested = await page
+    .locator('.studio-stage')
+    .evaluate(
+      (element) =>
+        [...element.querySelectorAll('*')].filter(
+          (node) =>
+            /auto|scroll/.test(getComputedStyle(node).overflowY) && node.scrollHeight > node.clientHeight + 1,
+        ).length,
+    );
+  expect(nested).toBe(0);
+  await page.screenshot({ path: '.local/studio-mobile-reader.png' });
 });

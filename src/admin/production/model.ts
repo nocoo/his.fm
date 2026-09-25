@@ -17,27 +17,18 @@ export const emptyBrief: ProductionBrief = {
   intent: '',
 };
 export const actionLabels: Record<ProductionAction['action'], string> = {
-  submit_brief: '提交选题审核',
-  approve_brief: '人工确认选题',
-  revise_brief: '退回修改选题',
-  submit_script: '提交逐字稿审核',
-  approve_script: '人工批准逐字稿',
-  revise_script: '退回修改逐字稿',
-  submit_final: '提交成品审核',
-  approve_final: '人工确认全部成品',
-  revise_assets: '退回修改素材',
+  submit_brief: '选题准备就绪',
+  approve_brief: '标记选题完成',
+  revise_brief: '继续调整选题',
+  submit_script: '逐字稿准备就绪',
+  approve_script: '标记逐字稿完成',
+  revise_script: '继续修改逐字稿',
+  submit_final: '标记成品制作完成',
+  approve_final: '标记最终检查完成',
+  revise_assets: '继续调整成品',
   reopen_brief: '重新修改选题',
   reopen_script: '重新修改逐字稿',
   reopen_assets: '重新制作素材',
-};
-export const nextActions: Record<Production['stage'], ProductionAction['action'][]> = {
-  draft: ['submit_brief'],
-  brief_review: ['approve_brief', 'revise_brief'],
-  scripting: ['submit_script'],
-  script_review: ['approve_script', 'revise_script'],
-  production: ['submit_final'],
-  final_review: ['approve_final', 'revise_assets'],
-  ready: [],
 };
 export function readBrief(form: FormData, sources: ProductionBrief['sources']) {
   const text = (key: string) => String(form.get(key) ?? '');
@@ -94,4 +85,37 @@ export function latestPublication(production: Production, platform: Publication[
         !latest || Date.parse(item.publishedAt) > Date.parse(latest.publishedAt) ? item : latest,
       null,
     );
+}
+
+export const studioSteps = ['brief', 'script', 'assets', 'review', 'publish'] as const;
+export type StudioStep = (typeof studioSteps)[number];
+export const stepLabels: Record<StudioStep, string> = {
+  brief: '选题',
+  script: '逐字稿',
+  assets: '成品制作',
+  review: '最终检查',
+  publish: '发布',
+};
+export function currentStep(stage: Production['stage']): StudioStep {
+  if (stage === 'draft' || stage === 'brief_review') return 'brief';
+  if (stage === 'scripting' || stage === 'script_review') return 'script';
+  if (stage === 'production') return 'assets';
+  if (stage === 'final_review') return 'review';
+  return 'publish';
+}
+export function completedSteps(production: Production): Record<StudioStep, boolean> {
+  return {
+    brief: Boolean(production.approvals.brief),
+    script: Boolean(production.approvals.script),
+    assets: ['final_review', 'ready'].includes(production.stage) && !finalMissing(production).length,
+    review: Boolean(production.approvals.final),
+    publish:
+      Boolean(production.approvals.final) &&
+      production.publications.some(
+        (item) => Date.parse(item.confirmedAt) >= Date.parse(production.approvals.final?.at ?? ''),
+      ),
+  };
+}
+export function agentTask(prompt: string, production: Production, base: string): string {
+  return `在本地计算机执行这项 his.fm 节目任务。接口环境：${base}。节目 ID：${production.id}。\n使用已配置的 HISFM_TOKEN，通过 Bearer 认证。不要把 token 写入文稿、日志或回复。先 GET ${base}/api/agent/productions/${encodeURIComponent(production.id)} 取得最新 version 和 stage；写入前检查阶段权限，不要自动重试覆盖版本冲突。尚未完成的前置确认由我在工作室标记，agent 不得代替。更新文本用 PUT 同一节目地址，JSON 为 {"version":最新版本,"字段名":"内容"}；封面用 PUT 同一地址/assets/cover?version=最新版本，Content-Type 使用实际图片类型，请求体为原始文件。draft 可写 sources、intent；scripting 可写 transcript；production 可写 summary、description 或上传封面。若阶段不允许，请让我在页面重新打开对应阶段。完成后停下等待我标记完成，不记录平台发布。\n\n${prompt}`;
 }
