@@ -1,3 +1,4 @@
+import { version } from '../package.json';
 import { accessLogin, authenticate, isLocal, localLogin, logout } from './auth';
 import { getEpisode, listEpisodes, mutateEpisode } from './episodes';
 import { HttpError, json } from './http';
@@ -24,7 +25,7 @@ async function route(request: Request, env: Env): Promise<Response> {
   if (path === '/api/live') {
     if (request.method !== 'GET') throw new HttpError(405, '不支持这个请求方式');
     await env.DB.prepare('SELECT 1').first();
-    return json({ status: 'ok', service: 'his.fm' });
+    return json({ status: 'ok', service: 'his.fm', version, revision: __BUILD_REVISION__ });
   }
   if (path === '/api/episodes') {
     if (request.method !== 'GET') throw new HttpError(405, '不支持这个请求方式');

@@ -1,0 +1,48 @@
+name: Release
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag to redeploy (e.g. v0.1.1)'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  deploy:
+    name: Deploy Worker
+    if: >-
+      github.event_name == 'release' ||
+      github.event_name == 'workflow_dispatch'
+    uses: nocoo/base-ci/.github/workflows/deploy-worker.yml@ad43150de3a2be2fa464b5cd2f921dc4fa9f8f0f # v2026.7
+    with:
+      expected-workflow-path: '.github/workflows/ci.yml'
+      expected-workflow-name: 'CI'
+      tag: ${{ github.event_name == 'release' && github.event.release.tag_name || inputs.tag }}
+      package-version-match: true
+      allowed-source-events: 'push,workflow_dispatch'
+      require-fresh-main: false
+      package-manager: npm
+      runtime-version: '11.19.1'
+      node-version: '26.9.0'
+      install-policy: project
+      build-command: npm run build
+      wrangler-version: '4.140.0'
+      wrangler-config: 'wrangler.jsonc'
+      d1-migrations: true
+      d1-databases: 'his-fm'
+      environment: production
+      concurrency-group: deploy-worker-production
+      timeout-minutes: 15
+      verify-command: node scripts/ci-verify-live.mjs
+      verify-retries: 6
+      verify-retry-seconds: 10
+    secrets:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

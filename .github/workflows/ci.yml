@@ -1,0 +1,29 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    uses: nocoo/base-ci/.github/workflows/quality.yml@ad43150de3a2be2fa464b5cd2f921dc4fa9f8f0f # v2026.7
+    with:
+      package-manager: npm
+      runtime-version: '11.19.1'
+      node-version: '26.9.0'
+      install-policy: project
+      lockfiles: 'package-lock.json'
+      coverage-path: coverage
+      build: true
+      build-command: npm run build
+
+  workflow-lint:
+    uses: nocoo/base-ci/.github/workflows/workflow-lint.yml@ad43150de3a2be2fa464b5cd2f921dc4fa9f8f0f # v2026.7
+    with:
+      required-reusable-workflow: nocoo/base-ci/.github/workflows/quality.yml

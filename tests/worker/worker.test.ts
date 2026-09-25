@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { exportJWK, generateKeyPair, SignJWT } from 'jose';
 import { Miniflare, Response as MiniflareResponse } from 'miniflare';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { version } from '../../package.json';
 import type { Episode, EpisodeInput } from '../../src/shared/episode';
 import worker from '../../worker';
 
@@ -146,7 +147,12 @@ describe('public podcast catalog', () => {
   });
 
   it('checks database liveness and handles public asset and unknown routes', async () => {
-    expect(await (await call('/api/live')).json()).toEqual({ status: 'ok', service: 'his.fm' });
+    expect(await (await call('/api/live')).json()).toEqual({
+      status: 'ok',
+      service: 'his.fm',
+      version,
+      revision: 'test-revision',
+    });
     expect(await (await call('/about')).text()).toContain('his.fm');
     for (const path of ['/api/live', '/api/episodes', '/api/episodes/test']) {
       expect((await call(path, { method: 'POST' })).status).toBe(405);

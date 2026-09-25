@@ -1,6 +1,7 @@
 import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
+  define: { __BUILD_REVISION__: JSON.stringify('test-revision') },
   cacheDir: 'coverage/.vite',
   test: {
     environment: 'node',
