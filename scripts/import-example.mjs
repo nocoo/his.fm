@@ -19,7 +19,7 @@ const production = {
   version: 1,
   stage: 'draft',
   title,
-  slug: 'how-many-ai-tools-after-work',
+  slug: 'how-to-live-better',
   episodeNumber: 1,
   category: 'work',
   tags: ['AI 学习', '工作节奏', '睡眠', '注意力', '休息'],
