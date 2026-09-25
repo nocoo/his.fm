@@ -1,4 +1,5 @@
 import type { Episode, EpisodeInput } from '../shared/episode';
+import { getEnvironment } from './environment';
 
 export type Session = { user: { email: string }; mode: 'local' | 'access' };
 
@@ -12,11 +13,23 @@ export class ApiError extends Error {
   }
 }
 
-export async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const response = await fetch(`/admin/api${path}`, {
+export async function request<T>(
+  path: string,
+  init: RequestInit = {},
+  target: 'selected' | 'local' | 'production' = 'selected',
+): Promise<T> {
+  const remote =
+    import.meta.env.DEV &&
+    target !== 'local' &&
+    (target === 'production' || getEnvironment() === 'production');
+  const response = await fetch(`${remote ? '/admin/remote-api' : '/admin/api'}${path}`, {
     ...init,
     credentials: 'same-origin',
-    headers: { 'Content-Type': 'application/json', ...init.headers },
+    headers: {
+      'Content-Type': 'application/json',
+      ...(remote ? { 'X-Hisfm-Remote': '1' } : {}),
+      ...init.headers,
+    },
   });
   if (!response.ok) {
     let message = response.status === 401 ? '登录已失效，请重新登录' : '暂时无法完成操作，请稍后重试';
@@ -31,9 +44,9 @@ export async function request<T>(path: string, init: RequestInit = {}): Promise<
 }
 
 export const adminService = {
-  session: (signal?: AbortSignal) => request<Session>('/session', { signal }),
-  login: () => request<Session>('/dev-login', { method: 'POST' }),
-  logout: () => request<void>('/logout', { method: 'POST' }),
+  session: (signal?: AbortSignal) => request<Session>('/session', { signal }, 'local'),
+  login: () => request<Session>('/dev-login', { method: 'POST' }, 'local'),
+  logout: () => request<void>('/logout', { method: 'POST' }, 'local'),
   list: (signal?: AbortSignal) => request<{ episodes: Episode[] }>('/episodes', { signal }),
   get: (id: string, signal?: AbortSignal) =>
     request<{ episode: Episode }>(`/episodes/${encodeURIComponent(id)}`, {
@@ -51,3 +64,19 @@ export const adminService = {
     }),
   remove: (id: string) => request<void>(`/episodes/${encodeURIComponent(id)}`, { method: 'DELETE' }),
 };
+
+export async function connectProduction(): Promise<void> {
+  try {
+    await request<Session>('/session', {}, 'production');
+    return;
+  } catch (cause) {
+    if (!(cause instanceof ApiError) || cause.status !== 401) throw cause;
+  }
+  const response = await fetch('/admin/remote-connect', {
+    method: 'POST',
+    credentials: 'same-origin',
+    headers: { 'X-Hisfm-Remote': '1' },
+  });
+  if (!response.ok) throw new ApiError('生产登录未完成，请重试', response.status);
+  await request<Session>('/session', {}, 'production');
+}

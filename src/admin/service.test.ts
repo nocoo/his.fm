@@ -1,10 +1,15 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { getEnvironment, selectEnvironment } from './environment';
 import { emptyEpisode } from './model';
-import { ApiError, adminService, request } from './service';
+import { ApiError, adminService, connectProduction, request } from './service';
 
 const fetchMock = vi.fn<typeof fetch>();
 vi.stubGlobal('fetch', fetchMock);
-afterEach(() => fetchMock.mockReset());
+afterEach(() => {
+  fetchMock.mockReset();
+  vi.unstubAllEnvs();
+  vi.stubGlobal('localStorage', undefined);
+});
 
 function respond(body: unknown, status = 200) {
   fetchMock.mockResolvedValueOnce(
@@ -13,6 +18,60 @@ function respond(body: unknown, status = 200) {
 }
 
 describe('admin transport', () => {
+  it('switches data APIs while keeping local authentication and recovery usable', async () => {
+    const saved = new Map<string, string>();
+    vi.stubGlobal('localStorage', {
+      getItem: (key: string) => saved.get(key),
+      setItem: (key: string, value: string) => saved.set(key, value),
+    });
+    expect(getEnvironment()).toBe('local');
+    selectEnvironment('production');
+    expect(getEnvironment()).toBe('production');
+    respond({ episodes: [] });
+    await adminService.list();
+    expect(fetchMock.mock.calls[0]).toEqual([
+      '/admin/remote-api/episodes',
+      expect.objectContaining({
+        headers: { 'Content-Type': 'application/json', 'X-Hisfm-Remote': '1' },
+      }),
+    ]);
+    respond({ mode: 'local' });
+    await adminService.session();
+    expect(fetchMock.mock.calls[1]?.[0]).toBe('/admin/api/session');
+    selectEnvironment('local');
+    expect(getEnvironment()).toBe('local');
+    vi.stubEnv('DEV', false);
+    expect(getEnvironment()).toBe('production');
+    selectEnvironment('production');
+    expect([...saved.values()]).toEqual(['local']);
+    respond({ episodes: [] });
+    await adminService.list();
+    expect(fetchMock.mock.calls[2]?.[0]).toBe('/admin/api/episodes');
+  });
+  it('uses cached production identity and logs in only when it expires', async () => {
+    respond({ mode: 'access' });
+    await connectProduction();
+    expect(fetchMock).toHaveBeenCalledOnce();
+    respond({ error: 'Expired' }, 401);
+    respond({ connected: true });
+    respond({ mode: 'access' });
+    await connectProduction();
+    expect(fetchMock.mock.calls.map(([path]) => path)).toEqual([
+      '/admin/remote-api/session',
+      '/admin/remote-api/session',
+      '/admin/remote-connect',
+      '/admin/remote-api/session',
+    ]);
+  });
+  it('preserves transport failures and rejected production login', async () => {
+    respond({ error: 'Offline' }, 502);
+    await expect(connectProduction()).rejects.toThrow('Offline');
+    respond({ error: 'Expired' }, 401);
+    respond({}, 401);
+    await expect(connectProduction()).rejects.toThrow('生产登录未完成');
+    fetchMock.mockRejectedValueOnce(new TypeError('Disconnected'));
+    await expect(connectProduction()).rejects.toThrow('Disconnected');
+  });
   it('uses same-origin credentials and JSON content type', async () => {
     respond({ ok: true });
     expect(await request('/test')).toEqual({ ok: true });
