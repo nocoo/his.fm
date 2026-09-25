@@ -248,14 +248,25 @@ function Home() {
   return (
     <>
       <section className="hero">
-        <img
-          className="hero-image"
-          src="https://f.no.mt/images/hero.webp"
-          alt="巨树的树荫下，一个人坐在草地上，望向阳光中的未来城市"
-          width="1536"
-          height="1024"
-          fetchPriority="high"
-        />
+        <picture>
+          <source
+            media="(max-width: 760px)"
+            srcSet="https://f.no.mt/images/hero-retina-20260926-mobile-1168.webp 1168w, https://f.no.mt/images/hero-retina-20260926-mobile-2336.webp 2336w"
+            sizes="(max-width: 480px) 725px, 750px"
+            width="2336"
+            height="2336"
+          />
+          <img
+            className="hero-image"
+            src="https://f.no.mt/images/hero-retina-20260926-1752.webp"
+            srcSet="https://f.no.mt/images/hero-retina-20260926-1752.webp 1752w, https://f.no.mt/images/hero-retina-20260926-3504.webp 3504w"
+            sizes="max(calc(100vw - 48px), 1290px)"
+            alt="巨树的树荫下，一个人坐在草地上，望向阳光中的未来城市"
+            width="3504"
+            height="2336"
+            fetchPriority="high"
+          />
+        </picture>
         <div className="hero-shade" />
         <div className="hero-content">
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.8 }}>
@@ -703,10 +714,12 @@ function About() {
       </section>
       <div className="about-panorama">
         <img
-          src="https://f.no.mt/images/hero.webp"
+          src="https://f.no.mt/images/hero-retina-20260926-1752.webp"
+          srcSet="https://f.no.mt/images/hero-retina-20260926-1752.webp 1752w, https://f.no.mt/images/hero-retina-20260926-3504.webp 3504w"
+          sizes="(max-width: 760px) max(calc(100vw - 24px), 600px), max(calc(100vw - 48px), 780px)"
           alt="大树下的草地与远方的城市"
-          width="1536"
-          height="1024"
+          width="3504"
+          height="2336"
         />
         <span>
           THERE IS LIFE

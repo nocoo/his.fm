@@ -1,0 +1,28 @@
+{
+  "model": "gpt-image-2.5-sunburst",
+  "size": "3504x2336",
+  "quality": "high",
+  "output_format": "png",
+  "n": "1",
+  "provider": "Azure OpenAI",
+  "api": "/images/edits",
+  "reference": "../originals/hero.png",
+  "reference_sha256": "9f9d5e1a1eb9f86b407086c0310da9c7c87019f56a364a757b8697e64ea0e8de",
+  "prompt": "prompt.txt",
+  "original": "original.png",
+  "generated_at_utc": "2026-09-25T22:39:46.438046+00:00",
+  "duration_seconds": 88.16,
+  "usage": {
+    "input_tokens": 1914,
+    "input_tokens_details": {
+      "image_tokens": 1536,
+      "text_tokens": 378
+    },
+    "output_tokens": 3912,
+    "output_tokens_details": {
+      "image_tokens": 3912,
+      "text_tokens": 0
+    },
+    "total_tokens": 5826
+  }
+}

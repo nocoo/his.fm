@@ -1,0 +1,21 @@
+{
+  "size": "1536x1024",
+  "prompt": "prompts/hero.txt",
+  "original": "originals/hero.png",
+  "delivery": "../public/images/hero.webp",
+  "delivery_dimensions": [
+    1536,
+    1024
+  ],
+  "original_bytes": 2908568,
+  "delivery_bytes": 305576,
+  "original_sha256": "9f9d5e1a1eb9f86b407086c0310da9c7c87019f56a364a757b8697e64ea0e8de",
+  "delivery_sha256": "4dbc43447260c4305a889cc869d55d386d8ff1540c6f11c11cae4de271622f3f",
+  "generated_at_utc": "2026-09-25T06:01:53.795079+00:00",
+  "optimization": {
+    "library": "Pillow",
+    "format": "WebP",
+    "quality": 85,
+    "method": 6
+  }
+}

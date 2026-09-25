@@ -3,28 +3,76 @@
   "provider": "Azure OpenAI",
   "quality": "high",
   "reference": "/Users/nocoo/Downloads/X_AltamashAyazz_2102933537284657595_2102809628996481024_thumbnail.png",
-  "reference_usage": "Visually inspected for art direction; text-only generation, not an image edit.",
+  "reference_usage": "Initial assets used this visual direction for text-only generation. The current hero uses its asset-level reference in an actual image edit.",
   "assets": {
     "hero": {
-      "size": "1536x1024",
-      "prompt": "prompts/hero.txt",
-      "original": "originals/hero.png",
-      "delivery": "../public/images/hero.webp",
-      "delivery_dimensions": [
-        1536,
-        1024
-      ],
-      "original_bytes": 2908568,
-      "delivery_bytes": 305576,
-      "original_sha256": "9f9d5e1a1eb9f86b407086c0310da9c7c87019f56a364a757b8697e64ea0e8de",
-      "delivery_sha256": "4dbc43447260c4305a889cc869d55d386d8ff1540c6f11c11cae4de271622f3f",
-      "generated_at_utc": "2026-09-25T06:01:53.795079+00:00",
+      "size": "3504x2336",
+      "prompt": "hero-retina-20260926/prompt.txt",
+      "original": "hero-retina-20260926/original.png",
+      "reference": "originals/hero.png",
+      "generation": "hero-retina-20260926/generation.json",
+      "previous": "hero-retina-20260926/previous.json",
+      "generated_at_utc": "2026-09-25T22:39:46.438046+00:00",
       "optimization": {
-        "library": "Pillow",
+        "library": "Pillow 12.3.0",
         "format": "WebP",
-        "quality": 85,
-        "method": 6
-      }
+        "options": {
+          "quality": 90,
+          "method": 6
+        }
+      },
+      "derivatives": [
+        {
+          "path": "../public/images/hero-retina-20260926-1752.webp",
+          "dimensions": [
+            1752,
+            1168
+          ],
+          "bytes": 726956,
+          "sha256": "5f61a2db31240176d8e5cead241051b9bd2b6ffc7bfe45eaa4619be2e75b7844"
+        },
+        {
+          "path": "../public/images/hero-retina-20260926-3504.webp",
+          "dimensions": [
+            3504,
+            2336
+          ],
+          "bytes": 2094904,
+          "sha256": "0dbec7558416a3424656461fca2efded595083abc5512bdbf7323a76e8d4aa1d"
+        },
+        {
+          "path": "../public/images/hero-retina-20260926-mobile-1168.webp",
+          "dimensions": [
+            1168,
+            1168
+          ],
+          "crop": [
+            1149,
+            0,
+            3485,
+            2336
+          ],
+          "bytes": 509880,
+          "sha256": "d82ce62bc2c544702951e022d515ac8f1c20bf1c14fd7dbbfead84e8f3f0f2f4"
+        },
+        {
+          "path": "../public/images/hero-retina-20260926-mobile-2336.webp",
+          "dimensions": [
+            2336,
+            2336
+          ],
+          "crop": [
+            1149,
+            0,
+            3485,
+            2336
+          ],
+          "bytes": 1510650,
+          "sha256": "75ef45268083971050742d294edb71418c600ef652254b5d6527a7139c98a7a0"
+        }
+      ],
+      "original_bytes": 14535730,
+      "original_sha256": "4ebf2fad6af4b544cc36a1e9d24cb90f0651bbf1fe19b8a566be5890260ac754"
     },
     "episode-01": {
       "size": "1024x1024",
@@ -95,13 +143,14 @@
     "delivery_hero_inspected": true,
     "result": "Approved for website use. Text-free cohesive artwork, composition supports responsive cropping, adult-only human subjects in hero and moonlit meadow.",
     "composition_guidance": {
-      "hero": "Keep image position center; dark left half supports large cream typography. Human subject at approximately 74% horizontal and 64% vertical.",
+      "hero": "Full landscape: subject at 74% horizontal, 64% vertical. Square mobile derivative: subject at 61.8% horizontal; preserve object-position 61.8% center. Responsive sizes include object-fit: cover height.",
       "episode-01": "Botanical headphones; centered focal object.",
       "episode-02": "Lilac glass sculpture on chartreuse pedestal; centered focal object.",
       "episode-03": "Moonlit meadow; adult figure at approximately 75% horizontal and 61% vertical."
     }
   },
   "generation_notes": [
-    "Three initial requests succeeded. The episode-01 request received HTTP 429 and was retried with the same Sunburst model after the indicated delay; retry succeeded. No model substitution."
+    "Three initial requests succeeded. The episode-01 request received HTTP 429 and was retried with the same Sunburst model after the indicated delay; retry succeeded. No model substitution.",
+    "Retina hero: reference-image edit of the approved original with Sunburst at native 3504x2336. Generation record and previous asset manifest are archived in hero-retina-20260926/."
   ]
 }

@@ -83,3 +83,9 @@ The first inventory integration test expected a requested 200-object page to con
 The first full Chrome run overlapped with a focused WebKit run using the same Playwright output directory. WebKit initialization removed Chrome's trace files, causing an `ENOENT` during test-context teardown despite the channel assertions succeeding. Run browser suites sequentially when they share reports, traces or writable local fixtures; parallel execution requires separate artifact directories and independent data. No application code change was needed for this harness failure.
 
 The first staged gate correctly blocked a pagination test whose 205 real Miniflare R2 writes exceeded Vitest’s default five-second case timeout under concurrent browser load. That I/O-heavy case now has an explicit 15-second limit; assertions, coverage floors and the normal commit hook are unchanged.
+
+## 2026-09-26 — Budget hero resolution for physical pixels and cover cropping
+
+The initial 1536×1024 hero looked soft on MacBook Retina displays: its width supplied only 46–53% of the required physical pixels. CDN bytes matched the local file, so recompression was not the cause. A reference-image edit now supplies native 3504×2336 detail, with separately cropped mobile derivatives and immutable CDN keys. Inspect the native file behind `currentSrc`, account for DPR and both axes of `object-fit: cover`, and check composition before publishing. Width-only `sizes` on a tall mobile crop would select an undersized image even with a high-resolution original available.
+
+The browser diagnostic initially compared the serialized object-position string exactly; WebKit returned `61.799999%` for `61.8%`. It now compares the numeric position within a small tolerance. Cross-engine geometry checks should test visual constraints rather than floating-point serialization.

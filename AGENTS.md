@@ -63,6 +63,6 @@ Install through an allowed registry on this machine. Never retry blocked `regist
 - The existing Access application protects `his.fm/admin`; descendant paths inherit its policy unless a more specific application overrides them.
 - `run_worker_first` covers `/admin`, `/admin/*`, `/api/*`, `/media/*`, `/.well-known/api-catalog` and `/llms.txt`.
 - Deploy through published GitHub Releases and pinned `nocoo/base-ci`; use Vite's generated `dist/his_fm/wrangler.json`, never the source configuration as a deploy override. Verify `/api/live` against the exact release version and revision.
-- R2 image keys are `images/hero.webp` and `images/episode-01.webp` through `episode-03.webp`. `/media/*` serves configured R2 objects; the owner manages the CDN domain.
+- Active hero assets use immutable `images/hero-retina-20260926-*.webp` keys; original artwork and derivative provenance live in `artwork/manifest.json`. Mobile `picture` crops place the subject at 61.8%; `sizes` must account for the full rendered image under `object-fit: cover`, including its height. Episode images use `images/episode-01.webp` through `episode-03.webp`. `/media/*` serves configured R2 objects; the owner manages the CDN domain.
 
 See `docs/architecture.md` and `docs/operations.md` for contracts and operating steps.

@@ -1291,7 +1291,6 @@ html:has(.public-site) body {
     height: 750px;
     min-height: 0;
     max-height: none;
-    container-type: inline-size;
   }
   .public-site .hero-content {
     padding: 42px 28px;
@@ -1304,8 +1303,7 @@ html:has(.public-site) body {
     margin-bottom: 26px;
   }
   .public-site .hero-image {
-    /* The source subject at 74% lands on the viewport's 61.8% golden line. */
-    object-position: calc(74% - 12.2cqw) center;
+    object-position: 61.8% center;
     transform-origin: 61.8% 61.8%;
   }
   .public-site .hero-shade {
