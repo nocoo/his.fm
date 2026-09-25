@@ -1,0 +1,67 @@
+import type { Actor, Production } from '../../src/shared/production';
+
+export const human: Actor = { kind: 'human', name: 'editor@his.fm' };
+export const agent: Actor = { kind: 'agent', name: 'Hermes (test-token)' };
+export const brief = {
+  title: '下一条提示之前，先吃饭',
+  slug: 'dinner-before-the-prompt',
+  episodeNumber: 8,
+  category: 'life' as const,
+  tags: ['日常'],
+  targetDurationSeconds: 600,
+  sources: [{ type: 'text' as const, title: '观察笔记', content: '一段可核实的成年程序员日常材料。' }],
+  intent: '从晚饭被工作消息打断的场景切入。',
+};
+export function fixture(changes: Partial<Production> = {}): Production {
+  const now = '2026-09-25T00:00:00.000Z';
+  return {
+    ...brief,
+    id: 'production-test',
+    version: 1,
+    stage: 'draft',
+    transcript: '',
+    scriptVersion: 0,
+    description: '',
+    summary: '',
+    assets: { cover: null, audio: null },
+    approvals: { brief: null, script: null, final: null },
+    audioJob: null,
+    publications: [],
+    events: [],
+    createdAt: now,
+    updatedAt: now,
+    ...changes,
+  };
+}
+export function readyFixture(changes: Partial<Production> = {}): Production {
+  const approval = { at: '2026-09-25T00:00:00.000Z', by: human.name };
+  return fixture({
+    stage: 'ready',
+    scriptVersion: 1,
+    transcript: '这里是 his.fm。今晚先好好吃饭。',
+    description: '从一顿晚饭聊工作边界。',
+    summary: '今晚先好好吃饭。',
+    approvals: { brief: approval, script: approval, final: approval },
+    assets: {
+      cover: {
+        key: 'cover.png',
+        url: 'https://f.no.mt/cover.png',
+        mimeType: 'image/png',
+        size: 100,
+        scriptVersion: 1,
+        createdAt: approval.at,
+      },
+      audio: {
+        key: 'audio.wav',
+        url: 'https://f.no.mt/audio.wav',
+        mimeType: 'audio/wav',
+        size: 1000,
+        scriptVersion: 1,
+        createdAt: approval.at,
+        durationSeconds: 600,
+      },
+    },
+    audioJob: { id: 'job-1', status: 'complete', scriptVersion: 1, createdAt: approval.at, error: null },
+    ...changes,
+  });
+}

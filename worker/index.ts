@@ -1,7 +1,10 @@
 import { version } from '../package.json';
+import { authenticateAgent, routeAgentTokens } from './agent-tokens';
+import { routeAudio } from './audio-routes';
 import { accessLogin, authenticate, isLocal, localLogin, logout } from './auth';
 import { getEpisode, listEpisodes, mutateEpisode } from './episodes';
-import { HttpError, json } from './http';
+import { HttpError, json, requireSameOrigin } from './http';
+import { routeProductions } from './production';
 
 async function media(request: Request, env: Env) {
   if (request.method !== 'GET' && request.method !== 'HEAD') throw new HttpError(405, '不支持这个请求方式');
@@ -22,6 +25,15 @@ async function media(request: Request, env: Env) {
 async function route(request: Request, env: Env): Promise<Response> {
   const url = new URL(request.url);
   const path = url.pathname;
+  if (path.startsWith('/api/agent/')) {
+    const actor = await authenticateAgent(request, env);
+    const suffix = path.slice('/api/agent'.length);
+    const response =
+      (await routeAudio(request, env, suffix, actor)) ??
+      (await routeProductions(request, env, suffix, actor));
+    if (response) return response;
+    throw new HttpError(404, '接口不存在');
+  }
   if (path === '/api/live') {
     if (request.method !== 'GET') throw new HttpError(405, '不支持这个请求方式');
     await env.DB.prepare('SELECT 1').first();
@@ -45,6 +57,19 @@ async function route(request: Request, env: Env): Promise<Response> {
       if (!isLocal(request, env)) return accessLogin();
       return env.ASSETS.fetch(request);
     }
+    if (
+      api &&
+      (path.startsWith('/admin/api/productions') || path.startsWith('/admin/api/production-settings'))
+    ) {
+      if (!['GET', 'HEAD'].includes(request.method)) requireSameOrigin(request);
+      const actor = { kind: 'human' as const, name: session.user.email };
+      const suffix = path.slice('/admin/api'.length);
+      const response =
+        (await routeAudio(request, env, suffix, actor)) ??
+        (await routeProductions(request, env, suffix, actor));
+      if (response) return response;
+    }
+    if (path.startsWith('/admin/api/agent-tokens')) return routeAgentTokens(request, env, path);
     if (path === '/admin/api/session' && request.method === 'GET') return json(session);
     if (path === '/admin/api/logout' && request.method === 'POST') return logout(request, env);
     if (path === '/admin/api/episodes') {

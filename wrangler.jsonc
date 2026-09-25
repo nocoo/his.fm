@@ -1,24 +1,63 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "his-fm",
-  "main": "worker/index.ts",
+  "main": "worker/entry.ts",
   "compatibility_date": "2026-09-24",
-  "compatibility_flags": ["nodejs_compat"],
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
   "workers_dev": false,
   "preview_urls": false,
-  "routes": [{ "pattern": "his.fm", "custom_domain": true }],
+  "routes": [
+    {
+      "pattern": "his.fm",
+      "custom_domain": true
+    }
+  ],
   "assets": {
     "binding": "ASSETS",
     "not_found_handling": "single-page-application",
-    "run_worker_first": ["/api/*", "/admin", "/admin/*", "/media/*"]
+    "run_worker_first": [
+      "/api/*",
+      "/admin",
+      "/admin/*",
+      "/media/*"
+    ]
   },
-  "vars": { "ENVIRONMENT": "production" },
-  "d1_databases": [{
-    "binding": "DB",
-    "database_name": "his-fm",
-    "database_id": "66f7e201-22a8-450d-838d-ecbc382afbc6",
-    "migrations_dir": "migrations"
-  }],
-  "r2_buckets": [{ "binding": "MEDIA", "bucket_name": "his-fm" }],
-  "observability": { "enabled": true }
+  "vars": {
+    "ENVIRONMENT": "production",
+    "MEDIA_BASE_URL": "https://f.no.mt"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "his-fm",
+      "database_id": "66f7e201-22a8-450d-838d-ecbc382afbc6",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "MEDIA",
+      "bucket_name": "his-fm"
+    }
+  ],
+  "observability": {
+    "enabled": true
+  },
+  "workflows": [
+    {
+      "binding": "AUDIO_WORKFLOW",
+      "name": "his-fm-audio",
+      "class_name": "AudioWorkflow"
+    }
+  ],
+  "version_metadata": {
+    "binding": "BUILD_INFO"
+  },
+  "secrets": {
+    "required": [
+      "GEMINI_API_KEY"
+    ]
+  }
 }

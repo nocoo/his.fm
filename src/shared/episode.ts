@@ -56,6 +56,7 @@ export type EpisodeInput = z.infer<typeof episodeInputSchema>;
 
 export type Episode = EpisodeInput & {
   id: string;
+  sourceProductionId?: string | null;
   createdAt: string;
   updatedAt: string;
 };

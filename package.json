@@ -24,6 +24,7 @@
     "@nocoo/basalt": "2.1.8",
     "jose": "6.2.12",
     "lucide-react": "1.47.0",
+    "marked": "18.0.13",
     "motion": "13.4.0",
     "react": "19.3.0",
     "react-dom": "19.3.0",

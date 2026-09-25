@@ -14,6 +14,7 @@ for (const args of [
     'wrangler.local.jsonc',
   ],
   ['scripts/seed-local.mjs'],
+  ['scripts/import-example.mjs', '--local'],
 ]) {
   const result = spawnSync(process.execPath, args, { stdio: 'inherit' });
   if (result.error) throw result.error;

@@ -1,21 +1,53 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "his-fm-local",
-  "main": "worker/index.ts",
+  "main": "worker/entry.ts",
   "compatibility_date": "2026-09-24",
-  "compatibility_flags": ["nodejs_compat"],
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
   "workers_dev": false,
   "assets": {
     "binding": "ASSETS",
     "not_found_handling": "single-page-application",
-    "run_worker_first": ["/api/*", "/admin", "/admin/*", "/media/*"]
+    "run_worker_first": [
+      "/api/*",
+      "/admin",
+      "/admin/*",
+      "/media/*"
+    ]
   },
-  "vars": { "ENVIRONMENT": "local" },
-  "d1_databases": [{
-    "binding": "DB",
-    "database_name": "his-fm",
-    "database_id": "his-fm-local",
-    "migrations_dir": "migrations"
-  }],
-  "r2_buckets": [{ "binding": "MEDIA", "bucket_name": "his-fm" }]
+  "vars": {
+    "ENVIRONMENT": "local",
+    "MEDIA_BASE_URL": "/media"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "his-fm",
+      "database_id": "his-fm-local",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "MEDIA",
+      "bucket_name": "his-fm"
+    }
+  ],
+  "workflows": [
+    {
+      "binding": "AUDIO_WORKFLOW",
+      "name": "his-fm-audio-local",
+      "class_name": "AudioWorkflow"
+    }
+  ],
+  "version_metadata": {
+    "binding": "BUILD_INFO"
+  },
+  "secrets": {
+    "required": [
+      "GEMINI_API_KEY"
+    ]
+  }
 }

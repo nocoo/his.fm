@@ -14,6 +14,7 @@ type EpisodeRow = Omit<
   | 'tags'
   | 'featured'
 > & {
+  source_production_id: string | null;
   episode_number: number;
   show_notes: string;
   cover_url: string;
@@ -29,6 +30,7 @@ type EpisodeRow = Omit<
 function fromRow(row: EpisodeRow): Episode {
   return {
     id: row.id,
+    sourceProductionId: row.source_production_id,
     slug: row.slug,
     episodeNumber: row.episode_number,
     title: row.title,
@@ -129,6 +131,14 @@ function inputValues(input: EpisodeInput) {
 
 export async function mutateEpisode(request: Request, db: D1Database, id?: string) {
   requireSameOrigin(request);
+  if (id) {
+    const record = await db
+      .prepare('SELECT source_production_id FROM episodes WHERE id = ?')
+      .bind(id)
+      .first<{ source_production_id: string | null }>();
+    if (record?.source_production_id)
+      throw new HttpError(409, '这期节目由制作流程管理，请进入制作任务修改和重新审核');
+  }
   if (request.method === 'DELETE' && id) {
     const deleted = await db.prepare('DELETE FROM episodes WHERE id = ? RETURNING id').bind(id).first();
     if (!deleted) throw new HttpError(404, '这期节目不存在');

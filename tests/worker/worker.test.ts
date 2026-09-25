@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { exportJWK, generateKeyPair, SignJWT } from 'jose';
 import { Miniflare, Response as MiniflareResponse } from 'miniflare';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -97,13 +97,17 @@ beforeAll(async () => {
     ],
   });
   env = await miniflare.getBindings<Env>();
-  const migration = readFileSync(new URL('../../migrations/0001_episodes.sql', import.meta.url), 'utf8');
-  await env.DB.batch(
-    migration
-      .split(';')
-      .filter((statement) => statement.trim())
-      .map((statement) => env.DB.prepare(statement)),
-  );
+  const directory = new URL('../../migrations/', import.meta.url);
+  for (const name of readdirSync(directory)
+    .filter((name) => name.endsWith('.sql'))
+    .sort()) {
+    await env.DB.batch(
+      readFileSync(new URL(name, directory), 'utf8')
+        .split(';')
+        .filter((statement) => statement.trim())
+        .map((statement) => env.DB.prepare(statement)),
+    );
+  }
   const keyPair = await generateKeyPair('RS256', { extractable: true });
   privateKey = keyPair.privateKey;
   const publicJwk = await exportJWK(keyPair.publicKey);
