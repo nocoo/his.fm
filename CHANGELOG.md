@@ -2,6 +2,25 @@
 
 All notable changes to his.fm are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html) with the authoritative version in `package.json`.
 
+## 1.1.0 - 2026-09-25
+
+### Added
+
+- Five freely navigable production stages with green completion markers, bottom completion actions and explicit reopening for local agent revisions.
+- Ready-to-copy local agent tasks with the selected environment, production ID, API instructions and saved source/intent context.
+- Private xray-style Chinese long-form review typography, safe Markdown rendering and content-sized editing fields.
+
+### Changed
+
+- Owner brief and script completion save content and transition atomically, without a separate editorial submission step.
+- Earlier edits revoke dependent confirmations while preserving existing scripts, media and publication history; agent permission boundaries remain unchanged.
+- Show one production stage at a time, with separate cover/copy/audio tasks, clear execution locations and mobile layouts without nested text scrolling.
+
+### Validation
+
+- 162 unit tests and 14 browser scenarios passed; all four L1 coverage metrics exceed 95%.
+- Chrome and WebKit verified private fonts, mobile reading, growing text fields and light/dark presentation.
+
 ## 1.0.0 - 2026-09-25
 
 ### Added
