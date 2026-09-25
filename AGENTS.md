@@ -45,6 +45,8 @@ Install through an allowed registry on this machine. Never retry blocked `regist
 
 ## Quality and Git
 
+- Every subsequent deployment increments only the patch version: `X.Y.Z` → `X.Y.(Z+1)`. Change the major or minor version only when the owner explicitly requests it.
+- Features, database migrations, authentication changes, diff size and elapsed time must not trigger automatic major/minor bumps. This project rule overrides generic release-skill version selection.
 - L1 checks meaningful Worker, schema, model and service behavior with Vitest. All four coverage floors are 95%; React views and generated platform declarations are excluded from unit coverage.
 - Biome uses its maintained recommended preset and rejects warnings. TypeScript is strict.
 - Husky runs checks against the Git index snapshot, without changing the working tree or restaging fixes. Stage explicit paths, then commit through the normal hook.
