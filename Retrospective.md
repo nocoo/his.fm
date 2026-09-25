@@ -49,3 +49,7 @@ The initial cloud audio route required both bumper uploads, preventing a complet
 Expanding the voice list from six to thirty exposed an unbounded Basalt Select viewport on phones. The installed component supports a custom content class, so the shared studio choice now bounds its native viewport using Radix's available-height variable. Mobile acceptance selects voices near the end of the list rather than testing only the initially visible options.
 
 A browser regression also caught duplicate React roots after Vite invalidation. Declaring lazy components inside the bootstrap made the React plugin inject a timestamped self-import, evaluating `createRoot` twice. Routing and lazy components now live in an exported `App`; the bootstrap only creates the root. The full workflow's page-error assertion is retained.
+
+## 2026-09-25 — Match browser chrome to the active site surface
+
+The public Safari color fix left one public-paper theme-color on admin routes and an unpainted admin document canvas. Admin now uses the installed Basalt background token for the document, body and safe areas, synchronizes theme-color when the provider changes mode, and restores the public color on leaving the studio. Browser acceptance must cover dark mode, reload and client-side navigation between public and admin views, rather than checking only the visible content island.

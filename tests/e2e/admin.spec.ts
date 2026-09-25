@@ -15,6 +15,16 @@ async function responseStatus(page: Page, path: string, method = 'GET') {
   return page.evaluate(async ({ path, method }) => (await fetch(path, { method })).status, { path, method });
 }
 
+async function browserCanvas(page: Page) {
+  return page.evaluate(() => ({
+    theme: document.querySelector('meta[name="theme-color"]')?.getAttribute('content'),
+    root: getComputedStyle(document.documentElement).backgroundColor,
+    body: getComputedStyle(document.body).backgroundColor,
+    scheme: getComputedStyle(document.documentElement).colorScheme,
+    shell: getComputedStyle(document.querySelector('.admin-shell') ?? document.body).backgroundColor,
+  }));
+}
+
 test('editor can create, edit, publish, delete and log out', async ({ page, browser }) => {
   const slug = `e2e-${randomUUID()}`;
   const title = `验收专用节目 ${slug}`;
@@ -110,6 +120,13 @@ test.describe('phone workspace', () => {
 
   test('navigation closes, restores focus and the theme persists', async ({ page }) => {
     await login(page);
+    const light = await browserCanvas(page);
+    expect(light).toMatchObject({
+      theme: light.shell,
+      root: light.shell,
+      body: light.shell,
+      scheme: 'light',
+    });
     await mkdir('.local', { recursive: true });
     const menu = page.getByRole('button', { name: '打开导航', exact: true });
     await menu.click();
@@ -129,10 +146,27 @@ test.describe('phone workspace', () => {
     await expect.poll(() => page.evaluate(() => localStorage.getItem('hisfm-theme'))).toBe('light');
     await page.getByRole('button', { name: '切换主题', exact: true }).click();
     await expect(page.locator('html')).toHaveClass(/dark/);
+    await expect.poll(async () => (await browserCanvas(page)).scheme).toBe('dark');
+    const dark = await browserCanvas(page);
+    expect(dark).toMatchObject({ theme: dark.shell, root: dark.shell, body: dark.shell });
+    expect(dark.root).not.toBe(light.root);
     await page.screenshot({ path: '.local/admin-mobile-dark.png', fullPage: true, animations: 'disabled' });
     await page.reload();
     await expect(page.locator('html')).toHaveClass(/dark/);
+    await expect.poll(async () => (await browserCanvas(page)).theme).toBe(dark.root);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    await menu.click();
+    await drawer.getByRole('link', { name: 'his.fm 首页', exact: true }).click();
+    await expect(page.locator('.public-site')).toBeVisible();
+    expect(await browserCanvas(page)).toMatchObject({
+      theme: '#f3f3ec',
+      root: 'rgb(243, 243, 236)',
+      body: 'rgb(243, 243, 236)',
+      scheme: 'light',
+    });
+    await page.goBack();
+    await expect(page.locator('.admin-shell')).toBeVisible();
+    await expect.poll(async () => (await browserCanvas(page)).theme).toBe(dark.root);
     await page.getByRole('button', { name: '切换主题', exact: true }).click();
     await expect(page.locator('html')).not.toHaveClass(/dark/);
     await page.screenshot({ path: '.local/admin-mobile-light.png', fullPage: true, animations: 'disabled' });

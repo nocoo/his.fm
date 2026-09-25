@@ -3,7 +3,7 @@ import { Button, LinkProvider, ThemeProvider, Toaster, TooltipProvider } from '@
 import { LoadingScreen } from '@nocoo/basalt/components/loading-screen';
 import { AccentProvider } from '@nocoo/basalt/providers/accent';
 import type { ReactNode } from 'react';
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useState } from 'react';
 import { Link, Navigate, Route, Routes } from 'react-router';
 import { AdminShell } from './AdminShell';
 import { EpisodeEditor } from './EpisodeEditor';
@@ -40,6 +40,18 @@ function RouterLink({
 }
 
 function AdminProviders({ children }: { children: ReactNode }) {
+  useLayoutEffect(() => {
+    const root = document.documentElement;
+    const meta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
+    const sync = () => meta?.setAttribute('content', getComputedStyle(root).backgroundColor);
+    const observer = new MutationObserver(sync);
+    observer.observe(root, { attributes: true, attributeFilter: ['class', 'data-mode'] });
+    sync();
+    return () => {
+      observer.disconnect();
+      meta?.setAttribute('content', getComputedStyle(root).getPropertyValue('--public-paper').trim());
+    };
+  }, []);
   return (
     <ThemeProvider storageKey="hisfm-theme" defaultTheme="system">
       <AccentProvider defaultAccent="green" storageKey="hisfm-accent">
