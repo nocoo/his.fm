@@ -348,7 +348,7 @@ test('audio settings preserve failed uploads and assistant tokens are revocable 
   await page.getByRole('button', { name: '上传片头', exact: true }).click();
   await expect(page.getByText('上传失败，请重试', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: '上传片头', exact: true }).click();
-  await expect(page.locator('audio')).toHaveCount(1);
+  await expect(page.locator('audio[src="/media/intro.wav"]')).toBeVisible();
   await page.getByLabel('助手名称').fill('Hermes');
   await page.getByLabel('有效天数').fill('7');
   await page.getByRole('button', { name: '创建助手令牌', exact: true }).click();

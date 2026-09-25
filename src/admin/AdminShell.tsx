@@ -23,6 +23,7 @@ import { AppMain, AppShell, AppSkipLink } from '@nocoo/basalt/components/app-she
 import {
   ArrowUpRight,
   AudioLines,
+  Compass,
   GitBranch,
   Headphones,
   Library,
@@ -59,23 +60,26 @@ export function AdminShell({ session, children }: { session: Session; children: 
   const isList = location.pathname === '/admin' || location.pathname === '/admin/';
   const catalog = location.pathname === '/admin/catalog' || location.pathname.startsWith('/admin/episodes/');
   const settings = location.pathname === '/admin/settings';
+  const channel = location.pathname === '/admin/channel';
   const voiceReference = location.pathname === '/admin/voices';
   const creating = location.pathname === '/admin/productions/new';
-  const title = isList
-    ? '制作中的节目'
-    : voiceReference
-      ? '音色参考'
-      : settings
-        ? '工作室设置'
-        : catalog
-          ? location.pathname === '/admin/catalog'
-            ? '节目目录'
-            : location.pathname.endsWith('/new')
-              ? '新建节目'
-              : '编辑节目'
-          : creating
-            ? '新建制作'
-            : '节目制作';
+  const title = channel
+    ? '频道定位'
+    : isList
+      ? '制作中的节目'
+      : voiceReference
+        ? '音色参考'
+        : settings
+          ? '工作室设置'
+          : catalog
+            ? location.pathname === '/admin/catalog'
+              ? '节目目录'
+              : location.pathname.endsWith('/new')
+                ? '新建节目'
+                : '编辑节目'
+            : creating
+              ? '新建制作'
+              : '节目制作';
   function go(path: string) {
     navigate(path);
     if (compact) setCollapsed(true);
@@ -96,7 +100,7 @@ export function AdminShell({ session, children }: { session: Session; children: 
       href: '/admin',
       label: '制作中的节目',
       icon: Mic2,
-      active: isList || (!catalog && !settings && !creating && !voiceReference),
+      active: isList || (!catalog && !settings && !creating && !voiceReference && !channel),
     },
     { href: '/admin/catalog', label: '节目目录', icon: Library, active: catalog },
     {
@@ -106,6 +110,7 @@ export function AdminShell({ session, children }: { session: Session; children: 
       active: creating,
     },
     { href: '/admin/settings', label: '工作室设置', icon: Settings, active: settings },
+    { href: '/admin/channel', label: '频道定位', icon: Compass, active: channel },
     { href: '/admin/voices', label: '音色参考', icon: Headphones, active: voiceReference },
   ];
   return (
@@ -204,7 +209,7 @@ export function AdminShell({ session, children }: { session: Session; children: 
           <AppHeader
             title={title}
             breadcrumbs={
-              isList || settings || voiceReference || location.pathname === '/admin/catalog'
+              isList || settings || channel || voiceReference || location.pathname === '/admin/catalog'
                 ? []
                 : [
                     {

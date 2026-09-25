@@ -3,7 +3,7 @@ import { Button, LinkProvider, ThemeProvider, Toaster, TooltipProvider } from '@
 import { LoadingScreen } from '@nocoo/basalt/components/loading-screen';
 import { AccentProvider } from '@nocoo/basalt/providers/accent';
 import type { ReactNode } from 'react';
-import { useEffect, useLayoutEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useLayoutEffect, useState } from 'react';
 import { Link, Navigate, Route, Routes } from 'react-router';
 import { AdminShell } from './AdminShell';
 import { EpisodeEditor } from './EpisodeEditor';
@@ -18,6 +18,8 @@ import { VoiceReferences } from './production/VoiceReferences';
 import { ApiError, adminService, type Session } from './service';
 import './admin.css';
 import './production/production.css';
+
+const ChannelPage = lazy(() => import('./channel/ChannelPage'));
 
 function RouterLink({
   href,
@@ -120,6 +122,14 @@ function SessionGate() {
         <Route path="productions/new" element={<NewProduction />} />
         <Route path="productions/:id" element={<ProductionEditor />} />
         <Route path="settings" element={<StudioSettings />} />
+        <Route
+          path="channel"
+          element={
+            <Suspense fallback={<LoadingScreen label="正在打开频道定位" />}>
+              <ChannelPage />
+            </Suspense>
+          }
+        />
         <Route path="voices" element={<VoiceReferences />} />
         <Route path="episodes/new" element={<EpisodeEditor />} />
         <Route path="episodes/:id" element={<EpisodeEditor />} />

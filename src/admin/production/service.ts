@@ -16,6 +16,9 @@ const path = (id: string) => `/productions/${encodeURIComponent(id)}`;
 const json = (method: string, body: unknown): RequestInit => ({ method, body: JSON.stringify(body) });
 type Result = { production: Production };
 export const productionService = {
+  channel: (signal?: AbortSignal) => request<{ channel: ChannelProfile }>('/channel', { signal }),
+  saveChannel: (input: Pick<ChannelProfile, 'version' | 'content'>) =>
+    request<{ channel: ChannelProfile }>('/channel', json('PUT', input)),
   list: (signal?: AbortSignal) => request<{ productions: Production[] }>('/productions', { signal }),
   get: (id: string, signal?: AbortSignal) => request<Result>(path(id), { signal }),
   create: (brief: ProductionBrief) => request<Result>('/productions', json('POST', brief)),
@@ -61,3 +64,5 @@ export const productionService = {
     ),
   revokeToken: (id: string) => request<void>(`/agent-tokens/${encodeURIComponent(id)}`, { method: 'DELETE' }),
 };
+
+import type { ChannelProfile } from '../../shared/channel';

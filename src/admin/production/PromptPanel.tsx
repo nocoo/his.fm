@@ -45,7 +45,19 @@ export function PromptPanel({
     <div className="studio-prompt studio-stack">
       <div className="studio-row">
         <p className="admin-muted">本地计算机 · Hermes / Codex{kind === 'cover' ? ' · GPT Image 2.5' : ''}</p>
-        <CopyButton label={`复制${names[kind]}任务`} disabled={!prompt || dirty} read={() => task} />
+        <CopyButton
+          label={`复制${names[kind]}任务`}
+          disabled={!prompt || dirty}
+          read={async () => {
+            const prompts = await productionService.prompts(production.id);
+            setResult({ version: production.version, prompts });
+            return agentTask(
+              prompts[kind],
+              production,
+              getEnvironment() === 'production' ? 'https://his.fm' : window.location.origin,
+            );
+          }}
+        />
       </div>
       {dirty && <p className="admin-muted">先保存改动，提示词会使用最新内容。</p>}
       {error && <Failure error={error} retry={() => setRetry((value) => value + 1)} />}

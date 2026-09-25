@@ -107,7 +107,7 @@ beforeAll(async () => {
     ],
   });
   env = await miniflare.getBindings<Env>();
-  for (const file of ['0001_episodes.sql', '0003_production.sql']) {
+  for (const file of ['0001_episodes.sql', '0003_production.sql', '0005_channel.sql']) {
     const sql = readFileSync(new URL(`../../migrations/${file}`, import.meta.url), 'utf8');
     await env.DB.batch(
       sql

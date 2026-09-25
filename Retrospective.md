@@ -65,3 +65,13 @@ The studio copied `/api/agent` for Hermes, but the Worker only implemented subor
 ## 2026-09-25 — Confirm the development server before browser checks
 
 The first browser validation run assumed the previous Vite session was still listening. Every navigation failed because Caddy returned 502. Restarting the existing development command restored the site. Check the local health endpoint before starting a browser suite after a session handoff; an old process reference is not evidence of a running server.
+
+## 2026-09-25 — Preserve document drafts independently of save validation
+
+The initial channel editor reused the server's nonempty, 30,000-character schema to restore browser drafts. That discarded a temporarily empty or oversized draft on reload even though the editor claimed it was retained. Draft restoration now validates only the stored shape and version; publication/save constraints apply when saving. Browser checks exercise both unsavable drafts alongside failed saves and version conflicts.
+
+Document-editor acceptance initially clicked the middle of a paragraph while expecting appended text. Rapid native selection changes also reached the next Chrome key event before the editor received `selectionchange`. The test now explicitly moves to the end and waits for the formatting toolbar to reflect the collapsed paragraph selection before the next command. It does not alter editor internals or use timing sleeps. The real-save scenario also waits for completed login navigation before requesting a protected page, preventing WebKit from aborting the login request. Editor configuration is stable across content updates, and changing editability does not emit a false content update.
+
+The full browser suite exposed an older upload assertion that counted every audio element, including a hidden voice-reference player. Its earlier success could precede the upload response and therefore was not evidence that the uploaded bumper appeared. Acceptance now waits for the visible player with the uploaded media URL.
+
+The first patch to that shared-looking assertion matched the earlier final-review test instead of the bumper test. Reviewing the failing source location exposed the mistake; the final-review assertion was restored and the bumper assertion changed with surrounding action lines as patch context. Repeated assertion text is not a unique patch anchor: inspect the resulting diff before starting another suite.

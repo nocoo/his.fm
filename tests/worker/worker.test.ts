@@ -3,6 +3,7 @@ import { exportJWK, generateKeyPair, SignJWT } from 'jose';
 import { Miniflare, Response as MiniflareResponse } from 'miniflare';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { version } from '../../package.json';
+import { channelProfileSchema } from '../../src/shared/channel';
 import type { Episode, EpisodeInput } from '../../src/shared/episode';
 import type { Production } from '../../src/shared/production';
 import worker from '../../worker';
@@ -456,6 +457,113 @@ describe('R2 media', () => {
 });
 
 describe('agent discovery and real bearer routing', () => {
+  it('persists owner positioning, protects private content and injects the latest revision into all tasks', async () => {
+    await env.DB.prepare('DELETE FROM channel_profile').run();
+    const initial = channelProfileSchema.parse(
+      ((await (await call('/admin/api/channel')).json()) as { channel: unknown }).channel,
+    );
+    expect(initial.version).toBe(1);
+    for (const phrase of [
+      '年轻程序员',
+      'well-being',
+      '不谄媚',
+      '政治',
+      '未成年人',
+      '单人播讲',
+      '复述这些原则',
+    ])
+      expect(initial.content).toContain(phrase);
+    expect((await call('/api/agent/channel')).status).toBe(401);
+    const secret = (await (
+      await call('/admin/api/agent-tokens', {
+        method: 'POST',
+        ...body({ name: 'Channel reader', expiresInDays: 1 }),
+      })
+    ).json()) as { token: string };
+    const agentCall = (path: string, options: RequestInit = {}) =>
+      worker.fetch(
+        new Request(`${origin}/api/agent${path}`, {
+          ...options,
+          headers: { ...options.headers, Authorization: `Bearer ${secret.token}` },
+        }),
+        env,
+      );
+    expect(await (await agentCall('/channel')).json()).toEqual({
+      channel: initial,
+      priority: ['channel', 'intent', 'sources'],
+    });
+    for (const method of ['PUT', 'POST', 'DELETE'])
+      expect(
+        (await agentCall('/channel', { method, ...body({ version: 1, content: 'Injected change' }) })).status,
+      ).toBe(403);
+    const changed = await call('/admin/api/channel', {
+      method: 'PUT',
+      ...body({ version: initial.version, content: '## 新的频道定位\n\n自定义定位：从下班后的生活切入。' }),
+    });
+    expect(changed.status).toBe(200);
+    const profile = channelProfileSchema.parse(((await changed.json()) as { channel: unknown }).channel);
+    expect(profile.version).toBe(2);
+    expect(profile.updatedBy).toBe('editor@his.fm');
+    expect(((await (await call('/admin/api/channel')).json()) as { channel: unknown }).channel).toEqual(
+      profile,
+    );
+    expect(
+      (await call('/admin/api/channel', { method: 'PUT', ...body({ version: 1, content: 'Stale version' }) }))
+        .status,
+    ).toBe(409);
+    for (const content of ['', ' ', 'x'.repeat(30001)])
+      expect(
+        (await call('/admin/api/channel', { method: 'PUT', ...body({ version: 2, content }) })).status,
+      ).toBe(400);
+    expect((await call('/admin/api/channel', { method: 'DELETE' })).status).toBe(405);
+    expect(
+      (
+        await worker.fetch(
+          new Request(`${origin}/admin/api/channel`, {
+            method: 'PUT',
+            headers: { Cookie: cookie, Origin: 'https://evil.example', 'Content-Type': 'application/json' },
+            body: JSON.stringify({ version: 2, content: 'Forged' }),
+          }),
+          env,
+        )
+      ).status,
+    ).toBe(403);
+    const created = (await (await agentCall('/productions', { method: 'POST', ...body(brief) })).json()) as {
+      production: Production;
+    };
+    const prompts = (await (
+      await agentCall(`/productions/${created.production.id}/prompts`)
+    ).json()) as Record<string, string>;
+    for (const prompt of Object.values(prompts)) {
+      expect(prompt).toContain('自定义定位');
+      expect(prompt).toContain('版本 2');
+      expect(prompt).not.toContain('有温度，有柔情');
+      expect(prompt.indexOf('自定义定位')).toBeLessThan(prompt.indexOf('"intent"'));
+    }
+    expect(
+      (
+        (await (await agentCall(`/productions/${created.production.id}`)).json()) as {
+          production: Production;
+        }
+      ).production,
+    ).toEqual(created.production);
+    for (const path of [
+      '/api/agent',
+      '/api/agent/instructions',
+      '/api/agent/openapi.json',
+      '/llms.txt',
+      '/.well-known/api-catalog',
+    ])
+      expect(await (await call(path)).text()).not.toContain('自定义定位');
+    expect(await (await agentCall('/capabilities')).json()).toMatchObject({
+      editorial: {
+        priority: ['channel', 'intent', 'sources'],
+        channelUrl: `${origin}/api/agent/channel`,
+        readBeforeEveryTask: true,
+      },
+    });
+    await env.DB.prepare('DELETE FROM channel_profile').run();
+  });
   it('serves the advertised root, RFC catalog, OpenAPI and instructions without exposing private records', async () => {
     for (const path of [
       '/api/agent',

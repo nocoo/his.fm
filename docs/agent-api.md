@@ -15,6 +15,12 @@ Start at `GET /api/agent` (with or without a trailing slash). It returns a publi
 
 Discovery supports GET, HEAD and OPTIONS. Agent API responses carry `Link` headers for service discovery and documentation. Errors retain `error` and add `code` and `documentation`; 401 responses include a Bearer challenge. No MCP, A2A or OAuth endpoints are advertised.
 
+## Channel positioning
+
+Channel positioning is the highest editorial authority, followed by the episode's central intent and then sources. GET `/api/agent/channel` before every creative task; it returns the private Markdown profile, its independent version and the priority order. Agents cannot modify it. Read the complete [editorial authority contract](hermes.md#editorial-authority-channel-first), including conflict handling, freshness and keeping internal principles out of published content. All four production prompts embed the current saved channel profile.
+
+Owners edit `/admin/channel`; GET/PUT `/admin/api/channel` read/save the full Markdown document with optimistic versioning and the existing Access/same-origin protection. Initial content derives from the owner's README principles and is initialized once; later reads or deployments never overwrite saved edits. Changes do not automatically alter existing approvals or media.
+
 ## Authentication
 
 A signed-in human creates a token from the studio. Token management lives under Cloudflare Access at `/admin/api/agent-tokens`:

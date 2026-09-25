@@ -2,6 +2,7 @@ import { Button, Field, Input, LayerCard } from '@nocoo/basalt';
 import { InputArea } from '@nocoo/basalt/components/input-area';
 import { Plus, Trash2 } from 'lucide-react';
 import { useState } from 'react';
+import { Link } from 'react-router';
 import { categories } from '../../shared/episode';
 import type { ProductionBrief } from '../../shared/production';
 import { Choice, Failure } from './controls';
@@ -65,7 +66,12 @@ export function BriefForm({
             <Field
               label="创作意图"
               htmlFor="production-intent"
-              hint="告诉 Hermes 你想表达的观点、目标听众、讲述角度和不想涉及的内容。"
+              hint={
+                <>
+                  先遵循 <Link to="/admin/channel">频道定位</Link>
+                  ，再明确本期中心思想。素材用来支撑这个问题，而不是替你决定讲什么。
+                </>
+              }
             >
               <InputArea
                 className="studio-autosize"

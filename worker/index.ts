@@ -3,6 +3,7 @@ import { discoveryLinks, routeAgent, routeDiscovery } from './agent-api';
 import { routeAgentTokens } from './agent-tokens';
 import { routeAudio } from './audio-routes';
 import { accessLogin, authenticate, isLocal, localLogin, logout } from './auth';
+import { routeChannel } from './channel';
 import { getEpisode, listEpisodes, mutateEpisode } from './episodes';
 import { HttpError, json, requireSameOrigin } from './http';
 import { routeProductions } from './production';
@@ -51,6 +52,10 @@ async function route(request: Request, env: Env): Promise<Response> {
       if (api) throw new HttpError(401, '请先登录管理后台');
       if (!isLocal(request, env)) return accessLogin();
       return env.ASSETS.fetch(request);
+    }
+    if (path === '/admin/api/channel') {
+      if (request.method !== 'GET') requireSameOrigin(request);
+      return routeChannel(request, env, { kind: 'human', name: session.user.email });
     }
     if (
       api &&

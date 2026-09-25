@@ -28,6 +28,7 @@ describe('production service contracts', () => {
       ],
       [() => service.settings(signal), '/production-settings', { settings: { voice: 'Kore' } }],
       [() => service.tokens(signal), '/agent-tokens', { tokens: [] }],
+      [() => service.channel(signal), '/channel', { channel: { version: 1, content: '定位' } }],
     ] as const) {
       response(body);
       expect(await call()).toEqual(body);
@@ -39,6 +40,13 @@ describe('production service contracts', () => {
     expect(fetchMock.mock.calls[4][1]?.signal).toBe(signal);
   });
   it('sends expected versions for mutations, publication and deletion', async () => {
+    response({ channel: { version: 2, content: '新定位' } });
+    await service.saveChannel({ version: 1, content: '新定位' });
+    expect(lastRequest()).toMatchObject({
+      url: '/admin/api/channel',
+      method: 'PUT',
+      body: '{"version":1,"content":"新定位"}',
+    });
     const production = fixture();
     response({ production }, 201);
     expect(await service.create(brief)).toEqual({ production });

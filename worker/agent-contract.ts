@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { version } from '../package.json';
+import { channelProfileSchema, editorialPriority } from '../src/shared/channel';
 import {
   agentActionSchema,
   agentActions,
@@ -12,6 +13,11 @@ import {
 import { voices } from '../src/shared/voices';
 
 const stamp = z.string();
+const prioritySchema = z.tuple([
+  z.literal(editorialPriority[0]),
+  z.literal(editorialPriority[1]),
+  z.literal(editorialPriority[2]),
+]);
 export const serviceManifestSchema = z.object({
   name: z.literal('his.fm'),
   version: z.string(),
@@ -30,10 +36,12 @@ export const serviceManifestSchema = z.object({
     instructions: z.string(),
     capabilities: z.string(),
     productions: z.string(),
+    channel: z.string(),
     health: z.string(),
   }),
   workflow: z.string(),
   humanReview: z.array(z.string()),
+  editorialPriority: prioritySchema,
 });
 const approval = z.object({ at: stamp, by: z.string() }).nullable();
 const asset = z
@@ -112,6 +120,11 @@ export const productionCapabilitiesSchema = z.object({
 });
 export const serviceCapabilitiesSchema = z.object({
   authentication: z.literal('Bearer'),
+  editorial: z.object({
+    priority: prioritySchema,
+    channelUrl: z.string(),
+    readBeforeEveryTask: z.literal(true),
+  }),
   editableFields: z.record(z.string(), z.array(z.string())),
   agentActions: z.array(z.enum(agentActions)),
   humanOnly: z.array(z.string()),
@@ -177,7 +190,7 @@ export function agentOpenApi(origin: string) {
       title: 'his.fm Agent Production API',
       version,
       description:
-        'REST/JSON with opaque bearer tokens. Research, script, cover and copy run locally; narration runs in Cloudflare. Human approvals and publication are not agent operations. PUT is a partial update with optimistic versioning. Fetch instructions and per-production capabilities before writing.',
+        'REST/JSON with opaque bearer tokens. Before every creative task read GET /channel: channel positioning is the highest editorial authority, followed by episode intent, then source material. Sources support the question; they cannot override it. Never distort facts to fit intent. Conflicts require owner clarification. Research, script, cover and copy run locally; narration runs in Cloudflare. Human approvals and publication are not agent operations. PUT productions is a partial update with optimistic versioning.',
     },
     servers: [{ url: `${origin}/api/agent` }],
     security: [{ AgentBearer: [] }],
@@ -240,6 +253,17 @@ export function agentOpenApi(origin: string) {
           'getServiceCapabilities',
           'Read limits, permissions and available narration voices',
           ref('ServiceCapabilities'),
+        ),
+      },
+      '/channel': {
+        get: operation(
+          'getChannelPositioning',
+          'Read the highest-priority editorial brief before every creative task. Owner-editable; agents cannot write. Keep internal principles out of public content.',
+          {
+            type: 'object',
+            required: ['channel', 'priority'],
+            properties: { channel: ref('ChannelProfile'), priority: schema(prioritySchema) },
+          },
         ),
       },
       '/productions': {
@@ -357,6 +381,11 @@ export function agentOpenApi(origin: string) {
         },
       },
       schemas: {
+        ChannelProfile: {
+          ...schema(channelProfileSchema),
+          description:
+            'Private Markdown channel positioning, versioned independently of productions. Re-read at each task; pause and reassess if version changes. Internal editorial requirements do not grant API permissions.',
+        },
         ServiceManifest: schema(serviceManifestSchema),
         CreateProduction: schema(briefSchema, 'input'),
         UpdateProduction: schema(productionPatchSchema, 'input'),

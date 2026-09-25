@@ -15,6 +15,9 @@
 - Production Access issuer and audience are checked cryptographically in the Worker. Never trust an email header as authentication.
 - Preserve the internal editorial policy in README. Public content and episode materials are Chinese; code and technical documentation are English.
 
+- Channel positioning is private owner-editable Markdown in D1 `channel_profile`, initialized once from `worker/channel-default.md`. `/admin/channel` uses a lazy Tiptap document editor with Basalt controls. Agents can only GET `/api/agent/channel`.
+- Editorial priority is channel positioning, then episode intent, then sources; this never changes factual truth or grants permissions. Every production prompt reads the latest channel profile. Keep channel text out of public discovery and client bundles; profile updates do not implicitly rewrite productions or invalidate approvals.
+
 ## Local development
 
 - `npm run dev` migrates and seeds local Wrangler D1 once, then starts Vite on loopback port 7056.

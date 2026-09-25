@@ -1,5 +1,6 @@
 import instructions from '../docs/hermes.md?raw';
 import { version } from '../package.json';
+import { editorialPriority } from '../src/shared/channel';
 import { type Actor, agentActions, agentEditableFields, type Production } from '../src/shared/production';
 import { voiceSamples } from '../src/shared/voice-samples';
 import { voiceCharacters, voices } from '../src/shared/voices';
@@ -8,6 +9,7 @@ import { authenticateAgent } from './agent-tokens';
 import { AUDIO_MODEL } from './audio';
 import { routeAudio } from './audio-routes';
 import { getSettings } from './audio-store';
+import { routeChannel } from './channel';
 import { HttpError, json } from './http';
 import { routeProductions } from './production';
 import { applyAction } from './production-model';
@@ -37,10 +39,12 @@ function manifest(origin: string) {
       instructions: `${base}/instructions`,
       capabilities: `${base}/capabilities`,
       productions: `${base}/productions`,
+      channel: `${base}/channel`,
       health: `${origin}/api/live`,
     },
     workflow: 'draft -> brief_review -> scripting -> script_review -> production -> final_review -> ready',
     humanReview: ['brief', 'script', 'final', 'publication'],
+    editorialPriority,
   };
 }
 
@@ -99,7 +103,7 @@ export function routeDiscovery(request: Request): Response | null {
   } else {
     const text =
       path === '/llms.txt'
-        ? `# his.fm\n\n> Chinese solo podcast production studio.\n\n## Agent API\n\n- [Service discovery](${origin}/api/agent): REST API entrypoint.\n- [OpenAPI 3.1](${origin}/api/agent/openapi.json): Complete machine-readable contract.\n- [Hermes instructions](${origin}/api/agent/instructions): Authentication, stages, examples and review boundaries.\n\nDiscovery is public; all production data requires a studio-issued bearer token. This service does not expose MCP or A2A.\n`
+        ? `# his.fm\n\n> Chinese solo podcast production studio.\n\n## Editorial priority\n\nChannel positioning > episode intent > source material. Authenticated agents must read ${origin}/api/agent/channel before every creative task. Internal positioning is private.\n\n## Agent API\n\n- [Service discovery](${origin}/api/agent): REST API entrypoint.\n- [OpenAPI 3.1](${origin}/api/agent/openapi.json): Complete machine-readable contract.\n- [Hermes instructions](${origin}/api/agent/instructions): Authentication, stages, examples and review boundaries.\n\nDiscovery is public; all production data requires a studio-issued bearer token. This service does not expose MCP or A2A.\n`
         : instructions.replaceAll('https://his.fm', origin);
     response = new Response(text, {
       headers: {
@@ -157,6 +161,11 @@ export async function routeAgent(request: Request, env: Env): Promise<Response> 
   const headers: Record<string, string> = { Link: discoveryLinks(url.origin) };
   try {
     const actor = await authenticateAgent(request, env);
+    if (path === '/channel') {
+      const response = await routeChannel(request, env, actor);
+      response.headers.set('Link', headers.Link);
+      return response;
+    }
     if (path === '/me' || path === '/capabilities' || /^\/productions\/[^/]+\/capabilities$/.test(path)) {
       if (request.method !== 'GET') throw new HttpError(405, '此接口只支持 GET');
       if (path === '/me') return json({ actor }, 200, headers);
@@ -170,9 +179,14 @@ export async function routeAgent(request: Request, env: Env): Promise<Response> 
       return json(
         {
           authentication: 'Bearer',
+          editorial: {
+            priority: editorialPriority,
+            channelUrl: `${url.origin}/api/agent/channel`,
+            readBeforeEveryTask: true,
+          },
           editableFields: agentEditableFields,
           agentActions,
-          humanOnly: ['approval', 'revision', 'reopening', 'settings', 'tokens', 'publication'],
+          humanOnly: ['approval', 'revision', 'reopening', 'channel', 'settings', 'tokens', 'publication'],
           limits: { jsonBytes: 750000, coverBytes: 8388608, auditEvents: 200 },
           audio: {
             model: AUDIO_MODEL,
