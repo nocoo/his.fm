@@ -1,6 +1,27 @@
-# his.fm voice comparison
+# his.fm
 
-Single-speaker Mandarin launch announcement for his.fm, an AI sharing channel for developers.
+his.fm 是一个中文播客，关注 AI 转型之下的人。我们面向正在经历技术变化、职业不确定性和持续学习压力的年轻人，也包括开发者。技术和项目是理解生活的入口，人的处境与身心状态是关注的中心。
+
+## 频道定位与编辑原则
+
+有温度，有柔情，不谄媚。认真对待人在快速转型和压力之下的 well-being，包括睡眠、情绪、关系、经济保障和生活的自主权。承认变化带来的机会，也承认人的时间、精力与选择受到现实条件约束。
+
+这些原则用于内部选题、调研、取舍、叙事和审稿，**绝不在节目逐字稿或发表摘要中直接宣讲、复述或包装成频道口号**。让具体的人、可核实的事实和讲述方式体现它们。
+
+- 先从目标听众的具体处境寻找切入点，再解释项目为何与他有关。避免照读 README、罗列功能或堆砌术语。
+- 内容要言之有物。优先采用项目引出的真实研究、公开案例和可以追溯的细节；逐条核对关键数字、适用人群及例外。
+- 明确区分已发生的案例、研究结果、主持人的判断和假设场景。不编造采访、亲历、人物经历或项目使用效果。
+- 项目的表述也需要核查。证据等级、作者的价值排序和对听众的具体建议分别判断，不把相关性写成因果，不把局部结果外推为保证。
+- 不把职业与组织压力全归咎于个人心态，不用自律清单增加负担，也不许诺一个工具就能解决现实困境。
+- 用自然的中文口语写单人播讲。少说套话，避免空泛安慰、说教和反复总结；建议必须交代现实成本和可选择的余地。
+
+## 单集材料
+
+每期材料保存在独立的 `episodes/<episode-slug>/` 文件夹。逐字稿和发表摘要采用中文，来源记录保留项目版本、原始出处、事实核查结果及引申边界。十分钟节目的时长先按口播字数与语速估算，音频生成后再记录实测时长。
+
+## Voice comparison
+
+The initial voice comparison is a single-speaker Mandarin launch announcement. It predates the editorial direction above and is retained as an audio test, not as the current channel description.
 
 Uses `gemini-3.8-flash-tts` through the Gemini Interactions REST API. Google announced Gemini 3.8 Flash TTS and Flash-Lite TTS on September 23, 2026.
 
