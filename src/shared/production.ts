@@ -76,6 +76,7 @@ export const productionActionSchema = z.strictObject({
   version: z.number().int().min(1),
   action: z.enum(actionNames),
   feedback: z.string().trim().max(12000).optional(),
+  changes: productionPatchSchema.omit({ version: true }).optional(),
 });
 export type ProductionAction = z.infer<typeof productionActionSchema>;
 export type Actor = { kind: 'human' | 'agent'; name: string };

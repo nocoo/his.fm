@@ -189,6 +189,66 @@ describe('production API and optimistic updates', () => {
     expect((await call(path)).status).toBe(404);
   });
 
+  it('atomically saves and completes a stage without saving failed completion', async () => {
+    const original = await create();
+    const path = `/productions/${original.id}`;
+    const invalid = await call(
+      `${path}/actions`,
+      'POST',
+      { version: 1, action: 'approve_brief', changes: { intent: '' } },
+      human,
+    );
+    expect(invalid.status).toBe(400);
+    expect((await getProduction(env.DB, original.id)).intent).toBe(original.intent);
+    expect(
+      (
+        await call(
+          `${path}/actions`,
+          'POST',
+          { version: 1, action: 'submit_brief', changes: { intent: 'Agent inline write' } },
+          agent,
+        )
+      ).status,
+    ).toBe(403);
+    const response = await call(
+      `${path}/actions`,
+      'POST',
+      { version: 1, action: 'approve_brief', changes: { intent: '已确定的新主题' } },
+      human,
+    );
+    expect(response.status).toBe(200);
+    const next = ((await response.json()) as { production: Production }).production;
+    expect(next).toMatchObject({ version: 2, stage: 'scripting', intent: '已确定的新主题' });
+  });
+
+  it('lets the owner revise any stage without discarding material or granting agents approval', async () => {
+    const original = await insert(readyFixture());
+    const path = `/productions/${original.id}`;
+    const changed = await call(path, 'PUT', { version: 1, transcript: '新的完整文稿' }, human);
+    expect(changed.status).toBe(200);
+    const next = ((await changed.json()) as { production: Production }).production;
+    expect(next).toMatchObject({
+      stage: 'scripting',
+      transcript: '新的完整文稿',
+      description: original.description,
+      assets: original.assets,
+      approvals: { brief: original.approvals.brief, script: null, final: null },
+      scriptVersion: 2,
+    });
+    expect(
+      (await call(`${path}/actions`, 'POST', { version: next.version, action: 'approve_script' }, agent))
+        .status,
+    ).toBe(403);
+    const completed = await call(
+      `${path}/actions`,
+      'POST',
+      { version: next.version, action: 'approve_script' },
+      human,
+    );
+    expect(completed.status).toBe(200);
+    expect(((await completed.json()) as { production: Production }).production.stage).toBe('production');
+  });
+
   it('locks review and ready records and permits production metadata only in production', async () => {
     let production = await insert(readyFixture());
     const path = `/productions/${production.id}`;

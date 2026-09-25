@@ -5,7 +5,7 @@ import {
   publicationSchema,
   sourceSchema,
 } from '../../src/shared/production';
-import { applyAction, requireFinalAssets } from '../../worker/production-model';
+import { applyAction, applyPatch, editAssets, requireFinalAssets } from '../../worker/production-model';
 import { productionPrompts } from '../../worker/production-prompts';
 import { appendEvent, mediaUrl, nextVersion } from '../../worker/production-store';
 import { agent, fixture, human, readyFixture } from './production-fixture';
@@ -56,7 +56,7 @@ describe('production approvals and revision state machine', () => {
     expect(() =>
       applyAction(fixture({ stage: 'scripting' }), { version: 1, action: 'submit_script' }, agent),
     ).toThrow('逐字稿');
-    expect(() => applyAction(fixture(), { version: 1, action: 'approve_brief' }, human)).toThrow('阶段');
+    expect(() => applyAction(readyFixture(), { version: 1, action: 'approve_brief' }, human)).toThrow('阶段');
     expect(() =>
       applyAction(fixture(), { version: 1, action: 'reopen_brief', feedback: '修改' }, human),
     ).toThrow('已在');
@@ -88,9 +88,9 @@ describe('production approvals and revision state machine', () => {
     expect(script).toMatchObject({
       stage: 'scripting',
       scriptVersion: 2,
-      description: '',
-      summary: '',
-      assets: { cover: null, audio: null },
+      description: ready.description,
+      summary: ready.summary,
+      assets: ready.assets,
       audioJob: null,
       approvals: { script: null, final: null },
     });
@@ -99,10 +99,10 @@ describe('production approvals and revision state machine', () => {
     const brief = applyAction(ready, { version: 1, action: 'reopen_brief', feedback: '换一个切入点' }, human);
     expect(brief).toMatchObject({
       stage: 'draft',
-      transcript: '',
+      transcript: ready.transcript,
       scriptVersion: 2,
       approvals: { brief: null, script: null, final: null },
-      assets: { cover: null, audio: null },
+      assets: ready.assets,
     });
     const assets = applyAction(
       ready,
@@ -112,6 +112,73 @@ describe('production approvals and revision state machine', () => {
     expect(assets.stage).toBe('production');
     expect(assets.approvals.final).toBeNull();
     expect(assets.assets).toEqual(ready.assets);
+  });
+
+  it('lets the owner finish a stage directly while requiring its content', () => {
+    const script = applyAction(fixture(), { version: 1, action: 'approve_brief' }, human);
+    expect(script.stage).toBe('scripting');
+    expect(() =>
+      applyAction(fixture({ sources: [] }), { version: 1, action: 'approve_brief' }, human),
+    ).toThrow('素材');
+    expect(() => applyAction(script, { version: 1, action: 'approve_script' }, human)).toThrow('逐字稿');
+    expect(() =>
+      applyAction(
+        fixture({ stage: 'scripting', transcript: 'Text' }),
+        { version: 1, action: 'approve_script' },
+        human,
+      ),
+    ).toThrow('选题');
+    const made = applyAction(
+      { ...script, transcript: '一段完整逐字稿' },
+      { version: 1, action: 'approve_script' },
+      human,
+    );
+    expect(made.approvals.script?.by).toBe(human.name);
+    expect(made.stage).toBe('production');
+    expect(applyAction(readyFixture(), { version: 1, action: 'reopen_script' }, human).transcript).toBe(
+      readyFixture().transcript,
+    );
+  });
+
+  it('preserves work on owner edits and invalidates only dependent confirmations', () => {
+    const ready = readyFixture();
+    expect(applyPatch(ready, { title: ready.title }, human)).toEqual(ready);
+    const briefEdit = applyPatch(ready, { intent: '另一种切入点' }, human);
+    expect(briefEdit).toMatchObject({
+      stage: 'draft',
+      scriptVersion: 2,
+      transcript: ready.transcript,
+      assets: ready.assets,
+      approvals: { brief: null, script: null, final: null },
+      audioJob: null,
+    });
+    const scriptEdit = applyPatch(ready, { transcript: '修改后的稿子' }, human);
+    expect(scriptEdit).toMatchObject({
+      stage: 'scripting',
+      scriptVersion: 2,
+      description: ready.description,
+      assets: ready.assets,
+      approvals: { brief: ready.approvals.brief, script: null, final: null },
+    });
+    expect(() => requireFinalAssets(scriptEdit)).toThrow();
+    expect(applyPatch(fixture(), { transcript: '先保存草稿' }, human)).toMatchObject({
+      stage: 'draft',
+      scriptVersion: 1,
+    });
+    expect(applyPatch(fixture(), { intent: '重新准备' }, human).scriptVersion).toBe(0);
+    expect(applyPatch(ready, { summary: '新的摘要' }, human)).toMatchObject({
+      stage: 'production',
+      scriptVersion: 1,
+      approvals: { brief: ready.approvals.brief, script: ready.approvals.script, final: null },
+    });
+    expect(applyPatch(fixture(), { summary: '预先写好的摘要' }, human).stage).toBe('draft');
+    expect(applyPatch(ready, { tags: ['更新标签'] }, human).approvals.final).toBeNull();
+    expect(editAssets(ready, human).stage).toBe('production');
+    expect(editAssets(fixture(), human).stage).toBe('draft');
+    expect(editAssets(readyFixture({ stage: 'production' }), agent).stage).toBe('production');
+    expect(() => editAssets(ready, agent)).toThrow('阶段');
+    expect(() => applyPatch(ready, { intent: 'Agent rewrite' }, agent)).toThrow('阶段');
+    expect(() => applyPatch(fixture(), { transcript: 'Agent early script' }, agent)).toThrow('本人');
   });
 
   it('requires current complete artifacts and all prior approvals for final review', () => {

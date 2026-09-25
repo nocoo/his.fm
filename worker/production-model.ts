@@ -1,4 +1,4 @@
-import type { Actor, Production, ProductionAction } from '../src/shared/production';
+import type { Actor, Production, ProductionAction, ProductionBrief } from '../src/shared/production';
 import { HttpError } from './http';
 
 export function requireHuman(actor: Actor) {
@@ -32,26 +32,82 @@ export function requireFinalAssets(production: Production) {
   }
 }
 
-function clearArtifacts(production: Production): Production {
+function reopenContent(production: Production, stage: 'draft' | 'scripting'): Production {
   return {
     ...production,
-    description: '',
-    summary: '',
-    assets: { cover: null, audio: null },
+    stage,
+    scriptVersion: production.scriptVersion + 1,
     audioJob: null,
+    approvals: {
+      brief: stage === 'draft' ? null : production.approvals.brief,
+      script: null,
+      final: null,
+    },
+  };
+}
+
+export function editAssets(production: Production, actor: Actor): Production {
+  if (actor.kind === 'agent') requireStage(production, 'production');
+  return {
+    ...production,
+    stage: ['final_review', 'ready'].includes(production.stage) ? 'production' : production.stage,
     approvals: { ...production.approvals, final: null },
   };
 }
 
-export function applyAction(production: Production, action: ProductionAction, actor: Actor): Production {
-  const feedbackActions = [
-    'revise_brief',
-    'revise_script',
-    'revise_assets',
-    'reopen_script',
-    'reopen_brief',
-    'reopen_assets',
+export function applyPatch(
+  production: Production,
+  fields: Partial<ProductionBrief & Pick<Production, 'transcript' | 'summary' | 'description'>>,
+  actor: Actor,
+): Production {
+  const briefKeys = [
+    'title',
+    'slug',
+    'episodeNumber',
+    'category',
+    'tags',
+    'targetDurationSeconds',
+    'sources',
+    'intent',
   ];
+  if (actor.kind === 'agent') {
+    requireStage(production, 'draft', 'scripting', 'production');
+    const allowed =
+      production.stage === 'draft'
+        ? briefKeys
+        : production.stage === 'scripting'
+          ? ['transcript', 'category', 'tags']
+          : ['description', 'summary', 'category', 'tags'];
+    if (Object.keys(fields).some((key) => !allowed.includes(key)))
+      throw new HttpError(409, '请由你本人修改已确认的内容，或返回对应阶段后让助手继续');
+  }
+  const changed = Object.keys(fields).filter(
+    (key) =>
+      JSON.stringify(fields[key as keyof typeof fields]) !==
+      JSON.stringify(production[key as keyof Production]),
+  );
+  if (!changed.length) return production;
+  const briefChanged = changed.some((key) =>
+    ['title', 'episodeNumber', 'targetDurationSeconds', 'sources', 'intent'].includes(key),
+  );
+  const scriptChanged = changed.includes('transcript');
+  let next = production;
+  if (
+    briefChanged &&
+    (production.stage !== 'draft' ||
+      production.transcript ||
+      production.assets.cover ||
+      production.assets.audio)
+  )
+    next = reopenContent(production, 'draft');
+  else if (scriptChanged)
+    next = reopenContent(production, production.approvals.brief ? 'scripting' : 'draft');
+  else if (['final_review', 'ready'].includes(production.stage)) next = editAssets(production, actor);
+  return { ...next, ...fields };
+}
+
+export function applyAction(production: Production, action: ProductionAction, actor: Actor): Production {
+  const feedbackActions = ['revise_brief', 'revise_script', 'revise_assets'];
   if (!['submit_brief', 'submit_script', 'submit_final'].includes(action.action)) requireHuman(actor);
   if (feedbackActions.includes(action.action) && !action.feedback?.trim())
     throw new HttpError(400, '请填写修改意见');
@@ -63,7 +119,9 @@ export function applyAction(production: Production, action: ProductionAction, ac
         throw new HttpError(400, '请补充素材和创作意图');
       return { ...production, stage: 'brief_review' };
     case 'approve_brief':
-      requireStage(production, 'brief_review');
+      requireStage(production, 'draft', 'brief_review');
+      if (!production.sources.length || !production.intent.trim())
+        throw new HttpError(400, '请补充素材和创作意图');
       return { ...production, stage: 'scripting', approvals: { ...production.approvals, brief: approval } };
     case 'revise_brief':
       requireStage(production, 'brief_review');
@@ -73,7 +131,9 @@ export function applyAction(production: Production, action: ProductionAction, ac
       if (!production.transcript.trim()) throw new HttpError(400, '请先完成逐字稿');
       return { ...production, stage: 'script_review' };
     case 'approve_script':
-      requireStage(production, 'script_review');
+      requireStage(production, 'scripting', 'script_review');
+      if (!production.approvals.brief || !production.transcript.trim())
+        throw new HttpError(400, '请先完成选题与逐字稿');
       return { ...production, stage: 'production', approvals: { ...production.approvals, script: approval } };
     case 'revise_script':
       requireStage(production, 'script_review');
@@ -91,23 +151,12 @@ export function applyAction(production: Production, action: ProductionAction, ac
       return { ...production, stage: 'production' };
     case 'reopen_script':
       requireStage(production, 'production', 'final_review', 'ready');
-      return {
-        ...clearArtifacts(production),
-        stage: 'scripting',
-        scriptVersion: production.scriptVersion + 1,
-        approvals: { ...production.approvals, script: null, final: null },
-      };
+      return reopenContent(production, 'scripting');
     case 'reopen_brief':
       if (production.stage === 'draft') throw new HttpError(409, '当前已在选题阶段');
-      return {
-        ...clearArtifacts(production),
-        stage: 'draft',
-        transcript: '',
-        scriptVersion: production.scriptVersion + 1,
-        approvals: { brief: null, script: null, final: null },
-      };
+      return reopenContent(production, 'draft');
     case 'reopen_assets':
-      requireStage(production, 'ready');
-      return { ...production, stage: 'production', approvals: { ...production.approvals, final: null } };
+      requireStage(production, 'final_review', 'ready');
+      return editAssets(production, actor);
   }
 }

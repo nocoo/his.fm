@@ -4,6 +4,7 @@ import { AudioError, parseWav } from './audio';
 import { type AudioSnapshot, getSettings, saveBumper } from './audio-store';
 import { HttpError, json } from './http';
 import { readBytes, readJson } from './production-body';
+import { editAssets } from './production-model';
 import { appendEvent, getProduction, mediaUrl, nextVersion, updateStatement } from './production-store';
 
 async function triggerAudio(env: Env, jobId: string) {
@@ -24,7 +25,11 @@ async function startAudio(request: Request, env: Env, id: string, actor: Actor) 
   const { version } = await readJson(request, z.strictObject({ version: z.number().int().min(1) }));
   const production = await getProduction(env.DB, id);
   if (production.version !== version) throw new HttpError(409, '内容已更新，请刷新后重试');
-  if (production.stage !== 'production' || !production.approvals.script)
+  if (
+    (actor.kind === 'agent' && production.stage !== 'production') ||
+    !production.approvals.brief ||
+    !production.approvals.script
+  )
     throw new HttpError(409, '请先批准逐字稿再生成音频');
   if (production.audioJob && ['queued', 'running'].includes(production.audioJob.status)) {
     await triggerAudio(env, production.audioJob.id);
@@ -48,7 +53,7 @@ async function startAudio(request: Request, env: Env, id: string, actor: Actor) 
   const next = nextVersion(
     appendEvent(
       {
-        ...production,
+        ...editAssets(production, actor),
         audioJob: {
           id: jobId,
           status: 'queued',

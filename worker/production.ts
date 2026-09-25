@@ -9,7 +9,14 @@ import {
 import { getSettings } from './audio-store';
 import { HttpError, json } from './http';
 import { readBytes, readJson } from './production-body';
-import { applyAction, requireFinalAssets, requireHuman, requireStage } from './production-model';
+import {
+  applyAction,
+  applyPatch,
+  editAssets,
+  requireFinalAssets,
+  requireHuman,
+  requireStage,
+} from './production-model';
 import { productionPrompts } from './production-prompts';
 import {
   appendEvent,
@@ -65,7 +72,7 @@ async function uploadCover(request: Request, env: Env, id: string, actor: Actor)
   const expectedVersion = versionQuery(request);
   const current = await getProduction(env.DB, id);
   if (current.version !== expectedVersion) throw new HttpError(409, '内容已更新，请刷新后重试');
-  requireStage(current, 'production');
+  editAssets(current, actor);
   const bytes = await readBytes(request, 8 * 1024 * 1024);
   const type = rasterType(bytes);
   if (request.headers.get('Content-Type')?.split(';')[0] !== type.mime)
@@ -83,7 +90,7 @@ async function uploadCover(request: Request, env: Env, id: string, actor: Actor)
       actor,
       'upload_cover',
       (production) => ({
-        ...production,
+        ...editAssets(production, actor),
         assets: {
           ...production.assets,
           cover: {
@@ -238,7 +245,14 @@ export async function routeProductions(
       id,
       actor,
       action.action,
-      (current) => applyAction(current, action, actor),
+      (current) => {
+        if (action.changes) requireHuman(actor);
+        return applyAction(
+          action.changes ? applyPatch(current, action.changes, actor) : current,
+          action,
+          actor,
+        );
+      },
       { expectedVersion: action.version, feedback: action.feedback },
     );
     return json({ production });
@@ -262,34 +276,7 @@ export async function routeProductions(
       id,
       actor,
       'edit',
-      (current) => {
-        requireStage(current, 'draft', 'scripting', 'production');
-        const allowed =
-          current.stage === 'draft'
-            ? [
-                'title',
-                'slug',
-                'episodeNumber',
-                'category',
-                'tags',
-                'targetDurationSeconds',
-                'sources',
-                'intent',
-              ]
-            : current.stage === 'scripting'
-              ? ['transcript', 'category', 'tags']
-              : ['description', 'summary', 'category', 'tags'];
-        if (Object.keys(fields).some((key) => !allowed.includes(key)))
-          throw new HttpError(409, '该字段已锁定，请先申请重新制作对应阶段');
-        return {
-          ...current,
-          ...fields,
-          scriptVersion:
-            fields.transcript !== undefined && fields.transcript !== current.transcript
-              ? current.scriptVersion + 1
-              : current.scriptVersion,
-        };
-      },
+      (current) => applyPatch(current, fields, actor),
       { expectedVersion: version },
     );
     return json({ production });
