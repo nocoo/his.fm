@@ -20,6 +20,7 @@ import './admin.css';
 import './production/production.css';
 
 const ChannelPage = lazy(() => import('./channel/ChannelPage'));
+const StoragePage = lazy(() => import('./storage/StoragePage'));
 
 function RouterLink({
   href,
@@ -131,6 +132,14 @@ function SessionGate() {
           }
         />
         <Route path="voices" element={<VoiceReferences />} />
+        <Route
+          path="storage"
+          element={
+            <Suspense fallback={<LoadingScreen label="正在打开资源管理" />}>
+              <StoragePage />
+            </Suspense>
+          }
+        />
         <Route path="episodes/new" element={<EpisodeEditor />} />
         <Route path="episodes/:id" element={<EpisodeEditor />} />
         <Route path="*" element={<Navigate to="/admin" replace />} />

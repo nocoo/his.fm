@@ -75,3 +75,11 @@ Document-editor acceptance initially clicked the middle of a paragraph while exp
 The full browser suite exposed an older upload assertion that counted every audio element, including a hidden voice-reference player. Its earlier success could precede the upload response and therefore was not evidence that the uploaded bumper appeared. Acceptance now waits for the visible player with the uploaded media URL.
 
 The first patch to that shared-looking assertion matched the earlier final-review test instead of the bumper test. Reviewing the failing source location exposed the mistake; the final-review assertion was restored and the bumper assertion changed with surrounding action lines as patch context. Repeated assertion text is not a unique patch anchor: inspect the resulting diff before starting another suite.
+
+## 2026-09-26 — Test R2 cursor semantics rather than page size
+
+The first inventory integration test expected a requested 200-object page to contain exactly 200 objects. Miniflare returned 100 because metadata-inclusive responses have a lower page capacity. The implementation already followed `truncated` and `cursor`; the test was corrected to verify complete, duplicate-free traversal instead of assuming page size. Fixture cleanup now follows every cursor too. A scan error must remain distinguishable from an empty bucket, and cleanup stays disabled until scanning completes.
+
+The first full Chrome run overlapped with a focused WebKit run using the same Playwright output directory. WebKit initialization removed Chrome's trace files, causing an `ENOENT` during test-context teardown despite the channel assertions succeeding. Run browser suites sequentially when they share reports, traces or writable local fixtures; parallel execution requires separate artifact directories and independent data. No application code change was needed for this harness failure.
+
+The first staged gate correctly blocked a pagination test whose 205 real Miniflare R2 writes exceeded Vitest’s default five-second case timeout under concurrent browser load. That I/O-heavy case now has an explicit 15-second limit; assertions, coverage floors and the normal commit hook are unchanged.

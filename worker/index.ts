@@ -7,6 +7,7 @@ import { routeChannel } from './channel';
 import { getEpisode, listEpisodes, mutateEpisode } from './episodes';
 import { HttpError, json, requireSameOrigin } from './http';
 import { routeProductions } from './production';
+import { routeStorage } from './storage';
 
 async function media(request: Request, env: Env) {
   if (request.method !== 'GET' && request.method !== 'HEAD') throw new HttpError(405, '不支持这个请求方式');
@@ -56,6 +57,10 @@ async function route(request: Request, env: Env): Promise<Response> {
     if (path === '/admin/api/channel') {
       if (request.method !== 'GET') requireSameOrigin(request);
       return routeChannel(request, env, { kind: 'human', name: session.user.email });
+    }
+    if (path === '/admin/api/storage' || path.startsWith('/admin/api/storage/')) {
+      if (!['GET', 'HEAD'].includes(request.method)) requireSameOrigin(request);
+      return routeStorage(request, env);
     }
     if (
       api &&

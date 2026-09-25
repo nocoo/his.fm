@@ -1,0 +1,111 @@
+.storage-page {
+  gap: var(--admin-space-4);
+}
+.storage-filters {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) repeat(3, minmax(0, 1fr));
+  gap: var(--admin-space-2);
+}
+.storage-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.storage-item {
+  display: grid;
+  grid-template-columns: auto 56px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--admin-space-4);
+  padding: var(--admin-space-4);
+  border-top: 1px solid hsl(var(--basalt-border));
+}
+.storage-thumbnail {
+  width: 56px;
+  height: 56px;
+  padding: 0;
+  overflow: hidden;
+  background: hsl(var(--basalt-secondary));
+}
+.storage-thumbnail img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.storage-info {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--admin-space-1);
+  overflow-wrap: anywhere;
+}
+.storage-info > strong {
+  font-size: 13px;
+  font-weight: 500;
+}
+.storage-meta {
+  display: flex;
+  gap: var(--admin-space-2);
+  flex-wrap: wrap;
+  align-items: center;
+  font-size: 12px;
+  color: hsl(var(--basalt-muted-foreground));
+}
+.storage-size {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.storage-size strong {
+  font-size: 13px;
+}
+.storage-preview img,
+.storage-preview video {
+  width: 100%;
+  max-height: 50dvh;
+  object-fit: contain;
+  border-radius: var(--basalt-radius);
+}
+.storage-preview audio {
+  width: 100%;
+}
+.storage-preview {
+  overflow-wrap: anywhere;
+}
+.storage-results {
+  padding-left: var(--admin-space-5);
+  overflow-wrap: anywhere;
+}
+@media (max-width: 767px) {
+  .storage-filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .storage-item {
+    grid-template-columns: auto 40px minmax(0, 1fr);
+    gap: var(--admin-space-2);
+  }
+  .storage-thumbnail {
+    width: 40px;
+    height: 48px;
+  }
+  .storage-size {
+    grid-column: 3;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+  }
+}
+
+@media (max-width: 767px) {
+  .storage-page .storage-stats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--admin-space-2);
+  }
+  .storage-stats > div {
+    padding: var(--admin-space-2);
+  }
+  .storage-stats .font-display {
+    font-size: clamp(14px, 4vw, 20px);
+  }
+}

@@ -52,3 +52,17 @@ The unlabelled top-right Local / Production segment is development-only. Selecti
 The Vite-only proxy forwards `/admin/remote-api/` to the fixed `https://his.fm/admin/api/` destination. Access tokens remain in cloudflared's local storage and the development server process; the browser never receives them. The production build contains no proxy endpoint. The production selection performs real production mutations. Restarting the local app does not reset that selection.
 
 To upload later artwork, use an explicit R2 object key and correct content type. The owner configures the CDN; the Worker can serve objects under `/media/` in the meantime. Keep generated audio/video outside Git.
+
+## R2 resource management
+
+Open `/admin/storage` to scan the selected local or production `his-fm` bucket. The Basalt browser shows size totals, image/audio/video filters, reference reasons, search, size/date sorting and paged previews. Opening the page never deletes files. Scan totals are partial until every R2 cursor has been consumed; failed scans disable cleanup.
+
+Owner APIs inherit Cloudflare Access authentication. Agents have no resource-cleanup capability.
+
+- `GET /admin/api/storage?cursor=...`: up to 200 objects, including immutable R2 versions, MIME types, size, upload time, reference state/reasons and a nullable next cursor. Follow the cursor even when a page contains fewer than 200 objects.
+- `GET|HEAD /admin/api/storage/object?key=...`: authenticated streaming preview with single byte-range support for seeking. Active document formats download as attachments. Local-to-production media previews use the owner's CDN `https://f.no.mt` directly.
+- `POST /admin/api/storage/cleanup`: same-origin JSON `{ "items": [{ "key": "old/file.wav", "version": "version-from-scan" }] }`, at most 50 items. The UI confirms the environment, selected count and bytes, then submits batches of 25. Responses report each key as `deleted`, `skipped` or `failed`, with actual deleted bytes. A transport failure leaves the known results visible and requires a new scan.
+
+Cleanup re-reads D1 references and R2 object metadata before deletion. It protects all production assets and owned media URLs in production text/sources, draft/published episode fields, channel positioning and current bumper settings. Queued/running audio jobs protect their entire output prefix and captured bumper keys. `images/` and `reference/` are reserved for brand artwork and voice references. All uploads remain protected for 24 hours to cover pending attachment to D1 and workflow state updates. Replaced covers/bumpers, preview caches and completed/failed job intermediates become candidates only when unreferenced and beyond that retention window.
+
+“Unused” means no detected in-app reference, not proof of no external use. Review externally shared links before confirming deletion. R2 has no conditional-delete primitive or transaction with D1: version checks catch changes since scanning but cannot serialize arbitrary concurrent external bucket writes or new references. Avoid simultaneous reference edits or external overwrites during cleanup. The app generates unique media keys; preview-cache keys are content-addressed. Deleting from R2 reclaims origin storage but does not purge already cached CDN copies. This module does not compress or replace existing media.

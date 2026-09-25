@@ -58,6 +58,7 @@ Install through an allowed registry on this machine. Never retry blocked `regist
 
 - Production domain: `his.fm`; Worker, D1 and R2 names: `his-fm`.
 - R2 CDN: `https://f.no.mt`. Voice references use `reference/voices/*.wav`; generated media stays ignored.
+- Owner-only R2 resource management lives at `/admin/storage` and `/admin/api/storage`. Scan through every cursor; failed/partial scans cannot enable cleanup. Revalidate D1 references and R2 versions before deleting, preserve `images/`, `reference/`, active audio-job prefixes/snapshot bumpers and all uploads younger than 24 hours. Never use production media as destructive test fixtures. Cleanup does not purge CDN caches or compress media.
 - D1 ID: `66f7e201-22a8-450d-838d-ecbc382afbc6`.
 - The existing Access application protects `his.fm/admin`; descendant paths inherit its policy unless a more specific application overrides them.
 - `run_worker_first` covers `/admin`, `/admin/*`, `/api/*`, `/media/*`, `/.well-known/api-catalog` and `/llms.txt`.
