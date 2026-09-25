@@ -58,7 +58,7 @@ Editing rules:
 | `production` | `summary`, `description`, `category`, `tags` |
 | Review stages and `ready` | None; use the appropriate human action |
 
-`reopen_script` clears all generated assets, summaries, descriptions, the audio job and script/final approvals. `reopen_brief` also clears the transcript and brief approval. Both advance `scriptVersion`, so obsolete jobs cannot attach to the reopened work. `reopen_assets` retains the approved script and existing assets while clearing final approval. Existing public episode snapshots and prior publication records remain unchanged until the next human-confirmed publication.
+`reopen_script` preserves existing material while clearing the active audio job and script/final approvals. `reopen_brief` also clears brief approval. Both advance `scriptVersion`, so obsolete jobs cannot attach to the reopened work. `reopen_assets` retains the approved script and existing assets while clearing final approval. Existing public episode snapshots and prior publication records remain unchanged until the next human-confirmed publication.
 
 ## Versioning and errors
 
@@ -93,3 +93,10 @@ Human-only `POST /admin/api/productions/:id/publications` accepts `{ version, pl
 `wechat` URLs must belong to `mp.weixin.qq.com`; `xiaoyuzhou` URLs must belong to `xiaoyuzhoufm.com`. Their subdomains are accepted. A confirmation records who confirmed it, when and which production version was used. It makes no claim that his.fm called a destination publishing API.
 
 The confirmation and public snapshot are committed in one D1 transaction. A concurrent reopen, conflicting public slug or unrelated episode ID prevents both writes. Separate source-production ownership protects existing manual catalog entries from being overwritten by the snapshot upsert.
+
+
+## Cloud narration
+
+`POST /api/agent/productions/:id/audio` accepts `{ version, voice?, speakingStyle?, includeBumpers? }`. Omitted voice/style use saved studio defaults; `includeBumpers` defaults to false. The script must be approved. The endpoint returns `202` with the queued production; poll `GET` until `audioJob.status` is complete or failed. A queued job is redispatched with its original snapshot rather than new options.
+
+A completed narration is stored in R2 and attached as `assets.audio`, including the CDN `url`, `durationSeconds`, `voice`, `includesBumpers` and `scriptVersion`. Selecting bumpers requires both configured files. A preview is available only through the owner endpoint described in [Audio implementation](audio.md).

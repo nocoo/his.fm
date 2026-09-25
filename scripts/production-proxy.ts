@@ -184,7 +184,10 @@ export function productionProxy(): Plugin {
       return;
     }
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 30000);
+    const timeout = setTimeout(
+      () => controller.abort(),
+      destination.pathname.endsWith('/production-settings/preview') ? 200000 : 30000,
+    );
     const abort = () => controller.abort();
     response.once('close', abort);
     try {

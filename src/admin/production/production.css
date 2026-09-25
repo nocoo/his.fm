@@ -302,3 +302,16 @@
     flex: 1;
   }
 }
+
+.studio-checkbox {
+  display: flex;
+  align-items: center;
+  gap: var(--admin-space-2);
+}
+.studio-preview-settings > summary {
+  margin-bottom: var(--admin-space-2);
+}
+
+.studio-choice-content [data-radix-select-viewport] {
+  max-height: min(320px, calc(var(--radix-select-content-available-height) - 12px));
+}

@@ -401,6 +401,17 @@ describe('proxy lifecycle protections', () => {
     expect(upload.status).toBe(504);
   });
 
+  it('proxies cloud previews with a longer provider deadline', async () => {
+    const response = await send('/admin/remote-api/production-settings/preview', {
+      method: 'POST',
+      body: JSON.stringify({ voice: 'Kore', text: '试听' }),
+    });
+    expect(response.status).toBe(200);
+    expect(remoteFetch.mock.calls[0][0].toString()).toBe(
+      'https://his.fm/admin/api/production-settings/preview',
+    );
+  });
+
   it('cancels an upstream request when the browser disconnects', async () => {
     const cancelled = deferred<void>();
     remoteFetch.mockImplementationOnce(

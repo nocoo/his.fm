@@ -60,11 +60,19 @@ describe('production service contracts', () => {
       body: JSON.stringify(action),
     });
     response({ production }, 202);
-    await service.audio('a/b', 5);
+    await service.audio('a/b', { version: 5, voice: 'Sulafat', includeBumpers: false });
     expect(lastRequest()).toMatchObject({
       url: '/admin/api/productions/a%2Fb/audio',
       method: 'POST',
-      body: '{"version":5}',
+      body: '{"version":5,"voice":"Sulafat","includeBumpers":false}',
+    });
+    response({ preview: { url: '/media/preview.wav' } });
+    await service.preview({ voice: 'Sulafat', speakingStyle: '自然', text: '这里是 his.fm。' });
+    expect(lastRequest()).toMatchObject({ url: '/admin/api/production-settings/preview', method: 'POST' });
+    expect(JSON.parse(String(lastRequest().body))).toEqual({
+      voice: 'Sulafat',
+      speakingStyle: '自然',
+      text: '这里是 his.fm。',
     });
     const publication = {
       platform: 'wechat' as const,

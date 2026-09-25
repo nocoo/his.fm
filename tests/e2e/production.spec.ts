@@ -9,6 +9,7 @@ async function studio(page: Page, initial = fixture()) {
   let production = initial;
   let conflict = false;
   let failUpload = false;
+  let failPreview = false;
   let audioPolls = 0;
   let settings: ProductionSettings = {
     voice: 'Kore',
@@ -52,6 +53,14 @@ async function studio(page: Page, initial = fixture()) {
     if (path === '/production-settings') {
       if (method === 'PUT') settings = { ...settings, ...request.postDataJSON() };
       return send({ settings });
+    }
+    if (path === '/production-settings/preview') {
+      if (failPreview) {
+        failPreview = false;
+        return send({ error: '试听生成暂时失败，请重试' }, 502);
+      }
+      const input = request.postDataJSON();
+      return send({ preview: { ...input, url: '/media/preview.wav', durationSeconds: 18, cached: false } });
     }
     if (path.startsWith('/production-settings/')) {
       if (failUpload) {
@@ -190,6 +199,12 @@ async function studio(page: Page, initial = fixture()) {
     get actions() {
       return actions;
     },
+    configureTts: () => {
+      settings.ttsConfigured = true;
+    },
+    failPreview: () => {
+      failPreview = true;
+    },
     conflict: () => {
       conflict = true;
     },
@@ -201,6 +216,7 @@ async function studio(page: Page, initial = fixture()) {
 
 test('five stages preserve failed edits and advance with owner completion', async ({ page, context }) => {
   const state = await studio(page);
+  state.configureTts();
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
   await context.grantPermissions(['clipboard-read', 'clipboard-write']);
@@ -260,7 +276,7 @@ test('five stages preserve failed edits and advance with owner completion', asyn
   await expect(page.getByText('cover.png', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: '上传封面', exact: true }).click();
   await page.getByRole('tab', { name: '音频', exact: true }).click();
-  await page.getByRole('button', { name: '生成完整音频', exact: true }).click();
+  await page.getByRole('button', { name: '生成正文音频', exact: true }).click();
   await expect(page.getByText('音频制作完成', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: '标记成品制作完成', exact: true }).click();
   await expect(page.locator('audio')).toHaveCount(1);
@@ -307,6 +323,7 @@ test('audio settings preserve failed uploads and assistant tokens are revocable 
   await expect(page.getByText('Gemini 未配置', { exact: true })).toBeVisible();
   await page.getByLabel('讲述风格').fill('舒缓、温暖，留出自然停顿');
   await page.getByRole('button', { name: '保存声音设置' }).click();
+  await page.getByText('可选：片头与片尾贴片', { exact: true }).click();
   await expect(page.getByRole('button', { name: '选择片头: 上传片头' })).toBeEnabled();
   await page
     .locator('input[type=file]')
@@ -650,4 +667,52 @@ test('phone stages preserve drafts on canceled navigation and grow long text wit
     );
   expect(nested).toBe(0);
   await page.screenshot({ path: '.local/studio-mobile-reader.png' });
+});
+
+test('voice settings and per-generation choices offer optional previews without changing defaults', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 393, height: 852 });
+  const state = await studio(
+    page,
+    readyFixture({ stage: 'production', assets: { cover: null, audio: null }, audioJob: null }),
+  );
+  state.configureTts();
+  await page.goto('/admin/settings');
+  await page.getByRole('combobox', { name: '讲述声音', exact: true }).click();
+  await expect(page.getByRole('option')).toHaveCount(30);
+  await page.getByRole('option', { name: 'Sulafat · 温暖', exact: true }).click();
+  await page.getByLabel('讲述风格', { exact: true }).fill('平静、自然的普通话');
+  state.failPreview();
+  await page.getByRole('button', { name: '生成试听预览', exact: true }).click();
+  await expect(page.getByText('试听生成暂时失败，请重试', { exact: true })).toBeVisible();
+  await expect(page.getByLabel('讲述风格', { exact: true })).toHaveValue('平静、自然的普通话');
+  await page.getByRole('button', { name: '生成试听预览', exact: true }).click();
+  await expect(page.getByLabel('本次生成的试听预览')).toHaveAttribute('src', '/media/preview.wav');
+  await page.getByRole('button', { name: '保存声音设置', exact: true }).click();
+  await expect(page.getByRole('button', { name: '保存声音设置', exact: true })).toBeEnabled();
+  await page.goto('/admin/productions/production-test?step=assets');
+  await page.getByRole('tab', { name: '音频', exact: true }).click();
+  await expect(page.getByRole('combobox', { name: '讲述声音', exact: true })).toContainText('Sulafat');
+  await expect(page.getByRole('checkbox', { name: '添加片头和片尾', exact: true })).toBeDisabled();
+  await expect(page.getByRole('button', { name: '生成正文音频', exact: true })).toBeEnabled();
+  await page.getByRole('button', { name: '生成试听预览', exact: true }).click();
+  await expect(page.getByLabel('本次生成的试听预览')).toBeVisible();
+  await page.getByRole('combobox', { name: '讲述声音', exact: true }).click();
+  await page.getByRole('option', { name: 'Vindemiatrix · 温柔', exact: true }).click();
+  await expect(page.getByLabel('本次生成的试听预览')).toHaveCount(0);
+  const generated = page.waitForRequest(
+    (request) => request.url().endsWith('/audio') && request.method() === 'POST',
+  );
+  await page.getByRole('button', { name: '生成正文音频', exact: true }).click();
+  expect((await generated).postDataJSON()).toMatchObject({
+    voice: 'Vindemiatrix',
+    speakingStyle: '平静、自然的普通话',
+    includeBumpers: false,
+  });
+  await expect(page.getByText('音频制作完成', { exact: true })).toBeVisible();
+  await page.goto('/admin/settings');
+  await expect(page.getByRole('combobox', { name: '讲述声音', exact: true })).toContainText('Sulafat');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.screenshot({ path: '.local/audio-settings-mobile.png', fullPage: true });
 });

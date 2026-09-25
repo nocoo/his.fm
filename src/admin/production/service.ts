@@ -1,5 +1,8 @@
 import type {
   AgentTokenRecord,
+  AudioGeneration,
+  AudioPreview,
+  AudioPreviewInput,
   Production,
   ProductionAction,
   ProductionBrief,
@@ -32,7 +35,9 @@ export const productionService = {
       body: file,
       headers: { 'Content-Type': file.type },
     }),
-  audio: (id: string, version: number) => request<Result>(`${path(id)}/audio`, json('POST', { version })),
+  audio: (id: string, input: AudioGeneration) => request<Result>(`${path(id)}/audio`, json('POST', input)),
+  preview: (input: AudioPreviewInput) =>
+    request<{ preview: AudioPreview }>('/production-settings/preview', json('POST', input)),
   publish: (
     id: string,
     version: number,

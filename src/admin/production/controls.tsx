@@ -41,7 +41,7 @@ export function Choice({
       <SelectTrigger aria-label={label}>
         <SelectValue />
       </SelectTrigger>
-      <SelectContent>
+      <SelectContent className="studio-choice-content">
         {options.map((option) => (
           <SelectItem key={option.value} value={option.value}>
             {option.label}

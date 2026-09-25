@@ -8,6 +8,7 @@
 - Production contracts live in `src/shared/production.ts`; human and agent routes share controllers but never share approval privileges. All writes require optimistic versions. Published episode snapshots are readonly through legacy CRUD.
 - The owner editor uses five freely navigable URL stages: brief, script, assets, review, publish. Navigation is read-only; completion and reopening use the shared state machine. Keep one visible stage and one main scroll region.
 - Long review text uses Markdown and the private `/admin/fonts/jinkai/` subsets from xray; shell controls retain Basalt typography.
+- Audio generation defaults to narration only. Bumpers are opt-in; voice/style overrides are immutable per-job snapshots. Owner-only short previews reuse content-addressed R2 WAVs and never expose the Gemini secret.
 - `worker/entry.ts` exports the Worker and durable `AudioWorkflow`. D1 job and production state transitions must remain atomic and idempotent; completed audio must never regress after replay.
 - Public routes: `/`, `/episodes`, `/episodes/:slug`, `/about`. Admin routes and APIs share `/admin`; `/login` is the public entry badge.
 - Production Access issuer and audience are checked cryptographically in the Worker. Never trust an email header as authentication.

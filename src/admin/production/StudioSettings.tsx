@@ -5,23 +5,20 @@ import { PageHeader } from '@nocoo/basalt/components/page-header';
 import { TagBadge } from '@nocoo/basalt/components/tag-badge';
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router';
-import {
-  type AgentTokenRecord,
-  type ProductionSettings,
-  productionSettingsSchema,
-  voices,
-} from '../../shared/production';
+import type { AgentTokenRecord, ProductionSettings } from '../../shared/production';
 import { errorMessage } from '../model';
-import { Choice, Confirm, CopyButton, Failure } from './controls';
+import { Confirm, CopyButton, Failure } from './controls';
 import { dateLabel } from './model';
 import { productionService } from './service';
+import { useUnsavedChanges } from './useUnsavedChanges';
+import { VoiceEditor } from './VoiceEditor';
 
 export function StudioSettings() {
   return (
     <div className="admin-page">
       <PageHeader
         title="工作室设置"
-        description="准备声音与固定片段，管理 Hermes 的制作权限。"
+        description="设置默认音色、试听讲述风格，管理可选贴片与 Hermes 权限。"
         actions={
           <Button variant="outline" asChild>
             <Link to="/admin/voices">试听音色参考</Link>
@@ -58,7 +55,7 @@ function AudioSettings() {
   return (
     <LayerCard padding="none">
       <LayerCard.Header className="studio-row">
-        <strong>音频制作</strong>
+        <strong>Gemini 3.8 Flash TTS</strong>
         {settings && (
           <TagBadge
             name={settings.ttsConfigured ? 'Gemini 已配置' : 'Gemini 未配置'}
@@ -71,6 +68,9 @@ function AudioSettings() {
         {loading && <LayerCard.Loading label="正在加载声音设置" />}
         {settings && (
           <>
+            <p className="admin-muted">
+              API 密钥保存在云端，此处仅显示配置状态。默认生成正文音频，无需先上传片头片尾。
+            </p>
             <VoiceForm
               settings={settings}
               pending={pending}
@@ -89,35 +89,36 @@ function AudioSettings() {
               }}
             />
             {!settings.ttsConfigured && (
-              <p className="studio-notice">
-                尚未配置 Gemini，暂时无法生成声音。请由工作室管理员完成服务配置。
-              </p>
+              <p className="studio-notice">尚未配置 Gemini，暂时无法生成声音。请配置云端 GEMINI_API_KEY。</p>
             )}
-            <div className="studio-grid">
-              {(['intro', 'outro'] as const).map((position) => (
-                <BumperUpload
-                  key={position}
-                  position={position}
-                  value={settings[position]}
-                  pending={pending}
-                  upload={async (file) => {
-                    setPending(true);
-                    setError('');
-                    try {
-                      const result = await productionService.bumper(position, file);
-                      setSettings(result.settings);
-                      toast.success(`${position === 'intro' ? '片头' : '片尾'}已上传`);
-                      return true;
-                    } catch (cause) {
-                      setError(errorMessage(cause));
-                      return false;
-                    } finally {
-                      setPending(false);
-                    }
-                  }}
-                />
-              ))}
-            </div>
+            <details>
+              <summary>可选：片头与片尾贴片</summary>
+              <div className="studio-grid">
+                {(['intro', 'outro'] as const).map((position) => (
+                  <BumperUpload
+                    key={position}
+                    position={position}
+                    value={settings[position]}
+                    pending={pending}
+                    upload={async (file) => {
+                      setPending(true);
+                      setError('');
+                      try {
+                        const result = await productionService.bumper(position, file);
+                        setSettings(result.settings);
+                        toast.success(`${position === 'intro' ? '片头' : '片尾'}已上传`);
+                        return true;
+                      } catch (cause) {
+                        setError(errorMessage(cause));
+                        return false;
+                      } finally {
+                        setPending(false);
+                      }
+                    }}
+                  />
+                ))}
+              </div>
+            </details>
           </>
         )}
       </LayerCard.Body>
@@ -133,64 +134,26 @@ function VoiceForm({
   pending: boolean;
   save: (value: Pick<ProductionSettings, 'voice' | 'speakingStyle'>) => Promise<void>;
 }) {
-  const [voice, setVoice] = useState(settings.voice);
-  const [error, setError] = useState('');
+  const [value, setValue] = useState({ voice: settings.voice, speakingStyle: settings.speakingStyle });
+  useUnsavedChanges(value.voice !== settings.voice || value.speakingStyle !== settings.speakingStyle);
   return (
     <form
       className="studio-stack"
       onSubmit={async (event) => {
         event.preventDefault();
-        const result = productionSettingsSchema.safeParse({
-          voice,
-          speakingStyle: String(new FormData(event.currentTarget).get('speakingStyle')),
-        });
-        if (!result.success) {
-          setError('请填写声音风格，最多 2,000 字。');
-          return;
-        }
-        setError('');
-        await save(result.data);
+        await save(value);
       }}
     >
-      <fieldset disabled={pending} className="studio-fieldset studio-stack">
-        <Field label="讲述声音">
-          <Choice
-            label="讲述声音"
-            value={voice}
-            disabled={pending}
-            onChange={(next) => setVoice(next as ProductionSettings['voice'])}
-            options={voices.map((value) => ({ value, label: value }))}
-          />
-        </Field>
-        <Field
-          label="讲述风格"
-          htmlFor="speaking-style"
-          required
-          hint="描述语气、速度和停顿方式。新任务使用保存后的设置。"
-        >
-          <InputArea
-            id="speaking-style"
-            name="speakingStyle"
-            defaultValue={settings.speakingStyle}
-            maxLength={2000}
-            required
-            rows={3}
-          />
-        </Field>
-        {error && (
-          <p className="admin-error" role="alert">
-            {error}
-          </p>
-        )}
-        <div className="studio-actions">
-          <Button type="submit" loading={pending}>
-            保存声音设置
-          </Button>
-        </div>
-      </fieldset>
+      <VoiceEditor value={value} onChange={setValue} configured={settings.ttsConfigured} disabled={pending} />
+      <div className="studio-actions">
+        <Button type="submit" loading={pending}>
+          保存声音设置
+        </Button>
+      </div>
     </form>
   );
 }
+
 function BumperUpload({
   position,
   value,

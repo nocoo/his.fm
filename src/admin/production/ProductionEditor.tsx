@@ -202,9 +202,7 @@ function Editor({ id }: { id: string }) {
           )}
           {step === 'review' && (
             <div className="studio-stack">
-              <p className="studio-location">
-                当前浏览器 · 你阅读文案、查看封面，并听完包含前后贴片的完整音频
-              </p>
+              <p className="studio-location">当前浏览器 · 你阅读文案、查看封面，并听完本次生成的节目音频</p>
               <FinalReview production={production} />
               <div className="studio-stage-footer">
                 <p className="admin-muted">

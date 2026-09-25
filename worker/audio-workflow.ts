@@ -52,24 +52,42 @@ export class AudioWorkflow extends WorkflowEntrypoint<Env, { jobId: string }> {
         );
         keys.push(key);
       }
-      const composed = await step.do(
-        'assemble-intro-narration-outro',
+      let composed = await step.do(
+        'assemble-narration',
         { retries: { limit: 2, delay: '5 seconds' }, timeout: '5 minutes' },
         async () => {
           await checkActiveAudio(this.env, snapshot);
-          const key = `${prefix}/final.wav`;
+          const key = `${prefix}/narration.wav`;
           if (await this.env.MEDIA.head(key)) {
             const stored = await readStoredWav(this.env.MEDIA, key);
             return { key, bytes: stored.size, durationSeconds: stored.durationSeconds };
           }
-          return composeWav(this.env.MEDIA, [snapshot.introKey, ...keys, snapshot.outroKey], key);
+          return composeWav(this.env.MEDIA, keys, key);
         },
       );
+      if (snapshot.introKey && snapshot.outroKey) {
+        const parts = [snapshot.introKey, composed.key, snapshot.outroKey];
+        composed = await step.do(
+          'assemble-with-bumpers',
+          { retries: { limit: 2, delay: '5 seconds' }, timeout: '5 minutes' },
+          async () => {
+            await checkActiveAudio(this.env, snapshot);
+            const key = `${prefix}/final.wav`;
+            if (await this.env.MEDIA.head(key)) {
+              const stored = await readStoredWav(this.env.MEDIA, key);
+              return { key, bytes: stored.size, durationSeconds: stored.durationSeconds };
+            }
+            return composeWav(this.env.MEDIA, parts, key);
+          },
+        );
+      }
       await step.do('attach-approved-script-audio', async () => {
         await setAudioState(this.env, snapshot, 'complete', null, {
           key: composed.key,
           url: mediaUrl(this.env, composed.key),
           mimeType: 'audio/wav',
+          voice: snapshot.voice,
+          includesBumpers: Boolean(snapshot.introKey && snapshot.outroKey),
           size: composed.bytes,
           scriptVersion: snapshot.scriptVersion,
           createdAt: new Date().toISOString(),

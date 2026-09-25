@@ -4,9 +4,8 @@ import { InputArea } from '@nocoo/basalt/components/input-area';
 import { SegmentControl } from '@nocoo/basalt/components/segment-control';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@nocoo/basalt/components/tabs';
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router';
 import type { Production } from '../../shared/production';
-import { Confirm } from './controls';
+import { AudioGeneration } from './AudioGeneration';
 import { audioBusy } from './model';
 import { PromptPanel } from './PromptPanel';
 import { ReadingText } from './ReadingText';
@@ -29,7 +28,6 @@ export function Assets({
 }) {
   const [cover, setCover] = useState<File | null>(null);
   const [uploadError, setUploadError] = useState('');
-  const [regenerate, setRegenerate] = useState(false);
   const [summary, setSummary] = useState(production.summary);
   const [description, setDescription] = useState(production.description);
   const [mode, setMode] = useState(description ? 'read' : 'edit');
@@ -41,7 +39,7 @@ export function Assets({
   return (
     <Tabs defaultValue="cover" className="studio-stack">
       <p className="studio-location">
-        三个任务可并行：封面和文案在本地计算机完成；完整音频由 Cloudflare 云端生成
+        三个任务可并行：封面和文案在本地计算机完成；正文音频由 Cloudflare 云端生成
       </p>
       <TabsList aria-label="成品素材">
         <TabsTrigger value="cover">封面</TabsTrigger>
@@ -156,7 +154,7 @@ export function Assets({
       </TabsContent>
       <TabsContent value="audio" className="studio-stack">
         <p className="studio-location">
-          Cloudflare 云端 · Gemini 3.8 Flash TTS · 自动合成片头、正文与片尾并存入 R2
+          Cloudflare 云端 · Gemini 3.8 Flash TTS · 生成正文，可选添加片头片尾，完成后存入 R2
         </p>
         <LayerCard>
           <div className="studio-stack">
@@ -178,48 +176,10 @@ export function Assets({
                 {production.audioJob.error}
               </p>
             )}
-            <div className="studio-actions">
-              <Button
-                loading={pending}
-                disabled={dirty || production.audioJob?.status === 'running' || !production.approvals.script}
-                onClick={() => {
-                  if (production.assets.audio) setRegenerate(true);
-                  else
-                    void mutate(
-                      () => productionService.audio(production.id, production.version),
-                      '音频任务已开始',
-                    );
-                }}
-              >
-                {production.audioJob?.status === 'queued'
-                  ? '重试派发音频任务'
-                  : production.audioJob?.status === 'failed'
-                    ? '重试生成音频'
-                    : production.assets.audio
-                      ? '重新生成音频'
-                      : '生成完整音频'}
-              </Button>
-            </div>
-            <p className="admin-muted">
-              {!production.approvals.script && '先在逐字稿阶段标记完成。'}声音、片头和片尾在
-              <Link className="studio-link" to="/admin/settings">
-                工作室设置
-              </Link>
-              配置。任务开始后可以关闭浏览器，云端会继续执行。
-            </p>
+            <AudioGeneration production={production} pending={pending} dirty={dirty} mutate={mutate} />
           </div>
         </LayerCard>
       </TabsContent>
-      {regenerate && (
-        <Confirm
-          title="确认重新生成音频"
-          description="会用当前已确认的逐字稿重新生成完整音频，成品需要再检查一次。"
-          onClose={() => setRegenerate(false)}
-          onConfirm={() =>
-            mutate(() => productionService.audio(production.id, production.version), '音频任务已开始')
-          }
-        />
-      )}
     </Tabs>
   );
 }
@@ -246,7 +206,10 @@ function AudioPreview({ production }: { production: Production }) {
       <audio controls preload="metadata" src={audio.url}>
         <track kind="captions" />
       </audio>
-      <p className="admin-muted">{Math.round(audio.durationSeconds ?? 0)} 秒 · 包含片头与片尾</p>
+      <p className="admin-muted">
+        {Math.round(audio.durationSeconds ?? 0)} 秒{audio.voice ? ` · ${audio.voice}` : ''} ·{' '}
+        {audio.includesBumpers ? '含片头与片尾' : '正文音频'}
+      </p>
       {audio.scriptVersion !== production.scriptVersion && (
         <p className="studio-notice">这是旧版音频。请先确认当前逐字稿，再重新生成。</p>
       )}
@@ -255,7 +218,7 @@ function AudioPreview({ production }: { production: Production }) {
       </a>
     </>
   ) : (
-    <p className="admin-muted">尚未生成完整音频。云端会使用你确认过的逐字稿。</p>
+    <p className="admin-muted">尚未生成正文音频。云端会使用你确认过的逐字稿。</p>
   );
 }
 export function FinalReview({ production }: { production: Production }) {

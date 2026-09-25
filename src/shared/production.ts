@@ -1,4 +1,7 @@
 import { z } from 'zod';
+import { voices } from './voices';
+
+export { voices } from './voices';
 
 export const productionStages = [
   'draft',
@@ -89,6 +92,8 @@ export type ProductionAsset = {
   scriptVersion: number;
   createdAt: string;
   durationSeconds?: number;
+  voice?: string;
+  includesBumpers?: boolean;
 };
 export type AudioJob = {
   id: string;
@@ -135,11 +140,25 @@ export const publicationSchema = z.strictObject({
     }),
   publishedAt: z.iso.datetime({ offset: true }).transform((value) => new Date(value).toISOString()),
 });
-export const voices = ['Kore', 'Zephyr', 'Puck', 'Charon', 'Aoede', 'Orus'] as const;
 export const productionSettingsSchema = z.strictObject({
   voice: z.enum(voices),
   speakingStyle: z.string().trim().min(1).max(2000),
 });
+export const audioGenerationSchema = productionSettingsSchema
+  .partial()
+  .extend({
+    version: z.number().int().min(1),
+    includeBumpers: z.boolean().default(false),
+  })
+  .strict();
+export type AudioGeneration = z.input<typeof audioGenerationSchema>;
+export const audioPreviewSchema = productionSettingsSchema
+  .extend({
+    text: z.string().trim().min(1).max(200),
+  })
+  .strict();
+export type AudioPreviewInput = z.infer<typeof audioPreviewSchema>;
+export type AudioPreview = AudioPreviewInput & { url: string; durationSeconds: number; cached: boolean };
 export type Bumper = { key: string; url: string; durationSeconds: number; size: number };
 export type ProductionSettings = z.infer<typeof productionSettingsSchema> & {
   intro: Bumper | null;

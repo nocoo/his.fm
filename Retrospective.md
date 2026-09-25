@@ -41,3 +41,11 @@ Studio browser acceptance initially targeted Basalt SegmentControl options as bu
 The first studio exposed the agent submission protocol as a multi-person editing workflow and erased useful material when reopening an earlier stage. The owner works alone. Owner completion now saves and confirms atomically; owner edits preserve material while invalidating downstream confirmations and media versions. Agent permissions remain restricted. A first revision incremented the script version for an empty initial brief; the lifecycle test caught this, and initial brief edits now leave that counter at zero until content exists. Long-form review must also have a single scroll owner rather than an independently scrolling paragraph inside the content island.
 
 The first stage-navigation stylesheet referenced a success token absent from Basalt 2.1.8. Computed-style inspection caught the missing value; completed stages now use the existing green primary accent. Read installed token definitions and verify actual colors in both themes instead of relying on plausible token names. Native content-sized textareas were also verified in both Chrome and WebKit before retaining the CSS-only implementation.
+
+## 2026-09-25 — Separate narration from optional audio bumpers
+
+The initial cloud audio route required both bumper uploads, preventing a complete approved script from producing narration on its own. Narration is now independently checkpointed and stored; adding both bumpers is explicit. Per-job voice overrides and short owner previews use the same synthesis contract.
+
+Expanding the voice list from six to thirty exposed an unbounded Basalt Select viewport on phones. The installed component supports a custom content class, so the shared studio choice now bounds its native viewport using Radix's available-height variable. Mobile acceptance selects voices near the end of the list rather than testing only the initially visible options.
+
+A browser regression also caught duplicate React roots after Vite invalidation. Declaring lazy components inside the bootstrap made the React plugin inject a timestamped self-import, evaluating `createRoot` twice. Routing and lazy components now live in an exported `App`; the bootstrap only creates the root. The full workflow's page-error assertion is retained.

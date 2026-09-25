@@ -15,8 +15,8 @@ export type AudioSnapshot = {
   transcript: string;
   voice: string;
   speakingStyle: string;
-  introKey: string;
-  outroKey: string;
+  introKey: string | null;
+  outroKey: string | null;
 };
 const defaults = {
   voice: 'Kore',

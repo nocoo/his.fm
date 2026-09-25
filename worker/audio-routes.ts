@@ -1,6 +1,10 @@
-import { z } from 'zod';
-import { type Actor, productionSettingsSchema } from '../src/shared/production';
-import { AudioError, parseWav } from './audio';
+import {
+  type Actor,
+  audioGenerationSchema,
+  audioPreviewSchema,
+  productionSettingsSchema,
+} from '../src/shared/production';
+import { AUDIO_MODEL, AudioError, parseWav, readStoredWav, synthesizeSpeech } from './audio';
 import { type AudioSnapshot, getSettings, saveBumper } from './audio-store';
 import { HttpError, json } from './http';
 import { readBytes, readJson } from './production-body';
@@ -22,7 +26,7 @@ async function triggerAudio(env: Env, jobId: string) {
 }
 
 async function startAudio(request: Request, env: Env, id: string, actor: Actor) {
-  const { version } = await readJson(request, z.strictObject({ version: z.number().int().min(1) }));
+  const { version, voice, speakingStyle, includeBumpers } = await readJson(request, audioGenerationSchema);
   const production = await getProduction(env.DB, id);
   if (production.version !== version) throw new HttpError(409, '内容已更新，请刷新后重试');
   if (
@@ -37,7 +41,8 @@ async function startAudio(request: Request, env: Env, id: string, actor: Actor) 
   }
   const settings = await getSettings(env);
   if (!settings.ttsConfigured) throw new HttpError(409, '请先配置 Gemini API 密钥');
-  if (!settings.intro || !settings.outro) throw new HttpError(409, '请先上传片头与片尾音频');
+  if (includeBumpers && (!settings.intro || !settings.outro))
+    throw new HttpError(409, '添加贴片前，请先在设置中上传片头与片尾');
   const jobId = crypto.randomUUID();
   const now = new Date().toISOString();
   const snapshot: AudioSnapshot = {
@@ -45,10 +50,10 @@ async function startAudio(request: Request, env: Env, id: string, actor: Actor) 
     productionId: id,
     scriptVersion: production.scriptVersion,
     transcript: production.transcript,
-    voice: settings.voice,
-    speakingStyle: settings.speakingStyle,
-    introKey: settings.intro.key,
-    outroKey: settings.outro.key,
+    voice: voice ?? settings.voice,
+    speakingStyle: speakingStyle ?? settings.speakingStyle,
+    introKey: includeBumpers ? (settings.intro?.key ?? null) : null,
+    outroKey: includeBumpers ? (settings.outro?.key ?? null) : null,
   };
   const next = nextVersion(
     appendEvent(
@@ -79,6 +84,38 @@ async function startAudio(request: Request, env: Env, id: string, actor: Actor) 
   return json({ production: await getProduction(env.DB, id) }, 202);
 }
 
+async function previewAudio(request: Request, env: Env) {
+  if (request.method !== 'POST') throw new HttpError(405, '不支持这个请求方式');
+  const input = await readJson(request, audioPreviewSchema);
+  if (!env.GEMINI_API_KEY) throw new HttpError(409, '请先配置 Gemini API 密钥');
+  const digest = await crypto.subtle.digest(
+    'SHA-256',
+    new TextEncoder().encode(JSON.stringify([AUDIO_MODEL, input.voice, input.speakingStyle, input.text])),
+  );
+  const hash = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
+  const key = `audio/previews/${hash}.wav`;
+  const cached = Boolean(await env.MEDIA.head(key));
+  try {
+    let durationSeconds: number;
+    if (cached) durationSeconds = (await readStoredWav(env.MEDIA, key)).durationSeconds;
+    else {
+      const generated = await synthesizeSpeech(
+        env.GEMINI_API_KEY,
+        input.text,
+        input.voice,
+        input.speakingStyle,
+      );
+      await env.MEDIA.put(key, generated.bytes, {
+        httpMetadata: { contentType: 'audio/wav', cacheControl: 'public, max-age=31536000, immutable' },
+      });
+      durationSeconds = generated.info.durationSeconds;
+    }
+    return json({ preview: { ...input, url: mediaUrl(env, key), durationSeconds, cached } });
+  } catch (error) {
+    throw new HttpError(502, error instanceof AudioError ? error.message : '试听生成暂时失败，请重试');
+  }
+}
+
 export async function routeAudio(
   request: Request,
   env: Env,
@@ -92,6 +129,7 @@ export async function routeAudio(
   }
   if (!path.startsWith('/production-settings')) return null;
   if (actor.kind !== 'human') throw new HttpError(403, '只有编辑可以管理工作室配置');
+  if (path === '/production-settings/preview') return previewAudio(request, env);
   if (path === '/production-settings') {
     if (request.method === 'GET') return json({ settings: await getSettings(env) });
     if (request.method !== 'PUT') throw new HttpError(405, '不支持这个请求方式');
