@@ -2,6 +2,18 @@
 
 All notable changes to his.fm are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions use the owner’s patch-only deployment policy in `AGENTS.md`, with the authoritative version in `package.json`.
 
+## 2.0.2 - 2026-09-26
+
+### Fixed
+
+- Replace the undersized 1536×1024 homepage and About artwork with a native 3504×2336 Sunburst reference-image edit, preserving the approved composition and archiving the original, prompt and generation metadata.
+- Serve responsive WebP derivatives through immutable R2/CDN keys. Mobile crops retain the person's golden-ratio placement; source selection accounts for cover height and display pixel density.
+
+### Validation
+
+- Chrome and WebKit verified native source coverage, layout and image selection on 14/16-inch MacBook Retina, phone 3× and tablet displays for both pages. All four CDN derivatives match their archived SHA-256 digests.
+- 183 unit tests and three public browser scenarios passed; all four coverage metrics exceed 95%. Strict lint, type checking, production build and the staged commit gate passed.
+
 ## 2.0.1 - 2026-09-26
 
 ### Added
