@@ -29,6 +29,8 @@ The deploy job uses base-ci `deploy-worker.yml`, which proves the release source
 
 Production deploys hold a non-cancelling lock (`deploy-worker-production`) on the `production` GitHub environment.
 
+Wrangler uses Vite's generated `dist/his_fm/wrangler.json` for both migrations and deployment. Passing the source config explicitly would skip the generated asset directory and bundled entrypoint.
+
 Release procedure follows `system0-github-versioning`: bump `package.json`, maintain `CHANGELOG.md`, commit, push, tag `vX.Y.Z`, publish the GitHub Release with the changelog as What's New. Publishing the Release triggers this workflow; CI must have passed on the tagged commit first.
 
 ## Required repository secrets

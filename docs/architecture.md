@@ -28,7 +28,7 @@ Episode records contain publication metadata, summary, transcript, show notes, t
 
 Migrations create tables only. The dev script applies migrations with `--local` and runs an idempotent local seed. A seed marker preserves subsequent edits and deletions. No mock records are imported to production.
 
-Images are optimized WebP assets. Originals, prompts, model details and SHA-256 digests remain in `artwork/`. The initial four images are also stored under `images/` in R2. The public shell uses bundled artwork for immediate rendering; editors can use `/media/images/...` for R2 media or an HTTPS CDN URL when the owner configures one.
+Images are optimized WebP assets. Originals, prompts, model details and SHA-256 digests remain in `artwork/`. Public images and media use the R2 custom domain `https://f.no.mt`; local uploaded assets use `/media/` against local R2. Six original voice references live under `reference/voices/` in R2.
 
 ## Interface and verification
 
@@ -37,4 +37,4 @@ Images are optimized WebP assets. Originals, prompts, model details and SHA-256 
 - Animation respects reduced-motion preferences. Navigation, fields and controls have keyboard focus states.
 - Unit coverage targets shared validation, frontend models/services and Worker behavior. Worker tests use actual Miniflare D1/R2 plus signed JWT fixtures. Browser checks exercise rendered interactions. L1 evidence is stored in nmem rather than asserted by a repository badge.
 
-AI production orchestration, audio generation, video editing and asset upload UI are outside this initial CRUD iteration. No inert controls imply those tools already work.
+The production studio uses a versioned D1 record, explicit human reviews and immutable R2 assets. Hermes calls bearer-authenticated `/api/agent/` routes; Cloudflare Access remains mandatory for human production administration. Local agents write scripts, descriptions and framed covers. Cloudflare Workflows synthesizes the approved script through Gemini, assembles the configured intro and outro, and attaches the result atomically. See [production](production.md) and [agent API](agent-api.md). Video production is not implemented.
