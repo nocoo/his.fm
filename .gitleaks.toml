@@ -1,0 +1,9 @@
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Public Cloudflare Access application audience identifier"
+condition = "AND"
+paths = ['''^worker/auth\.ts$''']
+regexTarget = "secret"
+regexes = ['''^41ef6d396f8256e97999ba1d1f11e15f6e7e5e788fce46f54016fd1d9710f726$''']
