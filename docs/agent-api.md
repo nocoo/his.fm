@@ -2,6 +2,19 @@
 
 The production API lets a local agent research and prepare an episode while preserving human review of the brief, script and finished assets. It does not publish to external platforms or grant an agent permission to approve its own work.
 
+## Discovery and onboarding
+
+Start at `GET /api/agent` (with or without a trailing slash). It returns a public manifest with the actual OpenAPI, instruction, authentication and resource links. Read [Hermes onboarding](hermes.md), served directly at `/api/agent/instructions`.
+
+- `/.well-known/api-catalog`: RFC 9727 catalog using RFC 9264 `application/linkset+json`.
+- `/api/agent/openapi.json`: OpenAPI 3.1 request/response schemas, methods, bearer security and operation IDs. Request schemas derive from the same Zod validators as the controllers.
+- `/llms.txt`: public agent-readable link index; no production content or internal editorial policy.
+- `GET /api/agent/me`: authenticated identity check. A successful public discovery request does not validate a token.
+- `GET /api/agent/capabilities`: authenticated permissions, limits and narration defaults/voices.
+- `GET /api/agent/productions/:id/capabilities`: latest version, editable fields, executable submissions and blocking reasons. Submission eligibility uses the same state machine as mutations.
+
+Discovery supports GET, HEAD and OPTIONS. Agent API responses carry `Link` headers for service discovery and documentation. Errors retain `error` and add `code` and `documentation`; 401 responses include a Bearer challenge. No MCP, A2A or OAuth endpoints are advertised.
+
 ## Authentication
 
 A signed-in human creates a token from the studio. Token management lives under Cloudflare Access at `/admin/api/agent-tokens`:
@@ -27,7 +40,7 @@ The table uses the agent prefix. Signed-in humans use `/admin/api` with the same
 | GET | `/api/agent/productions/:id` | `{ production }` |
 | PUT | `/api/agent/productions/:id` | `{ version, ...editableFields }` → `{ production }` |
 | DELETE | `/api/agent/productions/:id?version=N` | `204`; published productions cannot be deleted |
-| GET | `/api/agent/productions/:id/prompts` | `{ script, cover, description }` |
+| GET | `/api/agent/productions/:id/prompts` | `{ brief, script, cover, description }` |
 | POST | `/api/agent/productions/:id/actions` | `{ version, action, feedback? }` → `{ production }` |
 | PUT | `/api/agent/productions/:id/assets/cover?version=N` | Binary PNG, JPEG or WebP → `{ production }` |
 | POST | `/api/agent/productions/:id/audio` | `{ version }` → `{ production }`; starts the configured cloud audio workflow |
@@ -64,7 +77,7 @@ Editing rules:
 
 Every mutation requires the version just read. Successful updates advance `version`. Concurrent changes return `409`; read the latest record, preserve the other change and decide whether the intended update still applies. Do not blindly retry an old full record. Server-owned audio updates use a functional compare-and-swap helper to preserve simultaneous description and cover edits.
 
-Common responses are `400` for invalid input, `401` for token authentication, `403` for human-only actions, `404` for a missing record, `409` for stage/version conflicts, `413` for oversized input and `415` for invalid media. Error responses are `{ "error": "message" }`.
+Common responses are `400` for invalid input, `401` for token authentication, `403` for human-only actions, `404` for a missing record, `409` for stage/version conflicts, `413` for oversized input and `415` for invalid media. Agent error responses are `{ "error": "message", "code": "category", "documentation": "URL" }`.
 
 The JSON body limit is 750,000 bytes. Each production preserves up to 200 audit events. The API explicitly rejects further changes at that limit instead of silently removing history; start a new task if further revisions are required.
 

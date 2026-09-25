@@ -175,3 +175,19 @@ export type AgentTokenRecord = {
   revokedAt: string | null;
 };
 export type ProductionPrompts = { brief: string; script: string; cover: string; description: string };
+
+export const agentActions = ['submit_brief', 'submit_script', 'submit_final'] as const;
+export const agentActionSchema = z.strictObject({
+  version: z.number().int().min(1),
+  action: z.enum(agentActions),
+  feedback: z.string().trim().max(12000).optional(),
+});
+export const agentEditableFields: Record<Production['stage'], string[]> = {
+  draft: Object.keys(briefSchema.shape),
+  scripting: ['transcript', 'category', 'tags'],
+  production: ['description', 'summary', 'category', 'tags'],
+  brief_review: [],
+  script_review: [],
+  final_review: [],
+  ready: [],
+};

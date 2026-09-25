@@ -1,4 +1,10 @@
-import type { Actor, Production, ProductionAction, ProductionBrief } from '../src/shared/production';
+import {
+  type Actor,
+  agentEditableFields,
+  type Production,
+  type ProductionAction,
+  type ProductionBrief,
+} from '../src/shared/production';
 import { HttpError } from './http';
 
 export function requireHuman(actor: Actor) {
@@ -60,24 +66,9 @@ export function applyPatch(
   fields: Partial<ProductionBrief & Pick<Production, 'transcript' | 'summary' | 'description'>>,
   actor: Actor,
 ): Production {
-  const briefKeys = [
-    'title',
-    'slug',
-    'episodeNumber',
-    'category',
-    'tags',
-    'targetDurationSeconds',
-    'sources',
-    'intent',
-  ];
   if (actor.kind === 'agent') {
     requireStage(production, 'draft', 'scripting', 'production');
-    const allowed =
-      production.stage === 'draft'
-        ? briefKeys
-        : production.stage === 'scripting'
-          ? ['transcript', 'category', 'tags']
-          : ['description', 'summary', 'category', 'tags'];
+    const allowed = agentEditableFields[production.stage];
     if (Object.keys(fields).some((key) => !allowed.includes(key)))
       throw new HttpError(409, '请由你本人修改已确认的内容，或返回对应阶段后让助手继续');
   }

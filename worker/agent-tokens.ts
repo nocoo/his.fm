@@ -16,7 +16,7 @@ async function hashToken(token: string) {
 }
 
 export async function authenticateAgent(request: Request, env: Env): Promise<Actor> {
-  const token = request.headers.get('Authorization')?.match(/^Bearer (hisfm_[a-f0-9]{64})$/)?.[1];
+  const token = request.headers.get('Authorization')?.match(/^Bearer (hisfm_[a-f0-9]{64})$/i)?.[1];
   if (!token) throw new HttpError(401, '需要有效的 Agent Token');
   const now = new Date().toISOString();
   const record = await env.DB.prepare(

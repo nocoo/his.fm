@@ -57,3 +57,11 @@ The public Safari color fix left one public-paper theme-color on admin routes an
 ## 2026-09-25 — Preserve safe provider error categories
 
 A reported TTS HTTP 400 could not be diagnosed from the stored message because the shared synthesis code discarded every provider error body before classification. Default Kore previews succeeded again locally and in production, so that result does not establish the cause or resolution of the reported request. Error bodies are now bounded and mapped to fixed actionable categories; raw provider messages, scripts and credentials remain excluded from logs and responses. Preserve diagnostic categories at the integration boundary and verify the actual failing inputs before claiming a provider failure resolved.
+
+## 2026-09-25 — Make the advertised agent entrypoint usable
+
+The studio copied `/api/agent` for Hermes, but the Worker only implemented subordinate routes and returned 404 at that exact address. Documentation existed only in the private repository, and copied task instructions used a different token environment-variable name from the API guide. Reproduce onboarding from the advertised URL before declaring an integration usable. The service now publishes a standard API catalog, OpenAPI, instructions and authenticated capability/identity endpoints, uses one token variable, and tests discovery through the actual Worker router and bearer authorization boundary.
+
+## 2026-09-25 — Confirm the development server before browser checks
+
+The first browser validation run assumed the previous Vite session was still listening. Every navigation failed because Caddy returned 502. Restarting the existing development command restored the site. Check the local health endpoint before starting a browser suite after a session handoff; an old process reference is not evidence of a running server.

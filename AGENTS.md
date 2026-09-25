@@ -5,6 +5,7 @@
 - React 19 + Vite 8 + TypeScript 7.0.2, served by one Cloudflare Worker.
 - Public views live in `src/public/`. Admin views live in `src/admin/` and use `@nocoo/basalt` 2.1.8 with standalone CSS and granular shell imports.
 - Keep editable episode validation in `src/shared/episode.ts`, business logic in `model.ts` / `service.ts`, and D1 / Access / R2 logic in `worker/`.
+- Agent discovery lives at `/api/agent`, `/.well-known/api-catalog` and `/llms.txt`; OpenAPI and public onboarding must remain synchronized with shared validators and protected controllers. Tokens use `HISFM_AGENT_TOKEN`; public discovery never proves authentication.
 - Production contracts live in `src/shared/production.ts`; human and agent routes share controllers but never share approval privileges. All writes require optimistic versions. Published episode snapshots are readonly through legacy CRUD.
 - The owner editor uses five freely navigable URL stages: brief, script, assets, review, publish. Navigation is read-only; completion and reopening use the shared state machine. Keep one visible stage and one main scroll region.
 - Long review text uses Markdown and the private `/admin/fonts/jinkai/` subsets from xray; shell controls retain Basalt typography.
@@ -54,7 +55,7 @@ Install through an allowed registry on this machine. Never retry blocked `regist
 - R2 CDN: `https://f.no.mt`. Voice references use `reference/voices/*.wav`; generated media stays ignored.
 - D1 ID: `66f7e201-22a8-450d-838d-ecbc382afbc6`.
 - The existing Access application protects `his.fm/admin`; descendant paths inherit its policy unless a more specific application overrides them.
-- `run_worker_first` covers `/admin`, `/admin/*`, `/api/*` and `/media/*`.
+- `run_worker_first` covers `/admin`, `/admin/*`, `/api/*`, `/media/*`, `/.well-known/api-catalog` and `/llms.txt`.
 - Deploy through published GitHub Releases and pinned `nocoo/base-ci`; use Vite's generated `dist/his_fm/wrangler.json`, never the source configuration as a deploy override. Verify `/api/live` against the exact release version and revision.
 - R2 image keys are `images/hero.webp` and `images/episode-01.webp` through `episode-03.webp`. `/media/*` serves configured R2 objects; the owner manages the CDN domain.
 

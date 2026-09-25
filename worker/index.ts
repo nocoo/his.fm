@@ -1,5 +1,6 @@
 import { version } from '../package.json';
-import { authenticateAgent, routeAgentTokens } from './agent-tokens';
+import { discoveryLinks, routeAgent, routeDiscovery } from './agent-api';
+import { routeAgentTokens } from './agent-tokens';
 import { routeAudio } from './audio-routes';
 import { accessLogin, authenticate, isLocal, localLogin, logout } from './auth';
 import { getEpisode, listEpisodes, mutateEpisode } from './episodes';
@@ -25,15 +26,9 @@ async function media(request: Request, env: Env) {
 async function route(request: Request, env: Env): Promise<Response> {
   const url = new URL(request.url);
   const path = url.pathname;
-  if (path.startsWith('/api/agent/')) {
-    const actor = await authenticateAgent(request, env);
-    const suffix = path.slice('/api/agent'.length);
-    const response =
-      (await routeAudio(request, env, suffix, actor)) ??
-      (await routeProductions(request, env, suffix, actor));
-    if (response) return response;
-    throw new HttpError(404, '接口不存在');
-  }
+  const discovery = routeDiscovery(request);
+  if (discovery) return discovery;
+  if (path.startsWith('/api/agent/')) return routeAgent(request, env);
   if (path === '/api/live') {
     if (request.method !== 'GET') throw new HttpError(405, '不支持这个请求方式');
     await env.DB.prepare('SELECT 1').first();
@@ -89,7 +84,16 @@ async function route(request: Request, env: Env): Promise<Response> {
     response.headers.set('Cache-Control', 'no-store');
     return response;
   }
-  if (path === '/api' || path.startsWith('/api/')) throw new HttpError(404, '接口不存在');
+  if (path === '/api' || path.startsWith('/api/'))
+    return json(
+      {
+        error: '接口不存在，请读取服务发现',
+        code: 'not_found',
+        documentation: `${url.origin}/api/agent/instructions`,
+      },
+      404,
+      { Link: discoveryLinks(url.origin) },
+    );
   return env.ASSETS.fetch(request);
 }
 
@@ -106,7 +110,19 @@ export default {
           message: error instanceof Error ? error.message : 'Unknown error',
         }),
       );
-      return json({ error: '暂时无法完成操作，请稍后重试' }, 500);
+      return json(
+        {
+          error: '暂时无法完成操作，请稍后重试',
+          ...(new URL(request.url).pathname.startsWith('/api/agent/')
+            ? {
+                code: 'internal_error',
+                documentation: `${new URL(request.url).origin}/api/agent/instructions`,
+              }
+            : {}),
+        },
+        500,
+        { Link: discoveryLinks(new URL(request.url).origin) },
+      );
     }
   },
 } satisfies ExportedHandler<Env>;

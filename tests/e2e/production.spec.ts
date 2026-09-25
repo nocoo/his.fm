@@ -320,6 +320,21 @@ test('audio settings preserve failed uploads and assistant tokens are revocable 
 }) => {
   const state = await studio(page);
   await page.goto('/admin/settings');
+  const origin = new URL(page.url()).origin;
+  await expect(page.getByRole('link', { name: '接入说明', exact: true })).toHaveAttribute(
+    'href',
+    `${origin}/api/agent/instructions`,
+  );
+  await expect(page.getByRole('link', { name: 'OpenAPI', exact: true })).toHaveAttribute(
+    'href',
+    `${origin}/api/agent/openapi.json`,
+  );
+  await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
+  await page.getByRole('button', { name: '复制 Hermes 接入指令', exact: true }).click();
+  const instructions = await page.evaluate(() => navigator.clipboard.readText());
+  expect(instructions).toContain(`${origin}/api/agent/me`);
+  expect(instructions).toContain('HISFM_AGENT_TOKEN');
+  expect(instructions).not.toContain('https://his.fm');
   await expect(page.getByText('Gemini 未配置', { exact: true })).toBeVisible();
   await page.getByLabel('讲述风格').fill('舒缓、温暖，留出自然停顿');
   await page.getByRole('button', { name: '保存声音设置' }).click();

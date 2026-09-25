@@ -6,9 +6,10 @@ import { TagBadge } from '@nocoo/basalt/components/tag-badge';
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router';
 import type { AgentTokenRecord, ProductionSettings } from '../../shared/production';
+import { getEnvironment } from '../environment';
 import { errorMessage } from '../model';
 import { Confirm, CopyButton, Failure } from './controls';
-import { dateLabel } from './model';
+import { agentConnectionInstructions, dateLabel } from './model';
 import { productionService } from './service';
 import { useUnsavedChanges } from './useUnsavedChanges';
 import { VoiceEditor } from './VoiceEditor';
@@ -209,6 +210,7 @@ function BumperUpload({
   );
 }
 function TokenSettings() {
+  const base = getEnvironment() === 'production' ? 'https://his.fm' : window.location.origin;
   const [tokens, setTokens] = useState<AgentTokenRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -240,10 +242,24 @@ function TokenSettings() {
       <LayerCard.Body className="studio-stack studio-padding">
         <div className="studio-row">
           <p>
-            接口地址：<code className="studio-wrap">https://his.fm/api/agent</code>
+            接口地址：<code className="studio-wrap">{base}/api/agent</code>
           </p>
-          <CopyButton label="复制接口地址" read={() => 'https://his.fm/api/agent'} />
+          <CopyButton label="复制接口地址" read={() => `${base}/api/agent`} />
         </div>
+        <div className="studio-actions">
+          <CopyButton label="复制 Hermes 接入指令" read={() => agentConnectionInstructions(base)} />
+          <Button variant="outline" asChild>
+            <a href={`${base}/api/agent/instructions`} target="_blank" rel="noopener noreferrer">
+              接入说明
+            </a>
+          </Button>
+          <Button variant="ghost" asChild>
+            <a href={`${base}/api/agent/openapi.json`} target="_blank" rel="noopener noreferrer">
+              OpenAPI
+            </a>
+          </Button>
+        </div>
+        <p className="admin-muted">使用当前环境的令牌。入口可公开读取，令牌是否有效请通过 /me 验证。</p>
         <p className="admin-muted">
           令牌允许助手准备内容与生成素材。选题、逐字稿、成品审批和发布确认仍由编辑本人完成。
         </p>

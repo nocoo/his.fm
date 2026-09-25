@@ -4,7 +4,17 @@ import { Miniflare, Response as MiniflareResponse } from 'miniflare';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { version } from '../../package.json';
 import type { Episode, EpisodeInput } from '../../src/shared/episode';
+import type { Production } from '../../src/shared/production';
 import worker from '../../worker';
+import { productionCapabilities } from '../../worker/agent-api';
+import {
+  agentOpenApi,
+  productionCapabilitiesSchema,
+  productionResponseSchema,
+  serviceCapabilitiesSchema,
+  serviceManifestSchema,
+} from '../../worker/agent-contract';
+import { agent, brief, fixture, readyFixture } from './production-fixture';
 
 const origin = 'https://hisfm.dev.hexly.ai';
 const issuer = 'https://nocoo.cloudflareaccess.com';
@@ -124,7 +134,11 @@ beforeAll(async () => {
 }, 30000);
 
 beforeEach(async () => {
-  await env.DB.batch([env.DB.prepare('DELETE FROM episodes'), env.DB.prepare('DELETE FROM local_sessions')]);
+  await env.DB.batch(
+    ['episodes', 'local_sessions', 'productions', 'agent_tokens'].map((table) =>
+      env.DB.prepare(`DELETE FROM ${table}`),
+    ),
+  );
   cookie = '';
   const response = await call('/admin/api/dev-login', { method: 'POST' });
   expect(response.status).toBe(200);
@@ -438,5 +452,240 @@ describe('R2 media', () => {
     expect((await call('/media/test..webp')).status).toBe(404);
     expect((await call('/media/%00')).status).toBe(404);
     expect((await call('/media/test.webp', { method: 'POST' })).status).toBe(405);
+  });
+});
+
+describe('agent discovery and real bearer routing', () => {
+  it('serves the advertised root, RFC catalog, OpenAPI and instructions without exposing private records', async () => {
+    for (const path of [
+      '/api/agent',
+      '/api/agent/',
+      '/api/agent/openapi.json',
+      '/api/agent/instructions',
+      '/.well-known/api-catalog',
+      '/llms.txt',
+    ]) {
+      const response = await call(path);
+      expect(response.status).toBe(200);
+      expect(response.headers.get('Link')).toContain('rel="service-desc"');
+      expect(response.headers.get('Content-Type')).not.toContain('text/html');
+      expect(await (await call(path, { method: 'HEAD' })).text()).toBe('');
+      expect((await call(path, { method: 'OPTIONS' })).headers.get('Allow')).toBe('GET, HEAD, OPTIONS');
+      expect((await call(path, { method: 'POST' })).status).toBe(405);
+    }
+    const manifest = serviceManifestSchema.parse(await (await call('/api/agent')).json());
+    expect(manifest).toMatchObject({ protocol: 'REST', api: `${origin}/api/agent`, version });
+    const catalog = await call('/.well-known/api-catalog');
+    expect(catalog.headers.get('Content-Type')).toBe('application/linkset+json');
+    expect(await catalog.json()).toMatchObject({
+      linkset: [
+        { anchor: `${origin}/api/agent`, 'service-desc': [{ href: `${origin}/api/agent/openapi.json` }] },
+      ],
+    });
+    expect(await (await call('/api/agent/openapi.json')).json()).toEqual(agentOpenApi(origin));
+    const instructions = await (await call('/api/agent/instructions')).text();
+    expect(instructions).toContain('HISFM_AGENT_TOKEN');
+    expect(instructions).toContain(origin);
+    expect(instructions).not.toContain('https://his.fm');
+    const unauthorized = await call('/api/agent/me');
+    expect(unauthorized.status).toBe(401);
+    expect(unauthorized.headers.get('WWW-Authenticate')).toContain('Bearer');
+    expect(await unauthorized.json()).toMatchObject({
+      code: 'unauthorized',
+      documentation: `${origin}/api/agent/instructions`,
+    });
+    for (const path of [
+      '/api/agent/productions',
+      '/api/agent/capabilities',
+      '/api/agent/productions/private/capabilities',
+    ]) {
+      expect((await call(path)).status).toBe(401);
+    }
+  });
+
+  it('discovers, authenticates, performs CRUD, reads prompts and respects human gates across all preparation endpoints', async () => {
+    const tokenResponse = await call('/admin/api/agent-tokens', {
+      method: 'POST',
+      ...body({ name: 'Hermes integration', expiresInDays: 1 }),
+    });
+    const secret = (await tokenResponse.json()) as { token: string; record: { id: string } };
+    const agentCall = (path: string, options: RequestInit = {}, bindings = env) => {
+      const headers = new Headers(options.headers);
+      headers.set('Authorization', `bearer ${secret.token}`);
+      return worker.fetch(new Request(`${origin}/api/agent${path}`, { ...options, headers }), bindings);
+    };
+    expect(await (await agentCall('/me')).json()).toMatchObject({
+      actor: { kind: 'agent', name: expect.stringContaining('Hermes integration') },
+    });
+    const capabilities = serviceCapabilitiesSchema.parse(await (await agentCall('/capabilities')).json());
+    expect(capabilities.audio.voices).toHaveLength(30);
+    expect(capabilities.audio.voices.filter((voice) => voice.previewUrl)).toHaveLength(6);
+    expect((await agentCall('/me', { method: 'POST' })).status).toBe(405);
+    expect((await agentCall('/me', { method: 'POST' })).headers.get('Allow')).toBe('GET');
+    expect((await agentCall('/productions', { method: 'PATCH' })).headers.get('Allow')).toBe('GET, POST');
+    const created = await agentCall('/productions', { method: 'POST', ...body(brief) });
+    expect(created.status).toBe(201);
+    let p = productionResponseSchema.parse(((await created.json()) as { production: unknown }).production);
+    expect((await agentCall('/productions/')).status).toBe(200);
+    expect(await (await agentCall(`/productions/${p.id}`)).json()).toEqual({ production: p });
+    expect(await (await agentCall(`/productions/${p.id}/prompts`)).json()).toMatchObject({
+      brief: expect.any(String),
+      script: expect.any(String),
+      cover: expect.any(String),
+      description: expect.any(String),
+    });
+    const before = productionCapabilitiesSchema.parse(
+      await (await agentCall(`/productions/${p.id}/capabilities`)).json(),
+    );
+    expect(before.availableActions).toEqual(['submit_brief']);
+    expect(before.editableFields).toContain('intent');
+    expect(
+      (
+        await agentCall(`/productions/${p.id}`, {
+          method: 'PUT',
+          ...body({ version: 999, intent: 'Conflict' }),
+        })
+      ).status,
+    ).toBe(409);
+    const update = await agentCall(`/productions/${p.id}`, {
+      method: 'PUT',
+      ...body({ version: p.version, intent: 'Updated intent' }),
+    });
+    p = ((await update.json()) as { production: Production }).production;
+    const action = async (name: string) =>
+      agentCall(`/productions/${p.id}/actions`, {
+        method: 'POST',
+        ...body({ version: p.version, action: name }),
+      });
+    p = ((await (await action('submit_brief')).json()) as { production: Production }).production;
+    expect(p.stage).toBe('brief_review');
+    expect((await action('approve_brief')).status).toBe(403);
+    const waiting = await (await agentCall(`/productions/${p.id}/capabilities`)).json();
+    expect(waiting).toMatchObject({ editableFields: [], availableActions: [] });
+    p = (
+      (await (
+        await call(`/admin/api/productions/${p.id}/actions`, {
+          method: 'POST',
+          ...body({ version: p.version, action: 'approve_brief' }),
+        })
+      ).json()) as { production: Production }
+    ).production;
+    p = (
+      (await (
+        await agentCall(`/productions/${p.id}`, {
+          method: 'PUT',
+          ...body({ version: p.version, transcript: '这里是 his.fm。今晚先好好吃饭。' }),
+        })
+      ).json()) as { production: Production }
+    ).production;
+    p = ((await (await action('submit_script')).json()) as { production: Production }).production;
+    p = (
+      (await (
+        await call(`/admin/api/productions/${p.id}/actions`, {
+          method: 'POST',
+          ...body({ version: p.version, action: 'approve_script' }),
+        })
+      ).json()) as { production: Production }
+    ).production;
+    p = (
+      (await (
+        await agentCall(`/productions/${p.id}`, {
+          method: 'PUT',
+          ...body({ version: p.version, summary: 'A summary', description: 'A description' }),
+        })
+      ).json()) as { production: Production }
+    ).production;
+    const png = Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLbtAAAAABJRU5ErkJggg==',
+      'base64',
+    );
+    const cover = await agentCall(`/productions/${p.id}/assets/cover?version=${p.version}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'image/png' },
+      body: png,
+    });
+    expect(cover.status).toBe(200);
+    p = ((await cover.json()) as { production: Production }).production;
+    expect(p.assets.cover?.key).toContain(p.id);
+    const dispatch = vi.fn().mockResolvedValue({});
+    const bindings = {
+      ...env,
+      GEMINI_API_KEY: 'test-provider-key',
+      AUDIO_WORKFLOW: { create: dispatch },
+    } as unknown as Env;
+    const audio = await agentCall(
+      `/productions/${p.id}/audio`,
+      { method: 'POST', ...body({ version: p.version, voice: 'Sulafat' }) },
+      bindings,
+    );
+    expect(audio.status).toBe(202);
+    expect(dispatch).toHaveBeenCalledOnce();
+    p = ((await audio.json()) as { production: Production }).production;
+    expect(p.audioJob?.status).toBe('queued');
+    const redispatch = await agentCall(
+      `/productions/${p.id}/audio`,
+      { method: 'POST', ...body({ version: p.version, voice: 'Kore' }) },
+      bindings,
+    );
+    expect(redispatch.status).toBe(200);
+    expect(await redispatch.json()).toEqual({ production: p });
+    expect((await action('submit_final')).status).toBe(409);
+    expect(
+      (await agentCall(`/productions/${p.id}/publications`, { method: 'POST', ...body({}) })).status,
+    ).toBe(403);
+    expect((await agentCall('/production-settings')).status).toBe(403);
+    expect((await agentCall('/unknown')).status).toBe(404);
+    expect((await agentCall('/productions/missing/capabilities')).status).toBe(404);
+    const log = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    await env.DB.prepare('ALTER TABLE productions RENAME TO productions_backup').run();
+    try {
+      const failure = await agentCall('/productions');
+      expect(failure.status).toBe(500);
+      expect(failure.headers.get('Link')).toContain('service-desc');
+      expect(await failure.json()).toEqual({
+        error: '暂时无法完成操作，请稍后重试',
+        code: 'internal_error',
+        documentation: `${origin}/api/agent/instructions`,
+      });
+    } finally {
+      await env.DB.prepare('ALTER TABLE productions_backup RENAME TO productions').run();
+      log.mockRestore();
+    }
+    expect((await agentCall(`/productions/${p.id}?version=${p.version}`, { method: 'DELETE' })).status).toBe(
+      204,
+    );
+    expect((await agentCall(`/productions/${p.id}`)).status).toBe(404);
+    await call(`/admin/api/agent-tokens/${secret.record.id}`, { method: 'DELETE' });
+    expect((await agentCall('/me')).status).toBe(401);
+  });
+
+  it('derives action availability from the real state machine without mutating records', () => {
+    const ready = readyFixture({ stage: 'production' });
+    const copy = structuredClone(ready);
+    expect(productionCapabilities(ready, agent, origin)).toMatchObject({
+      availableActions: ['submit_final'],
+      canGenerateAudio: true,
+    });
+    expect(ready).toEqual(copy);
+    expect(productionCapabilities(fixture(), agent, origin).blockedActions.submit_brief).toBeUndefined();
+    expect(productionCapabilities(fixture({ sources: [] }), agent, origin).availableActions).toEqual([]);
+    expect(
+      productionCapabilities(
+        readyFixture({
+          publications: [
+            {
+              platform: 'wechat',
+              url: 'https://mp.weixin.qq.com/s/a',
+              publishedAt: '2026-01-01',
+              confirmedAt: '2026-01-01',
+              confirmedBy: 'Owner',
+              version: 1,
+            },
+          ],
+        }),
+        agent,
+        origin,
+      ).canDelete,
+    ).toBe(false);
   });
 });
