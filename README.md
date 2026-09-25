@@ -19,6 +19,10 @@ his.fm 是一个中文播客，关注 AI 转型之下的人。我们面向正在
 
 每期材料保存在独立的 `episodes/<episode-slug>/` 文件夹。逐字稿和发表摘要采用中文，来源记录保留项目版本、原始出处、事实核查结果及引申边界。十分钟节目的时长先按口播字数与语速估算，音频生成后再记录实测时长。
 
+| 期数 | 题目 | 材料 |
+| --- | --- | --- |
+| 001 | 下班后，还要追多少个 AI？ | [逐字稿](episodes/001-how-to-live-better/transcript.md) · [发表摘要](episodes/001-how-to-live-better/summary.md) · [研究与核查](episodes/001-how-to-live-better/research.md) |
+
 ## Voice comparison
 
 The initial voice comparison is a single-speaker Mandarin launch announcement. It predates the editorial direction above and is retained as an audio test, not as the current channel description.
