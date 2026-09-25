@@ -2,6 +2,24 @@
 
 All notable changes to his.fm are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html) with the authoritative version in `package.json`.
 
+## 1.3.0 - 2026-09-25
+
+### Added
+
+- Public agent entrypoint, RFC 9727 API catalog, OpenAPI 3.1 contract, Hermes onboarding instructions and an `llms.txt` discovery index.
+- Authenticated identity and capability endpoints for available voices, stage permissions, submission actions and blocking reasons.
+- Environment-aware Hermes connection instructions and documentation links in studio settings.
+
+### Fixed
+
+- The advertised `/api/agent` URL no longer returns 404. Discovery paths reach the Worker instead of the SPA fallback.
+- Use `HISFM_AGENT_TOKEN` consistently, accept case-insensitive Bearer schemes and return discovery links, structured errors and authentication challenges.
+
+### Validation
+
+- 172 unit tests and 15 browser scenarios passed; all four L1 coverage metrics exceed 95%. Strict lint, type checking and production build passed.
+- Worker integration tests cover discovery, bearer authentication, CRUD, version conflicts, stage review boundaries, prompts, cover uploads, audio dispatch and token revocation. Production acceptance is recorded with the release after deployment.
+
 ## 1.2.1 - 2026-09-25
 
 ### Fixed
