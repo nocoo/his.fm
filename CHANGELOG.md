@@ -2,6 +2,25 @@
 
 All notable changes to his.fm are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html) with the authoritative version in `package.json`.
 
+## 2.0.0 - 2026-09-25
+
+### Added
+
+- Private channel positioning at `/admin/channel`, initialized from the owner's editorial principles and editable with a Tiptap document editor, Chinese reading typography, formatting toolbar, outline, undo/redo and Markdown export.
+- Environment-scoped browser drafts, keyboard saving and explicit version-conflict review. Failed saves, temporarily empty documents and oversized drafts remain recoverable.
+- Authenticated, read-only `/api/agent/channel`, with discovery links, OpenAPI and Hermes instructions describing channel positioning as the highest editorial authority, followed by episode intent and source material.
+
+### Changed
+
+- All four production prompts include the latest saved channel profile and version. Copying an agent task refreshes its prompt; channel edits affect subsequent tasks without rewriting productions or revoking approvals.
+- Internal positioning remains outside public discovery and client bundles. Agents cannot edit it or use editorial text to obtain approval/publication permissions.
+- D1 migration `0005_channel.sql` adds the singleton versioned channel profile. This database-schema change advances the major version under the project release policy; release deployment applies the migration before the Worker update.
+
+### Validation
+
+- 173 unit tests, 18 Chrome scenarios and three focused WebKit scenarios passed. Statement, branch, function and line coverage exceed 95%; strict lint, type checking and production build passed.
+- Real local saves, formatting, undo/redo, draft recovery, conflicts, mobile layouts and both themes were exercised. API tests cover owner writes, agent read-only access, private content and fresh prompts. Production acceptance is recorded with the release after deployment.
+
 ## 1.3.0 - 2026-09-25
 
 ### Added
