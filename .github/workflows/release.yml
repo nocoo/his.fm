@@ -34,7 +34,7 @@ jobs:
       install-policy: project
       build-command: npm run build
       wrangler-version: '4.140.0'
-      wrangler-config: 'wrangler.jsonc'
+      wrangler-config: 'dist/his_fm/wrangler.json'
       d1-migrations: true
       d1-databases: 'his-fm'
       environment: production
