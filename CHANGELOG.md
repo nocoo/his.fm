@@ -1,6 +1,19 @@
 # Changelog
 
-All notable changes to his.fm are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html) with the authoritative version in `package.json`.
+All notable changes to his.fm are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions use the owner’s patch-only deployment policy in `AGENTS.md`, with the authoritative version in `package.json`.
+
+## 2.0.1 - 2026-09-26
+
+### Added
+
+- Owner-only R2 resource management at `/admin/storage`: paginated inventory, storage totals, image/audio/video filters, reference reasons, search, size/date sorting, previews and CDN-link copying in local and production environments.
+- Confirmed, bounded cleanup of unused media, with fresh reference/version checks, per-file outcomes and actual reclaimed bytes. Brand assets, current episode/production/channel references, active audio jobs, bumper snapshots and uploads younger than 24 hours remain protected.
+- Authenticated streaming previews with byte-range support for audio/video seeking. Partial scans disable cleanup; interrupted batches preserve known results and require rescanning. Scan and cleanup requests retain their original environment.
+
+### Validation
+
+- 183 unit tests, 21 Chrome scenarios and three focused WebKit scenarios passed. Statement, branch, function and line coverage exceed 95%; strict lint, type checking, production build and the normal staged commit gate passed.
+- Integration tests exercise real Miniflare R2 pagination, newly attached references, replaced/missing objects, individual deletion failures, owner authorization, same-origin writes and media range responses. Existing production objects are not destructive test fixtures.
 
 ## 2.0.0 - 2026-09-25
 
