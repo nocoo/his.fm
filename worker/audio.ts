@@ -129,7 +129,7 @@ export async function readStoredWav(bucket: R2Bucket, key: string): Promise<Stor
   return { ...parseWav(bytes, object.size), key, etag: object.etag, size: object.size };
 }
 
-async function boundedJson(response: Response): Promise<unknown> {
+async function boundedJson(response: Response, maximum = MAX_RESPONSE_BYTES): Promise<unknown> {
   if (!response.body) throw new AudioError('语音服务返回空响应');
   const reader = response.body.getReader();
   const chunks: Uint8Array[] = [];
@@ -139,7 +139,7 @@ async function boundedJson(response: Response): Promise<unknown> {
       const chunk = await reader.read();
       if (chunk.done) break;
       length += chunk.value.byteLength;
-      if (length > MAX_RESPONSE_BYTES) throw new AudioError('语音服务响应超出分段大小限制');
+      if (length > maximum) throw new AudioError('语音服务响应超出分段大小限制');
       chunks.push(chunk.value);
     }
   } finally {
@@ -161,6 +161,29 @@ async function boundedJson(response: Response): Promise<unknown> {
 
 function record(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
+}
+
+async function speechFailure(response: Response): Promise<AudioError> {
+  const data = await boundedJson(response, 8192).catch(() => null);
+  const error = record(data) && record(data.error) ? data.error : null;
+  const message = error && typeof error.message === 'string' ? error.message : '';
+  let reason = '语音服务请求失败';
+  if (/location is not supported|unsupported (?:country|region|location)/i.test(message))
+    reason = 'Gemini 不支持当前服务出口地区，请联系管理员检查云端运行地区';
+  else if (/free tier.*(?:country|region)|billing.*(?:enable|disabled|required)/i.test(message))
+    reason = 'Gemini 项目需要开通计费，请检查 Google AI Studio 项目设置';
+  else if (/API key not valid|API key (?:has )?expired|API_KEY_INVALID/i.test(message))
+    reason = 'Gemini API 密钥无效或已过期，请更新云端密钥';
+  else if (/(?:invalid|unknown|unsupported) voice|voice.*(?:not found|not supported|invalid)/i.test(message))
+    reason = 'Gemini 不支持当前音色，请选择其他音色';
+  else if (error?.status === 'INVALID_ARGUMENT')
+    reason = 'Gemini 拒绝了语音参数，请检查音色、试听文字和讲述风格';
+  else if (response.status === 429) reason = 'Gemini 额度或调用频率受限，请检查配额后重试';
+  console.warn(JSON.stringify({ event: 'tts_provider_error', status: response.status, reason }));
+  return new AudioError(
+    `${reason}（HTTP ${response.status}）`,
+    response.status === 429 || response.status >= 500,
+  );
 }
 
 export async function synthesizeSpeech(apiKey: string, text: string, voice: string, speakingStyle: string) {
@@ -188,13 +211,7 @@ export async function synthesizeSpeech(apiKey: string, text: string, voice: stri
       generation_config: { speech_config: [{ voice }] },
     }),
   });
-  if (!response.ok) {
-    await response.body?.cancel();
-    throw new AudioError(
-      `语音服务请求失败（HTTP ${response.status}）`,
-      response.status === 429 || response.status >= 500,
-    );
-  }
+  if (!response.ok) throw await speechFailure(response);
   const result = await boundedJson(response);
   if (!record(result) || !Array.isArray(result.steps)) throw new AudioError('语音服务响应结构无效');
   const blocks = result.steps.flatMap((step: unknown) =>

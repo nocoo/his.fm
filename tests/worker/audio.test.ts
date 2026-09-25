@@ -208,6 +208,7 @@ describe('Gemini 3.8 Interactions requests', () => {
   });
 
   it('classifies provider errors without exposing response details or secrets', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
     for (const status of [400, 429, 503]) {
       vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('sensitive details', { status })));
       try {
@@ -221,6 +222,40 @@ describe('Gemini 3.8 Interactions requests', () => {
     }
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(null, { status: 403 })));
     await expect(synthesizeSpeech('key', '你好', 'Kore', 'Warm and conversational.')).rejects.toThrow('403');
+  });
+
+  it('reports actionable provider categories without echoing their raw messages', async () => {
+    const logs = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const cases = [
+      ['User location is not supported for the API use.', '服务出口地区'],
+      ['Free tier is not available in your country.', '开通计费'],
+      ['Billing must be enabled.', '开通计费'],
+      ['API key not valid. Please pass a valid API key.', '密钥无效'],
+      ['Voice UnsupportedExample is not supported.', '不支持当前音色'],
+      ['Unknown field in request.', '语音参数'],
+    ];
+    for (const [message, expected] of cases) {
+      vi.stubGlobal(
+        'fetch',
+        vi
+          .fn()
+          .mockResolvedValue(
+            Response.json(
+              { error: { status: 'INVALID_ARGUMENT', message: `${message} secret-test-key` } },
+              { status: 400 },
+            ),
+          ),
+      );
+      await expect(synthesizeSpeech('secret-test-key', '你好', 'Kore', 'Warm')).rejects.toThrow(expected);
+    }
+    expect(JSON.stringify(logs.mock.calls)).not.toContain('secret-test-key');
+    expect(JSON.stringify(logs.mock.calls)).not.toContain('UnsupportedExample');
+    for (const error of [null, { message: 42 }, { status: 'UNKNOWN' }]) {
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json({ error }, { status: 400 })));
+      await expect(synthesizeSpeech('key', '你好', 'Kore', 'Warm')).rejects.toThrow('HTTP 400');
+    }
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('x'.repeat(8193), { status: 400 })));
+    await expect(synthesizeSpeech('key', '你好', 'Kore', 'Warm')).rejects.toThrow('HTTP 400');
   });
 
   it('rejects invalid JSON, absent bodies, and unsafe response sizes', async () => {

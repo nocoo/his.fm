@@ -53,3 +53,7 @@ A browser regression also caught duplicate React roots after Vite invalidation. 
 ## 2026-09-25 — Match browser chrome to the active site surface
 
 The public Safari color fix left one public-paper theme-color on admin routes and an unpainted admin document canvas. Admin now uses the installed Basalt background token for the document, body and safe areas, synchronizes theme-color when the provider changes mode, and restores the public color on leaving the studio. Browser acceptance must cover dark mode, reload and client-side navigation between public and admin views, rather than checking only the visible content island.
+
+## 2026-09-25 — Preserve safe provider error categories
+
+A reported TTS HTTP 400 could not be diagnosed from the stored message because the shared synthesis code discarded every provider error body before classification. Default Kore previews succeeded again locally and in production, so that result does not establish the cause or resolution of the reported request. Error bodies are now bounded and mapped to fixed actionable categories; raw provider messages, scripts and credentials remain excluded from logs and responses. Preserve diagnostic categories at the integration boundary and verify the actual failing inputs before claiming a provider failure resolved.
