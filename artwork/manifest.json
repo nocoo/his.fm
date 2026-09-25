@@ -1,0 +1,107 @@
+{
+  "model": "gpt-image-2.5-sunburst",
+  "provider": "Azure OpenAI",
+  "quality": "high",
+  "reference": "/Users/nocoo/Downloads/X_AltamashAyazz_2102933537284657595_2102809628996481024_thumbnail.png",
+  "reference_usage": "Visually inspected for art direction; text-only generation, not an image edit.",
+  "assets": {
+    "hero": {
+      "size": "1536x1024",
+      "prompt": "prompts/hero.txt",
+      "original": "originals/hero.png",
+      "delivery": "../public/images/hero.webp",
+      "delivery_dimensions": [
+        1536,
+        1024
+      ],
+      "original_bytes": 2908568,
+      "delivery_bytes": 305576,
+      "original_sha256": "9f9d5e1a1eb9f86b407086c0310da9c7c87019f56a364a757b8697e64ea0e8de",
+      "delivery_sha256": "4dbc43447260c4305a889cc869d55d386d8ff1540c6f11c11cae4de271622f3f",
+      "generated_at_utc": "2026-09-25T06:01:53.795079+00:00",
+      "optimization": {
+        "library": "Pillow",
+        "format": "WebP",
+        "quality": 85,
+        "method": 6
+      }
+    },
+    "episode-01": {
+      "size": "1024x1024",
+      "prompt": "prompts/episode-01.txt",
+      "original": "originals/episode-01.png",
+      "delivery": "../public/images/episode-01.webp",
+      "delivery_dimensions": [
+        768,
+        768
+      ],
+      "original_bytes": 1907319,
+      "delivery_bytes": 136410,
+      "original_sha256": "4348dfd9656a93af4e3511b8c927c272de2624934220d07b258a349d0c367130",
+      "delivery_sha256": "be2f82cd5944e37287b050f4257148313d94eb540a61db533f5e03179b8eebef",
+      "generated_at_utc": "2026-09-25T06:03:38.606826+00:00",
+      "optimization": {
+        "library": "Pillow",
+        "format": "WebP",
+        "quality": 85,
+        "method": 6
+      }
+    },
+    "episode-02": {
+      "size": "1024x1024",
+      "prompt": "prompts/episode-02.txt",
+      "original": "originals/episode-02.png",
+      "delivery": "../public/images/episode-02.webp",
+      "delivery_dimensions": [
+        768,
+        768
+      ],
+      "original_bytes": 1613465,
+      "delivery_bytes": 57566,
+      "original_sha256": "310530ba0890afb6b555963f8dd90205f885574dcda3383cd3422cc2454d1b54",
+      "delivery_sha256": "44c78317d22a38971b7d173e407726ce42881f2f19951ca06abcf72e35997700",
+      "generated_at_utc": "2026-09-25T06:02:11.350325+00:00",
+      "optimization": {
+        "library": "Pillow",
+        "format": "WebP",
+        "quality": 85,
+        "method": 6
+      }
+    },
+    "episode-03": {
+      "size": "1024x1024",
+      "prompt": "prompts/episode-03.txt",
+      "original": "originals/episode-03.png",
+      "delivery": "../public/images/episode-03.webp",
+      "delivery_dimensions": [
+        768,
+        768
+      ],
+      "original_bytes": 1896687,
+      "delivery_bytes": 126686,
+      "original_sha256": "09d9ff6b5ac4ede24aacf54d7fdaa229ea2b0bd18f0dc9925eeb58b17b580573",
+      "delivery_sha256": "a61a8d873cf302a7a8805fafe288d1dfc04c79eb0999218178224fc84ea58b4e",
+      "generated_at_utc": "2026-09-25T06:02:10.101164+00:00",
+      "optimization": {
+        "library": "Pillow",
+        "format": "WebP",
+        "quality": 85,
+        "method": 6
+      }
+    }
+  },
+  "visual_review": {
+    "all_originals_inspected": true,
+    "delivery_hero_inspected": true,
+    "result": "Approved for website use. Text-free cohesive artwork, composition supports responsive cropping, adult-only human subjects in hero and moonlit meadow.",
+    "composition_guidance": {
+      "hero": "Keep image position center; dark left half supports large cream typography. Human subject at approximately 74% horizontal and 64% vertical.",
+      "episode-01": "Botanical headphones; centered focal object.",
+      "episode-02": "Lilac glass sculpture on chartreuse pedestal; centered focal object.",
+      "episode-03": "Moonlit meadow; adult figure at approximately 75% horizontal and 61% vertical."
+    }
+  },
+  "generation_notes": [
+    "Three initial requests succeeded. The episode-01 request received HTTP 429 and was retried with the same Sunburst model after the indicated delay; retry succeeded. No model substitution."
+  ]
+}

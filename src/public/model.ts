@@ -1,0 +1,38 @@
+import { categories, type Episode } from '../shared/episode';
+
+export function filterEpisodes(episodes: Episode[], category: string, query: string) {
+  const search = query.trim().toLocaleLowerCase();
+  return episodes.filter(
+    (episode) =>
+      (category === 'all' || episode.category === category) &&
+      [episode.title, episode.summary, ...episode.tags].join(' ').toLocaleLowerCase().includes(search),
+  );
+}
+
+export function categoryLabel(category: Episode['category']) {
+  return categories.find((item) => item.id === category)?.label;
+}
+
+export function durationLabel(seconds: number) {
+  return seconds > 0 ? `${Math.ceil(seconds / 60)} 分钟` : '时长待定';
+}
+
+export function dateLabel(date: string | null) {
+  return date
+    ? new Intl.DateTimeFormat('zh-CN', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        timeZone: 'Asia/Shanghai',
+      })
+        .format(new Date(date))
+        .replaceAll('/', '.')
+    : '即将发布';
+}
+
+export async function getEpisodes(signal?: AbortSignal): Promise<Episode[]> {
+  const response = await fetch('/api/episodes', { signal });
+  if (!response.ok) throw new Error('节目暂时没有加载出来，请再试一次。');
+  const result = (await response.json()) as { episodes: Episode[] };
+  return result.episodes;
+}

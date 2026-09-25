@@ -1,6 +1,6 @@
 # his.fm
 
-his.fm 是一个中文播客，关注 AI 转型之下的人。我们面向正在经历技术变化、职业不确定性和持续学习压力的年轻人，也包括开发者。技术和项目是理解生活的入口，人的处境与身心状态是关注的中心。
+his.fm 是一档面向年轻程序员的中文播客，关注 AI 带来的企业转型、团队与岗位变化，以及工作生活加速之下的人。我们面向正在经历技术变化、职业不确定性和持续学习压力的开发者。技术和项目是理解生活的入口，人的处境与身心状态是关注的中心。
 
 ## 频道定位与编辑原则
 
@@ -24,6 +24,30 @@ his.fm 是一个中文播客，关注 AI 转型之下的人。我们面向正在
 | 期数 | 题目 | 材料 |
 | --- | --- | --- |
 | 001 | 下班后，还要追多少个 AI？ | [逐字稿](episodes/001-how-to-live-better/transcript.md) · [发表摘要](episodes/001-how-to-live-better/summary.md) · [研究与核查](episodes/001-how-to-live-better/research.md) |
+
+## Website
+
+The website is a Cloudflare Worker application built with Vite 8, TypeScript 7.0.2, React 19 and Biome. The public listening room uses original Sunburst artwork, grass greens and restrained violet accents. The editor uses Basalt 2.1.8 and Cloudflare Access.
+
+- Public pages: homepage, searchable episode catalogue, episode summaries/transcripts and channel introduction.
+- Studio: local development login, episode creation/editing/deletion, draft/published status and media URL management.
+- Local preview: **https://hisfm.dev.hexly.ai**. Run `npm run dev`; six mock episodes load into local Wrangler D1 only, without resetting edits on restart.
+- Production target: **https://his.fm**. D1 and R2 are named `his-fm`. Production schema and artwork storage are prepared; website deployment follows local acceptance.
+- The first episode currently has a complete manuscript. The site explicitly distinguishes written episodes from playable recordings.
+
+```sh
+npm ci --registry https://packagefeedproxy.microsoft.io/npm/
+npm run dev
+npm run test:coverage
+npm run lint
+npm run typecheck
+npm run test:e2e
+npm run build
+```
+
+Husky runs coverage, strict lint and typecheck against the staged Git snapshot. All four unit coverage floors are 95%. Pure React views are verified through browser interaction checks. Audit results live in nmem; L1 does not imply full 6DQ certification.
+
+See [architecture](docs/architecture.md), [operations](docs/operations.md) and [artwork provenance](artwork/README.md). Secrets, generated audio/video and local databases remain ignored.
 
 ## Voice comparison
 

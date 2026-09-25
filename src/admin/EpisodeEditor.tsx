@@ -1,0 +1,365 @@
+import { Button, Field, Input, LayerCard, Switch, toast } from '@nocoo/basalt';
+import { InputArea } from '@nocoo/basalt/components/input-area';
+import { PageHeader } from '@nocoo/basalt/components/page-header';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@nocoo/basalt/components/select';
+import { ArrowLeft, ArrowUpRight, Save } from 'lucide-react';
+import { type FormEvent, useEffect, useState } from 'react';
+import { Link, useBeforeUnload, useNavigate, useParams } from 'react-router';
+import { categories, type Episode } from '../shared/episode';
+import { emptyEpisode, errorMessage, readEpisodeForm, toLocalDateTime } from './model';
+import { adminService } from './service';
+
+export function EpisodeEditor() {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const [episode, setEpisode] = useState<Episode | null>(null);
+  const [loading, setLoading] = useState(Boolean(id));
+  const [error, setError] = useState('');
+  const [attempt, setAttempt] = useState(0);
+  const [pending, setPending] = useState(false);
+  const [dirty, setDirty] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  useBeforeUnload((event) => {
+    if (dirty) {
+      event.preventDefault();
+      event.returnValue = '';
+    }
+  });
+  // biome-ignore lint/correctness/useExhaustiveDependencies: The retry key intentionally restarts the request.
+  useEffect(() => {
+    setError('');
+    setErrors({});
+    setEpisode(null);
+    setDirty(false);
+    setLoading(Boolean(id));
+    if (!id) return;
+    const controller = new AbortController();
+    adminService
+      .get(id, controller.signal)
+      .then(({ episode: result }) => setEpisode(result))
+      .catch((cause: unknown) => {
+        if (!controller.signal.aborted) setError(errorMessage(cause));
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false);
+      });
+    return () => controller.abort();
+  }, [id, attempt]);
+  async function save(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (pending) return;
+    const result = readEpisodeForm(new FormData(event.currentTarget));
+    setErrors(result.errors ?? {});
+    setError('');
+    if (!result.data) return;
+    setPending(true);
+    try {
+      const { episode: saved } = id
+        ? await adminService.update(id, result.data)
+        : await adminService.create(result.data);
+      setEpisode(saved);
+      setDirty(false);
+      toast.success(saved.status === 'published' ? '节目已发布，网站内容已更新' : '草稿已保存');
+      if (!id) navigate(`/admin/episodes/${saved.id}`, { replace: true });
+    } catch (cause) {
+      setError(errorMessage(cause));
+    } finally {
+      setPending(false);
+    }
+  }
+  const value = episode ?? emptyEpisode;
+  return (
+    <div className="admin-page">
+      <PageHeader
+        title={id ? '把这一期，慢慢打磨好。' : '新的声音，从这里开始。'}
+        description={id ? value.title : '先记下想讲的事，随时可以保存为草稿。'}
+        actions={
+          <>
+            <Button variant="ghost" asChild>
+              <Link to="/admin">
+                <ArrowLeft size={16} />
+                节目库
+              </Link>
+            </Button>
+            {episode?.status === 'published' && (
+              <Button variant="outline" asChild>
+                <Link to={`/episodes/${episode.slug}`} target="_blank">
+                  查看页面
+                  <ArrowUpRight size={16} />
+                </Link>
+              </Button>
+            )}
+            <Button
+              form="episode-form"
+              type="submit"
+              loading={pending}
+              disabled={loading || Boolean(id && !episode)}
+            >
+              <Save size={16} />
+              保存节目
+            </Button>
+          </>
+        }
+      />
+      {loading ? (
+        <LayerCard>
+          <LayerCard.Loading label="正在读取节目" />
+        </LayerCard>
+      ) : id && !episode ? (
+        <LayerCard>
+          <LayerCard.Empty
+            title="节目暂时无法读取"
+            description={error}
+            action={<Button onClick={() => setAttempt(attempt + 1)}>重新加载</Button>}
+          />
+        </LayerCard>
+      ) : (
+        <form
+          id="episode-form"
+          key={episode?.updatedAt ?? 'new'}
+          onSubmit={save}
+          onChange={() => setDirty(true)}
+          className="admin-editor-form"
+        >
+          {(error || Object.keys(errors).length > 0) && (
+            <div className="admin-error-banner" role="alert">
+              {error || '请检查下方标记的字段，再试一次。'}
+            </div>
+          )}
+          <fieldset disabled={pending} className="admin-editor-grid">
+            <div className="admin-editor-main">
+              <LayerCard padding="none">
+                <LayerCard.Header>
+                  <strong>节目内容</strong>
+                </LayerCard.Header>
+                <LayerCard.Body className="admin-fields">
+                  <Field label="节目标题" htmlFor="title" required error={errors.title}>
+                    <Input
+                      id="title"
+                      name="title"
+                      defaultValue={value.title}
+                      placeholder="一个具体、让人想听下去的问题"
+                      maxLength={160}
+                      required
+                    />
+                  </Field>
+                  <Field
+                    label="摘要"
+                    htmlFor="summary"
+                    required
+                    error={errors.summary}
+                    hint="用于列表与分享，告诉听众这一期会聊到什么。"
+                  >
+                    <InputArea
+                      id="summary"
+                      name="summary"
+                      defaultValue={value.summary}
+                      rows={4}
+                      maxLength={2000}
+                      required
+                      placeholder="这一期，我们从……聊起。"
+                    />
+                  </Field>
+                  <Field
+                    label="逐字稿"
+                    htmlFor="transcript"
+                    error={errors.transcript}
+                    hint="保留自然的停顿与表达，让内容可以被阅读、校对和继续打磨。"
+                  >
+                    <InputArea
+                      id="transcript"
+                      name="transcript"
+                      defaultValue={value.transcript}
+                      rows={16}
+                      maxLength={100000}
+                      placeholder="写下这一期的完整讲述……"
+                    />
+                  </Field>
+                  <Field
+                    label="节目笔记"
+                    htmlFor="showNotes"
+                    error={errors.showNotes}
+                    hint="补充资料来源、提到的项目或延伸阅读。"
+                  >
+                    <InputArea
+                      id="showNotes"
+                      name="showNotes"
+                      defaultValue={value.showNotes}
+                      rows={5}
+                      maxLength={20000}
+                      placeholder="资料与延伸阅读"
+                    />
+                  </Field>
+                </LayerCard.Body>
+              </LayerCard>
+              <LayerCard padding="none">
+                <LayerCard.Header>
+                  <strong>封面与声音</strong>
+                </LayerCard.Header>
+                <LayerCard.Body className="admin-fields">
+                  <Field
+                    label="封面地址"
+                    htmlFor="coverUrl"
+                    required
+                    error={errors.coverUrl}
+                    hint="使用 HTTPS 地址，或 /images/、/media/ 开头的站内路径。"
+                  >
+                    <Input id="coverUrl" name="coverUrl" defaultValue={value.coverUrl} required />
+                  </Field>
+                  <Field
+                    label="音频地址"
+                    htmlFor="audioUrl"
+                    error={errors.audioUrl}
+                    hint="留空时，详情页展示文稿；添加完整音频后才会出现播放器。"
+                  >
+                    <Input
+                      id="audioUrl"
+                      name="audioUrl"
+                      defaultValue={value.audioUrl ?? ''}
+                      placeholder="https://…"
+                    />
+                  </Field>
+                </LayerCard.Body>
+              </LayerCard>
+            </div>
+            <div className="admin-editor-aside">
+              <LayerCard padding="none">
+                <LayerCard.Header>
+                  <strong>发布设置</strong>
+                </LayerCard.Header>
+                <LayerCard.Body className="admin-fields">
+                  <Field label="发布状态" htmlFor="status" required error={errors.status}>
+                    <Select name="status" defaultValue={value.status} onValueChange={() => setDirty(true)}>
+                      <SelectTrigger id="status">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="draft">草稿 · 仅工作室可见</SelectItem>
+                        <SelectItem value="published">发布 · 所有人可见</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                  <Field
+                    label="发布时间"
+                    htmlFor="publishedAt"
+                    error={errors.publishedAt}
+                    hint="按本机时区填写，公开发布时必填。此处不提供定时发布。"
+                  >
+                    <Input
+                      id="publishedAt"
+                      name="publishedAt"
+                      type="datetime-local"
+                      defaultValue={toLocalDateTime(value.publishedAt)}
+                    />
+                  </Field>
+                  <Field label="首页精选" htmlFor="featured" hint="开启后，此节目参与首页精选展示。">
+                    <Switch
+                      id="featured"
+                      name="featured"
+                      defaultChecked={value.featured}
+                      onCheckedChange={() => setDirty(true)}
+                    />
+                  </Field>
+                </LayerCard.Body>
+              </LayerCard>
+              <LayerCard padding="none">
+                <LayerCard.Header>
+                  <strong>节目资料</strong>
+                </LayerCard.Header>
+                <LayerCard.Body className="admin-fields">
+                  <div className="admin-field-pair">
+                    <Field label="期数" htmlFor="episodeNumber" required error={errors.episodeNumber}>
+                      <Input
+                        id="episodeNumber"
+                        name="episodeNumber"
+                        type="number"
+                        min={1}
+                        max={99999}
+                        step={1}
+                        defaultValue={value.episodeNumber}
+                        required
+                      />
+                    </Field>
+                    <Field
+                      label="时长 / 分钟"
+                      htmlFor="durationMinutes"
+                      required
+                      error={errors.durationSeconds}
+                    >
+                      <Input
+                        id="durationMinutes"
+                        name="durationMinutes"
+                        type="number"
+                        min={0}
+                        max={720}
+                        step="any"
+                        defaultValue={value.durationSeconds / 60}
+                        required
+                      />
+                    </Field>
+                  </div>
+                  <Field
+                    label="链接名称"
+                    htmlFor="slug"
+                    required
+                    error={errors.slug}
+                    hint="小写英文字母、数字与连字符。"
+                  >
+                    <Input
+                      id="slug"
+                      name="slug"
+                      defaultValue={value.slug}
+                      placeholder="a-little-room-to-breathe"
+                      required
+                      pattern="[a-z0-9]+(-[a-z0-9]+)*"
+                      maxLength={120}
+                    />
+                  </Field>
+                  <Field label="栏目" htmlFor="category" required error={errors.category}>
+                    <Select
+                      name="category"
+                      defaultValue={value.category}
+                      onValueChange={() => setDirty(true)}
+                    >
+                      <SelectTrigger id="category">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {categories.map((category) => (
+                          <SelectItem key={category.id} value={category.id}>
+                            {category.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                  <Field label="标签" htmlFor="tags" error={errors.tags} hint="使用逗号分隔，最多 10 个。">
+                    <Input
+                      id="tags"
+                      name="tags"
+                      defaultValue={value.tags.join('，')}
+                      placeholder="AI，工作日常，留白"
+                    />
+                  </Field>
+                </LayerCard.Body>
+              </LayerCard>
+              <p className="admin-footnote">
+                {dirty
+                  ? '有尚未保存的改动。'
+                  : episode
+                    ? '所有改动已保存。'
+                    : '准备好后，点击右上角保存节目。'}
+              </p>
+            </div>
+          </fieldset>
+        </form>
+      )}
+    </div>
+  );
+}

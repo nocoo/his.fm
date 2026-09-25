@@ -18,3 +18,13 @@ output/
 *.m4v
 __pycache__/
 .DS_Store
+node_modules/
+dist/
+.wrangler/
+.dev.vars
+.dev.vars.*
+coverage/
+playwright-report/
+test-results/
+artwork/**/*.log
+.local/

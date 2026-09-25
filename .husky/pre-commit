@@ -1,0 +1,24 @@
+#!/bin/sh
+set -eu
+root=$(git rev-parse --show-toplevel)
+cd "$root"
+command -v node >/dev/null 2>&1 || {
+  echo "pre-commit: node is required" >&2
+  exit 127
+}
+command -v git >/dev/null 2>&1 || {
+  echo "pre-commit: git is required" >&2
+  exit 127
+}
+script=$(mktemp "${TMPDIR:-/tmp}/hisfm-pre-commit-XXXXXX.mjs")
+cleanup() {
+  status=$?
+  rm -f "$script"
+  exit "$status"
+}
+trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+trap 'exit 129' HUP
+git show :scripts/check-staged.mjs >"$script"
+node "$script"
