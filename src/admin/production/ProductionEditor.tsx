@@ -2,7 +2,7 @@ import { Button, LayerCard } from '@nocoo/basalt';
 import { PageHeader } from '@nocoo/basalt/components/page-header';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@nocoo/basalt/components/tabs';
 import { Check } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router';
 import { type ProductionAction, stageLabels } from '../../shared/production';
 import { Assets, FinalReview } from './Assets';
@@ -49,14 +49,15 @@ function Editor({ id }: { id: string }) {
   const nav = useRef<HTMLDivElement>(null);
   useUnsavedChanges(dirty);
   const production = vm.production;
+  const loaded = Boolean(production);
   const selected = query.get('step');
   const step = studioSteps.includes(selected as StudioStep)
     ? (selected as StudioStep)
     : currentStep(production?.stage ?? 'draft');
-  // biome-ignore lint/correctness/useExhaustiveDependencies: A selected stage starts at its navigation, not the previous document's scroll position.
-  useEffect(() => {
-    nav.current?.scrollIntoView({ block: 'start' });
-  }, [step]);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: Reset only the island when a stage opens; scrollIntoView also scrolls the shell and hides its header.
+  useLayoutEffect(() => {
+    nav.current?.closest('.admin-content-island')?.scrollTo({ top: 0, behavior: 'instant' });
+  }, [step, loaded]);
   if (!production)
     return (
       <div className="admin-page">
@@ -128,25 +129,23 @@ function Editor({ id }: { id: string }) {
           else visit(value as StudioStep);
         }}
       >
-        <div className="studio-step-bar" ref={nav}>
-          <TabsList className="studio-step-nav" aria-label="节目制作阶段" showIndicator={false}>
-            {studioSteps.map((item, index) => (
-              <TabsTrigger
-                key={item}
-                value={item}
-                disabled={vm.pending}
-                data-complete={done[item]}
-                aria-label={`${stepLabels[item]}${done[item] ? '，已完成' : ''}`}
-              >
-                <span className="studio-step-number" aria-hidden="true">
-                  {done[item] ? <Check size={16} /> : index + 1}
-                </span>
-                <span>{stepLabels[item]}</span>
-              </TabsTrigger>
-            ))}
-          </TabsList>
-          <p className="studio-step-hint">完成一步，点亮一步。可随时切换、回看和修改。</p>
-        </div>
+        <TabsList ref={nav} className="studio-step-nav" aria-label="节目制作阶段" showIndicator={false}>
+          {studioSteps.map((item, index) => (
+            <TabsTrigger
+              key={item}
+              value={item}
+              disabled={vm.pending}
+              data-complete={done[item]}
+              aria-current={step === item ? 'step' : undefined}
+              aria-label={`${stepLabels[item]}${done[item] ? '，已完成' : ''}`}
+            >
+              <span className="studio-step-number" aria-hidden="true">
+                {done[item] ? <Check size={16} /> : index + 1}
+              </span>
+              <span>{stepLabels[item]}</span>
+            </TabsTrigger>
+          ))}
+        </TabsList>
         <TabsContent value={step} key={`${step}-${formKey}`} className="studio-stage">
           {step === 'brief' && (
             <div className="studio-stack">

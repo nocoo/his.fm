@@ -377,6 +377,43 @@ test('catalog snapshots expose production links and never expose editing or dele
   await expect(page.getByRole('textbox')).toHaveCount(0);
 });
 
+test('stage changes keep the shell fixed and reset only the content island', async ({ page }) => {
+  const state = await studio(page, fixture({ transcript: '先放下屏幕，好好吃一顿饭。\n\n'.repeat(180) }));
+  for (const viewport of [
+    { width: 1512, height: 982 },
+    { width: 393, height: 852 },
+  ]) {
+    await page.setViewportSize(viewport);
+    await page.goto('/admin/productions/production-test?step=script');
+    const steps = page.getByRole('tablist', { name: '节目制作阶段' });
+    const island = page.locator('.admin-content-island');
+    const header = page.locator('#main-content > header');
+    await expect(steps).toBeVisible();
+    const initialHeader = await header.boundingBox();
+    const initialIsland = await island.boundingBox();
+    for (const name of ['选题', '成品制作', '最终检查', '发布', '逐字稿']) {
+      await steps.getByRole('tab', { name, exact: true }).click();
+      await expect(steps.getByRole('tab', { name, exact: true })).toHaveAttribute('aria-current', 'step');
+      expect(await header.boundingBox()).toEqual(initialHeader);
+      expect(await island.boundingBox()).toEqual(initialIsland);
+      expect(await page.locator('.admin-shell').evaluate((element) => element.scrollTop)).toBe(0);
+      expect(await page.evaluate(() => window.scrollY)).toBe(0);
+    }
+    await island.evaluate((element) => element.scrollTo({ top: 800 }));
+    await expect.poll(() => island.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
+    await page.goBack();
+    await expect(steps.getByRole('tab', { name: '发布', exact: true })).toHaveAttribute(
+      'aria-current',
+      'step',
+    );
+    await expect.poll(() => island.evaluate((element) => element.scrollTop)).toBe(0);
+    expect(await header.boundingBox()).toEqual(initialHeader);
+    expect(await island.boundingBox()).toEqual(initialIsland);
+    expect(await page.evaluate(() => document.documentElement.scrollHeight <= innerHeight)).toBe(true);
+  }
+  expect(state.actions).toEqual([]);
+});
+
 test('phone studio navigation, dark theme and settings remain usable', async ({ page }) => {
   await page.setViewportSize({ width: 393, height: 852 });
   await studio(page, readyFixture());
@@ -384,7 +421,14 @@ test('phone studio navigation, dark theme and settings remain usable', async ({ 
   const menu = page.getByRole('button', { name: '打开导航', exact: true });
   await menu.click();
   const drawer = page.getByRole('dialog', { name: '工作室导航' });
+  await expect(drawer.getByRole('region', { name: '节目制作', exact: true })).toBeVisible();
+  await expect(drawer.getByRole('region', { name: '素材与声音', exact: true })).toBeVisible();
+  await expect(drawer.getByRole('region', { name: '工作室', exact: true })).toBeVisible();
   await drawer.getByRole('button', { name: '工作室设置', exact: true }).click();
+  await expect(drawer).toBeHidden();
+  await expect(menu).toBeFocused();
+  await menu.click();
+  await page.keyboard.press('Escape');
   await expect(drawer).toBeHidden();
   await expect(menu).toBeFocused();
   await page.getByRole('button', { name: '切换主题', exact: true }).click();

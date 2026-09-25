@@ -99,24 +99,34 @@ export function AdminShell({ session, children }: { session: Session; children: 
       setLoggingOut(false);
     }
   }
-  const items = [
+  const groups = [
     {
-      href: '/admin',
-      label: '制作中的节目',
-      icon: Mic2,
-      active: isList || (!catalog && !settings && !creating && !voiceReference && !channel && !storage),
+      label: '节目制作',
+      items: [
+        {
+          href: '/admin',
+          label: '制作中的节目',
+          icon: Mic2,
+          active: isList || (!catalog && !settings && !creating && !voiceReference && !channel && !storage),
+        },
+        { href: '/admin/catalog', label: '节目目录', icon: Library, active: catalog },
+        { href: '/admin/productions/new', label: '新建制作', icon: Plus, active: creating },
+      ],
     },
-    { href: '/admin/catalog', label: '节目目录', icon: Library, active: catalog },
     {
-      href: '/admin/productions/new',
-      label: '新建制作',
-      icon: Plus,
-      active: creating,
+      label: '素材与声音',
+      items: [
+        { href: '/admin/storage', label: '资源管理', icon: HardDrive, active: storage },
+        { href: '/admin/voices', label: '音色参考', icon: Headphones, active: voiceReference },
+      ],
     },
-    { href: '/admin/settings', label: '工作室设置', icon: Settings, active: settings },
-    { href: '/admin/channel', label: '频道定位', icon: Compass, active: channel },
-    { href: '/admin/voices', label: '音色参考', icon: Headphones, active: voiceReference },
-    { href: '/admin/storage', label: '资源管理', icon: HardDrive, active: storage },
+    {
+      label: '工作室',
+      items: [
+        { href: '/admin/channel', label: '频道定位', icon: Compass, active: channel },
+        { href: '/admin/settings', label: '工作室设置', icon: Settings, active: settings },
+      ],
+    },
   ];
   return (
     <SidebarProvider collapsed={collapsed} onCollapsedChange={setCollapsed} overlay={compact}>
@@ -153,26 +163,30 @@ export function AdminShell({ session, children }: { session: Session; children: 
             </div>
           )}
           <SidebarNav aria-label="工作室导航">
-            {!iconOnly && <SidebarPartition>内容工作室</SidebarPartition>}
-            <div className={iconOnly ? 'admin-nav-icons' : 'admin-nav-items'}>
-              {items.map(({ href, label, icon: Icon, active }) =>
-                iconOnly ? (
-                  <Tooltip key={href}>
-                    <TooltipTrigger asChild>
-                      <SidebarIconItem active={active} aria-label={label} onClick={() => go(href)}>
+            {groups.map((group) => (
+              <section className="admin-nav-group" aria-label={group.label} key={group.label}>
+                {!iconOnly && <SidebarPartition>{group.label}</SidebarPartition>}
+                <div className={iconOnly ? 'admin-nav-icons' : 'admin-nav-items'}>
+                  {group.items.map(({ href, label, icon: Icon, active }) =>
+                    iconOnly ? (
+                      <Tooltip key={href}>
+                        <TooltipTrigger asChild>
+                          <SidebarIconItem active={active} aria-label={label} onClick={() => go(href)}>
+                            <Icon size={16} strokeWidth={1.5} />
+                          </SidebarIconItem>
+                        </TooltipTrigger>
+                        <TooltipContent side="right">{label}</TooltipContent>
+                      </Tooltip>
+                    ) : (
+                      <SidebarItem key={href} active={active} onClick={() => go(href)}>
                         <Icon size={16} strokeWidth={1.5} />
-                      </SidebarIconItem>
-                    </TooltipTrigger>
-                    <TooltipContent side="right">{label}</TooltipContent>
-                  </Tooltip>
-                ) : (
-                  <SidebarItem key={href} active={active} onClick={() => go(href)}>
-                    <Icon size={16} strokeWidth={1.5} />
-                    <span>{label}</span>
-                  </SidebarItem>
-                ),
-              )}
-            </div>
+                        <span>{label}</span>
+                      </SidebarItem>
+                    ),
+                  )}
+                </div>
+              </section>
+            ))}
           </SidebarNav>
           <SidebarFooter>
             {iconOnly ? (
@@ -230,7 +244,15 @@ export function AdminShell({ session, children }: { session: Session; children: 
             }
             leading={
               compact ? (
-                <Button variant="ghost" size="icon" aria-label="打开导航" onClick={() => setCollapsed(false)}>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label="打开导航"
+                  onClick={(event) => {
+                    event.currentTarget.focus({ preventScroll: true });
+                    setCollapsed(false);
+                  }}
+                >
                   <Menu size={18} />
                 </Button>
               ) : undefined
@@ -259,7 +281,7 @@ export function AdminShell({ session, children }: { session: Session; children: 
             }
           />
           <div className="admin-island-wrap">
-            <ContentIsland>{children}</ContentIsland>
+            <ContentIsland className="admin-content-island">{children}</ContentIsland>
           </div>
         </AppMain>
       </AppShell>

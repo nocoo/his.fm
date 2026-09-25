@@ -54,6 +54,9 @@ html.dark:has(.admin-app) body {
   flex-direction: column;
   padding: 0 var(--admin-space-3) var(--admin-space-3);
 }
+.admin-content-island {
+  position: relative;
+}
 .admin-page {
   display: flex;
   flex-direction: column;
@@ -93,6 +96,9 @@ html.dark:has(.admin-app) body {
   flex-direction: column;
   align-items: center;
   gap: var(--admin-space-1);
+}
+.admin-nav-group + .admin-nav-group {
+  margin-top: var(--admin-space-4);
 }
 .admin-avatar {
   width: 30px;
