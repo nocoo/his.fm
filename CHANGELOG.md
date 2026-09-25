@@ -2,6 +2,19 @@
 
 All notable changes to his.fm are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html) with the authoritative version in `package.json`.
 
+## 1.2.1 - 2026-09-25
+
+### Fixed
+
+- Match admin browser chrome and safe-area backgrounds to the current Basalt theme; restore the public brand color when navigating out of the studio.
+- Classify bounded Gemini errors into safe region, billing, key, voice, parameter and quota explanations instead of discarding every provider error detail.
+
+### Validation
+
+- 169 unit tests passed; all four L1 coverage metrics exceed 95%. Strict lint, type checking and production build passed.
+- Chrome verified mobile navigation and theme persistence. Focused WebKit checks verified light/dark colors, reload, public/admin navigation and system-theme changes.
+- Default Kore previews succeeded both locally and in production. The separately reported HTTP 400 is not claimed resolved without its failing inputs.
+
 ## 1.2.0 - 2026-09-25
 
 ### Added
