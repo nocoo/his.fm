@@ -224,7 +224,7 @@ function Home() {
       <section className="hero">
         <img
           className="hero-image"
-          src="/images/hero.webp"
+          src="https://f.no.mt/images/hero.webp"
           alt="巨树的树荫下，一个人坐在草地上，望向阳光中的未来城市"
           width="1536"
           height="1024"
@@ -343,7 +343,7 @@ function Home() {
       <section className="about-teaser wrap">
         <Reveal className="about-teaser-image">
           <img
-            src="/images/episode-03.webp"
+            src="https://f.no.mt/images/episode-03.webp"
             alt="月光映在一片安静的草地上"
             loading="lazy"
             width="768"
@@ -665,7 +665,12 @@ function About() {
         </Reveal>
       </section>
       <div className="about-panorama">
-        <img src="/images/hero.webp" alt="大树下的草地与远方的城市" width="1536" height="1024" />
+        <img
+          src="https://f.no.mt/images/hero.webp"
+          alt="大树下的草地与远方的城市"
+          width="1536"
+          height="1024"
+        />
         <span>
           THERE IS LIFE
           <br />

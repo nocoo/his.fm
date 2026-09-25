@@ -7,7 +7,7 @@ export const emptyEpisode: EpisodeInput = {
   summary: '',
   transcript: '',
   showNotes: '',
-  coverUrl: '/images/episode-01.webp',
+  coverUrl: 'https://f.no.mt/images/episode-01.webp',
   category: 'work',
   tags: [],
   durationSeconds: 600,

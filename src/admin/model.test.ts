@@ -10,7 +10,7 @@ function validForm() {
     summary: '给自己一点时间。',
     transcript: '你好，欢迎收听 his.fm。',
     showNotes: '阅读记录',
-    coverUrl: '/images/episode-01.webp',
+    coverUrl: 'https://f.no.mt/images/episode-01.webp',
     category: 'work',
     tags: 'AI， 日常, 休息,,',
     durationMinutes: '10.5',

@@ -96,7 +96,7 @@ const statements = published.map((episode, index) => {
     episode.summary,
     episode.transcript,
     episode.showNotes,
-    `/images/episode-${String((index % 3) + 1).padStart(2, '0')}.webp`,
+    `https://f.no.mt/images/episode-${String((index % 3) + 1).padStart(2, '0')}.webp`,
     episode.category,
     JSON.stringify(episode.tags),
     episode.duration,
