@@ -2,6 +2,29 @@
 
 All notable changes to his.fm are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html) with the authoritative version in `package.json`.
 
+## 1.2.0 - 2026-09-25
+
+### Added
+
+- Thirty Gemini prebuilt voices with Chinese descriptions, editable speaking style and optional short cloud previews in studio settings and each audio generation.
+- Owner-only preview API with validated WAV output, immutable R2 storage and content-addressed reuse through the media CDN.
+- Per-generation voice/style snapshots independent of studio defaults, with optional intro/outro composition.
+
+### Changed
+
+- Generate approved-script narration without requiring intro/outro uploads; show the chosen voice and bumper inclusion on completed audio.
+- Preserve queued job settings when redispatching and keep durable synthesis, assembly and attachment checkpoints.
+
+### Fixed
+
+- Bound long voice menus to the mobile viewport and hide stale previews after input changes.
+- Separate application routing from the browser bootstrap to prevent duplicate React roots during Vite refresh.
+
+### Validation
+
+- 168 unit tests and 15 browser scenarios passed; statement, branch, function and line coverage all exceed 95%.
+- Strict lint, type checking and production build passed. Live provider verification is recorded separately after deployment.
+
 ## 1.1.0 - 2026-09-25
 
 ### Added
