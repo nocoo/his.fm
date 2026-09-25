@@ -19,6 +19,11 @@ All notable changes to his.fm are documented here. The format follows [Keep a Ch
 - Added production, agent-token, settings and audio-job database structures. The expanded schema and authentication surface move this release to 1.0.0 under the project versioning policy.
 - Release deployment now uses Vite's generated Worker configuration, with exact version/revision verification after deployment.
 
+### Fixed
+
+- Unified the public page canvas, Safari toolbar color and safe-area insets; reframed mobile hero artwork around the subject at the golden section without text overlap.
+- Moved the header's green brand dot into `his.fm` and replaced font-based decorative stars with consistent SVG artwork on desktop and iOS.
+
 ### Requirements
 
 - The full audio workflow requires a configured Gemini Worker secret and real 24 kHz mono PCM16 intro/outro clips. The imported episode has written materials; a complete episode recording has not been generated.

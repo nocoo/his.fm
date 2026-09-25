@@ -1,5 +1,7 @@
 /* biome-ignore-all lint/style/noDescendingSpecificity: Components are scoped to disjoint classes; cross-component element comparisons are false positives. */
 :root {
+  --public-paper: #f3f3ec;
+  background: var(--public-paper);
   font-family: Inter, "Helvetica Neue", Arial, "PingFang SC", "Microsoft YaHei", sans-serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -8,15 +10,21 @@
 body {
   margin: 0;
 }
+html:has(.public-site),
+html:has(.public-site) body {
+  background: var(--public-paper);
+  color-scheme: light;
+}
 .app-loading {
   display: grid;
   place-items: center;
   min-height: 100dvh;
-  background: #eff0e8;
+  background: var(--public-paper);
   color: #243f2e;
 }
 .public-site {
-  --paper: #f3f3ec;
+  --paper: var(--public-paper);
+  --brand-green: #759c45;
   --ink: #213e2d;
   --muted: #73786b;
   --line: #d7d9cc;
@@ -30,6 +38,10 @@ body {
   font-size: 15px;
   line-height: 1.6;
   overflow: hidden;
+  box-sizing: border-box;
+  min-height: 100svh;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom)
+    env(safe-area-inset-left);
 }
 .public-site * {
   box-sizing: border-box;
@@ -129,12 +141,20 @@ body {
   gap: 10px;
   line-height: 1;
 }
+.public-site .wordmark-name {
+  display: inline-flex;
+  align-items: baseline;
+}
 .public-site .wordmark-dot {
-  font-size: 12px;
-  margin-left: -5px;
-  align-self: flex-end;
-  margin-bottom: 5px;
-  color: #759c45;
+  width: 0.16em;
+  height: 0.16em;
+  margin-inline: 0.05em;
+  border-radius: 50%;
+  background: var(--brand-green);
+}
+.public-site .brand-asterisk {
+  display: block;
+  flex: none;
 }
 .public-site .soundmark {
   display: inline-flex;
@@ -1271,6 +1291,7 @@ body {
     height: 750px;
     min-height: 0;
     max-height: none;
+    container-type: inline-size;
   }
   .public-site .hero-content {
     padding: 42px 28px;
@@ -1283,7 +1304,9 @@ body {
     margin-bottom: 26px;
   }
   .public-site .hero-image {
-    object-position: 60% center;
+    /* The source subject at 74% lands on the viewport's 61.8% golden line. */
+    object-position: calc(74% - 12.2cqw) center;
+    transform-origin: 61.8% 61.8%;
   }
   .public-site .hero-shade {
     background:
@@ -1557,13 +1580,18 @@ body {
     height: 725px;
   }
   .public-site .hero h1 {
-    font-size: 62px;
+    font-size: clamp(50px, 14.4vw, 58px);
   }
   .public-site .hero-content {
     padding: 36px 22px;
   }
   .public-site .hero-description {
     font-size: 13px;
+    margin-top: 18px;
+  }
+  .public-site .hero .pill-button {
+    min-height: 44px;
+    margin-top: 20px;
   }
   .public-site .hero-feature {
     left: 20px;
@@ -1584,9 +1612,6 @@ body {
   }
   .public-site .hero h1 > .hero-asterisk {
     right: -0.85em;
-  }
-  .public-site .hero-image {
-    object-position: 58% center;
   }
   .public-site .hero-eyebrow {
     font-size: 11px;

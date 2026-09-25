@@ -54,6 +54,25 @@ function Soundmark({ className = '' }: { className?: string }) {
   );
 }
 
+function Asterisk() {
+  return (
+    <svg
+      className="brand-asterisk"
+      width="1em"
+      height="1em"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.4"
+      strokeLinecap="round"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <path d="M12 2v20M2 12h20M4.93 4.93l14.14 14.14M19.07 4.93 4.93 19.07" />
+    </svg>
+  );
+}
+
 function Header() {
   const [open, setOpen] = useState(false);
   const location = useLocation();
@@ -65,7 +84,11 @@ function Header() {
     <header className="site-header">
       <Link to="/" className="wordmark" aria-label="his.fm 首页">
         <Soundmark />
-        his.fm<span className="wordmark-dot">●</span>
+        <span className="wordmark-name">
+          his
+          <span className="wordmark-dot" aria-hidden="true" />
+          fm
+        </span>
       </Link>
       <nav className={`main-nav ${open ? 'is-open' : ''}`} aria-label="主导航">
         <NavLink to="/" end>
@@ -117,7 +140,10 @@ function Footer() {
         </span>
       </div>
       <Link className="footer-wordmark" to="/" aria-label="返回 his.fm 首页">
-        his.fm<span>✳</span>
+        his.fm
+        <span>
+          <Asterisk />
+        </span>
       </Link>
       <div className="footer-bottom">
         <span>© {new Date().getFullYear()} his.fm</span>
@@ -243,7 +269,7 @@ function Home() {
               <br />
               <span>慢慢来。</span>
               <span className="hero-asterisk" aria-hidden="true">
-                ✳
+                <Asterisk />
               </span>
             </h1>
             <p className="hero-description">
@@ -282,7 +308,18 @@ function Home() {
         <div>
           {[0, 1, 2, 3].map((item) => (
             <span key={item}>
-              LESS NOISE <i>✳</i> MORE LIFE <i>✳</i> 保持好奇，慢慢生长 <i>✳</i>
+              {'LESS NOISE '}
+              <i>
+                <Asterisk />
+              </i>
+              {' MORE LIFE '}
+              <i>
+                <Asterisk />
+              </i>
+              {' 保持好奇，慢慢生长 '}
+              <i>
+                <Asterisk />
+              </i>
             </span>
           ))}
         </div>
@@ -651,7 +688,7 @@ function About() {
             <br />
             这里是 <span>his.fm</span>
             <span className="about-star" aria-hidden="true">
-              ✳
+              <Asterisk />
             </span>
           </h1>
           <div className="about-opening-bottom">
