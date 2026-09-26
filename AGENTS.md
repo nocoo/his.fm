@@ -17,6 +17,8 @@
 - Audio generation defaults to narration only. Bumpers are opt-in; voice/style overrides are immutable per-job snapshots. Owner-only short previews reuse content-addressed R2 WAVs and never expose the Gemini secret.
 - `worker/entry.ts` exports the Worker and durable `AudioWorkflow`. D1 job and production state transitions must remain atomic and idempotent; completed audio must never regress after replay.
 - Public routes: `/`, `/episodes`, `/episodes/:slug`, `/about`. Admin routes and APIs share `/admin`; `/login` is the public entry badge.
+- Eight public themes share the Open Interval identity in `src/brand/`. `/admin/appearance` owns the versioned D1 selection; `?theme=` is a non-mutating public preview. Images use immutable R2 keys; fonts ship as fingerprinted same-origin Vite assets. See `docs/appearance.md`.
+- Generated, uploaded and stored covers must be clean originals without text, logos, borders or overlays. Only the studio's finished-cover download composes the independent brand frame; never upload that composite as a source or rewrite published originals.
 - Production Access issuer and audience are checked cryptographically in the Worker. Never trust an email header as authentication.
 - Preserve the internal editorial policy in README. Public content and episode materials are Chinese; code and technical documentation are English.
 

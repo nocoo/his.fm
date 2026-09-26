@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { type Production, type Publication, publicationSchema } from '../../shared/production';
 import { formatWechat, formatXiaoyuzhou } from '../../shared/publication-format';
 import { toLocalDateTime } from '../model';
+import { CoverDownload } from './CoverDownload';
 import { Choice, Confirm, CopyButton } from './controls';
 import { dateLabel } from './model';
 import { productionService } from './service';
@@ -31,6 +32,9 @@ export function PublicationPanel({
         <p className="admin-muted">
           复制内容，在平台完成手动发布后，回来记录真实链接和时间。确认发布会同步更新 his.fm 节目页。
         </p>
+        {production.assets.cover && (
+          <CoverDownload source={production.assets.cover.url} episodeNumber={production.episodeNumber} />
+        )}
         <Tabs defaultValue="wechat">
           <TabsList aria-label="发布平台预览">
             <TabsTrigger value="wechat">微信公众号</TabsTrigger>

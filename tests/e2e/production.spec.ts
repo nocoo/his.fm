@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { mkdir } from 'node:fs/promises';
+import { mkdir, readFile } from 'node:fs/promises';
 import { expect, type Page, test } from '@playwright/test';
 import type { AgentTokenRecord, ProductionAction, ProductionSettings } from '../../src/shared/production';
 import { applyAction, applyPatch } from '../../worker/production-model';
@@ -221,6 +221,78 @@ async function studio(page: Page, initial = fixture()) {
     },
   };
 }
+
+test('only a finished download receives branding and the original is never rewritten', async ({ page }) => {
+  const production = readyFixture();
+  const before = structuredClone(production);
+  const writes: string[] = [];
+  page.on('request', (request) => {
+    if (request.method() !== 'GET' && request.url().includes('/admin/api/')) writes.push(request.url());
+  });
+  const original = await page.evaluate(() => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 600;
+    canvas.height = 300;
+    const context = canvas.getContext('2d');
+    if (!context) throw new Error('Canvas unavailable');
+    context.fillStyle = '#c86432';
+    context.fillRect(0, 0, 600, 300);
+    return canvas.toDataURL('image/png').split(',')[1];
+  });
+  await page.route('https://f.no.mt/cover.png', (route) =>
+    route.fulfill({
+      contentType: 'image/png',
+      body: Buffer.from(original, 'base64'),
+      headers: { 'Access-Control-Allow-Origin': '*' },
+    }),
+  );
+  const state = await studio(page, production);
+  await page.goto(`/admin/productions/${production.id}?step=review`);
+  await expect(page.locator('.studio-cover')).toHaveAttribute('src', production.assets.cover?.url ?? '');
+  const downloadPromise = page.waitForEvent('download');
+  await page.getByRole('button', { name: '下载封面成品' }).click();
+  const download = await downloadPromise;
+  expect(download.suggestedFilename()).toBe(
+    `his-fm-ep-${String(production.episodeNumber).padStart(3, '0')}.png`,
+  );
+  const path = await download.path();
+  if (!path) throw new Error('Downloaded file missing');
+  const pixels = await page.evaluate(
+    async (bytes) => {
+      const image = await createImageBitmap(new Blob([new Uint8Array(bytes)], { type: 'image/png' }));
+      const canvas = document.createElement('canvas');
+      canvas.width = image.width;
+      canvas.height = image.height;
+      const context = canvas.getContext('2d');
+      if (!context) throw new Error('Canvas unavailable');
+      context.drawImage(image, 0, 0);
+      const sample = (x: number, y: number) => Array.from(context.getImageData(x, y, 1, 1).data);
+      return {
+        width: image.width,
+        height: image.height,
+        rail: sample(30, 800),
+        subject: sample(800, 800),
+        margin: sample(800, 220),
+      };
+    },
+    Array.from(await readFile(path)),
+  );
+  expect(pixels).toEqual({
+    width: 1600,
+    height: 1600,
+    rail: [214, 242, 91, 255],
+    subject: [200, 100, 50, 255],
+    margin: [245, 244, 238, 255],
+  });
+  await expect(page.getByRole('status')).toContainText('原图保持不变');
+  expect(state.production).toEqual(before);
+  expect(writes).toEqual([]);
+  await page.route('**/brand/cover-frame.svg', (route) => route.fulfill({ status: 503, body: '' }));
+  await page.reload();
+  await page.getByRole('button', { name: '下载封面成品' }).click();
+  await expect(page.getByRole('alert')).toContainText('封面或品牌框架未能加载');
+  expect(state.production).toEqual(before);
+});
 
 test('five stages preserve failed edits and advance with owner completion', async ({ page, context }) => {
   const state = await studio(page);

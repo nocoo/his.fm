@@ -13,6 +13,8 @@ Open `https://hisfm.dev.hexly.ai`. Choose the studio link or visit `/login`, the
 
 The dev script listens on 127.0.0.1:7056 and defaults to local D1/R2 bindings. It reads Worker secrets from ignored `.dev.vars`, not the original generation `.env` file. Restarting preserves local records. Do not delete `.wrangler/state` to resolve unrelated issues.
 
+Website styles are selected in `/admin/appearance`. Previewing is read-only; applying saves to the selected environment. See [appearance](appearance.md) for identity assets, R2 delivery, font caching and original-cover/export separation.
+
 ## Validate
 
 ```sh

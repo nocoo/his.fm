@@ -90,7 +90,7 @@ When the owner requests changes, wait until they reopen or revise the appropriat
 Cover and description preparation may run in parallel on local agents. Upload/write with the newest `production.version` each time. Cloud audio updates also advance version. A 409 is a signal to GET again and reconcile, not to resend a stale full record. Do not automatically repeat a POST after a network timeout; list/read records or check audioJob first.
 
 - PUT `summary` and `description` on the production. Description can use Markdown and should include concrete listening points and verified links for the destination platforms.
-- Generate the finished branded cover locally using the protected cover prompt. It assumes the his.fm checkout contains `scripts/frame-cover.py`; if unavailable, ask the owner to provide the approved frame/tool rather than invent branding. The public service documents do not embed private editorial prompts.
+- Generate clean square source artwork using the protected cover prompt. Never generate or upload text, logos, borders, brand frames or overlays. Branding is applied by the studio only when the owner downloads the finished cover. Preserve the original image and prompt. The public service documents do not embed private editorial prompts.
 - Upload **raw file bytes**, not JSON, base64, multipart or an external URL:
 
 ```sh

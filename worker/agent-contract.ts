@@ -334,7 +334,7 @@ export function agentOpenApi(origin: string) {
         put: {
           ...operation(
             'uploadProductionCover',
-            'Upload final branded PNG/JPEG/WebP bytes, up to 8 MiB; no multipart or URLs',
+            'Upload clean unframed PNG/JPEG/WebP artwork, up to 8 MiB; no text, logos, borders, overlays, multipart or URLs. Branding is added only to owner downloads.',
             wrappedProduction,
           ),
           parameters: [versionParameter],

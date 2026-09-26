@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import type { Production } from '../../shared/production';
 import { MarkdownEditor } from '../markdown/MarkdownEditor';
 import { AudioGeneration } from './AudioGeneration';
+import { CoverDownload } from './CoverDownload';
 import { audioBusy } from './model';
 import { PromptPanel } from './PromptPanel';
 import { ReadingText } from './ReadingText';
@@ -52,7 +53,7 @@ export function Assets({
             <CoverPreview production={production} />
             <FileDropzone
               label="上传节目封面"
-              description="JPEG、PNG 或 WebP，最大 8 MB。先在本地叠加固定 his.fm 品牌边框。"
+              description="JPEG、PNG 或 WebP，最大 8 MB。只上传干净原图，不得包含品牌字标、边框或叠加层。"
               accept="image/jpeg,image/png,image/webp"
               multiple={false}
               maxSize={8 * 1024 * 1024}
@@ -172,9 +173,12 @@ function CoverPreview({ production }: { production: Production }) {
       <a className="studio-link" href={cover.url} target="_blank" rel="noopener noreferrer">
         打开封面原图
       </a>
+      <CoverDownload source={cover.url} episodeNumber={production.episodeNumber} />
     </>
   ) : (
-    <p className="admin-muted">尚未上传封面。复制封面任务，交给本地 agent 生成并叠加品牌边框。</p>
+    <p className="admin-muted">
+      尚未上传封面。复制封面任务，交给本地 agent 生成干净原图。品牌框架仅在下载成品时叠加。
+    </p>
   );
 }
 function AudioPreview({ production }: { production: Production }) {

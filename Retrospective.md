@@ -1,5 +1,17 @@
 # Retrospective
 
+## 2026-09-26 — Publish identity resources atomically
+
+The first theme implementation referenced R2 font URLs before their upload batch had completed. A network interruption left many URLs returning 404, and loading the preview could cache those failures. The user also reported missing header/footer wordmarks while the implementation used external SVG symbol fragments. Fonts now ship with the application as fingerprinted same-origin assets, while wordmarks render inline paths generated from the canonical SVG. Keep large imagery on immutable R2 keys and verify its delivery before release; a local asset manifest alone is not evidence of CDN availability.
+
+A build-artifact check initially expected 102 separate font files, overlooking Vite's inlining of three small subsets. Verifying the SHA-256 digests of both emitted WOFF2 files and decoded CSS data URLs accounted for all 102 sources. Check delivered bytes instead of assuming one output file per input asset.
+
+The browser suite also imports the shared theme definitions through Node's ESM loader. Its initial discovery failed because the asset JSON import lacked the required `type: 'json'` attribute. Declare JSON module types in shared modules consumed outside Vite, and distinguish runner-discovery failures from browser behavior.
+
+The first acceptance run assumed the Basalt sidebar rendered links, released an arrow key before Radix's deferred focus handler ran, and tried to inject a frame-load failure after the image was already decoded. Tests now follow the actual button roles, observe selection before key release, and reload before the failure case. Use component semantics and fresh resource state when testing user interactions and network failures.
+
+The existing cover workflow baked a frame into uploaded images. The owner clarified that generated, uploaded and stored covers must remain clean originals; branding belongs only to finished downloads. The production prompt, agent contract, studio upload guidance and export action now share that boundary. Do not infer storage semantics from the appearance of a finished design-study mockup.
+
 ## 2026-09-25 — Verify mobile artwork and browser canvas
 
 The initial portrait hero inherited a centered landscape crop, placing the subject outside narrow screens. A transparent document canvas and missing viewport-fit also left Safari safe areas disconnected from the page. Decorative Unicode stars could render as emoji on iOS. The fix aligns the source subject with the mobile golden line, keeps the action clear of the subject, extends the page background through safe areas and uses SVG decoration. Responsive checks now include loaded artwork in Chrome and WebKit, rather than accepting screenshots before images finish loading. The diagnostic initially waited for the About decoration to become visible at a breakpoint where it is intentionally hidden; its check now follows that responsive behavior. Browser emulation does not reproduce physical Safari toolbar chrome.

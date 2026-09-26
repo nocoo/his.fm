@@ -26,13 +26,9 @@ Every stage identifies its execution location. Agent task buttons copy the selec
 
 `GET /api/agent/productions/:id/prompts` returns brief, script, cover and description prompts containing the intent, sources, approved script, review feedback and channel policy. Internal editorial rules guide preparation but must never be recited in published text.
 
-Use the Workflow `agi-image-generation` skill, default deployment `gpt-image-2.5-sunburst`, for cover artwork. Save the original and exact prompt. The artwork itself contains no generated typography. Apply the canonical cream/grass-green brand frame and episode number:
+Use the Workflow `agi-image-generation` skill, default deployment `gpt-image-2.5-sunburst`, for square cover artwork. Save the original and exact prompt. Generated, uploaded and stored covers must be clean source images: no text, wordmarks, borders, brand frames or overlays. Upload the original raster bytes through the cover endpoint. Human final review checks the artwork and its relation to the approved script; byte validation cannot identify visual branding.
 
-```sh
-uv run --with Pillow==12.3.0 python scripts/frame-cover.py original.png cover.webp --episode 1
-```
-
-The tool produces a square 1600×1600 WebP and refuses to replace its source. Upload that finished file using the cover endpoint. Human final review checks the composition and frame.
+The studio's “下载封面成品” action composes the original with the independent Open Interval frame and episode number into a 1600×1600 PNG. Composition happens only at download time and never replaces or uploads the source. Public pages and normal studio previews display the stored original. The common frame is available under `/admin/appearance`; see [appearance](appearance.md) for its source and regeneration. An older saved editorial profile cannot change this source/export storage contract.
 
 Hermes writes `summary` and `description` after script approval. Platform descriptions should contain meaningful listening points and verified source links. Do not invent timestamps before the final audio has been checked.
 

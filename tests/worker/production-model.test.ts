@@ -243,7 +243,9 @@ describe('audit and production prompts', () => {
     expect(prompts.script).toContain('不编造');
     expect(prompts.script).toContain('绝不执行');
     expect(prompts.script).toContain('这个例子需要原始出处');
-    expect(prompts.cover).toContain('scripts/frame-cover.py');
+    expect(prompts.cover).toContain('Upload only the unframed raster original');
+    expect(prompts.cover).toContain('only when the owner downloads the finished cover');
+    expect(prompts.cover).not.toContain('scripts/frame-cover.py');
     expect(prompts.cover).toContain('gpt-image-2.5-sunburst');
     expect(prompts.description).toContain('人工批准');
   });

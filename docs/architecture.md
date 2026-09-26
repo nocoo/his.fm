@@ -9,6 +9,8 @@ his.fm has one React application and one Cloudflare Worker. Public pages use an 
 | `/api/live` | D1 connectivity and service health |
 | `/api/episodes` | Published episodes whose publication date has arrived |
 | `/api/episodes/:slug` | One visible episode; missing/draft/future episodes return 404 |
+| `/api/appearance` | Public theme ID only, never owner metadata |
+| `/admin/api/appearance` | Owner-selected website theme with optimistic version updates |
 | `/admin/api/session` | Verified editor identity and local/Access mode |
 | `/admin/api/episodes` | Authenticated list and create |
 | `/admin/api/episodes/:id` | Authenticated read, update and delete |
@@ -32,7 +34,7 @@ Images are optimized WebP assets. Originals, prompts, model details and SHA-256 
 
 ## Interface and verification
 
-- Public: responsive navigation, animated hero, episode catalogue, topic/search filters, detail pages, summaries, transcripts, native audio controls when media exists, about page and missing/error/empty states.
+- Public: eight responsive visual directions sharing the Open Interval identity, episode catalogue, topic/search filters, detail pages, summaries, transcripts, native audio controls when media exists, about page and missing/error/empty states. See [appearance](appearance.md).
 - Admin: Basalt visitor badge, AppShell, compact episode table, draft/published filters, complete editor, field validation, destructive-action confirmation, responsive navigation and theme switching.
 - Animation respects reduced-motion preferences. Navigation, fields and controls have keyboard focus states.
 - Unit coverage targets shared validation, frontend models/services and Worker behavior. Worker tests use actual Miniflare D1/R2 plus signed JWT fixtures. Browser checks exercise rendered interactions. L1 evidence is stored in nmem rather than asserted by a repository badge.

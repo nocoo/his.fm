@@ -62,7 +62,7 @@ Do not send complete read responses back as update bodies. IDs, stages, approval
 1. Create and edit the brief in `draft`. Add source material and a concrete editorial intention, then call `submit_brief`.
 2. Wait for human `approve_brief`. Human `revise_brief` returns to `draft` with feedback.
 3. In `scripting`, write the transcript and call `submit_script`. Human `approve_script` opens `production`; `revise_script` returns to `scripting`.
-4. In `production`, fill `summary` and `description`, upload a complete branded cover, and start cloud audio generation. Read `production.audioJob` for progress. A local agent cannot upload its own audio through this API.
+4. In `production`, fill `summary` and `description`, upload clean unframed cover artwork, and start cloud audio generation. Read `production.audioJob` for progress. A local agent cannot upload its own audio through this API.
 5. Call `submit_final` after all assets match the current script version and the audio job has completed. Human `approve_final` moves the record to `ready`; `revise_assets` returns it to `production`.
 6. A human publishes through the destination platform and records the actual URL in the studio. This manual confirmation creates or updates the public his.fm episode snapshot.
 
@@ -89,7 +89,9 @@ The JSON body limit is 750,000 bytes. Each production preserves up to 200 audit 
 
 ## Cover upload
 
-Generate the complete final cover locally, including the his.fm brand and episode title. The supplied prompt is for the workflow GPT Image 2.5 Sunburst skill. Upload actual raster bytes with the correct `Content-Type`: `image/png`, `image/jpeg` or `image/webp`. The endpoint checks file signatures and bounded content, rejects SVG and arbitrary URLs, and accepts at most 8 MiB. Human final review still verifies legibility, branding and suitability.
+Generate clean square cover artwork locally with the workflow GPT Image 2.5 Sunburst skill. The generated, uploaded and stored image must not contain text, logos, borders, brand frames or overlay layers. Preserve the original and exact prompt. The studio adds branding only when the owner downloads the finished cover; never upload that composite as the source.
+
+Upload actual raster bytes with the correct `Content-Type`: `image/png`, `image/jpeg` or `image/webp`. The endpoint checks file signatures and bounded content, rejects SVG and arbitrary URLs, and accepts at most 8 MiB. Human final review verifies that the source is unframed and suitable; the byte validator does not inspect the image's visual content.
 
 Each successful upload uses a new immutable R2 key. A stale database update removes the new unreferenced upload. Production URLs use `https://f.no.mt`; local URLs use `/media/` and local R2. The API cannot attach an arbitrary external asset URL to bypass upload and approval.
 
