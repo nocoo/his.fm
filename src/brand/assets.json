@@ -1,0 +1,74 @@
+{
+  "interval": {
+    "hero": "https://f.no.mt/images/identity/interval-hero-1536-461236cb41960db3.webp",
+    "srcSet": "https://f.no.mt/images/identity/interval-hero-768-5d66957098de4ec6.webp 768w, https://f.no.mt/images/identity/interval-hero-1536-461236cb41960db3.webp 1536w",
+    "mobileSrcSet": "https://f.no.mt/images/identity/interval-mobile-640-a0199dcaefd55c8c.webp 640w, https://f.no.mt/images/identity/interval-mobile-1024-346c3357ee180c51.webp 1024w",
+    "thumbnail": "https://f.no.mt/images/identity/interval-thumbnail-0d8a21b50662c632.webp",
+    "artwork": "https://f.no.mt/images/identity/interval-artwork-c3a19df4101a5e9b.webp",
+    "width": 1536,
+    "height": 1024
+  },
+  "soft-landing": {
+    "hero": "https://f.no.mt/images/identity/soft-landing-hero-1536-875a811b250879c7.webp",
+    "srcSet": "https://f.no.mt/images/identity/soft-landing-hero-768-d0465cf1dcb055cd.webp 768w, https://f.no.mt/images/identity/soft-landing-hero-1536-875a811b250879c7.webp 1536w",
+    "mobileSrcSet": "https://f.no.mt/images/identity/soft-landing-mobile-640-01840f8796dd0eaf.webp 640w, https://f.no.mt/images/identity/soft-landing-mobile-1024-2275c7fd234bd699.webp 1024w",
+    "thumbnail": "https://f.no.mt/images/identity/soft-landing-thumbnail-acc77e560a3281d7.webp",
+    "artwork": "https://f.no.mt/images/identity/soft-landing-artwork-f20962ecaec86c33.webp",
+    "width": 1536,
+    "height": 1024
+  },
+  "human-sample": {
+    "hero": "https://f.no.mt/images/identity/human-sample-hero-1536-535965e06598b9f4.webp",
+    "srcSet": "https://f.no.mt/images/identity/human-sample-hero-768-3b6cea7dacb3a1ab.webp 768w, https://f.no.mt/images/identity/human-sample-hero-1536-535965e06598b9f4.webp 1536w",
+    "mobileSrcSet": "https://f.no.mt/images/identity/human-sample-mobile-640-3367b31e4be73a62.webp 640w, https://f.no.mt/images/identity/human-sample-mobile-1024-18919a4b258cdc21.webp 1024w",
+    "thumbnail": "https://f.no.mt/images/identity/human-sample-thumbnail-7ab089a53dae8e8c.webp",
+    "artwork": "https://f.no.mt/images/identity/human-sample-artwork-0b5157021a12c40c.webp",
+    "width": 1536,
+    "height": 1024
+  },
+  "stillwood": {
+    "hero": "https://f.no.mt/images/identity/stillwood-hero-1536-0ac994064a850409.webp",
+    "srcSet": "https://f.no.mt/images/identity/stillwood-hero-768-3aafc4b391e5cc84.webp 768w, https://f.no.mt/images/identity/stillwood-hero-1536-0ac994064a850409.webp 1536w",
+    "mobileSrcSet": "https://f.no.mt/images/identity/stillwood-mobile-640-04cb16bb2d5dfd6c.webp 640w, https://f.no.mt/images/identity/stillwood-mobile-1024-871d34dd1fd5f610.webp 1024w",
+    "thumbnail": "https://f.no.mt/images/identity/stillwood-thumbnail-63b3cb771afbd429.webp",
+    "artwork": "https://f.no.mt/images/identity/stillwood-artwork-c1908adc2f55b869.webp",
+    "width": 1536,
+    "height": 1024
+  },
+  "tidal-hours": {
+    "hero": "https://f.no.mt/images/identity/tidal-hours-hero-1536-4fdbd8488d66788b.webp",
+    "srcSet": "https://f.no.mt/images/identity/tidal-hours-hero-768-6fae01149e2daaed.webp 768w, https://f.no.mt/images/identity/tidal-hours-hero-1536-4fdbd8488d66788b.webp 1536w",
+    "mobileSrcSet": "https://f.no.mt/images/identity/tidal-hours-mobile-640-5b12f64e70e85d17.webp 640w, https://f.no.mt/images/identity/tidal-hours-mobile-1024-dea8cd7d6a531c6d.webp 1024w",
+    "thumbnail": "https://f.no.mt/images/identity/tidal-hours-thumbnail-685a8026ee75ee51.webp",
+    "artwork": "https://f.no.mt/images/identity/tidal-hours-artwork-f78b2d651ed14b53.webp",
+    "width": 1536,
+    "height": 1024
+  },
+  "window-seat": {
+    "hero": "https://f.no.mt/images/identity/window-seat-hero-1536-f929dc61e0c12a37.webp",
+    "srcSet": "https://f.no.mt/images/identity/window-seat-hero-768-4fa61b705ec3d73f.webp 768w, https://f.no.mt/images/identity/window-seat-hero-1536-f929dc61e0c12a37.webp 1536w",
+    "mobileSrcSet": "https://f.no.mt/images/identity/window-seat-mobile-640-e118550984be58ef.webp 640w, https://f.no.mt/images/identity/window-seat-mobile-1024-77471d06277d05c7.webp 1024w",
+    "thumbnail": "https://f.no.mt/images/identity/window-seat-thumbnail-70f02f9fe75ee3f1.webp",
+    "artwork": "https://f.no.mt/images/identity/window-seat-artwork-3391b0be3d2e27bf.webp",
+    "width": 1536,
+    "height": 1024
+  },
+  "alpine-bloom": {
+    "hero": "https://f.no.mt/images/identity/alpine-bloom-hero-1536-860c9a3358b8ee09.webp",
+    "srcSet": "https://f.no.mt/images/identity/alpine-bloom-hero-768-9ac25b2c2f392464.webp 768w, https://f.no.mt/images/identity/alpine-bloom-hero-1536-860c9a3358b8ee09.webp 1536w",
+    "mobileSrcSet": "https://f.no.mt/images/identity/alpine-bloom-mobile-640-b53868b9198f3fc6.webp 640w, https://f.no.mt/images/identity/alpine-bloom-mobile-1024-1107b7111c91e69c.webp 1024w",
+    "thumbnail": "https://f.no.mt/images/identity/alpine-bloom-thumbnail-91e3803f7e94eb17.webp",
+    "artwork": "https://f.no.mt/images/identity/alpine-bloom-artwork-9f263efd4f23a5d8.webp",
+    "width": 1536,
+    "height": 1024
+  },
+  "grove": {
+    "hero": "https://f.no.mt/images/hero-retina-20260926-1752.webp",
+    "srcSet": "https://f.no.mt/images/hero-retina-20260926-1752.webp 1752w, https://f.no.mt/images/hero-retina-20260926-3504.webp 3504w",
+    "mobileSrcSet": "https://f.no.mt/images/hero-retina-20260926-mobile-1168.webp 1168w, https://f.no.mt/images/hero-retina-20260926-mobile-2336.webp 2336w",
+    "thumbnail": "https://f.no.mt/images/hero-retina-20260926-1752.webp",
+    "artwork": "https://f.no.mt/images/episode-03.webp",
+    "width": 3504,
+    "height": 2336
+  }
+}

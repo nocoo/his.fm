@@ -1,0 +1,1228 @@
+{
+  "identity": "Open Interval",
+  "sourceStudy": "docs/design/02-interval",
+  "cdn": "https://f.no.mt",
+  "cacheControl": "public, max-age=31536000, immutable",
+  "assets": [
+    {
+      "file": "artwork/identity/images/interval-hero-1536.webp",
+      "source": "artwork/design-20260926/originals/02-hero.png",
+      "key": "images/identity/interval-hero-1536-461236cb41960db3.webp",
+      "sha256": "461236cb41960db34b6aa530fd3922b781896098ad6d111884ab78b9872db807",
+      "bytes": 123510,
+      "contentType": "image/webp",
+      "dimensions": [
+        1536,
+        1024
+      ]
+    },
+    {
+      "file": "artwork/identity/images/interval-hero-768.webp",
+      "source": "artwork/design-20260926/originals/02-hero.png",
+      "key": "images/identity/interval-hero-768-5d66957098de4ec6.webp",
+      "sha256": "5d66957098de4ec6061157870dbc829ffa56d14ff091387d775fca73cdfa2725",
+      "bytes": 44438,
+      "contentType": "image/webp",
+      "dimensions": [
+        768,
+        512
+      ]
+    },
+    {
+      "file": "artwork/identity/images/interval-mobile-1024.webp",
+      "source": "artwork/design-20260926/originals/02-hero.png",
+      "key": "images/identity/interval-mobile-1024-346c3357ee180c51.webp",
+      "sha256": "346c3357ee180c5192f39c20d10ab5da8a9e74edc2475b4aaeca7d50769475d2",
+      "bytes": 86562,
+      "contentType": "image/webp",
+      "dimensions": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "file": "artwork/identity/images/interval-mobile-640.webp",
+      "source": "artwork/design-20260926/originals/02-hero.png",
+      "key": "images/identity/interval-mobile-640-a0199dcaefd55c8c.webp",
+      "sha256": "a0199dcaefd55c8c56dc864b508bf633a63bbb6810ec72b8371e86d69696ba02",
+      "bytes": 45620,
+      "contentType": "image/webp",
+      "dimensions": [
+        640,
+        640
+      ]
+    },
+    {
+      "file": "artwork/identity/images/interval-thumbnail.webp",
+      "source": "artwork/design-20260926/originals/02-hero.png",
+      "key": "images/identity/interval-thumbnail-0d8a21b50662c632.webp",
+      "sha256": "0d8a21b50662c63246f0402b054ff6029e6970e2dc3166bb555162fa3fbaaeb5",
+      "bytes": 18600,
+      "contentType": "image/webp",
+      "dimensions": [
+        480,
+        320
+      ]
+    },
+    {
+      "file": "artwork/identity/images/interval-artwork.webp",
+      "source": "artwork/design-20260926/originals/02-02.png",
+      "key": "images/identity/interval-artwork-c3a19df4101a5e9b.webp",
+      "sha256": "c3a19df4101a5e9b09b10a5252deb2fc67f0fecc9af99515837b04b85e3c410a",
+      "bytes": 197752,
+      "contentType": "image/webp",
+      "dimensions": [
+        768,
+        768
+      ]
+    },
+    {
+      "file": "artwork/identity/images/soft-landing-hero-1536.webp",
+      "source": "artwork/design-20260926/originals/03-hero.png",
+      "key": "images/identity/soft-landing-hero-1536-875a811b250879c7.webp",
+      "sha256": "875a811b250879c71f1ae9f441e4a7caec483411619849eb352f60b674e1f7b4",
+      "bytes": 166710,
+      "contentType": "image/webp",
+      "dimensions": [
+        1536,
+        1024
+      ]
+    },
+    {
+      "file": "artwork/identity/images/soft-landing-hero-768.webp",
+      "source": "artwork/design-20260926/originals/03-hero.png",
+      "key": "images/identity/soft-landing-hero-768-d0465cf1dcb055cd.webp",
+      "sha256": "d0465cf1dcb055cd5097f3fc4da1995308f1ec0a0cb364fc0eb85ad26ea2b781",
+      "bytes": 53574,
+      "contentType": "image/webp",
+      "dimensions": [
+        768,
+        512
+      ]
+    },
+    {
+      "file": "artwork/identity/images/soft-landing-mobile-1024.webp",
+      "source": "artwork/design-20260926/originals/03-hero.png",
+      "key": "images/identity/soft-landing-mobile-1024-2275c7fd234bd699.webp",
+      "sha256": "2275c7fd234bd699985ab48fed19625bb35b35affa97ef9c15587e5a101e87c7",
+      "bytes": 134958,
+      "contentType": "image/webp",
+      "dimensions": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "file": "artwork/identity/images/soft-landing-mobile-640.webp",
+      "source": "artwork/design-20260926/originals/03-hero.png",
+      "key": "images/identity/soft-landing-mobile-640-01840f8796dd0eaf.webp",
+      "sha256": "01840f8796dd0eaf1fc2ca1c374984168655b5d5a066ef38cf99baf67d674898",
+      "bytes": 64222,
+      "contentType": "image/webp",
+      "dimensions": [
+        640,
+        640
+      ]
+    },
+    {
+      "file": "artwork/identity/images/soft-landing-thumbnail.webp",
+      "source": "artwork/design-20260926/originals/03-hero.png",
+      "key": "images/identity/soft-landing-thumbnail-acc77e560a3281d7.webp",
+      "sha256": "acc77e560a3281d74e129127d9745515489c7e66176a7cd7a21937ca89ae395a",
+      "bytes": 23760,
+      "contentType": "image/webp",
+      "dimensions": [
+        480,
+        320
+      ]
+    },
+    {
+      "file": "artwork/identity/images/soft-landing-artwork.webp",
+      "source": "artwork/design-20260926/originals/03-02.png",
+      "key": "images/identity/soft-landing-artwork-f20962ecaec86c33.webp",
+      "sha256": "f20962ecaec86c33296f4889f703b3360c5a9176e30ef04bdc4b8ebc9d3a7ad8",
+      "bytes": 58610,
+      "contentType": "image/webp",
+      "dimensions": [
+        768,
+        768
+      ]
+    },
+    {
+      "file": "artwork/identity/images/human-sample-hero-1536.webp",
+      "source": "artwork/design-20260926/originals/04-hero.png",
+      "key": "images/identity/human-sample-hero-1536-535965e06598b9f4.webp",
+      "sha256": "535965e06598b9f44b10f5b7075f3002b9f9fbc8069e86807e4c61b357fca849",
+      "bytes": 492910,
+      "contentType": "image/webp",
+      "dimensions": [
+        1536,
+        1024
+      ]
+    },
+    {
+      "file": "artwork/identity/images/human-sample-hero-768.webp",
+      "source": "artwork/design-20260926/originals/04-hero.png",
+      "key": "images/identity/human-sample-hero-768-3b6cea7dacb3a1ab.webp",
+      "sha256": "3b6cea7dacb3a1ab0a27c7b2899f26f91a55541c3318df151e21ef89d358181f",
+      "bytes": 116390,
+      "contentType": "image/webp",
+      "dimensions": [
+        768,
+        512
+      ]
+    },
+    {
+      "file": "artwork/identity/images/human-sample-mobile-1024.webp",
+      "source": "artwork/design-20260926/originals/04-hero.png",
+      "key": "images/identity/human-sample-mobile-1024-18919a4b258cdc21.webp",
+      "sha256": "18919a4b258cdc2106c0d7daf25e0899eaaa5544393a0bfc655c7db5fa5346de",
+      "bytes": 313418,
+      "contentType": "image/webp",
+      "dimensions": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "file": "artwork/identity/images/human-sample-mobile-640.webp",
+      "source": "artwork/design-20260926/originals/04-hero.png",
+      "key": "images/identity/human-sample-mobile-640-3367b31e4be73a62.webp",
+      "sha256": "3367b31e4be73a620400f6ceaef25e6d85c24e5d8b2d4b07fba41c89ffdfe18e",
+      "bytes": 120560,
+      "contentType": "image/webp",
+      "dimensions": [
+        640,
+        640
+      ]
+    },
+    {
+      "file": "artwork/identity/images/human-sample-thumbnail.webp",
+      "source": "artwork/design-20260926/originals/04-hero.png",
+      "key": "images/identity/human-sample-thumbnail-7ab089a53dae8e8c.webp",
+      "sha256": "7ab089a53dae8e8c0e676444a3d5c9d2d81946c997d73e3ba9363a88c4e04dcf",
+      "bytes": 44894,
+      "contentType": "image/webp",
+      "dimensions": [
+        480,
+        320
+      ]
+    },
+    {
+      "file": "artwork/identity/images/human-sample-artwork.webp",
+      "source": "artwork/design-20260926/originals/04-02.png",
+      "key": "images/identity/human-sample-artwork-0b5157021a12c40c.webp",
+      "sha256": "0b5157021a12c40c916737d490722bb75b9477d9aaf207eb9621ea3b4587b8f6",
+      "bytes": 204124,
+      "contentType": "image/webp",
+      "dimensions": [
+        768,
+        768
+      ]
+    },
+    {
+      "file": "artwork/identity/images/stillwood-hero-1536.webp",
+      "source": "artwork/design-20260926/originals/05-hero.png",
+      "key": "images/identity/stillwood-hero-1536-0ac994064a850409.webp",
+      "sha256": "0ac994064a85040954b586cdc939513672ab4b337bc64cd91eb57d2769e064a1",
+      "bytes": 271590,
+      "contentType": "image/webp",
+      "dimensions": [
+        1536,
+        1024
+      ]
+    },
+    {
+      "file": "artwork/identity/images/stillwood-hero-768.webp",
+      "source": "artwork/design-20260926/originals/05-hero.png",
+      "key": "images/identity/stillwood-hero-768-3aafc4b391e5cc84.webp",
+      "sha256": "3aafc4b391e5cc84083ebb78071e2b109f7b1499ffc9fcaf0a93d1f838eeab25",
+      "bytes": 82798,
+      "contentType": "image/webp",
+      "dimensions": [
+        768,
+        512
+      ]
+    },
+    {
+      "file": "artwork/identity/images/stillwood-mobile-1024.webp",
+      "source": "artwork/design-20260926/originals/05-hero.png",
+      "key": "images/identity/stillwood-mobile-1024-871d34dd1fd5f610.webp",
+      "sha256": "871d34dd1fd5f610b8a310a168fdd67744edc44f369c74ebbd021bb87cfd3d71",
+      "bytes": 176318,
+      "contentType": "image/webp",
+      "dimensions": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "file": "artwork/identity/images/stillwood-mobile-640.webp",
+      "source": "artwork/design-20260926/originals/05-hero.png",
+      "key": "images/identity/stillwood-mobile-640-04cb16bb2d5dfd6c.webp",
+      "sha256": "04cb16bb2d5dfd6c5708d6dd8dad8fd285dc814d5420f0c80f3e15b20d02c842",
+      "bytes": 81462,
+      "contentType": "image/webp",
+      "dimensions": [
+        640,
+        640
+      ]
+    },
+    {
+      "file": "artwork/identity/images/stillwood-thumbnail.webp",
+      "source": "artwork/design-20260926/originals/05-hero.png",
+      "key": "images/identity/stillwood-thumbnail-63b3cb771afbd429.webp",
+      "sha256": "63b3cb771afbd4293c3371cf7348b71905c4d95a3304353acb30b8a48d0c602a",
+      "bytes": 34522,
+      "contentType": "image/webp",
+      "dimensions": [
+        480,
+        320
+      ]
+    },
+    {
+      "file": "artwork/identity/images/stillwood-artwork.webp",
+      "source": "artwork/design-20260926/originals/05-02.png",
+      "key": "images/identity/stillwood-artwork-c1908adc2f55b869.webp",
+      "sha256": "c1908adc2f55b86988624099acecb1c48ef0e73567c05b6d88132a8a9733d329",
+      "bytes": 136186,
+      "contentType": "image/webp",
+      "dimensions": [
+        768,
+        768
+      ]
+    },
+    {
+      "file": "artwork/identity/images/tidal-hours-hero-1536.webp",
+      "source": "artwork/design-20260926/originals/06-hero.png",
+      "key": "images/identity/tidal-hours-hero-1536-4fdbd8488d66788b.webp",
+      "sha256": "4fdbd8488d66788b0b71e9d7a7e46eb8a9b1241939f4bfb2d305964f4a121510",
+      "bytes": 160008,
+      "contentType": "image/webp",
+      "dimensions": [
+        1536,
+        1024
+      ]
+    },
+    {
+      "file": "artwork/identity/images/tidal-hours-hero-768.webp",
+      "source": "artwork/design-20260926/originals/06-hero.png",
+      "key": "images/identity/tidal-hours-hero-768-6fae01149e2daaed.webp",
+      "sha256": "6fae01149e2daaed29d5d2cb0d8013d66e311fc53ae83f4becb86086d331824d",
+      "bytes": 45504,
+      "contentType": "image/webp",
+      "dimensions": [
+        768,
+        512
+      ]
+    },
+    {
+      "file": "artwork/identity/images/tidal-hours-mobile-1024.webp",
+      "source": "artwork/design-20260926/originals/06-hero.png",
+      "key": "images/identity/tidal-hours-mobile-1024-dea8cd7d6a531c6d.webp",
+      "sha256": "dea8cd7d6a531c6d71d792af3d7433cf70984d608d6ea04b1dbfc386f52aa0dd",
+      "bytes": 109634,
+      "contentType": "image/webp",
+      "dimensions": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "file": "artwork/identity/images/tidal-hours-mobile-640.webp",
+      "source": "artwork/design-20260926/originals/06-hero.png",
+      "key": "images/identity/tidal-hours-mobile-640-5b12f64e70e85d17.webp",
+      "sha256": "5b12f64e70e85d1705a251f0b10b5453426ae2e4f9651c1c4a108ea56d192690",
+      "bytes": 47938,
+      "contentType": "image/webp",
+      "dimensions": [
+        640,
+        640
+      ]
+    },
+    {
+      "file": "artwork/identity/images/tidal-hours-thumbnail.webp",
+      "source": "artwork/design-20260926/originals/06-hero.png",
+      "key": "images/identity/tidal-hours-thumbnail-685a8026ee75ee51.webp",
+      "sha256": "685a8026ee75ee519b222a8c7e0c2544435116ba6f080f9c4b2ae58506ac147e",
+      "bytes": 18336,
+      "contentType": "image/webp",
+      "dimensions": [
+        480,
+        320
+      ]
+    },
+    {
+      "file": "artwork/identity/images/tidal-hours-artwork.webp",
+      "source": "artwork/design-20260926/originals/06-02.png",
+      "key": "images/identity/tidal-hours-artwork-f78b2d651ed14b53.webp",
+      "sha256": "f78b2d651ed14b53ec35c08ea6c3377a01f3658154470e71915f5519cff3981d",
+      "bytes": 122620,
+      "contentType": "image/webp",
+      "dimensions": [
+        768,
+        768
+      ]
+    },
+    {
+      "file": "artwork/identity/images/window-seat-hero-1536.webp",
+      "source": "artwork/design-20260926/originals/07-hero.png",
+      "key": "images/identity/window-seat-hero-1536-f929dc61e0c12a37.webp",
+      "sha256": "f929dc61e0c12a37b896e6559b7ed5d778ca21c00ed0a5af3714d66113f28df3",
+      "bytes": 185654,
+      "contentType": "image/webp",
+      "dimensions": [
+        1536,
+        1024
+      ]
+    },
+    {
+      "file": "artwork/identity/images/window-seat-hero-768.webp",
+      "source": "artwork/design-20260926/originals/07-hero.png",
+      "key": "images/identity/window-seat-hero-768-4fa61b705ec3d73f.webp",
+      "sha256": "4fa61b705ec3d73fdae2cbddc226b9d16d1ae00a835d99492c58cce62a93efa4",
+      "bytes": 66882,
+      "contentType": "image/webp",
+      "dimensions": [
+        768,
+        512
+      ]
+    },
+    {
+      "file": "artwork/identity/images/window-seat-mobile-1024.webp",
+      "source": "artwork/design-20260926/originals/07-hero.png",
+      "key": "images/identity/window-seat-mobile-1024-77471d06277d05c7.webp",
+      "sha256": "77471d06277d05c7f78d8f6de274c61b0c5dc048684e062a627256f89feadcfd",
+      "bytes": 138390,
+      "contentType": "image/webp",
+      "dimensions": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "file": "artwork/identity/images/window-seat-mobile-640.webp",
+      "source": "artwork/design-20260926/originals/07-hero.png",
+      "key": "images/identity/window-seat-mobile-640-e118550984be58ef.webp",
+      "sha256": "e118550984be58efe1f96802d5b325334f5c23cc7f5a7b434bc77f2ae2e1f7e7",
+      "bytes": 72118,
+      "contentType": "image/webp",
+      "dimensions": [
+        640,
+        640
+      ]
+    },
+    {
+      "file": "artwork/identity/images/window-seat-thumbnail.webp",
+      "source": "artwork/design-20260926/originals/07-hero.png",
+      "key": "images/identity/window-seat-thumbnail-70f02f9fe75ee3f1.webp",
+      "sha256": "70f02f9fe75ee3f1f6579f86e285717c50967e30fa3dc84fb1b1b296328fc342",
+      "bytes": 29724,
+      "contentType": "image/webp",
+      "dimensions": [
+        480,
+        320
+      ]
+    },
+    {
+      "file": "artwork/identity/images/window-seat-artwork.webp",
+      "source": "artwork/design-20260926/originals/07-02.png",
+      "key": "images/identity/window-seat-artwork-3391b0be3d2e27bf.webp",
+      "sha256": "3391b0be3d2e27bf34c4a8279d2b834b9ea82769ef00b0d62631aa001a570b0f",
+      "bytes": 132454,
+      "contentType": "image/webp",
+      "dimensions": [
+        768,
+        768
+      ]
+    },
+    {
+      "file": "artwork/identity/images/alpine-bloom-hero-1536.webp",
+      "source": "artwork/design-20260926/originals/08-hero.png",
+      "key": "images/identity/alpine-bloom-hero-1536-860c9a3358b8ee09.webp",
+      "sha256": "860c9a3358b8ee09918dc3d4bf474f3fd082ecd1fdf508c36eac090246442a0c",
+      "bytes": 208694,
+      "contentType": "image/webp",
+      "dimensions": [
+        1536,
+        1024
+      ]
+    },
+    {
+      "file": "artwork/identity/images/alpine-bloom-hero-768.webp",
+      "source": "artwork/design-20260926/originals/08-hero.png",
+      "key": "images/identity/alpine-bloom-hero-768-9ac25b2c2f392464.webp",
+      "sha256": "9ac25b2c2f392464f212b95441be9305e0f0e296068c1b1ca57586404dd94ff5",
+      "bytes": 74878,
+      "contentType": "image/webp",
+      "dimensions": [
+        768,
+        512
+      ]
+    },
+    {
+      "file": "artwork/identity/images/alpine-bloom-mobile-1024.webp",
+      "source": "artwork/design-20260926/originals/08-hero.png",
+      "key": "images/identity/alpine-bloom-mobile-1024-1107b7111c91e69c.webp",
+      "sha256": "1107b7111c91e69c80e38573663328219b83a1aa0d6530b272722126178b9e1a",
+      "bytes": 157202,
+      "contentType": "image/webp",
+      "dimensions": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "file": "artwork/identity/images/alpine-bloom-mobile-640.webp",
+      "source": "artwork/design-20260926/originals/08-hero.png",
+      "key": "images/identity/alpine-bloom-mobile-640-b53868b9198f3fc6.webp",
+      "sha256": "b53868b9198f3fc6bd8bf4e8419ff83531e13689d616456d4e3696607789e896",
+      "bytes": 79878,
+      "contentType": "image/webp",
+      "dimensions": [
+        640,
+        640
+      ]
+    },
+    {
+      "file": "artwork/identity/images/alpine-bloom-thumbnail.webp",
+      "source": "artwork/design-20260926/originals/08-hero.png",
+      "key": "images/identity/alpine-bloom-thumbnail-91e3803f7e94eb17.webp",
+      "sha256": "91e3803f7e94eb171e2555e68063f01ae9ee0f943646b0410c81002bbb3a8b5c",
+      "bytes": 36002,
+      "contentType": "image/webp",
+      "dimensions": [
+        480,
+        320
+      ]
+    },
+    {
+      "file": "artwork/identity/images/alpine-bloom-artwork.webp",
+      "source": "artwork/design-20260926/originals/08-02.png",
+      "key": "images/identity/alpine-bloom-artwork-9f263efd4f23a5d8.webp",
+      "sha256": "9f263efd4f23a5d875aaf47b6fed6784a2f5437818d31ee436f25f52c8cdeada",
+      "bytes": 104082,
+      "contentType": "image/webp",
+      "dimensions": [
+        768,
+        768
+      ]
+    }
+  ],
+  "fonts": [
+    {
+      "file": "artwork/identity/fonts/space-grotesk.woff2",
+      "source": "docs/design/assets/fonts/sources.json",
+      "sha256": "92f949498aa37b764c0147f278771c5cb41d5844891828dc3bc9fb67988e2804",
+      "bytes": 49148,
+      "contentType": "font/woff2"
+    },
+    {
+      "file": "artwork/identity/fonts/noto-sans-sc-000.woff2",
+      "source": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.4.woff2",
+      "sha256": "9fafd93ac77b81ffdeeb30c31e7d5911eb5b6a0a976b54c6e418eec8701a97e2",
+      "bytes": 3796,
+      "contentType": "font/woff2"
+    },
+    {
+      "file": "artwork/identity/fonts/noto-sans-sc-001.woff2",
+      "source": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.5.woff2",
+      "sha256": "e64f57937e3ae4feb9dd073d6a5257a74fda82575060718a162c95c8c09ef2ae",
+      "bytes": 20176,
+      "contentType": "font/woff2"
+    },
+    {
+      "file": "artwork/identity/fonts/noto-sans-sc-002.woff2",
+      "source": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.6.woff2",
+      "sha256": "17e15c4f0a5bfd92e65a65d285833633f2cc8d4a51a8ba6a2080663989123d7e",
+      "bytes": 11464,
+      "contentType": "font/woff2"
+    },
+    {
+      "file": "artwork/identity/fonts/noto-sans-sc-003.woff2",
+      "source": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.21.woff2",
+      "sha256": "c1409c43e55ecff21bd7eee9327e71a6f4c66449842861b368dcdfe14445aab3",
+      "bytes": 11356,
+      "contentType": "font/woff2"
+    },
+    {
+      "file": "artwork/identity/fonts/noto-sans-sc-004.woff2",
+      "source": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.22.woff2",
+      "sha256": "77037ed42ff4e7b0e5cc296cabe4f0580d1d518239a4a067c00ff8097f60819f",
+      "bytes": 65384,
+      "contentType": "font/woff2"
+    },
+    {
+      "file": "artwork/identity/fonts/noto-sans-sc-005.woff2",
+      "source": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.23.woff2",
+      "sha256": "38d0df21ac374e938a5c885f50a80b7be2dbab9a34803462a4f2c6c6fa777128",
+      "bytes": 56792,
+      "contentType": "font/woff2"
+    },
+    {
+      "file": "artwork/identity/fonts/noto-sans-sc-006.woff2",
+      "source": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.24.woff2",
+      "sha256": "8fa21e7e457acf3e8ca2e0561d5df4dd26cf0824a27a721c2b831b202e88e195",
+      "bytes": 62580,
+      "contentType": "font/woff2"
+    },
+    {
+      "file": "artwork/identity/fonts/noto-sans-sc-007.woff2",
+      "source": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.25.woff2",
+      "sha256": "f760b7a3871d214d421b378faa2e27a763bc632000f983964a837f2323665f1d",
+      "bytes": 58320,
+      "contentType": "font/woff2"
+    },
+    {
+      "file": "artwork/identity/fonts/noto-sans-sc-008.woff2",
+      "source": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.26.woff2",
+      "sha256": "be8386e7bd7facfe78886db838ece2fac15056ef9ea6c48d631054460cd37c6f",
+      "bytes": 50888,
+      "contentType": "font/woff2"
+    },
+    {
+      "file": "artwork/identity/fonts/noto-sans-sc-009.woff2",
+      "source": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.27.woff2",
+      "sha256": "4895abcaddbd162e48a212dd75c270d3ba1706519f527dff5fd7ec47dfa64dfd",
+      "bytes": 47488,
+      "contentType": "font/woff2"
+    },
+    {
+      "file": "artwork/identity/fonts/noto-sans-sc-010.woff2",
+      "source": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.28.woff2",
+      "sha256": "82540b6201a9b9ade19206b3e6e9ba65038e6ab5d8b61952352d87b92978f967",
+      "bytes": 50200,
+      "contentType": "font/woff2"
+    },
+    {
+      "file": "artwork/identity/fonts/noto-sans-sc-011.woff2",
+      "source": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.29.woff2",
+      "sha256": "ff21d8fcc60ce39145c09da40c66f190dbb52b4b5ae6de1861dcaf15f87ef497",
+      "bytes": 54008,
+      "contentType": "font/woff2"
+    },
+    {
+      "file": "artwork/identity/fonts/noto-sans-sc-012.woff2",
+      "source": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.30.woff2",
+      "sha256": "1f76f6ffded00b9ead063038ebfd5019ad334ffeb7035dda3aa33f4dd1bb7adc",
+      "bytes": 54656,
+      "contentType": "font/woff2"
+    },
+    {
+      "file": "artwork/identity/fonts/noto-sans-sc-013.woff2",
+      "source": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.31.woff2",
+      "sha256": "e6c25be1bb08a63a0f4cd0cea425fc90b65df538be8505e3cf4010bec2853b64",
+      "bytes": 47220,
+      "contentType": "font/woff2"
+    },
+    {
+      "file": "artwork/identity/fonts/noto-sans-sc-014.woff2",
+      "source": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.32.woff2",
+      "sha256": "0cda750d7d04a4e12e4b2ea1d78c0a3ec430b5c07e02b87064e809ff75d76998",
+      "bytes": 52548,
+      "contentType": "font/woff2"
+    },
+    {
+      "file": "artwork/identity/fonts/noto-sans-sc-015.woff2",
+      "source": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.33.woff2",
+      "sha256": "b9732b5606bd87c51942e5f56270d26495f2bc22a157493725417af2c70c265e",
+      "bytes": 47452,
+      "contentType": "font/woff2"
+    },
+    {
+      "file": "artwork/identity/fonts/noto-sans-sc-016.woff2",
+      "source": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.34.woff2",
+      "sha256": "38aa326b4c84902a342b4225a452a7ca3ac32ebf40792663d7db2013c22bee9d",
+      "bytes": 46888,
+      "contentType": "font/woff2"
+    },
+    {
+      "file": "artwork/identity/fonts/noto-sans-sc-017.woff2",
+      "source": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.35.woff2",
+      "sha256": "bd98226c8e0aa80876366386a23e909087df5d6b570f48b2366a8849a3ca137b",
+      "bytes": 50688,
+      "contentType": "font/woff2"
+    },
+    {
+      "file": "artwork/identity/fonts/noto-sans-sc-018.woff2",
+      "source": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.36.woff2",
+      "sha256": "0db1ca695a491d372060eba39ae66b1816457e8992698fbaacd35cc0f7786658",
+      "bytes": 41832,
+      "contentType": "font/woff2"
+    },
+    {
+      "file": "artwork/identity/fonts/noto-sans-sc-019.woff2",
+      "source": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.37.woff2",
+      "sha256": "8df409a4e0a237c21db73608de96e2ae49c53de50826098d050a0e2cca867836",
+      "bytes": 53528,
+      "contentType": "font/woff2"
+    },
+    {
+      "file": "artwork/identity/fonts/noto-sans-sc-020.woff2",
+      "source": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.38.woff2",
+      "sha256": "672d2d994994a3c39072fbbc4a40f0e25424ab2ff36ec63f3b55849d1ab8a650",
+      "bytes": 54592,
+      "contentType": "font/woff2"
+    },
+    {
+      "file": "artwork/identity/fonts/noto-sans-sc-021.woff2",
+      "source": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.39.woff2",
+      "sha256": "272d6d0e153f56e8ab7d9412ca1e8581c06ce371641cf863859a0ab01751c1ea",
+      "bytes": 51784,
+      "contentType": "font/woff2"
+    },
+    {
+      "file": "artwork/identity/fonts/noto-sans-sc-022.woff2",
+      "source": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.40.woff2",
+      "sha256": "5b9ef1ed48420aa7b9da1fbc18c4a4dfd3d4edf1c6b8aab89cf12b40913335a3",
+      "bytes": 46628,
+      "contentType": "font/woff2"
+    },
+    {
+      "file": "artwork/identity/fonts/noto-sans-sc-023.woff2",
+      "source": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.41.woff2",
+      "sha256": "30aee47f660fd88a68fee63052ce8f3746e78e606813de686b710692d7610529",
+      "bytes": 36416,
+      "contentType": "font/woff2"
+    },
+    {
+      "file": "artwork/identity/fonts/noto-sans-sc-024.woff2",
+      "source": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.42.woff2",
+      "sha256": "ec0014830db682b682120085e07476df857d016fa7bb1b4bb3dfe82113819a10",
+      "bytes": 45540,
+      "contentType": "font/woff2"
+    },
+    {
+      "file": "artwork/identity/fonts/noto-sans-sc-025.woff2",
+      "source": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.43.woff2",
+      "sha256": "43df2b5dad9bb8353549d68023297605443f251f1f846a9cb2e5363b84aacd0b",
+      "bytes": 46624,
+      "contentType": "font/woff2"
+    },
+    {
+      "file": "artwork/identity/fonts/noto-sans-sc-026.woff2",
+      "source": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.44.woff2",
+      "sha256": "acaa6195041b1a928d35c7e80365a4e653ffc5cba556c0a1443ee3a561228eb8",
+      "bytes": 54244,
+      "contentType": "font/woff2"
+    },
+    {
+      "file": "artwork/identity/fonts/noto-sans-sc-027.woff2",
+      "source": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.45.woff2",
+      "sha256": "8cdb9903f770db21bd3d17eab6a1dd7d302b47f7eab059b2ff814d9593ce2526",
+      "bytes": 67620,
+      "contentType": "font/woff2"
+    },
+    {
+      "file": "artwork/identity/fonts/noto-sans-sc-028.woff2",
+      "source": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.46.woff2",
+      "sha256": "6590d0a6fe94571cfb84a6d9536e0f58b6a6164643ffa339d3c1788835c96147",
+      "bytes": 57668,
+      "contentType": "font/woff2"
+    },
+    {
+      "file": "artwork/identity/fonts/noto-sans-sc-029.woff2",
+      "source": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.47.woff2",
+      "sha256": "b05afdd32b3bf722adac4b2c936a3c3390fb4b6b8adc20a132a0b42cb9c23e83",
+      "bytes": 56156,
+      "contentType": "font/woff2"
+    },
+    {
+      "file": "artwork/identity/fonts/noto-sans-sc-030.woff2",
+      "source": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.48.woff2",
+      "sha256": "c9585f7d070700be0435c1014761af37cd512faa68ffc33341d1e4634abed682",
+      "bytes": 50764,
+      "contentType": "font/woff2"
+    },
+    {
+      "file": "artwork/identity/fonts/noto-sans-sc-031.woff2",
+      "source": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.49.woff2",
+      "sha256": "4943895a4dfa5dcf427429a13e1c56bb3fd344c1dd7b1ad927b9d6743e358ac0",
+      "bytes": 52844,
+      "contentType": "font/woff2"
+    },
+    {
+      "file": "artwork/identity/fonts/noto-sans-sc-032.woff2",
+      "source": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.50.woff2",
+      "sha256": "13e51063d7743cfe2d533620860719890426ef12f6fe036d50b3c1a8f41508e7",
+      "bytes": 45876,
+      "contentType": "font/woff2"
+    },
+    {
+      "file": "artwork/identity/fonts/noto-sans-sc-033.woff2",
+      "source": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.51.woff2",
+      "sha256": "fd4df1f02c2cb4d7db99d2d35225561f9695483f5f829e0f6667adac4bbe7ff6",
+      "bytes": 41616,
+      "contentType": "font/woff2"
+    },
+    {
+      "file": "artwork/identity/fonts/noto-sans-sc-034.woff2",
+      "source": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.52.woff2",
+      "sha256": "06999a39c4c3a7ea279822ec42aeaf7e2f99d4047e4f8b7c48254158b7e293fa",
+      "bytes": 51840,
+      "contentType": "font/woff2"
+    },
+    {
+      "file": "artwork/identity/fonts/noto-sans-sc-035.woff2",
+      "source": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.53.woff2",
+      "sha256": "767b7b9864658d91d81787ebeac555cb9d67ec920002845061516dd87fa1b95f",
+      "bytes": 43528,
+      "contentType": "font/woff2"
+    },
+    {
+      "file": "artwork/identity/fonts/noto-sans-sc-036.woff2",
+      "source": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.54.woff2",
+      "sha256": "4cd00537a46f6f1acaf2762a59176e059062d7259217a8a85a589df775531ea6",
+      "bytes": 52000,
+      "contentType": "font/woff2"
+    },
+    {
+      "file": "artwork/identity/fonts/noto-sans-sc-037.woff2",
+      "source": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.55.woff2",
+      "sha256": "0118ec5d8c30b1971a59ec5982f3eeee3e687a40ef5b79108e99e5d82fa67aa9",
+      "bytes": 48132,
+      "contentType": "font/woff2"
+    },
+    {
+      "file": "artwork/identity/fonts/noto-sans-sc-038.woff2",
+      "source": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.56.woff2",
+      "sha256": "a3e4a78929826930956ef1e3b3c1c329815d75c88f67296c4ffeac203e2cb544",
+      "bytes": 53500,
+      "contentType": "font/woff2"
+    },
+    {
+      "file": "artwork/identity/fonts/noto-sans-sc-039.woff2",
+      "source": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.57.woff2",
+      "sha256": "7623501009e4a6db7c2d5a635f57099da3e78de33fa85cccdf8d3c1596064ccb",
+      "bytes": 55496,
+      "contentType": "font/woff2"
+    },
+    {
+      "file": "artwork/identity/fonts/noto-sans-sc-040.woff2",
+      "source": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.58.woff2",
+      "sha256": "56ae1a59a32e4a258336c6d100d5288f3d1ece6f9e4f2bb3ec0548c289ede761",
+      "bytes": 57648,
+      "contentType": "font/woff2"
+    },
+    {
+      "file": "artwork/identity/fonts/noto-sans-sc-041.woff2",
+      "source": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.59.woff2",
+      "sha256": "7a377a40e99fd9bc3b1eb38517f08c4ac09520437bed24c3d3a39e2b64ff0ee9",
+      "bytes": 47676,
+      "contentType": "font/woff2"
+    },
+    {
+      "file": "artwork/identity/fonts/noto-sans-sc-042.woff2",
+      "source": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.60.woff2",
+      "sha256": "3657f66babdf6aff2d2ca3cbadf7bcdce820bda6be7c765d909afee8e74dad5c",
+      "bytes": 41432,
+      "contentType": "font/woff2"
+    },
+    {
+      "file": "artwork/identity/fonts/noto-sans-sc-043.woff2",
+      "source": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.61.woff2",
+      "sha256": "23919a2eb11d25dd3a78c020ecc337c9c72b8ca760412f5b4cd567cc43b776ba",
+      "bytes": 45276,
+      "contentType": "font/woff2"
+    },
+    {
+      "file": "artwork/identity/fonts/noto-sans-sc-044.woff2",
+      "source": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.62.woff2",
+      "sha256": "a901edf25bc1cfae0fc4c474fce9f8783e93a46b9e88a1cb1cb1301feb1cbdb2",
+      "bytes": 59112,
+      "contentType": "font/woff2"
+    },
+    {
+      "file": "artwork/identity/fonts/noto-sans-sc-045.woff2",
+      "source": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.63.woff2",
+      "sha256": "92f56f713cc0b62f1cbbbc3533b957cff5d2db2abdb4b45a173564011d217ddc",
+      "bytes": 49180,
+      "contentType": "font/woff2"
+    },
+    {
+      "file": "artwork/identity/fonts/noto-sans-sc-046.woff2",
+      "source": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.64.woff2",
+      "sha256": "4929c9f39a5a4bd941050c7358e1556e57cef901b8c75503453e62c23ede281c",
+      "bytes": 41540,
+      "contentType": "font/woff2"
+    },
+    {
+      "file": "artwork/identity/fonts/noto-sans-sc-047.woff2",
+      "source": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.65.woff2",
+      "sha256": "8daa61282fb62a111c17f896b12429a43a3d60bd5f2eceb8c5a4f7d57a26d83c",
+      "bytes": 41608,
+      "contentType": "font/woff2"
+    },
+    {
+      "file": "artwork/identity/fonts/noto-sans-sc-048.woff2",
+      "source": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.66.woff2",
+      "sha256": "6479166925eb462be1a74ad446099719e8021949abf5c3eafefd9ad290836b9c",
+      "bytes": 52868,
+      "contentType": "font/woff2"
+    },
+    {
+      "file": "artwork/identity/fonts/noto-sans-sc-049.woff2",
+      "source": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.67.woff2",
+      "sha256": "a6b0e11c4c761ffda2e693d037f1384af67b6a338f81a8c0fcd7aa4eea9a177c",
+      "bytes": 52584,
+      "contentType": "font/woff2"
+    },
+    {
+      "file": "artwork/identity/fonts/noto-sans-sc-050.woff2",
+      "source": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.68.woff2",
+      "sha256": "65b77f1fe9d68dae692578370f64b50ace8469fcf737b34d8b4cdfabed344f23",
+      "bytes": 41568,
+      "contentType": "font/woff2"
+    },
+    {
+      "file": "artwork/identity/fonts/noto-sans-sc-051.woff2",
+      "source": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.69.woff2",
+      "sha256": "b34f765cbbf4d02e71cc0d3ea9d488ad4a9da2bcea08f4c84a74e6ec82877f06",
+      "bytes": 55604,
+      "contentType": "font/woff2"
+    },
+    {
+      "file": "artwork/identity/fonts/noto-sans-sc-052.woff2",
+      "source": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.70.woff2",
+      "sha256": "a99d55c00e4f95b79ccc545fcd5464428edb7127670eaed421003473fd4ede7f",
+      "bytes": 42236,
+      "contentType": "font/woff2"
+    },
+    {
+      "file": "artwork/identity/fonts/noto-sans-sc-053.woff2",
+      "source": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.71.woff2",
+      "sha256": "3298bed30dc8d23323c0ba9cab32aa4088d39f5316d126b5cbdabd56884a5f01",
+      "bytes": 47904,
+      "contentType": "font/woff2"
+    },
+    {
+      "file": "artwork/identity/fonts/noto-sans-sc-054.woff2",
+      "source": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.72.woff2",
+      "sha256": "6597209ca97077267b65fc072819325eb5a6d3787791d193cc481b3a71fb1b76",
+      "bytes": 47032,
+      "contentType": "font/woff2"
+    },
+    {
+      "file": "artwork/identity/fonts/noto-sans-sc-055.woff2",
+      "source": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.73.woff2",
+      "sha256": "e7ac1d4930eabd781b541d961576a89b49580cdf336ca2413e0eb7709b41e72a",
+      "bytes": 39312,
+      "contentType": "font/woff2"
+    },
+    {
+      "file": "artwork/identity/fonts/noto-sans-sc-056.woff2",
+      "source": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.74.woff2",
+      "sha256": "1f0287be83a28e7ac104beb7f1b12ea6c0f327dd2dcd50033fb11c4aba123734",
+      "bytes": 56424,
+      "contentType": "font/woff2"
+    },
+    {
+      "file": "artwork/identity/fonts/noto-sans-sc-057.woff2",
+      "source": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.75.woff2",
+      "sha256": "d9a4bb7bcc2be578e52835906301f04f6caf285ffcd299065521830529532fd6",
+      "bytes": 43940,
+      "contentType": "font/woff2"
+    },
+    {
+      "file": "artwork/identity/fonts/noto-sans-sc-058.woff2",
+      "source": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.76.woff2",
+      "sha256": "5a019946bcadcec6e510d2786b1a490a8ca4442c849e3fbf6251bdc06a7e1f47",
+      "bytes": 48420,
+      "contentType": "font/woff2"
+    },
+    {
+      "file": "artwork/identity/fonts/noto-sans-sc-059.woff2",
+      "source": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.77.woff2",
+      "sha256": "7c445e85d04f5319eda4b07329a71f5e468fb7906547d34150b819916d2f6d31",
+      "bytes": 36788,
+      "contentType": "font/woff2"
+    },
+    {
+      "file": "artwork/identity/fonts/noto-sans-sc-060.woff2",
+      "source": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.78.woff2",
+      "sha256": "7d4afb70f641781cfe859e18b81b5b641fb76872fb44760e9314e76fa6b42e3f",
+      "bytes": 49156,
+      "contentType": "font/woff2"
+    },
+    {
+      "file": "artwork/identity/fonts/noto-sans-sc-061.woff2",
+      "source": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.79.woff2",
+      "sha256": "5798753a721bb4eccbf7d9ca923d2496524009a6c27c4bfc36e2b27f0251ee59",
+      "bytes": 41232,
+      "contentType": "font/woff2"
+    },
+    {
+      "file": "artwork/identity/fonts/noto-sans-sc-062.woff2",
+      "source": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.80.woff2",
+      "sha256": "db887159ca6e46f3f2787f7a1037940805bb7db727fd3a7ee2bdf9fb47f74469",
+      "bytes": 32632,
+      "contentType": "font/woff2"
+    },
+    {
+      "file": "artwork/identity/fonts/noto-sans-sc-063.woff2",
+      "source": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.81.woff2",
+      "sha256": "71e5743bbd225b3d80426f1b9e1d45c61fa7265aa453e2d22181944ec52569ff",
+      "bytes": 47548,
+      "contentType": "font/woff2"
+    },
+    {
+      "file": "artwork/identity/fonts/noto-sans-sc-064.woff2",
+      "source": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.82.woff2",
+      "sha256": "8c5094c3785fd04f84142ebc0362d835cce48e56b13e90d9900ddce5f9fe060f",
+      "bytes": 46176,
+      "contentType": "font/woff2"
+    },
+    {
+      "file": "artwork/identity/fonts/noto-sans-sc-065.woff2",
+      "source": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.83.woff2",
+      "sha256": "4a60a1ccba9052841d6f22a1d8d84a553184689b1de4c3dc6bcaa654c2c91ef6",
+      "bytes": 43504,
+      "contentType": "font/woff2"
+    },
+    {
+      "file": "artwork/identity/fonts/noto-sans-sc-066.woff2",
+      "source": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.84.woff2",
+      "sha256": "3ed54e59ef4758e3cf1f81d9dd5ac9197ba8a7071ec8c0d69e2d52b2a2826be6",
+      "bytes": 32612,
+      "contentType": "font/woff2"
+    },
+    {
+      "file": "artwork/identity/fonts/noto-sans-sc-067.woff2",
+      "source": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.85.woff2",
+      "sha256": "e87e0a1342e1778c69040e768b5ad1d615068cec94579ba0176a875cb4170bde",
+      "bytes": 26900,
+      "contentType": "font/woff2"
+    },
+    {
+      "file": "artwork/identity/fonts/noto-sans-sc-068.woff2",
+      "source": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.86.woff2",
+      "sha256": "6d3ac3e20959dbcb9c0f4fbe786a2fc4040f565577b35a13275959eec27a9ae0",
+      "bytes": 33576,
+      "contentType": "font/woff2"
+    },
+    {
+      "file": "artwork/identity/fonts/noto-sans-sc-069.woff2",
+      "source": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.87.woff2",
+      "sha256": "0eeffd5daad5c17bba306e06e89e93ac563a497c806c0fa1d4c3a53a8ffa4225",
+      "bytes": 8012,
+      "contentType": "font/woff2"
+    },
+    {
+      "file": "artwork/identity/fonts/noto-sans-sc-070.woff2",
+      "source": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.88.woff2",
+      "sha256": "b1d9582dfa2684636af41b19f0e2b397f8200337e0302dcaac3638ad431b7000",
+      "bytes": 7336,
+      "contentType": "font/woff2"
+    },
+    {
+      "file": "artwork/identity/fonts/noto-sans-sc-071.woff2",
+      "source": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.89.woff2",
+      "sha256": "8b437aeb9e9fcb5aa31bd8565986f92cb7c43dbf1ac3763531b8b384fcda7290",
+      "bytes": 10984,
+      "contentType": "font/woff2"
+    },
+    {
+      "file": "artwork/identity/fonts/noto-sans-sc-072.woff2",
+      "source": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.90.woff2",
+      "sha256": "83b0a59e0a5e045a44b1819d98795bee83684f746844f6fc4ebf448db3d53d39",
+      "bytes": 9344,
+      "contentType": "font/woff2"
+    },
+    {
+      "file": "artwork/identity/fonts/noto-sans-sc-073.woff2",
+      "source": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.91.woff2",
+      "sha256": "382f72b98d4bb9d7006109efa128aedf846904490b52a5d4f1db151a73718faf",
+      "bytes": 8704,
+      "contentType": "font/woff2"
+    },
+    {
+      "file": "artwork/identity/fonts/noto-sans-sc-074.woff2",
+      "source": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.97.woff2",
+      "sha256": "5e52856457c5cdaba991d72419e6f419f6627a5231b674275b8152f691328a33",
+      "bytes": 2080,
+      "contentType": "font/woff2"
+    },
+    {
+      "file": "artwork/identity/fonts/noto-sans-sc-075.woff2",
+      "source": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.98.woff2",
+      "sha256": "ffded4e7fd560d935f847ddd084187a049bbaca55d1deea9d2e6daf153cdea5b",
+      "bytes": 3416,
+      "contentType": "font/woff2"
+    },
+    {
+      "file": "artwork/identity/fonts/noto-sans-sc-076.woff2",
+      "source": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.99.woff2",
+      "sha256": "54e302c23f11a8fd518f0948183800ac954315067f0990eed41b9c91e55761ef",
+      "bytes": 9704,
+      "contentType": "font/woff2"
+    },
+    {
+      "file": "artwork/identity/fonts/noto-sans-sc-077.woff2",
+      "source": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.100.woff2",
+      "sha256": "ad5f29028d5699a59688d807fda531f23cb2c1ecd7815495853bbae8e75b8646",
+      "bytes": 64548,
+      "contentType": "font/woff2"
+    },
+    {
+      "file": "artwork/identity/fonts/noto-sans-sc-078.woff2",
+      "source": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.101.woff2",
+      "sha256": "e189b81fc22ca6afcf03a1fcbf8fad93e8272a502d4b23241900113d9ddbe51a",
+      "bytes": 58204,
+      "contentType": "font/woff2"
+    },
+    {
+      "file": "artwork/identity/fonts/noto-sans-sc-079.woff2",
+      "source": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.102.woff2",
+      "sha256": "941c0c2971fc1d6d1e36c3d40d74e6a133ad02f58f0bc3a9cb265d8a60f3eb31",
+      "bytes": 60708,
+      "contentType": "font/woff2"
+    },
+    {
+      "file": "artwork/identity/fonts/noto-sans-sc-080.woff2",
+      "source": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.103.woff2",
+      "sha256": "bafbd591af6493fface8ee91ca8701cd227f18b1636c5a380c1dbd84cd79b92d",
+      "bytes": 63864,
+      "contentType": "font/woff2"
+    },
+    {
+      "file": "artwork/identity/fonts/noto-sans-sc-081.woff2",
+      "source": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.104.woff2",
+      "sha256": "b0bf80ced89dd61bc3c1427c23203b44413dfef6aafb50da905ab28a7937a923",
+      "bytes": 61588,
+      "contentType": "font/woff2"
+    },
+    {
+      "file": "artwork/identity/fonts/noto-sans-sc-082.woff2",
+      "source": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.105.woff2",
+      "sha256": "8d8b4e6f4a00621d2be4279e9ba4b07cded89ab6d4018d9b87d2116867ead335",
+      "bytes": 61828,
+      "contentType": "font/woff2"
+    },
+    {
+      "file": "artwork/identity/fonts/noto-sans-sc-083.woff2",
+      "source": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.106.woff2",
+      "sha256": "bae74acc629d2e7484c66fd9bb0614df5bf3e98c39811d9e7e9222845a1c4b62",
+      "bytes": 62636,
+      "contentType": "font/woff2"
+    },
+    {
+      "file": "artwork/identity/fonts/noto-sans-sc-084.woff2",
+      "source": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.107.woff2",
+      "sha256": "a42eff5010de7b0d6922a14734dd06c9b495655ac6e4397506f44c8e3eaee10c",
+      "bytes": 61076,
+      "contentType": "font/woff2"
+    },
+    {
+      "file": "artwork/identity/fonts/noto-sans-sc-085.woff2",
+      "source": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.108.woff2",
+      "sha256": "91882203459867be07157e9c8d433372b65cd4ce484fda26b97b05ed2cf6290d",
+      "bytes": 64552,
+      "contentType": "font/woff2"
+    },
+    {
+      "file": "artwork/identity/fonts/noto-sans-sc-086.woff2",
+      "source": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.109.woff2",
+      "sha256": "a91f8b038e5ce10805a173a293484c8c49552c275cf901cdf21324d6dca3ed17",
+      "bytes": 60372,
+      "contentType": "font/woff2"
+    },
+    {
+      "file": "artwork/identity/fonts/noto-sans-sc-087.woff2",
+      "source": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.110.woff2",
+      "sha256": "bbca9081655c45233a25c4cca030c47ebcf2e156eeedd48110836658adb31fa0",
+      "bytes": 61472,
+      "contentType": "font/woff2"
+    },
+    {
+      "file": "artwork/identity/fonts/noto-sans-sc-088.woff2",
+      "source": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.111.woff2",
+      "sha256": "372be010ac0e87cb12065a861da39821104a43d68345a62ca95d3d3e2fb2c269",
+      "bytes": 62664,
+      "contentType": "font/woff2"
+    },
+    {
+      "file": "artwork/identity/fonts/noto-sans-sc-089.woff2",
+      "source": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.112.woff2",
+      "sha256": "34a4580239eae8dc54b726a1e1e9fec266e74225b112063ed93b412d54b97ccd",
+      "bytes": 57648,
+      "contentType": "font/woff2"
+    },
+    {
+      "file": "artwork/identity/fonts/noto-sans-sc-090.woff2",
+      "source": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.113.woff2",
+      "sha256": "614ab8f616352583f92cc2130fe8812c5aaaa8560b3828de45eefb318be7b503",
+      "bytes": 58648,
+      "contentType": "font/woff2"
+    },
+    {
+      "file": "artwork/identity/fonts/noto-sans-sc-091.woff2",
+      "source": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.114.woff2",
+      "sha256": "cf7b8344807a316e8db054500a2b44ad9346ffa00763fec203ab5aa1c99ff602",
+      "bytes": 57964,
+      "contentType": "font/woff2"
+    },
+    {
+      "file": "artwork/identity/fonts/noto-sans-sc-092.woff2",
+      "source": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.115.woff2",
+      "sha256": "fb29957c7adccb9a89e34fb28d3d1c7d12bd7401f80c0dba6e1c9e5259cb3262",
+      "bytes": 56508,
+      "contentType": "font/woff2"
+    },
+    {
+      "file": "artwork/identity/fonts/noto-sans-sc-093.woff2",
+      "source": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.116.woff2",
+      "sha256": "a98dc5a726f82141f74a827c443e120709a12fe737fabacf2530927a275fce0d",
+      "bytes": 52984,
+      "contentType": "font/woff2"
+    },
+    {
+      "file": "artwork/identity/fonts/noto-sans-sc-094.woff2",
+      "source": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.117.woff2",
+      "sha256": "d94b5af0c14838af99bf9855f91e851878726558531ddef5bd2100b70dfbe90c",
+      "bytes": 52464,
+      "contentType": "font/woff2"
+    },
+    {
+      "file": "artwork/identity/fonts/noto-sans-sc-095.woff2",
+      "source": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.118.woff2",
+      "sha256": "76c9ddb85ae4578cccd35ae4f6e6bbffaa2c8c2aec0fea17d3c17c84a3c6f7d1",
+      "bytes": 46192,
+      "contentType": "font/woff2"
+    },
+    {
+      "file": "artwork/identity/fonts/noto-sans-sc-096.woff2",
+      "source": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALhLOCT-xWNm8Hqd37g1OkDRZe7lR4sg1IzSy-MNbE9VH8V.119.woff2",
+      "sha256": "b3b2374881f4cd93f239820dfd91f0fde8d52f8f92ba2888f7ab9cba21e4d7eb",
+      "bytes": 76800,
+      "contentType": "font/woff2"
+    },
+    {
+      "file": "artwork/identity/fonts/noto-sans-sc-097.woff2",
+      "source": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALRKoKIyQ4.woff2",
+      "sha256": "5932d441e7126669016ce303fb19247ff258622291f13069124eb9b91304bbf9",
+      "bytes": 10008,
+      "contentType": "font/woff2"
+    },
+    {
+      "file": "artwork/identity/fonts/noto-sans-sc-098.woff2",
+      "source": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALRIYKIyQ4.woff2",
+      "sha256": "cba3d00c8db989f0f0c3c7c48b1672468d9cb3c8c06514fc5cf1bb82ddccae7e",
+      "bytes": 9096,
+      "contentType": "font/woff2"
+    },
+    {
+      "file": "artwork/identity/fonts/noto-sans-sc-099.woff2",
+      "source": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALRIIKIyQ4.woff2",
+      "sha256": "e316201f3fc493d191136a3ea728d184227b9651aea2bb38e279c45ef58646a7",
+      "bytes": 8244,
+      "contentType": "font/woff2"
+    },
+    {
+      "file": "artwork/identity/fonts/noto-sans-sc-100.woff2",
+      "source": "https://fonts.gstatic.com/s/notosanssc/v40/k3kXo84MPvpLmixcA63oeALRLoKI.woff2",
+      "sha256": "c1d919c8701a86ed7f33a8044f7c4e5675db2fce8b754091e97b2c0792f9782c",
+      "bytes": 25240,
+      "contentType": "font/woff2"
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+{
+  "size": 1600,
+  "paper": "#f5f4ee",
+  "ink": "#1c211a",
+  "accent": "#d6f25b",
+  "artwork": { "x": 160, "y": 208, "width": 1280, "height": 1280 },
+  "episode": { "x": 1324, "y": 113, "fontSize": 52 }
+}
