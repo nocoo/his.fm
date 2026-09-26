@@ -113,3 +113,5 @@ The rich-clipboard browser assertion initially read a `ClipboardItem` before obs
 ## 2026-09-26 — Let compact controls wrap before compressing labels
 
 The compact task-prompt grid reserved an intrinsic-width copy button beside a shrinkable summary. At narrow widths, the summary collapsed into a vertical column of Chinese characters. The task row now wraps according to its actual available width, keeps action labels intact and gives expanded text a full row. Source material also moved from an unbounded stack of editors to a compact overview and one detail view at a time. Verify narrow widths, expanded prompts and navigation with unsaved drafts when reducing vertical space; shorter headers alone do not establish a usable mobile layout.
+
+The source detail header initially placed its return control in the right-hand action slot. Secondary-page return navigation now sits to the left of the title/subtitle group as an accessible arrow button. Preserve that placement at mobile widths instead of treating navigation as a primary page action.

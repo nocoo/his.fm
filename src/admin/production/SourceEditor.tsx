@@ -77,9 +77,15 @@ export function SourceEditor({
       <PageHeader
         title={source?.title || (source ? `素材 ${index + 1}` : '素材不存在')}
         actions={
-          <Button variant="ghost" size="sm" disabled={pending} onClick={onBack}>
-            <ArrowLeft size={16} />
-            返回选题
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label="返回选题"
+            title="返回选题"
+            disabled={pending}
+            onClick={onBack}
+          >
+            <ArrowLeft size={18} aria-hidden="true" />
           </Button>
         }
       />

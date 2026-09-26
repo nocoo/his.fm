@@ -376,6 +376,12 @@
 .studio-brief-overview[hidden] {
   display: none;
 }
+.admin-app .studio-source-editor > header > div:first-child {
+  flex-wrap: nowrap;
+}
+.studio-source-editor > header > div:first-child > div:last-child:not(:first-child) {
+  order: -1;
+}
 .studio-source-list {
   list-style: none;
   padding: 0;

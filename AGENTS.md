@@ -13,6 +13,7 @@
 - Long review text uses Markdown and the private `/admin/fonts/jinkai/` subsets from xray; shell controls retain Basalt typography.
 - Long Markdown fields share `src/admin/markdown/MarkdownEditor.tsx`; keep source text and undo history intact across preview switches. Short plain-text fields retain Basalt inputs. See `docs/markdown-editing.md`.
 - Keep admin headers compact: titles and primary actions share a row where space permits, omit redundant subtitles and card headings, and wrap controls only when required on mobile. WeChat preview must render the exact sanitized HTML used for copying.
+- Secondary-page back buttons belong to the left of the title and subtitle group, using an accessible arrow control rather than a right-side action.
 - Audio generation defaults to narration only. Bumpers are opt-in; voice/style overrides are immutable per-job snapshots. Owner-only short previews reuse content-addressed R2 WAVs and never expose the Gemini secret.
 - `worker/entry.ts` exports the Worker and durable `AudioWorkflow`. D1 job and production state transitions must remain atomic and idempotent; completed audio must never regress after replay.
 - Public routes: `/`, `/episodes`, `/episodes/:slug`, `/about`. Admin routes and APIs share `/admin`; `/login` is the public entry badge.
