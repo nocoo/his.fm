@@ -1,0 +1,150 @@
+{
+  "direction": "间隙",
+  "number": "02",
+  "status": "proposal; not adopted",
+  "source_mode": "GPT Image 2.5 Sunburst subjects with independent vector identity",
+  "hero": {
+    "source": "artwork/design-20260926/originals/02-hero.png",
+    "source_sha256": "b675b813a4f496b9bb6885a7a6656a57ab060a2374af433815ef43f9ff15dae2",
+    "delivery": "hero.webp",
+    "delivery_sha256": "00bf976cf0cf22212f30f1fc64fb715546ab2e06a715855171b6fcdaa6dffdfc"
+  },
+  "covers": [
+    {
+      "id": "001",
+      "title": "下班后，还要追多少个 AI？",
+      "source": "artwork/design-20260926/originals/02-01.png",
+      "source_sha256": "2ecffc7bd5e39f8ade1c79c324799447cf268efccbfde1c0a53488c15c338feb",
+      "subject": "art-01.webp",
+      "subject_sha256": "6e33ef2696784f72d7d808413761ea093bdc84c0afb0d66c652fb2d93157b57a",
+      "foreground": "frame-01.svg",
+      "composite": "cover-01.svg",
+      "dimensions": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "id": "002",
+      "title": "散个步，不必顺便成为更好的自己",
+      "source": "artwork/design-20260926/originals/02-02.png",
+      "source_sha256": "101fc564e84d8af75a06430a798d6ef6b09657af6f9dc39118058c6b84284886",
+      "subject": "art-02.webp",
+      "subject_sha256": "5940d5783a083ee6d2495ba3be7c78328dc17c7cc68b1459c2ac2a9802de7815",
+      "foreground": "frame-02.svg",
+      "composite": "cover-02.svg",
+      "dimensions": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "id": "003",
+      "title": "下一条 Prompt 之前，先好好吃饭",
+      "source": "artwork/design-20260926/originals/02-03.png",
+      "source_sha256": "90fa5e85cc6ac9bab55e28954038ce690a4ab5a798befbc7998498d04fb91e6f",
+      "subject": "art-03.webp",
+      "subject_sha256": "5aa488bb0984263b859cd1eccd3a13ccfb8f8e60969d4da857a4e72376d88020",
+      "foreground": "frame-03.svg",
+      "composite": "cover-03.svg",
+      "dimensions": [
+        1024,
+        1024
+      ]
+    }
+  ],
+  "typography": "All SVG lettering is outlined; no font dependency inside graphics.",
+  "raster_exports": "Cover/frame 1024x1024; banner 1920x640; poster 1080x1440; avatar 1024x1024. Layout exports are composited derivatives, not claims of native generation resolution.",
+  "exports": [
+    {
+      "path": "cover-01.png",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "bytes": 720753,
+      "sha256": "cefe72e6da1c22766bb6381eba21373f84f9f7575a654b62be51ae1d0b15a6a1",
+      "transparent": false
+    },
+    {
+      "path": "cover-02.png",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "bytes": 916270,
+      "sha256": "caf5080caf147e11807bc0786d71a0bbbd1411d926859fb6e417de4be87c76a7",
+      "transparent": false
+    },
+    {
+      "path": "cover-03.png",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "bytes": 601507,
+      "sha256": "bb05e3b7e380cd51a76590511a131f64b583d3043a080a2a19c70a738d34029d",
+      "transparent": false
+    },
+    {
+      "path": "frame-01.png",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "bytes": 53907,
+      "sha256": "9ce6afd29565111893e208710a0ebb142225010ccc718b9c32bd02996ce110ca",
+      "transparent": true
+    },
+    {
+      "path": "frame-02.png",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "bytes": 54879,
+      "sha256": "cda976ba232590510c986590749fbe9f4cf7c4cf09350eb3e9aea75d489d85a8",
+      "transparent": true
+    },
+    {
+      "path": "frame-03.png",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "bytes": 57503,
+      "sha256": "a2bd454bf30867db8c95b80ea3299b5937fd00848c0dd137fbb088b2369ec141",
+      "transparent": true
+    },
+    {
+      "path": "banner.png",
+      "dimensions": [
+        1920,
+        640
+      ],
+      "bytes": 700355,
+      "sha256": "0bf97c6b05d832b4538dfd80bad14f6770290f9e78e7c8edab08b6d176b058fe",
+      "transparent": false
+    },
+    {
+      "path": "poster.png",
+      "dimensions": [
+        1080,
+        1440
+      ],
+      "bytes": 694541,
+      "sha256": "355ec60520a5affd9d637e85a9f8060e9d2991bca88b94f96dd3666a03a01056",
+      "transparent": false
+    },
+    {
+      "path": "avatar.png",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "bytes": 31334,
+      "sha256": "6beed3273cd2dbe1bcb1cb9d8833a86824b4764eae8b0ff9364f4187354ccc90",
+      "transparent": false
+    }
+  ]
+}

@@ -1,0 +1,39 @@
+{
+  "model": "gpt-image-2.5-sunburst",
+  "provider": "Azure OpenAI via the Workflow helper",
+  "size": "1024x1024",
+  "quality": "high",
+  "prompt": "prompts/04-03.txt",
+  "original": "originals/04-03.png",
+  "requested_at": "2026-09-26T01:09:46.055121+00:00",
+  "status": "generated",
+  "previous_attempts": [
+    {
+      "model": "gpt-image-2.5-sunburst",
+      "provider": "Azure OpenAI via the Workflow helper",
+      "size": "1024x1024",
+      "quality": "high",
+      "prompt": "prompts/04-03.txt",
+      "original": "originals/04-03.png",
+      "requested_at": "2026-09-26T01:06:48.952152+00:00",
+      "status": "failed",
+      "previous_attempts": [
+        {
+          "model": "gpt-image-2.5-sunburst",
+          "provider": "Azure OpenAI via the Workflow helper",
+          "size": "1024x1024",
+          "quality": "high",
+          "prompt": "prompts/04-03.txt",
+          "original": "originals/04-03.png",
+          "requested_at": "2026-09-26T00:54:48.571733+00:00",
+          "status": "failed",
+          "error_type": "SystemExit",
+          "finished_at": "2026-09-26T00:54:49.939004+00:00"
+        }
+      ],
+      "error_type": "URLError",
+      "finished_at": "2026-09-26T01:06:53.955625+00:00"
+    }
+  ],
+  "finished_at": "2026-09-26T01:10:59.627449+00:00"
+}

@@ -1,0 +1,25 @@
+{
+  "model": "gpt-image-2.5-sunburst",
+  "provider": "Azure OpenAI via the Workflow helper",
+  "size": "1536x1024",
+  "quality": "high",
+  "prompt": "prompts/04-hero.txt",
+  "original": "originals/04-hero.png",
+  "requested_at": "2026-09-26T01:05:42.379626+00:00",
+  "status": "generated",
+  "previous_attempts": [
+    {
+      "model": "gpt-image-2.5-sunburst",
+      "provider": "Azure OpenAI via the Workflow helper",
+      "size": "1536x1024",
+      "quality": "high",
+      "prompt": "prompts/04-hero.txt",
+      "original": "originals/04-hero.png",
+      "requested_at": "2026-09-26T00:54:44.189476+00:00",
+      "status": "failed",
+      "error_type": "SystemExit",
+      "finished_at": "2026-09-26T00:54:45.588274+00:00"
+    }
+  ],
+  "finished_at": "2026-09-26T01:06:38.939914+00:00"
+}

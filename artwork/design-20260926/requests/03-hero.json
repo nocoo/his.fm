@@ -1,0 +1,11 @@
+{
+  "model": "gpt-image-2.5-sunburst",
+  "provider": "Azure OpenAI via the Workflow helper",
+  "size": "1536x1024",
+  "quality": "high",
+  "prompt": "prompts/03-hero.txt",
+  "original": "originals/03-hero.png",
+  "requested_at": "2026-09-26T00:53:52.573132+00:00",
+  "status": "generated",
+  "finished_at": "2026-09-26T00:54:41.219202+00:00"
+}

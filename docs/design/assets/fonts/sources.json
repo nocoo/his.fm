@@ -1,0 +1,56 @@
+[
+  {
+    "font": "space-grotesk",
+    "source_url": "https://raw.githubusercontent.com/google/fonts/main/ofl/spacegrotesk/SpaceGrotesk%5Bwght%5D.ttf",
+    "source_sha256": "acad6de1fc93436f5c0f1f4137751ef04f1aea3063e7036535970ffcfbd79f72",
+    "license": "spacegrotesk-OFL.txt",
+    "delivery": "space-grotesk.woff2",
+    "sha256": "92f949498aa37b764c0147f278771c5cb41d5844891828dc3bc9fb67988e2804",
+    "subset": false
+  },
+  {
+    "font": "syne",
+    "source_url": "https://raw.githubusercontent.com/google/fonts/main/ofl/syne/Syne%5Bwght%5D.ttf",
+    "source_sha256": "ce5ac77142a65cab2248a1a2ebb740b1d4d9c20b52488877d3ff664d1356104a",
+    "license": "syne-OFL.txt",
+    "delivery": "syne.woff2",
+    "sha256": "32eddd9571a569d56f0fe63f9e260da3fc515d1d608e8a000b5751ca16083cc5",
+    "subset": false
+  },
+  {
+    "font": "instrument-serif",
+    "source_url": "https://raw.githubusercontent.com/google/fonts/main/ofl/instrumentserif/InstrumentSerif-Regular.ttf",
+    "source_sha256": "498efd461f6ddfcb7a111bf9a565709d2085d48201d501ead960d93e84ffbb88",
+    "license": "instrumentserif-OFL.txt",
+    "delivery": "instrument-serif.woff2",
+    "sha256": "8d7a1d23a152621981aa2fe6636fb78fe1ffb28094ca5f55518f4619142c8cb5",
+    "subset": false
+  },
+  {
+    "font": "instrument-serif-italic",
+    "source_url": "https://raw.githubusercontent.com/google/fonts/main/ofl/instrumentserif/InstrumentSerif-Italic.ttf",
+    "source_sha256": "08939b8bdf534afec24ae0ef5e03f948940cd9a8fe08e7fecbad040e62327385",
+    "license": "instrumentserif-OFL.txt",
+    "delivery": "instrument-serif-italic.woff2",
+    "sha256": "1da7be1ea3945a40f9bd539b6f911ca6ad8fc8f561dd32273f3b2510361e6c94",
+    "subset": false
+  },
+  {
+    "font": "noto-sans-sc",
+    "source_url": "https://raw.githubusercontent.com/google/fonts/main/ofl/notosanssc/NotoSansSC%5Bwght%5D.ttf",
+    "source_sha256": "a3041811a78c361b1de50f953c805e0244951c21c5bd412f7232ef0d899af0da",
+    "license": "notosanssc-OFL.txt",
+    "delivery": "noto-sans-sc.woff2",
+    "sha256": "e5c83e6edac8cc4adad7376d64330b567dac6c40069170d3658f3ae180aa0f80",
+    "subset": true
+  },
+  {
+    "font": "noto-serif-sc",
+    "source_url": "https://raw.githubusercontent.com/google/fonts/main/ofl/notoserifsc/NotoSerifSC%5Bwght%5D.ttf",
+    "source_sha256": "050080d9255a86808f2945bffac582b31ef32bc36411ce29563b4961670c66f9",
+    "license": "notoserifsc-OFL.txt",
+    "delivery": "noto-serif-sc.woff2",
+    "sha256": "2039e446d9b1db064e7aca1f37616e476ca191af450bef32e76d778adc0e77a3",
+    "subset": true
+  }
+]

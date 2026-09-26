@@ -1,0 +1,403 @@
+{
+  "created_at": "2026-09-26T01:36:24.040574+00:00",
+  "model": "gpt-image-2.5-sunburst",
+  "quality": "high",
+  "helper": "workflow/agents/skills/agi-image-generation/scripts/generate.py",
+  "original_count": 28,
+  "originals_preserved": true,
+  "status": "static design proposal; not adopted",
+  "assets": [
+    {
+      "id": "02-hero",
+      "original": "originals/02-hero.png",
+      "dimensions": [
+        1536,
+        1024
+      ],
+      "bytes": 2099172,
+      "sha256": "b675b813a4f496b9bb6885a7a6656a57ab060a2374af433815ef43f9ff15dae2",
+      "prompt": "prompts/02-hero.txt",
+      "prompt_sha256": "3526a92d95c511748964152c30589c450d8d42ae241ab292f92bf323ac27d15c",
+      "request": "requests/02-hero.json",
+      "delivery_directory": "docs/design/assets/02/"
+    },
+    {
+      "id": "02-01",
+      "original": "originals/02-01.png",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "bytes": 1528758,
+      "sha256": "2ecffc7bd5e39f8ade1c79c324799447cf268efccbfde1c0a53488c15c338feb",
+      "prompt": "prompts/02-01.txt",
+      "prompt_sha256": "16d97f01c7d9362583a2ea6bb990f9b10f6ef886f432ac6b23321391621d0425",
+      "request": "requests/02-01.json",
+      "delivery_directory": "docs/design/assets/02/"
+    },
+    {
+      "id": "02-02",
+      "original": "originals/02-02.png",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "bytes": 2006542,
+      "sha256": "101fc564e84d8af75a06430a798d6ef6b09657af6f9dc39118058c6b84284886",
+      "prompt": "prompts/02-02.txt",
+      "prompt_sha256": "9f3fa2dd72e662a88ff060ee7df4a16cd9823f0f13000d47ad76b2eaef304b4c",
+      "request": "requests/02-02.json",
+      "delivery_directory": "docs/design/assets/02/"
+    },
+    {
+      "id": "02-03",
+      "original": "originals/02-03.png",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "bytes": 1581536,
+      "sha256": "90fa5e85cc6ac9bab55e28954038ce690a4ab5a798befbc7998498d04fb91e6f",
+      "prompt": "prompts/02-03.txt",
+      "prompt_sha256": "e95f8f06ec3e3ca311b8497308cb86c317f4f8e41c378bddc8dbd1947613858c",
+      "request": "requests/02-03.json",
+      "delivery_directory": "docs/design/assets/02/"
+    },
+    {
+      "id": "03-hero",
+      "original": "originals/03-hero.png",
+      "dimensions": [
+        1536,
+        1024
+      ],
+      "bytes": 2177675,
+      "sha256": "0cc321e34e7c5b1e924d29af71c6b1ee83c685e086c327b3ef9a8e99dafe4328",
+      "prompt": "prompts/03-hero.txt",
+      "prompt_sha256": "75bee562bf6e76c738093c8978921ecc27c48172dd7f28d7ca5dff33aa2f54cf",
+      "request": "requests/03-hero.json",
+      "delivery_directory": "docs/design/assets/03/"
+    },
+    {
+      "id": "03-01",
+      "original": "originals/03-01.png",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "bytes": 1411631,
+      "sha256": "999bbd21b47c0ee9fdafa699e75baca27519dd13ea7c3db3c9151c77acef6671",
+      "prompt": "prompts/03-01.txt",
+      "prompt_sha256": "75fce612ff9b71c317a39f448f7ca9084bf22efa32c4fcb5e75ee46e225ffa08",
+      "request": "requests/03-01.json",
+      "delivery_directory": "docs/design/assets/03/"
+    },
+    {
+      "id": "03-02",
+      "original": "originals/03-02.png",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "bytes": 1447787,
+      "sha256": "a6dcf5e246350b0ef4618776f1c0acc689912e8b811ce46374342ebfe380157c",
+      "prompt": "prompts/03-02.txt",
+      "prompt_sha256": "2051b56cefa3669db9dcada56c96fbfcc4c529f2a8aff8386f466ce1f4c338ba",
+      "request": "requests/03-02.json",
+      "delivery_directory": "docs/design/assets/03/"
+    },
+    {
+      "id": "03-03",
+      "original": "originals/03-03.png",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "bytes": 1327919,
+      "sha256": "b90cdc8184664150cb11d24b85ee7c068107dfbee500d924cc9454f2ac5bd95a",
+      "prompt": "prompts/03-03.txt",
+      "prompt_sha256": "aecf12f2b79244f978fb4a9aa293e96eb12390fb3355ab7f8caa22de877d5483",
+      "request": "requests/03-03.json",
+      "delivery_directory": "docs/design/assets/03/"
+    },
+    {
+      "id": "04-hero",
+      "original": "originals/04-hero.png",
+      "dimensions": [
+        1536,
+        1024
+      ],
+      "bytes": 3086947,
+      "sha256": "26fa5c532d1fc86b7c3f3018df9d4a1f634d1bcca83e4047736e464f5b352c4e",
+      "prompt": "prompts/04-hero.txt",
+      "prompt_sha256": "a73651e7831464a564a4109fff2793dc358d3c7fbf967e76da5e9bdf52244489",
+      "request": "requests/04-hero.json",
+      "delivery_directory": "docs/design/assets/04/"
+    },
+    {
+      "id": "04-01",
+      "original": "originals/04-01.png",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "bytes": 2006969,
+      "sha256": "f3952a6721d89eb7744f5f3ada9f02b115d53b55998659d5e47c41a61e6cfe4b",
+      "prompt": "prompts/04-01.txt",
+      "prompt_sha256": "ea96a332040a1eb7f88399b0935419fd2f32a317a080d952c1db65ca1c72fd50",
+      "request": "requests/04-01.json",
+      "delivery_directory": "docs/design/assets/04/"
+    },
+    {
+      "id": "04-02",
+      "original": "originals/04-02.png",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "bytes": 2071539,
+      "sha256": "efa80b0bf4ddd691a91f3717e61b90bfc62dad9c0712d8359bd22c4d61c0675b",
+      "prompt": "prompts/04-02.txt",
+      "prompt_sha256": "bae37dbe19e3ad49b84e77c22c4bc8a8d2bbce44c47d9ab3aab6e366b3e1e060",
+      "request": "requests/04-02.json",
+      "delivery_directory": "docs/design/assets/04/"
+    },
+    {
+      "id": "04-03",
+      "original": "originals/04-03.png",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "bytes": 2085638,
+      "sha256": "385adad2d3fefa1f3ea24c1c4d9ad2ae5fe7f8b4c2fa9a88997a9f5b97bdd665",
+      "prompt": "prompts/04-03.txt",
+      "prompt_sha256": "80a32e1ad0a654df41f313a6fbefdc96164250b4e41028b6b01a964198d33f72",
+      "request": "requests/04-03.json",
+      "delivery_directory": "docs/design/assets/04/"
+    },
+    {
+      "id": "05-hero",
+      "original": "originals/05-hero.png",
+      "dimensions": [
+        1536,
+        1024
+      ],
+      "bytes": 2584503,
+      "sha256": "9930e3eb65935a4cdedcaac267ca5b7498d0871874627591ecbed67bb217ecf4",
+      "prompt": "prompts/05-hero.txt",
+      "prompt_sha256": "e95fa852f360b119bc4dbe2854d3094d42fdd7035f5c293603fef7431d62116a",
+      "request": "requests/05-hero.json",
+      "delivery_directory": "docs/design/assets/05/"
+    },
+    {
+      "id": "05-01",
+      "original": "originals/05-01.png",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "bytes": 1639903,
+      "sha256": "7b9b6f10cb1629ab00352bcc613b7a94849e0cb8d34cadef4a48f91ca993e5a2",
+      "prompt": "prompts/05-01.txt",
+      "prompt_sha256": "8dba035838f810d5922d117677f64b7cd3d3660c5a820535efc63705ad430045",
+      "request": "requests/05-01.json",
+      "delivery_directory": "docs/design/assets/05/"
+    },
+    {
+      "id": "05-02",
+      "original": "originals/05-02.png",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "bytes": 1734706,
+      "sha256": "6f92b772c97f087d7ea53a53ee868fa03199e25d2abe17134b8d6b6eaca3d116",
+      "prompt": "prompts/05-02.txt",
+      "prompt_sha256": "2978324cc1e9cb5e38fe5fa434cd8376f9fe122c2f60891becb635b2485ce8cd",
+      "request": "requests/05-02.json",
+      "delivery_directory": "docs/design/assets/05/"
+    },
+    {
+      "id": "05-03",
+      "original": "originals/05-03.png",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "bytes": 1406233,
+      "sha256": "f24d046c0a893c662634163d3b0609ab8394de9f86591bf17bb97d8ddb45daa4",
+      "prompt": "prompts/05-03.txt",
+      "prompt_sha256": "e41238d053a7fb0342cf45e8a7b92aff23e59901c52c7682a77d8bf8c23c943e",
+      "request": "requests/05-03.json",
+      "delivery_directory": "docs/design/assets/05/"
+    },
+    {
+      "id": "06-hero",
+      "original": "originals/06-hero.png",
+      "dimensions": [
+        1536,
+        1024
+      ],
+      "bytes": 2005474,
+      "sha256": "767089278717c5c117a05c4aaa24a42387986343a2145e320f032477c7567c57",
+      "prompt": "prompts/06-hero.txt",
+      "prompt_sha256": "7209c8ca8e06907756ef4556fcddb886e9b3dd6fd1e0dc45e67392c202da6d07",
+      "request": "requests/06-hero.json",
+      "delivery_directory": "docs/design/assets/06/"
+    },
+    {
+      "id": "06-01",
+      "original": "originals/06-01.png",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "bytes": 1564100,
+      "sha256": "bf3c392f15fad0f61b63049e079312b9abed4b727195a43cfbee1f8674f77548",
+      "prompt": "prompts/06-01.txt",
+      "prompt_sha256": "ce6641b1455620b222b96998859aecc627eb27a0875aec77ec3d812f2e16dff5",
+      "request": "requests/06-01.json",
+      "delivery_directory": "docs/design/assets/06/"
+    },
+    {
+      "id": "06-02",
+      "original": "originals/06-02.png",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "bytes": 1781220,
+      "sha256": "18d0821819ca603fa1e0184c651cd3f2c3be3e6d69e1916909d7d3460814a3b6",
+      "prompt": "prompts/06-02.txt",
+      "prompt_sha256": "a9ed750f51c55b84577a1f500098b4739debb3b68cad1cc8241b02716ec40053",
+      "request": "requests/06-02.json",
+      "delivery_directory": "docs/design/assets/06/"
+    },
+    {
+      "id": "06-03",
+      "original": "originals/06-03.png",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "bytes": 1567452,
+      "sha256": "45dbe4eba0bc9745cedd951dca5c12dabd4c22be04483bcaa03850d69c544fc1",
+      "prompt": "prompts/06-03.txt",
+      "prompt_sha256": "4a44425d4a734292d204ad7bfcb99067fcedc7826081e617f543bf259ceb4d88",
+      "request": "requests/06-03.json",
+      "delivery_directory": "docs/design/assets/06/"
+    },
+    {
+      "id": "07-hero",
+      "original": "originals/07-hero.png",
+      "dimensions": [
+        1536,
+        1024
+      ],
+      "bytes": 2210958,
+      "sha256": "222b3c48bfb50b6ad66039317cdc325ef76b17c6785b3b2b67a71d0d9646de8e",
+      "prompt": "prompts/07-hero.txt",
+      "prompt_sha256": "cb09c728918a301ebbfc86f885e98c80a49846fe8cf2504c36227550d94b1d0e",
+      "request": "requests/07-hero.json",
+      "delivery_directory": "docs/design/assets/07/"
+    },
+    {
+      "id": "07-01",
+      "original": "originals/07-01.png",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "bytes": 1757047,
+      "sha256": "2dfa4c15c79866b974b71d9a0a7cf381f29e2de5f7fb9f4ab6a7b85cda41bb1a",
+      "prompt": "prompts/07-01.txt",
+      "prompt_sha256": "b6bc2ecf3255d3cc80db70ec4398c2fd42bb6e6a099cccdaaafffd02d16c4817",
+      "request": "requests/07-01.json",
+      "delivery_directory": "docs/design/assets/07/"
+    },
+    {
+      "id": "07-02",
+      "original": "originals/07-02.png",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "bytes": 1720718,
+      "sha256": "89b09817e2e080ce2c684fe7f8785e7c378ee495f229d32ab8abc78e839350db",
+      "prompt": "prompts/07-02.txt",
+      "prompt_sha256": "351cdef51d3918970b9df2729e2d6df5475512b335d8da2cc5c85a9e135a3a51",
+      "request": "requests/07-02.json",
+      "delivery_directory": "docs/design/assets/07/"
+    },
+    {
+      "id": "07-03",
+      "original": "originals/07-03.png",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "bytes": 1619076,
+      "sha256": "f5c6774a52109972436bd97e02c84c7c4f9ed28422a7cb7e86d33693b6abba1c",
+      "prompt": "prompts/07-03.txt",
+      "prompt_sha256": "70208af2d5cee153bd62af120d390b7b2ec04cf040b4cf7911d37e259871e453",
+      "request": "requests/07-03.json",
+      "delivery_directory": "docs/design/assets/07/"
+    },
+    {
+      "id": "08-hero",
+      "original": "originals/08-hero.png",
+      "dimensions": [
+        1536,
+        1024
+      ],
+      "bytes": 2244978,
+      "sha256": "de56050f5eb17bcc418e4ae6c03db50e19b0fa38beaec8850d7fac12f13cbbf0",
+      "prompt": "prompts/08-hero.txt",
+      "prompt_sha256": "6a30f548317e228a11f46b5deb461a966ebe4a9b2e52bd8704d36ba5ac9514dc",
+      "request": "requests/08-hero.json",
+      "delivery_directory": "docs/design/assets/08/"
+    },
+    {
+      "id": "08-01",
+      "original": "originals/08-01.png",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "bytes": 1594868,
+      "sha256": "3daa19727d2f7c63abb3124b00b3f1417bf141e6adff9505b1f3e127e0a51ed8",
+      "prompt": "prompts/08-01.txt",
+      "prompt_sha256": "1788e5e5cb66cde971946a1a143cdd691e08662cca7c567d48d56b700d28bfc5",
+      "request": "requests/08-01.json",
+      "delivery_directory": "docs/design/assets/08/"
+    },
+    {
+      "id": "08-02",
+      "original": "originals/08-02.png",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "bytes": 1634932,
+      "sha256": "bdc185220b2e07073285fa905fe38408886ace464558f5f48af7f226bce48989",
+      "prompt": "prompts/08-02.txt",
+      "prompt_sha256": "27d75114a83e1d185d5775ea2d72efbfc436f887be7c9fa265b9201001bdd9d7",
+      "request": "requests/08-02.json",
+      "delivery_directory": "docs/design/assets/08/"
+    },
+    {
+      "id": "08-03",
+      "original": "originals/08-03.png",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "bytes": 1526026,
+      "sha256": "706346a7ccf172830687cf4106ac73771f3f12f4851d1fb4d77e987b1bc3ba16",
+      "prompt": "prompts/08-03.txt",
+      "prompt_sha256": "c52f5d233c6edebe3c9492a2f13be1b56a2293b7bc3beb1ac5a80008d472303b",
+      "request": "requests/08-03.json",
+      "delivery_directory": "docs/design/assets/08/"
+    }
+  ]
+}
