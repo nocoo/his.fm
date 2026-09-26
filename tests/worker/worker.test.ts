@@ -3,6 +3,7 @@ import { exportJWK, generateKeyPair, SignJWT } from 'jose';
 import { Miniflare, Response as MiniflareResponse } from 'miniflare';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { version } from '../../package.json';
+import { type Appearance, appearanceSchema, themeIds } from '../../src/shared/appearance';
 import { channelProfileSchema } from '../../src/shared/channel';
 import type { Episode, EpisodeInput } from '../../src/shared/episode';
 import type { Production } from '../../src/shared/production';
@@ -180,6 +181,103 @@ describe('public podcast catalog', () => {
     }
     expect((await call('/api/unknown')).status).toBe(404);
     expect((await call('/api')).status).toBe(404);
+  });
+});
+
+describe('website appearance', () => {
+  async function saved() {
+    const response = await call('/admin/api/appearance');
+    expect(response.status).toBe(200);
+    return appearanceSchema.parse(((await response.json()) as { appearance: unknown }).appearance);
+  }
+
+  it('starts with Interval and exposes only the public theme', async () => {
+    const current = await saved();
+    expect(current.theme).toBe('interval');
+    const response = await call('/api/appearance', { headers: { Cookie: '' } });
+    expect(response.headers.get('Cache-Control')).toBe('no-store');
+    expect(await response.json()).toEqual({ appearance: { theme: 'interval' } });
+  });
+
+  it('persists all eight choices and rejects concurrent overwrites', async () => {
+    let current = await saved();
+    for (const theme of themeIds) {
+      const response = await call('/admin/api/appearance', {
+        method: 'PUT',
+        ...body({ version: current.version, theme }),
+      });
+      expect(response.status).toBe(200);
+      const next = appearanceSchema.parse(((await response.json()) as { appearance: unknown }).appearance);
+      expect(next.version).toBe(current.version + 1);
+      expect(next.theme).toBe(theme);
+      expect(next.updatedBy).toContain('@');
+      current = next;
+      expect(await saved()).toEqual(current);
+      expect(await (await call('/api/appearance')).json()).toEqual({ appearance: { theme } });
+    }
+    const responses = await Promise.all(
+      ['grove', 'interval'].map((theme) =>
+        call('/admin/api/appearance', {
+          method: 'PUT',
+          ...body({ version: current.version, theme }),
+        }),
+      ),
+    );
+    expect(responses.map((response) => response.status).sort()).toEqual([200, 409]);
+    expect((await saved()).version).toBe(current.version + 1);
+  });
+
+  it('validates choices and versions without changing saved appearance', async () => {
+    const current = await saved();
+    for (const invalid of [
+      { theme: 'unknown', version: current.version },
+      { theme: 'grove', version: 0 },
+      { theme: 'grove', version: 1.5 },
+      { theme: 'grove' },
+      { theme: 'grove', version: current.version, content: 'private prompt' },
+    ]) {
+      expect((await call('/admin/api/appearance', { method: 'PUT', ...body(invalid) })).status).toBe(400);
+    }
+    expect((await call('/admin/api/appearance', { method: 'DELETE' })).status).toBe(405);
+    expect(await saved()).toEqual(current);
+  });
+
+  it('requires owner authentication and same-origin writes', async () => {
+    const current = await saved();
+    for (const method of ['GET', 'PUT']) {
+      const response = await call('/admin/api/appearance', {
+        method,
+        headers: { Cookie: '', Authorization: 'Bearer agent-token' },
+      });
+      expect(response.status).toBe(401);
+    }
+    expect((await call('/api/appearance', { method: 'PUT', ...body(current) })).status).toBe(405);
+    expect(
+      (
+        await worker.fetch(
+          new Request(`${origin}/admin/api/appearance`, {
+            method: 'PUT',
+            headers: { Cookie: cookie, Origin: 'https://other.example', 'Content-Type': 'application/json' },
+            body: JSON.stringify({ theme: 'grove', version: current.version }),
+          }),
+          env,
+        )
+      ).status,
+    ).toBe(403);
+    expect(await saved()).toEqual(current);
+  });
+
+  it('reports unavailable settings without silently resetting the theme', async () => {
+    const current: Appearance = await saved();
+    await env.DB.prepare('DELETE FROM site_appearance').run();
+    try {
+      expect((await call('/api/appearance')).status).toBe(503);
+      expect((await call('/admin/api/appearance')).status).toBe(503);
+    } finally {
+      await env.DB.prepare('INSERT INTO site_appearance VALUES (1, ?, ?, ?, ?)')
+        .bind(current.version, current.theme, current.updatedAt, current.updatedBy)
+        .run();
+    }
   });
 });
 

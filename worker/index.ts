@@ -1,6 +1,7 @@
 import { version } from '../package.json';
 import { discoveryLinks, routeAgent, routeDiscovery } from './agent-api';
 import { routeAgentTokens } from './agent-tokens';
+import { getAppearance, routeAppearance } from './appearance';
 import { routeAudio } from './audio-routes';
 import { accessLogin, authenticate, isLocal, localLogin, logout } from './auth';
 import { routeChannel } from './channel';
@@ -40,6 +41,11 @@ async function route(request: Request, env: Env): Promise<Response> {
     if (request.method !== 'GET') throw new HttpError(405, '不支持这个请求方式');
     return json({ episodes: await listEpisodes(env.DB, true) });
   }
+  if (path === '/api/appearance') {
+    if (request.method !== 'GET') throw new HttpError(405, '不支持这个请求方式');
+    const { theme } = await getAppearance(env.DB);
+    return json({ appearance: { theme } });
+  }
   if (/^\/api\/episodes\/[^/]+$/.test(path)) {
     if (request.method !== 'GET') throw new HttpError(405, '不支持这个请求方式');
     return json({ episode: await getEpisode(env.DB, path.slice('/api/episodes/'.length), true) });
@@ -57,6 +63,10 @@ async function route(request: Request, env: Env): Promise<Response> {
     if (path === '/admin/api/channel') {
       if (request.method !== 'GET') requireSameOrigin(request);
       return routeChannel(request, env, { kind: 'human', name: session.user.email });
+    }
+    if (path === '/admin/api/appearance') {
+      if (request.method !== 'GET') requireSameOrigin(request);
+      return routeAppearance(request, env, session.user.email);
     }
     if (path === '/admin/api/storage' || path.startsWith('/admin/api/storage/')) {
       if (!['GET', 'HEAD'].includes(request.method)) requireSameOrigin(request);
