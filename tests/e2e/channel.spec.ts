@@ -188,15 +188,24 @@ test('channel editor supports a real local save, Chinese input, mobile layout an
       page.getByRole('dialog', { name: '工作室导航' }).getByText('全局提示词', { exact: true }),
     ).toBeVisible();
   } finally {
-    const result = await page.evaluate(async (content) => {
-      const { channel } = (await (await fetch('/admin/api/channel')).json()) as { channel: ChannelProfile };
-      const response = await fetch('/admin/api/channel', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ version: channel.version, content }),
-      });
-      return response.status;
-    }, original.content);
+    const result = await page.evaluate(
+      async ({ content, version }) => {
+        const { channel } = (await (await fetch('/admin/api/channel')).json()) as { channel: ChannelProfile };
+        if (channel.version === version && channel.content === content) return 200;
+        if (
+          channel.version !== version + 1 ||
+          !channel.content.includes('中文输入验收：愿每个具体的人被认真看见。')
+        )
+          return 409;
+        const response = await fetch('/admin/api/channel', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ version: channel.version, content }),
+        });
+        return response.status;
+      },
+      { content: original.content, version: original.version },
+    );
     expect(result).toBe(200);
   }
 });

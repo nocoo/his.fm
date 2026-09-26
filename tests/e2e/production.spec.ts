@@ -801,12 +801,14 @@ test('publication copies WeChat formatting with the same cover and references as
   await expect(preview).toContainText('参考资料');
   await expect(preview).toContainText('[1] https://example.com/docs');
   await page.getByRole('button', { name: '复制微信公众号格式', exact: true }).click();
+  await expect(page.getByText('已复制', { exact: true })).toBeVisible();
   const clipboard = await page.evaluate(async () => {
     const [item] = await navigator.clipboard.read();
-    return {
-      html: await (await item.getType('text/html')).text(),
-      text: await (await item.getType('text/plain')).text(),
-    };
+    const [html, text] = await Promise.all([
+      item.getType('text/html').then((blob) => blob.text()),
+      item.getType('text/plain').then((blob) => blob.text()),
+    ]);
+    return { html, text };
   });
   expect(clipboard.html).toContain('<strong>生活细节</strong>');
   expect(clipboard.html).toContain('https://f.no.mt/cover.png');
