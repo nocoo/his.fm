@@ -2,6 +2,31 @@
 
 All notable changes to his.fm are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions use the owner’s patch-only deployment policy in `AGENTS.md`, with the authoritative version in `package.json`.
 
+## 2.0.3 - 2026-09-26
+
+### Added
+
+- Eight public visual directions with the shared Open Interval identity and typography. The owner can preview and apply a theme in `/admin/appearance`; versioned saves detect concurrent edits, while public previews remain read-only.
+- Archived identity studies, responsive R2 artwork, downloadable vector logos and an independent cover frame. Fonts ship with the application as fingerprinted same-origin assets.
+- Finished-cover PNG downloads in the production studio, composing the clean original with the brand frame and actual episode number without uploading or changing the source.
+
+### Changed
+
+- Generated, uploaded and stored covers remain clean originals without text, logos, borders or overlays. Public pages and studio previews display the complete source image; only finished-cover downloads add branding.
+- Unify long-form studio fields in the shared CodeMirror Markdown editor, preserving source text and undo history across previews. Compact navigation and URL-addressable source details keep the brief draft mounted and the studio within one main scroll region.
+- D1 migration `0006_appearance.sql` initializes the persistent website appearance. Release deployment applies this schema migration before the Worker update and does not seed mock content.
+
+### Fixed
+
+- Render the canonical header and footer logos as inline SVG paths, removing the dependency on external SVG fragment loading.
+- Replace incomplete R2 font URLs with bundled WOFF2 assets delivered atomically with the website, resolving the reported font 404s.
+
+### Validation
+
+- 195 unit tests passed; statement, branch, function and line coverage exceed 95%. Strict lint, type checking, production build and the normal staged commit gate passed.
+- Seven focused Chrome scenarios passed, including all eight themes on desktop and phone, owner preview/apply, save failures and conflicts, public browsing and finished-cover PNG export without source mutations.
+- All 42 identity artwork objects match archived SHA-256 digests and expected CDN content types, immutable cache policy and CORS headers. The production origin also passes its CORS check. All 102 bundled font sources match their emitted files or inline CSS data.
+
 ## 2.0.2 - 2026-09-26
 
 ### Fixed
