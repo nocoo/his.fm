@@ -57,6 +57,10 @@ html.dark:has(.admin-app) body {
 .admin-content-island {
   position: relative;
 }
+.admin-shell nav[aria-label="Breadcrumb"] {
+  white-space: nowrap;
+  flex-shrink: 0;
+}
 .admin-page {
   display: flex;
   flex-direction: column;

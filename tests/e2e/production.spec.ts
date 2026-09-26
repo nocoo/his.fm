@@ -10,6 +10,7 @@ async function studio(page: Page, initial = fixture()) {
   let conflict = false;
   let failUpload = false;
   let failPreview = false;
+  let failSave = false;
   let audioPolls = 0;
   let settings: ProductionSettings = {
     voice: 'Kore',
@@ -145,6 +146,10 @@ async function studio(page: Page, initial = fixture()) {
       return send({ production });
     }
     const input = request.postDataJSON();
+    if (failSave) {
+      failSave = false;
+      return send({ error: '保存失败，请重试' }, 503);
+    }
     if (conflict) {
       conflict = false;
       production = { ...production, version: production.version + 1 };
@@ -208,6 +213,9 @@ async function studio(page: Page, initial = fixture()) {
     conflict: () => {
       conflict = true;
     },
+    failSave: () => {
+      failSave = true;
+    },
     failUpload: () => {
       failUpload = true;
     },
@@ -229,6 +237,7 @@ test('five stages preserve failed edits and advance with owner completion', asyn
   await page.getByRole('combobox', { name: '素材 1 类型' }).click();
   await page.getByRole('option', { name: '文本素材', exact: true }).click();
   await page.getByLabel('素材正文', { exact: true }).fill('一份经过核实的真实素材');
+  await page.getByRole('button', { name: '完成编辑', exact: true }).click();
   await page.getByRole('button', { name: '保存选题', exact: true }).click();
   await expect(page).toHaveURL(/\/productions\/new-production$/);
   await page.getByRole('button', { name: '标记选题完成', exact: true }).click();
@@ -420,6 +429,96 @@ test('stage changes keep the shell fixed and reset only the content island', asy
   expect(state.actions).toEqual([]);
 });
 
+test('source subpages preserve brief drafts and keep long materials out of the overview', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 393, height: 852 });
+  const longText = `# 生活记录\n\n${'这一段写下具体的生活观察。\n\n'.repeat(70)}`;
+  const state = await studio(
+    page,
+    fixture({
+      sources: [
+        { type: 'text', title: '生活记录', content: longText },
+        { type: 'github', title: '项目原文', content: 'https://github.com/eternity4719/HowToLiveBetter' },
+        { type: 'url', title: '参考文章', content: 'https://example.com/reference' },
+      ],
+    }),
+  );
+  await page.goto('/admin/productions/production-test?step=brief');
+  const summary = page.locator('.studio-prompt summary');
+  await expect(summary).toBeVisible();
+  expect((await summary.boundingBox())?.height).toBeLessThan(30);
+  await summary.click();
+  await expect(page.locator('.studio-prompt-text')).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await summary.click();
+  const list = page.getByRole('list', { name: '原始素材', exact: true });
+  await expect(list.getByRole('listitem')).toHaveCount(3);
+  expect((await list.boundingBox())?.height).toBeLessThan(240);
+  await expect(page.getByRole('textbox', { name: '素材正文', exact: true })).toHaveCount(0);
+  await page.getByLabel('节目标题', { exact: true }).fill('保留选题的未保存标题');
+  await page.getByLabel('创作意图', { exact: true }).fill('保留正在思考的切入点');
+  await list.getByRole('button', { name: '打开素材 1：生活记录', exact: true }).click();
+  await expect(page).toHaveURL(/source=1/);
+  await expect(page.getByLabel('节目标题', { exact: true })).toBeHidden();
+  await expect(page.getByRole('tablist', { name: '节目制作阶段' })).toHaveCount(0);
+  await expect(page.getByRole('link', { name: '选题', exact: true })).toBeVisible();
+  const content = page.getByRole('textbox', { name: '素材正文', exact: true });
+  const expectDraft = async () => {
+    const detail = page.locator('.studio-source-editor');
+    await detail.getByRole('radio', { name: '预览', exact: true }).click();
+    await expect(page.getByRole('region', { name: '素材正文预览' })).toContainText('保留下来的新观察。');
+    await detail.getByRole('radio', { name: '编辑', exact: true }).click();
+  };
+  await expect(content).toBeVisible();
+  const edited = `${longText}保留下来的新观察。`;
+  await content.fill(edited);
+  await page.goBack();
+  await expect(list).toBeVisible();
+  await expect(page.getByLabel('节目标题', { exact: true })).toHaveValue('保留选题的未保存标题');
+  await expect(page.getByLabel('创作意图', { exact: true })).toHaveText('保留正在思考的切入点');
+  await page.goForward();
+  await expectDraft();
+  await page.getByRole('button', { name: '完成编辑', exact: true }).click();
+  await list.getByRole('button', { name: '打开素材 2：项目原文', exact: true }).click();
+  await expect(page.getByLabel('HTTPS 链接', { exact: true })).toHaveValue(
+    'https://github.com/eternity4719/HowToLiveBetter',
+  );
+  await page.getByLabel('HTTPS 链接', { exact: true }).fill('http://example.com/invalid');
+  await page.getByRole('button', { name: '完成编辑', exact: true }).click();
+  await expect(page.getByRole('alert')).toContainText('HTTPS');
+  await page
+    .getByLabel('HTTPS 链接', { exact: true })
+    .fill('https://github.com/eternity4719/HowToLiveBetter');
+  await page.getByRole('button', { name: '完成编辑', exact: true }).click();
+  await list.getByRole('button', { name: '打开素材 3：参考文章', exact: true }).click();
+  await page.getByRole('button', { name: '移除素材', exact: true }).click();
+  await page.getByRole('alertdialog').getByRole('button', { name: '取消', exact: true }).click();
+  await expect(page.getByLabel('素材标题', { exact: true })).toHaveValue('参考文章');
+  await page.getByRole('button', { name: '移除素材', exact: true }).click();
+  await page.getByRole('alertdialog').getByRole('button', { name: '移除这份素材', exact: true }).click();
+  await expect(list.getByRole('listitem')).toHaveCount(2);
+  expect(state.production.sources).toHaveLength(3);
+  state.failSave();
+  await page.getByRole('button', { name: '保存选题', exact: true }).click();
+  await expect(page.getByRole('alert').first()).toContainText('保存失败');
+  await list.getByRole('button', { name: '打开素材 1：生活记录', exact: true }).click();
+  await expectDraft();
+  await page.getByRole('button', { name: '返回选题', exact: true }).click();
+  await page.getByRole('button', { name: '保存选题', exact: true }).click();
+  await expect.poll(() => state.production.sources.length).toBe(2);
+  expect(state.production.title).toBe('保留选题的未保存标题');
+  expect(state.production.intent).toBe('保留正在思考的切入点');
+  expect(state.production.sources[0].content).toBe(edited);
+  await page.goto('/admin/productions/production-test?step=brief&source=1');
+  await expectDraft();
+  expect(await page.locator('.admin-shell').evaluate((el) => el.scrollTop)).toBe(0);
+  await page.goto('/admin/productions/production-test?step=brief&source=999');
+  await expect(page.getByText('这份素材尚未保存或已被移除，请返回选题查看素材列表。')).toBeVisible();
+  await page.getByRole('button', { name: '返回选题', exact: true }).click();
+  await expect(list.getByRole('listitem')).toHaveCount(2);
+});
+
 test('phone studio navigation, dark theme and settings remain usable', async ({ page }) => {
   await page.setViewportSize({ width: 393, height: 852 });
   await studio(page, readyFixture());
@@ -492,6 +591,7 @@ test('real local API persists a production through human review and cleans it up
     await page.getByLabel('创作意图', { exact: true }).fill('验证人工审阅与创作流程，测试后清理。');
     await page.getByRole('button', { name: '添加素材' }).click();
     await page.getByLabel('HTTPS 链接', { exact: true }).fill('https://example.com/reference');
+    await page.getByRole('button', { name: '完成编辑', exact: true }).click();
     const creation = page.waitForResponse(
       (response) =>
         response.url().endsWith('/admin/api/productions') && response.request().method() === 'POST',

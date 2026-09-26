@@ -50,14 +50,16 @@ function Editor({ id }: { id: string }) {
   useUnsavedChanges(dirty);
   const production = vm.production;
   const loaded = Boolean(production);
-  const selected = query.get('step');
+  const source = query.get('source');
+  const selected = query.get('step') ?? (source !== null ? 'brief' : null);
   const step = studioSteps.includes(selected as StudioStep)
     ? (selected as StudioStep)
     : currentStep(production?.stage ?? 'draft');
+  const sourceOpen = source !== null && step === 'brief';
   // biome-ignore lint/correctness/useExhaustiveDependencies: Reset only the island when a stage opens; scrollIntoView also scrolls the shell and hides its header.
   useLayoutEffect(() => {
     nav.current?.closest('.admin-content-island')?.scrollTo({ top: 0, behavior: 'instant' });
-  }, [step, loaded]);
+  }, [step, loaded, source]);
   if (!production)
     return (
       <div className="admin-page">
@@ -104,16 +106,18 @@ function Editor({ id }: { id: string }) {
   };
   const missing = finalMissing(production);
   return (
-    <div className="admin-page studio-editor">
-      <PageHeader
-        title={production.title}
-        description={`第 ${production.episodeNumber} 期 · ${stageLabels[production.stage]} · ${dirty ? '有未保存改动' : '已保存'}`}
-        actions={
-          <Button variant="outline" disabled={vm.pending} onClick={() => setReload(true)}>
-            刷新内容
-          </Button>
-        }
-      />
+    <div className="admin-page studio-editor" ref={nav}>
+      {!sourceOpen && (
+        <PageHeader
+          title={production.title}
+          description={`第 ${production.episodeNumber} 期 · ${stageLabels[production.stage]} · ${dirty ? '有未保存改动' : '已保存'}`}
+          actions={
+            <Button variant="outline" disabled={vm.pending} onClick={() => setReload(true)}>
+              刷新内容
+            </Button>
+          }
+        />
+      )}
       {vm.error && <Failure error={vm.error} />}
       {vm.conflict && (
         <div className="studio-notice" role="alert">
@@ -129,28 +133,36 @@ function Editor({ id }: { id: string }) {
           else visit(value as StudioStep);
         }}
       >
-        <TabsList ref={nav} className="studio-step-nav" aria-label="节目制作阶段" showIndicator={false}>
-          {studioSteps.map((item, index) => (
-            <TabsTrigger
-              key={item}
-              value={item}
-              disabled={vm.pending}
-              data-complete={done[item]}
-              aria-current={step === item ? 'step' : undefined}
-              aria-label={`${stepLabels[item]}${done[item] ? '，已完成' : ''}`}
-            >
-              <span className="studio-step-number" aria-hidden="true">
-                {done[item] ? <Check size={16} /> : index + 1}
-              </span>
-              <span>{stepLabels[item]}</span>
-            </TabsTrigger>
-          ))}
-        </TabsList>
+        {!sourceOpen && (
+          <TabsList className="studio-step-nav" aria-label="节目制作阶段" showIndicator={false}>
+            {studioSteps.map((item, index) => (
+              <TabsTrigger
+                key={item}
+                value={item}
+                disabled={vm.pending}
+                data-complete={done[item]}
+                aria-current={step === item ? 'step' : undefined}
+                aria-label={`${stepLabels[item]}${done[item] ? '，已完成' : ''}`}
+              >
+                <span className="studio-step-number" aria-hidden="true">
+                  {done[item] ? <Check size={16} /> : index + 1}
+                </span>
+                <span>{stepLabels[item]}</span>
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        )}
         <TabsContent value={step} key={`${step}-${formKey}`} className="studio-stage">
           {step === 'brief' && (
             <div className="studio-stack">
-              <p className="studio-location">当前浏览器 · 你确定讲述意图；本地 Hermes 可以核实与整理素材</p>
-              <PromptPanel production={production} kind="brief" dirty={dirty} />
+              {!sourceOpen && (
+                <>
+                  <p className="studio-location">
+                    当前浏览器 · 你确定讲述意图；本地 Hermes 可以核实与整理素材
+                  </p>
+                  <PromptPanel production={production} kind="brief" dirty={dirty} />
+                </>
+              )}
               <BriefForm
                 value={production}
                 pending={vm.pending}
@@ -226,7 +238,7 @@ function Editor({ id }: { id: string }) {
               <PublicationPanel production={production} pending={vm.pending} mutate={vm.mutate} />
             </div>
           )}
-          {step in reopenActions && done[step] && (
+          {!sourceOpen && step in reopenActions && done[step] && (
             <div className="studio-row">
               <p className="admin-muted">需要让本地助手重做时，先重新打开这一阶段。已有内容会保留。</p>
               <Button variant="ghost" disabled={dirty || vm.pending} onClick={() => setReopen(true)}>
@@ -236,22 +248,24 @@ function Editor({ id }: { id: string }) {
           )}
         </TabsContent>
       </Tabs>
-      <details className="studio-records">
-        <summary>制作记录 · {production.events.length}</summary>
-        <ol className="studio-history">
-          {production.events.toReversed().map((event) => (
-            <li key={event.id}>
-              <strong>
-                {actionLabels[event.action as ProductionAction['action']] ?? eventLabel(event.action)}
-              </strong>
-              <p className="admin-muted">
-                {dateLabel(event.at)} · {event.actor.kind === 'agent' ? '本地助手' : '你'}
-              </p>
-              {event.feedback && <p className="studio-prose">{event.feedback}</p>}
-            </li>
-          ))}
-        </ol>
-      </details>
+      {!sourceOpen && (
+        <details className="studio-records">
+          <summary>制作记录 · {production.events.length}</summary>
+          <ol className="studio-history">
+            {production.events.toReversed().map((event) => (
+              <li key={event.id}>
+                <strong>
+                  {actionLabels[event.action as ProductionAction['action']] ?? eventLabel(event.action)}
+                </strong>
+                <p className="admin-muted">
+                  {dateLabel(event.at)} · {event.actor.kind === 'agent' ? '本地助手' : '你'}
+                </p>
+                {event.feedback && <p className="studio-prose">{event.feedback}</p>}
+              </li>
+            ))}
+          </ol>
+        </details>
+      )}
       {reopen && step in reopenActions && (
         <Confirm
           title="重新打开本阶段"

@@ -65,25 +65,32 @@ export function AdminShell({ session, children }: { session: Session; children: 
   const storage = location.pathname === '/admin/storage';
   const voiceReference = location.pathname === '/admin/voices';
   const creating = location.pathname === '/admin/productions/new';
-  const title = storage
-    ? '资源管理'
-    : channel
-      ? '全局提示词'
-      : isList
-        ? '制作中的节目'
-        : voiceReference
-          ? '音色参考'
-          : settings
-            ? '工作室设置'
-            : catalog
-              ? location.pathname === '/admin/catalog'
-                ? '节目目录'
-                : location.pathname.endsWith('/new')
-                  ? '新建节目'
-                  : '编辑节目'
-              : creating
-                ? '新建制作'
-                : '节目制作';
+  const query = new URLSearchParams(location.search);
+  const sourceOpen =
+    location.pathname.startsWith('/admin/productions/') &&
+    query.has('source') &&
+    (!query.get('step') || query.get('step') === 'brief');
+  const title = sourceOpen
+    ? '素材详情'
+    : storage
+      ? '资源管理'
+      : channel
+        ? '全局提示词'
+        : isList
+          ? '制作中的节目'
+          : voiceReference
+            ? '音色参考'
+            : settings
+              ? '工作室设置'
+              : catalog
+                ? location.pathname === '/admin/catalog'
+                  ? '节目目录'
+                  : location.pathname.endsWith('/new')
+                    ? '新建节目'
+                    : '编辑节目'
+                : creating
+                  ? '新建制作'
+                  : '节目制作';
   function go(path: string) {
     navigate(path);
     if (compact) setCollapsed(true);
@@ -228,19 +235,24 @@ export function AdminShell({ session, children }: { session: Session; children: 
           <AppHeader
             title={title}
             breadcrumbs={
-              isList ||
-              settings ||
-              channel ||
-              storage ||
-              voiceReference ||
-              location.pathname === '/admin/catalog'
-                ? []
-                : [
-                    {
-                      label: catalog ? '节目目录' : '制作中的节目',
-                      href: catalog ? '/admin/catalog' : '/admin',
-                    },
+              sourceOpen
+                ? [
+                    ...(!compact ? [{ label: '制作中的节目', href: '/admin' }] : []),
+                    { label: '选题', href: `${location.pathname}?step=brief` },
                   ]
+                : isList ||
+                    settings ||
+                    channel ||
+                    storage ||
+                    voiceReference ||
+                    location.pathname === '/admin/catalog'
+                  ? []
+                  : [
+                      {
+                        label: catalog ? '节目目录' : '制作中的节目',
+                        href: catalog ? '/admin/catalog' : '/admin',
+                      },
+                    ]
             }
             leading={
               compact ? (

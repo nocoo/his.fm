@@ -28,6 +28,15 @@ Cmd/Ctrl+S and version-conflict comparison. Other fields retain their existing
 form submission and unsaved-change guards. Over-limit content is kept available
 for correction rather than silently truncated.
 
+Brief source material is presented as a compact list. Each source opens its own
+`?step=brief&source=N` detail view, where N is its one-based position in the brief.
+The overview form stays mounted but hidden so browser back/forward and source
+navigation preserve unsaved intent and metadata. Only the selected source has an
+editor; returning keeps its draft in the brief. Completing source editing checks
+the shared source schema, while saving the brief persists all edits through the
+existing optimistic-version contract. Source positions are local to the current
+brief, not permanent document identifiers.
+
 Publication offers WeChat HTML and plain-text clipboard representations,
 Xiaoyuzhou plain text, and the original Markdown. The WeChat preview renders the
 exact sanitized HTML passed to the clipboard, including the cover and reference
