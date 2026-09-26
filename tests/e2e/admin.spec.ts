@@ -1,6 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import { mkdir } from 'node:fs/promises';
 import { expect, type Page, test } from '@playwright/test';
+import { themes } from '../../src/brand/themes';
+import type { PublicAppearance } from '../../src/shared/appearance';
 
 async function login(page: Page) {
   await page.goto('/login');
@@ -158,10 +160,16 @@ test.describe('phone workspace', () => {
     await menu.click();
     await drawer.getByRole('link', { name: 'his.fm 首页', exact: true }).click();
     await expect(page.locator('.public-site')).toBeVisible();
+    const selected = await page.evaluate(
+      async () =>
+        ((await (await fetch('/api/appearance')).json()) as { appearance: PublicAppearance }).appearance,
+    );
+    const paper = themes[selected.theme].palette[0];
+    const rgb = `rgb(${[1, 3, 5].map((offset) => Number.parseInt(paper.slice(offset, offset + 2), 16)).join(', ')})`;
     expect(await browserCanvas(page)).toMatchObject({
-      theme: '#f3f3ec',
-      root: 'rgb(243, 243, 236)',
-      body: 'rgb(243, 243, 236)',
+      theme: paper,
+      root: rgb,
+      body: rgb,
       scheme: 'light',
     });
     await page.goBack();

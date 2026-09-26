@@ -1,3 +1,4 @@
+import { publicAppearanceSchema, type ThemeId } from '../shared/appearance';
 import { categories, type Episode } from '../shared/episode';
 
 export function filterEpisodes(episodes: Episode[], category: string, query: string) {
@@ -35,4 +36,20 @@ export async function getEpisodes(signal?: AbortSignal): Promise<Episode[]> {
   if (!response.ok) throw new Error('节目暂时没有加载出来，请再试一次。');
   const result = (await response.json()) as { episodes: Episode[] };
   return result.episodes;
+}
+
+export async function getAppearance(signal?: AbortSignal) {
+  const response = await fetch('/api/appearance', { signal, cache: 'no-store' });
+  if (!response.ok) throw new Error('网站外观暂时没有加载出来，请再试一次。');
+  const result = (await response.json()) as { appearance?: unknown };
+  const parsed = publicAppearanceSchema.safeParse(result.appearance);
+  if (!parsed.success) throw new Error('网站外观设置无法识别，请稍后重试。');
+  return parsed.data;
+}
+
+export function appearanceHref(path: string, preview: ThemeId | null) {
+  if (!preview || path.startsWith('/login') || path.startsWith('/admin')) return path;
+  const url = new URL(path, 'https://his.fm');
+  url.searchParams.set('theme', preview);
+  return `${url.pathname}${url.search}${url.hash}`;
 }

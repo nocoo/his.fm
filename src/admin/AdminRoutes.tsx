@@ -21,6 +21,7 @@ import './production/production.css';
 
 const ChannelPage = lazy(() => import('./channel/ChannelPage'));
 const StoragePage = lazy(() => import('./storage/StoragePage'));
+const AppearancePage = lazy(() => import('./appearance/AppearancePage'));
 
 function RouterLink({
   href,
@@ -132,6 +133,14 @@ function SessionGate() {
           }
         />
         <Route path="voices" element={<VoiceReferences />} />
+        <Route
+          path="appearance"
+          element={
+            <Suspense fallback={<LoadingScreen label="正在打开网站外观" />}>
+              <AppearancePage />
+            </Suspense>
+          }
+        />
         <Route
           path="storage"
           element={

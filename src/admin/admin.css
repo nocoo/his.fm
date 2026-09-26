@@ -74,10 +74,6 @@ html.dark:has(.admin-app) body {
   flex: 0 0 44px;
   color: hsl(var(--basalt-primary));
 }
-.admin-brand {
-  font-size: 20px;
-  letter-spacing: -0.04em;
-}
 .admin-version {
   margin-left: auto;
   font-size: 11px;
@@ -299,10 +295,6 @@ html.dark:has(.admin-app) body {
   background: hsl(var(--basalt-primary));
   color: hsl(var(--basalt-primary-foreground));
 }
-.admin-badge-strip strong {
-  font-size: 18px;
-  letter-spacing: -0.04em;
-}
 .admin-badge-strip > span:last-child {
   font-size: 11px;
   letter-spacing: 0.12em;
@@ -440,4 +432,19 @@ html.dark:has(.admin-app) body {
   .admin-page > header.basalt-ui h1 {
     font-size: 18px;
   }
+}
+
+.admin-brand .brand-wordmark {
+  width: 88px;
+}
+.admin-rail-mark .brand-symbol {
+  width: 24px;
+  height: 24px;
+}
+.admin-badge-strip .brand-wordmark {
+  width: 92px;
+}
+.admin-badge-mark .brand-symbol {
+  width: 46px;
+  height: 46px;
 }

@@ -1,6 +1,5 @@
 import {
   ArrowDown,
-  ArrowDownLeft,
   ArrowLeft,
   ArrowRight,
   ArrowUpRight,
@@ -14,10 +13,16 @@ import {
 } from 'lucide-react';
 import { motion, useReducedMotion } from 'motion/react';
 import { createContext, type ReactNode, useContext, useEffect, useState } from 'react';
-import { Link, NavLink, Outlet, Route, Routes, useLocation, useParams } from 'react-router';
+import { Outlet, Route, Routes, useLocation, useParams } from 'react-router';
+import { BrandSymbol, Wordmark } from '../brand/Brand';
+import { themeMedia } from '../brand/themes';
 import { categories, type Episode } from '../shared/episode';
+import { PublicLink as Link, PublicNavLink as NavLink, SiteAppearance, useAppearance } from './Appearance';
+import { EpisodeCover } from './EpisodeCover';
+import { Hero, ThemeImage } from './Hero';
 import { categoryLabel, dateLabel, durationLabel, filterEpisodes } from './model';
 import { useEpisodes } from './useEpisodes';
+import './hero.css';
 
 const EpisodeContext = createContext<ReturnType<typeof useEpisodes> | null>(null);
 
@@ -42,37 +47,6 @@ function Reveal({ children, className = '' }: { children: ReactNode; className?:
   );
 }
 
-function Soundmark({ className = '' }: { className?: string }) {
-  return (
-    <span className={`soundmark ${className}`} aria-hidden="true">
-      <i />
-      <i />
-      <i />
-      <i />
-      <i />
-    </span>
-  );
-}
-
-function Asterisk() {
-  return (
-    <svg
-      className="brand-asterisk"
-      width="1em"
-      height="1em"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2.4"
-      strokeLinecap="round"
-      aria-hidden="true"
-      focusable="false"
-    >
-      <path d="M12 2v20M2 12h20M4.93 4.93l14.14 14.14M19.07 4.93 4.93 19.07" />
-    </svg>
-  );
-}
-
 function Header() {
   const [open, setOpen] = useState(false);
   const location = useLocation();
@@ -83,12 +57,8 @@ function Header() {
   return (
     <header className="site-header">
       <Link to="/" className="wordmark" aria-label="his.fm 首页">
-        <Soundmark />
-        <span className="wordmark-name">
-          his
-          <span className="wordmark-dot" aria-hidden="true" />
-          fm
-        </span>
+        <Wordmark />
+        <span className="brand-caption">中文播客</span>
       </Link>
       <nav className={`main-nav ${open ? 'is-open' : ''}`} aria-label="主导航">
         <NavLink to="/" end>
@@ -140,10 +110,8 @@ function Footer() {
         </span>
       </div>
       <Link className="footer-wordmark" to="/" aria-label="返回 his.fm 首页">
-        his.fm
-        <span>
-          <Asterisk />
-        </span>
+        <Wordmark />
+        <BrandSymbol />
       </Link>
       <div className="footer-bottom">
         <span>© {new Date().getFullYear()} his.fm</span>
@@ -163,16 +131,13 @@ function Layout() {
   }, [pathname]);
   return (
     <EpisodeContext.Provider value={library}>
-      <div className="public-site" id="top">
-        <a className="public-skip" href="#main">
-          跳到正文
-        </a>
+      <SiteAppearance>
         <Header />
         <main id="main">
           <Outlet />
         </main>
         <Footer />
-      </div>
+      </SiteAppearance>
     </EpisodeContext.Provider>
   );
 }
@@ -199,7 +164,7 @@ function LibraryState({ children }: { children: ReactNode }) {
   if (!episodes.length)
     return (
       <div className="library-message">
-        <Soundmark />
+        <BrandSymbol />
         <h3>第一段声音，正在路上。</h3>
         <p>节目发布后，会出现在这里。先去认识一下 his.fm。</p>
         <Link className="text-link" to="/about">
@@ -210,12 +175,11 @@ function LibraryState({ children }: { children: ReactNode }) {
   return children;
 }
 
-function EpisodeCard({ episode, index = 0 }: { episode: Episode; index?: number }) {
+function EpisodeCard({ episode }: { episode: Episode }) {
   return (
-    <article className={`episode-card tone-${index % 3}`}>
+    <article className="episode-card">
       <Link to={`/episodes/${episode.slug}`} className="episode-art" tabIndex={-1} aria-hidden="true">
-        <img src={episode.coverUrl} alt="" width="768" height="768" loading="lazy" />
-        <span className="art-episode">EP.{String(episode.episodeNumber).padStart(2, '0')}</span>
+        <EpisodeCover episode={episode} />
         <span className="art-arrow">
           <ArrowUpRight size={25} />
         </span>
@@ -241,182 +205,76 @@ function EpisodeCard({ episode, index = 0 }: { episode: Episode; index?: number 
 
 function Home() {
   const { episodes } = useLibrary();
+  const { id } = useAppearance();
   const featured = episodes.find((episode) => episode.featured) ?? episodes[0];
   useEffect(() => {
     document.title = 'his.fm · 世界很快，你可以慢慢来';
   }, []);
   return (
     <>
-      <section className="hero">
-        <picture>
-          <source
-            media="(max-width: 760px)"
-            srcSet="https://f.no.mt/images/hero-retina-20260926-mobile-1168.webp 1168w, https://f.no.mt/images/hero-retina-20260926-mobile-2336.webp 2336w"
-            sizes="(max-width: 480px) 725px, 750px"
-            width="2336"
-            height="2336"
-          />
-          <img
-            className="hero-image"
-            src="https://f.no.mt/images/hero-retina-20260926-1752.webp"
-            srcSet="https://f.no.mt/images/hero-retina-20260926-1752.webp 1752w, https://f.no.mt/images/hero-retina-20260926-3504.webp 3504w"
-            sizes="max(calc(100vw - 48px), 1290px)"
-            alt="巨树的树荫下，一个人坐在草地上，望向阳光中的未来城市"
-            width="3504"
-            height="2336"
-            fetchPriority="high"
-          />
-        </picture>
-        <div className="hero-shade" />
-        <div className="hero-content">
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.8 }}>
-            <p className="eyebrow hero-eyebrow">
-              <span className="live-dot" /> FOR THE HUMAN BEHIND THE CODE
-            </p>
-            <h1>
-              世界很快。
-              <br />
-              你可以，
-              <br />
-              <span>慢慢来。</span>
-              <span className="hero-asterisk" aria-hidden="true">
-                <Asterisk />
-              </span>
-            </h1>
-            <p className="hero-description">
-              聊 AI，聊工作。
-              <br />
-              也聊屏幕之外，正在发生的生活。
-            </p>
-            <Link to="/episodes" className="pill-button lime">
-              找一期，歇一会儿 <ArrowUpRight size={20} />
-            </Link>
-          </motion.div>
-        </div>
-        <div className="hero-edge">
-          <span>一档给开发者的中文播客</span>
-          <span>
-            SCROLL TO UNWIND <ArrowDown size={14} />
-          </span>
-        </div>
-        {featured && (
-          <Link className="hero-feature" to={`/episodes/${featured.slug}`}>
-            <img src={featured.coverUrl} alt="" width="64" height="64" />
-            <div>
-              <span>本期推荐 · EP.{String(featured.episodeNumber).padStart(2, '0')}</span>
-              <strong>{featured.title}</strong>
-              <small>
-                {durationLabel(featured.durationSeconds)} · {featured.audioUrl ? '现在收听' : '先读文稿'}
-              </small>
-            </div>
-            <span className="feature-arrow">
-              <ArrowUpRight size={22} />
-            </span>
-          </Link>
-        )}
-      </section>
-      <div className="ticker" aria-hidden="true">
-        <div>
-          {[0, 1, 2, 3].map((item) => (
-            <span key={item}>
-              {'LESS NOISE '}
-              <i>
-                <Asterisk />
-              </i>
-              {' MORE LIFE '}
-              <i>
-                <Asterisk />
-              </i>
-              {' 保持好奇，慢慢生长 '}
-              <i>
-                <Asterisk />
-              </i>
-            </span>
-          ))}
-        </div>
+      <Hero featured={featured} />
+      <div className="pace-line" aria-hidden="true">
+        <span>工作之间</span>
+        <i />
+        <Headphones size={18} strokeWidth={1.5} />
+        <i />
+        <span>生活还在继续</span>
       </div>
-      <section className="episode-section wrap">
+      <section className="episode-section wrap" id="episodes">
         <Reveal className="section-heading">
           <div>
-            <p className="eyebrow">
-              <span className="tiny-square" /> LATEST EPISODES / 最近更新
-            </p>
-            <h2>
-              把耳朵，
-              <br className="mobile-break" />
-              借给生活<span className="punctuation">。</span>
-            </h2>
+            <p className="eyebrow">ON THE OTHER SIDE OF THE SCREEN</p>
+            <h2>把耳朵，借给生活。</h2>
           </div>
-          <div className="section-heading-side">
-            <p>
-              通勤的路，散步的十分钟。
-              <br />
-              留一点空白，听见别的可能。
-            </p>
-            <Link to="/episodes" className="text-link">
-              全部播客 <ArrowUpRight size={18} />
-            </Link>
-          </div>
+          <Link to="/episodes" className="text-link">
+            全部播客 <ArrowUpRight size={18} />
+          </Link>
         </Reveal>
         <LibraryState>
           <div className="episode-grid">
-            {episodes.slice(0, 3).map((episode, index) => (
+            {episodes.slice(0, 3).map((episode) => (
               <Reveal key={episode.id}>
-                <EpisodeCard episode={episode} index={index} />
+                <EpisodeCard episode={episode} />
               </Reveal>
             ))}
           </div>
         </LibraryState>
       </section>
       <section className="interlude wrap">
-        <Reveal className="interlude-inner">
-          <div className="interlude-caption">
-            <span className="eyebrow">A LITTLE ROOM FOR YOURSELF</span>
-            <ArrowDownLeft size={45} strokeWidth={1} />
-          </div>
-          <p>
-            代码之外，
+        <div className="interlude-inner">
+          <span className="eyebrow">A LITTLE ROOM FOR YOURSELF</span>
+          <h2>
+            很多事还没做完。
             <br />
-            你还有<span>一整个世界。</span>
-          </p>
-          <div className="interlude-foot">
-            <span>写给每一个，关掉编辑器之后的你。</span>
-            <Link to="/about" className="round-link" aria-label="了解 his.fm">
-              <ArrowUpRight size={27} />
-            </Link>
-          </div>
-          <span className="interlude-orbit" aria-hidden="true" />
-        </Reveal>
+            晚饭倒是可以先吃。
+          </h2>
+          <Link to="/about" className="text-link">
+            认识 his.fm <ArrowUpRight size={19} />
+          </Link>
+          <BrandSymbol />
+        </div>
       </section>
       <section className="about-teaser wrap">
         <Reveal className="about-teaser-image">
           <img
-            src="https://f.no.mt/images/episode-03.webp"
-            alt="月光映在一片安静的草地上"
+            src={themeMedia[id].artwork}
+            alt="屏幕之外，一点安静的日常"
             loading="lazy"
-            width="768"
-            height="768"
+            width={768}
+            height={768}
           />
-          <span className="image-stamp">
-            OFFLINE IS
-            <br />
-            <em>A GOOD PLACE.</em>
-          </span>
         </Reveal>
         <Reveal className="about-teaser-copy">
           <p className="eyebrow">HELLO, WE ARE HIS.FM</p>
           <h2>
-            在更新的世界里，
+            新的工具一直来。
             <br />
-            留一点<span>自己的节奏。</span>
+            生活也还在继续。
           </h2>
-          <p>每天都有新模型、新工具、新的工作方式。我们也会兴奋，也会在深夜关掉页面时，觉得有点累。</p>
-          <p>
-            所以有了
-            his.fm。把那些来不及聊的话，放进一段声音里：写代码的日常，一次没想明白的转变，还有下班以后的小事。
-          </p>
-          <Link to="/about" className="pill-button outline">
-            认识 his.fm <ArrowUpRight size={19} />
+          <p>有时是一个开源项目，有时是一项研究，也可能只是下班以后没想明白的一件小事。</p>
+          <p>his.fm 从这些地方开始，聊聊工作怎样进入生活，人又怎样给自己留一点位置。</p>
+          <Link to="/about" className="text-link">
+            关于这个频道 <ArrowUpRight size={19} />
           </Link>
         </Reveal>
       </section>
@@ -440,7 +298,7 @@ function Catalogue() {
           今天，
           <br />
           想听<span>点什么？</span>
-          <Soundmark />
+          <BrandSymbol />
         </h1>
         <p>不必按顺序。挑一个此刻想聊的话题。</p>
       </Reveal>
@@ -483,9 +341,9 @@ function Catalogue() {
         </p>
         {filtered.length ? (
           <div className="episode-grid">
-            {filtered.map((episode, index) => (
+            {filtered.map((episode) => (
               <Reveal key={episode.id}>
-                <EpisodeCard episode={episode} index={index} />
+                <EpisodeCard episode={episode} />
               </Reveal>
             ))}
           </div>
@@ -567,8 +425,7 @@ function EpisodeDetail() {
           <>
             <section className="episode-detail-hero">
               <Reveal className="detail-art">
-                <img src={episode.coverUrl} alt={`${episode.title}的节目封面`} width="768" height="768" />
-                <span>EP.{String(episode.episodeNumber).padStart(2, '0')}</span>
+                <EpisodeCover episode={episode} priority />
               </Reveal>
               <Reveal className="detail-intro">
                 <p className="eyebrow">
@@ -596,7 +453,7 @@ function EpisodeDetail() {
                   </div>
                 ) : (
                   <div className="recording-note">
-                    <Soundmark />
+                    <BrandSymbol />
                     <div>
                       <strong>声音正在准备中</strong>
                       <span>预计 {durationLabel(episode.durationSeconds)} · 先读本期文稿</span>
@@ -673,8 +530,8 @@ function EpisodeDetail() {
                 {episodes
                   .filter((item) => item.id !== episode.id)
                   .slice(0, 3)
-                  .map((item, index) => (
-                    <EpisodeCard key={item.id} episode={item} index={index} />
+                  .map((item) => (
+                    <EpisodeCard key={item.id} episode={item} />
                   ))}
               </div>
             </section>
@@ -699,7 +556,7 @@ function About() {
             <br />
             这里是 <span>his.fm</span>
             <span className="about-star" aria-hidden="true">
-              <Asterisk />
+              <BrandSymbol />
             </span>
           </h1>
           <div className="about-opening-bottom">
@@ -708,21 +565,14 @@ function About() {
               <br />
               一些声音，一点陪伴。
             </p>
-            <ArrowDownLeft size={54} strokeWidth={1} />
+            <ArrowDown size={40} strokeWidth={1} />
           </div>
         </Reveal>
       </section>
       <div className="about-panorama">
-        <img
-          src="https://f.no.mt/images/hero-retina-20260926-1752.webp"
-          srcSet="https://f.no.mt/images/hero-retina-20260926-1752.webp 1752w, https://f.no.mt/images/hero-retina-20260926-3504.webp 3504w"
-          sizes="(max-width: 760px) max(calc(100vw - 24px), 600px), max(calc(100vw - 48px), 780px)"
-          alt="大树下的草地与远方的城市"
-          width="3504"
-          height="2336"
-        />
+        <ThemeImage mobileSizes="max(100vw, 360px)" />
         <span>
-          THERE IS LIFE
+          生活还在继续。
           <br />
           <em>BEYOND THE SCREEN.</em>
         </span>
@@ -755,7 +605,7 @@ function About() {
       <section className="about-end wrap">
         <span>STAY CURIOUS.</span>
         <em>Stay human.</em>
-        <Soundmark />
+        <BrandSymbol />
       </section>
     </div>
   );

@@ -1,6 +1,6 @@
 import type { CSSProperties } from 'react';
 import type { ThemeId } from '../shared/appearance';
-import assets from './assets.json';
+import assets from './assets.json' with { type: 'json' };
 
 type Theme = {
   number: string;

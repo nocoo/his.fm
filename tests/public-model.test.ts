@@ -1,5 +1,13 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { categoryLabel, dateLabel, durationLabel, filterEpisodes, getEpisodes } from '../src/public/model';
+import {
+  appearanceHref,
+  categoryLabel,
+  dateLabel,
+  durationLabel,
+  filterEpisodes,
+  getAppearance,
+  getEpisodes,
+} from '../src/public/model';
 import type { Episode } from '../src/shared/episode';
 
 const episodes: Episode[] = [
@@ -45,6 +53,41 @@ const episodes: Episode[] = [
 
 afterEach(() => {
   vi.unstubAllGlobals();
+});
+
+describe('website appearance', () => {
+  it('loads the current theme without a browser cache and forwards cancellation', async () => {
+    const controller = new AbortController();
+    const request = vi.fn().mockResolvedValue(Response.json({ appearance: { theme: 'stillwood' } }));
+    vi.stubGlobal('fetch', request);
+    await expect(getAppearance(controller.signal)).resolves.toEqual({ theme: 'stillwood' });
+    expect(request).toHaveBeenCalledWith('/api/appearance', { signal: controller.signal, cache: 'no-store' });
+  });
+  it('rejects unavailable or unrecognized settings instead of silently choosing another theme', async () => {
+    const request = vi.fn().mockResolvedValue(new Response(null, { status: 503 }));
+    vi.stubGlobal('fetch', request);
+    await expect(getAppearance()).rejects.toThrow('网站外观暂时没有加载出来');
+    for (const body of [
+      {},
+      { appearance: { theme: 'missing' } },
+      { appearance: { theme: 'grove', email: 'private' } },
+    ]) {
+      request.mockResolvedValue(Response.json(body));
+      await expect(getAppearance()).rejects.toThrow('网站外观设置无法识别');
+    }
+    request.mockRejectedValue(new DOMException('Cancelled', 'AbortError'));
+    await expect(getAppearance(AbortSignal.abort())).rejects.toMatchObject({ name: 'AbortError' });
+  });
+  it('preserves public preview across navigation, existing queries and fragments', () => {
+    expect(appearanceHref('/episodes', 'interval')).toBe('/episodes?theme=interval');
+    expect(appearanceHref('/about?from=home#story', 'tidal-hours')).toBe(
+      '/about?from=home&theme=tidal-hours#story',
+    );
+    expect(appearanceHref('/?theme=grove', 'alpine-bloom')).toBe('/?theme=alpine-bloom');
+    expect(appearanceHref('/episodes?from=home', null)).toBe('/episodes?from=home');
+    expect(appearanceHref('/login', 'interval')).toBe('/login');
+    expect(appearanceHref('/admin/appearance', 'interval')).toBe('/admin/appearance');
+  });
 });
 
 describe('listening room', () => {

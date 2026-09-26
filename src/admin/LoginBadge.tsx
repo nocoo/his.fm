@@ -1,7 +1,8 @@
 import { Button, ThemeToggle } from '@nocoo/basalt';
-import { ArrowLeft, ArrowUpRight, AudioLines, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, ArrowUpRight, ShieldCheck } from 'lucide-react';
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router';
+import { BrandSymbol, Wordmark } from '../brand/Brand';
 import { errorMessage } from './model';
 import { adminService } from './service';
 
@@ -37,12 +38,14 @@ export function LoginBadge() {
       <div className="admin-login-badge" data-basalt-surface-root="">
         <div className="admin-badge-strip">
           <span className="admin-badge-slot" />
-          <strong>his.fm</strong>
+          <span role="img" aria-label="his.fm">
+            <Wordmark />
+          </span>
           <span>STUDIO</span>
         </div>
         <div className="admin-badge-body">
           <div className="admin-badge-mark">
-            <AudioLines size={42} strokeWidth={1.3} />
+            <BrandSymbol />
           </div>
           <p className="admin-eyebrow">A PLACE FOR GOOD STORIES</p>
           <h1>欢迎回到工作室</h1>

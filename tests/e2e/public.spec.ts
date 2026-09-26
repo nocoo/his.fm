@@ -4,11 +4,11 @@ import { expect, test } from '@playwright/test';
 test('listeners can browse, filter and read the complete first episode', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
-  await page.goto('/');
-  await expect(page.getByRole('heading', { level: 1 })).toContainText('世界很快');
+  await page.goto('/?theme=interval');
+  await expect(page.getByRole('heading', { level: 1 })).toContainText('今天就');
   await expect(page.locator('.episode-card')).toHaveCount(3);
   await page.getByRole('link', { name: '找一期，歇一会儿' }).click();
-  await expect(page).toHaveURL(/\/episodes$/);
+  await expect(page).toHaveURL(/\/episodes\?theme=interval$/);
   await expect(page.locator('.episode-card')).toHaveCount(6);
   await page.getByRole('button', { name: '生活留白', exact: true }).click();
   await expect(page.locator('.episode-card')).toHaveCount(2);
@@ -50,7 +50,7 @@ test('public pages fit a phone and respect reduced motion', async ({ page }) => 
   await page.goto('/');
   await expect(page.locator('.episode-card')).toHaveCount(3);
   expect(
-    await page.locator('.ticker > div').evaluate((element) => getComputedStyle(element).animationName),
+    await page.locator('.pace-line').evaluate((element) => getComputedStyle(element).animationName),
   ).toBe('none');
   await page.screenshot({ path: '.local/home-mobile.png', fullPage: true, animations: 'disabled' });
   await page.setViewportSize({ width: 1440, height: 1000 });

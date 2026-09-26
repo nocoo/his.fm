@@ -22,7 +22,6 @@ import { AppHeader } from '@nocoo/basalt/components/app-header';
 import { AppMain, AppShell, AppSkipLink } from '@nocoo/basalt/components/app-shell';
 import {
   ArrowUpRight,
-  AudioLines,
   Compass,
   GitBranch,
   HardDrive,
@@ -31,6 +30,7 @@ import {
   LogOut,
   Menu,
   Mic2,
+  Palette,
   PanelLeft,
   Plus,
   Settings,
@@ -38,6 +38,7 @@ import {
 import { type ReactNode, useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
 import { version } from '../../package.json';
+import { BrandSymbol, Wordmark } from '../brand/Brand';
 import { errorMessage } from './model';
 import { EnvironmentSwitch } from './production/EnvironmentSwitch';
 import { adminService, type Session } from './service';
@@ -62,6 +63,7 @@ export function AdminShell({ session, children }: { session: Session; children: 
   const catalog = location.pathname === '/admin/catalog' || location.pathname.startsWith('/admin/episodes/');
   const settings = location.pathname === '/admin/settings';
   const channel = location.pathname === '/admin/channel';
+  const appearance = location.pathname === '/admin/appearance';
   const storage = location.pathname === '/admin/storage';
   const voiceReference = location.pathname === '/admin/voices';
   const creating = location.pathname === '/admin/productions/new';
@@ -70,27 +72,29 @@ export function AdminShell({ session, children }: { session: Session; children: 
     location.pathname.startsWith('/admin/productions/') &&
     query.has('source') &&
     (!query.get('step') || query.get('step') === 'brief');
-  const title = sourceOpen
-    ? '素材详情'
-    : storage
-      ? '资源管理'
-      : channel
-        ? '全局提示词'
-        : isList
-          ? '制作中的节目'
-          : voiceReference
-            ? '音色参考'
-            : settings
-              ? '工作室设置'
-              : catalog
-                ? location.pathname === '/admin/catalog'
-                  ? '节目目录'
-                  : location.pathname.endsWith('/new')
-                    ? '新建节目'
-                    : '编辑节目'
-                : creating
-                  ? '新建制作'
-                  : '节目制作';
+  const title = appearance
+    ? '网站外观'
+    : sourceOpen
+      ? '素材详情'
+      : storage
+        ? '资源管理'
+        : channel
+          ? '全局提示词'
+          : isList
+            ? '制作中的节目'
+            : voiceReference
+              ? '音色参考'
+              : settings
+                ? '工作室设置'
+                : catalog
+                  ? location.pathname === '/admin/catalog'
+                    ? '节目目录'
+                    : location.pathname.endsWith('/new')
+                      ? '新建节目'
+                      : '编辑节目'
+                  : creating
+                    ? '新建制作'
+                    : '节目制作';
   function go(path: string) {
     navigate(path);
     if (compact) setCollapsed(true);
@@ -114,7 +118,9 @@ export function AdminShell({ session, children }: { session: Session; children: 
           href: '/admin',
           label: '制作中的节目',
           icon: Mic2,
-          active: isList || (!catalog && !settings && !creating && !voiceReference && !channel && !storage),
+          active:
+            isList ||
+            (!catalog && !settings && !creating && !voiceReference && !channel && !storage && !appearance),
         },
         { href: '/admin/catalog', label: '节目目录', icon: Library, active: catalog },
         { href: '/admin/productions/new', label: '新建制作', icon: Plus, active: creating },
@@ -131,6 +137,7 @@ export function AdminShell({ session, children }: { session: Session; children: 
       label: '工作室',
       items: [
         { href: '/admin/channel', label: '全局提示词', icon: Compass, active: channel },
+        { href: '/admin/appearance', label: '网站外观', icon: Palette, active: appearance },
         { href: '/admin/settings', label: '工作室设置', icon: Settings, active: settings },
       ],
     },
@@ -148,11 +155,13 @@ export function AdminShell({ session, children }: { session: Session; children: 
           )}
           <SidebarHeader>
             <Link className="admin-rail-mark" to="/" aria-label="his.fm 首页">
-              <AudioLines size={22} strokeWidth={1.5} />
+              <BrandSymbol />
             </Link>
             {!iconOnly && (
               <>
-                <strong className="admin-brand">his.fm</strong>
+                <span className="admin-brand" role="img" aria-label="his.fm">
+                  <Wordmark />
+                </span>
                 <span className="admin-version">v{version}</span>
               </>
             )}
@@ -243,6 +252,7 @@ export function AdminShell({ session, children }: { session: Session; children: 
                 : isList ||
                     settings ||
                     channel ||
+                    appearance ||
                     storage ||
                     voiceReference ||
                     location.pathname === '/admin/catalog'
