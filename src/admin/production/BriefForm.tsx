@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { Link } from 'react-router';
 import { categories } from '../../shared/episode';
 import type { ProductionBrief } from '../../shared/production';
+import { MarkdownEditor } from '../markdown/MarkdownEditor';
 import { Choice, Failure } from './controls';
 import { readBrief } from './model';
 
@@ -68,17 +69,18 @@ export function BriefForm({
               htmlFor="production-intent"
               hint={
                 <>
-                  先遵循 <Link to="/admin/channel">频道定位</Link>
+                  先遵循 <Link to="/admin/channel">全局提示词</Link>
                   ，再明确本期中心思想。素材用来支撑这个问题，而不是替你决定讲什么。
                 </>
               }
             >
-              <InputArea
-                className="studio-autosize"
+              <MarkdownEditor
+                label="创作意图"
                 id="production-intent"
                 name="intent"
                 defaultValue={value.intent}
-                rows={6}
+                onChange={onDirty}
+                disabled={pending}
                 maxLength={12000}
                 placeholder="为什么想讲这个话题？听众听完应该带走什么？"
               />
@@ -208,15 +210,25 @@ export function BriefForm({
                     htmlFor={`source-content-${source.key}`}
                     required
                   >
-                    <InputArea
-                      className={source.type === 'text' ? 'studio-autosize' : undefined}
-                      id={`source-content-${source.key}`}
-                      value={source.content}
-                      maxLength={80000}
-                      required
-                      rows={source.type === 'text' ? 5 : 2}
-                      onChange={(event) => change('content', event.target.value)}
-                    />
+                    {source.type === 'text' ? (
+                      <MarkdownEditor
+                        id={`source-content-${source.key}`}
+                        label="素材正文"
+                        value={source.content}
+                        maxLength={80000}
+                        disabled={pending}
+                        onChange={(next) => change('content', next)}
+                      />
+                    ) : (
+                      <InputArea
+                        id={`source-content-${source.key}`}
+                        value={source.content}
+                        maxLength={80000}
+                        required
+                        rows={2}
+                        onChange={(event) => change('content', event.target.value)}
+                      />
+                    )}
                   </Field>
                 </LayerCard.Well>
               );

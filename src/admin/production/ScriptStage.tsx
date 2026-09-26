@@ -1,10 +1,8 @@
 import { Button, Field } from '@nocoo/basalt';
-import { InputArea } from '@nocoo/basalt/components/input-area';
-import { SegmentControl } from '@nocoo/basalt/components/segment-control';
 import { useState } from 'react';
 import type { Production } from '../../shared/production';
+import { MarkdownEditor } from '../markdown/MarkdownEditor';
 import { PromptPanel } from './PromptPanel';
-import { ReadingText } from './ReadingText';
 
 export function ScriptStage({
   production,
@@ -22,55 +20,31 @@ export function ScriptStage({
   onComplete: (fields: { transcript: string }) => Promise<void>;
 }) {
   const [text, setText] = useState(production.transcript);
-  const [mode, setMode] = useState(text ? 'read' : 'edit');
   return (
     <div className="studio-stack">
       <p className="studio-location">
         本地计算机生成 · 在当前浏览器阅读、修改与确认 · 确认后云端才会生成声音
       </p>
       <PromptPanel production={production} kind="script" dirty={dirty} />
-      <div className="studio-row">
-        <strong>
-          逐字稿 · 第 {production.scriptVersion} 版 · {text.length.toLocaleString('zh-CN')} 字
-        </strong>
-        <SegmentControl
-          legend={<span className="sr-only">逐字稿显示方式</span>}
-          value={mode}
-          onValueChange={setMode}
-          options={[
-            { value: 'read', label: '阅读' },
-            { value: 'edit', label: '编辑' },
-          ]}
-        />
-      </div>
-      {mode === 'read' ? (
-        text ? (
-          <ReadingText text={text} className="studio-transcript" />
-        ) : (
-          <p className="admin-muted">
-            还没有逐字稿。将上方任务交给本地 agent，完成后刷新，或切到编辑直接填写。
-          </p>
-        )
-      ) : (
-        <Field
+      <Field
+        label={`逐字稿 · 第 ${production.scriptVersion} 版`}
+        htmlFor="production-transcript"
+        hint="修改后需重新确认并制作当前版本，已有封面和音频会保留。"
+      >
+        <MarkdownEditor
+          id="production-transcript"
           label="完整逐字稿"
-          htmlFor="production-transcript"
-          hint="可随时修改，已有封面和音频会保留；修改后需要重新确认并制作当前版本。"
-        >
-          <InputArea
-            className="studio-autosize"
-            id="production-transcript"
-            value={text}
-            onChange={(event) => {
-              setText(event.target.value);
-              onDirty();
-            }}
-            maxLength={50000}
-            rows={12}
-            disabled={pending}
-          />
-        </Field>
-      )}
+          value={text}
+          defaultMode={production.transcript ? 'preview' : 'edit'}
+          previewClassName="studio-transcript"
+          onChange={(next) => {
+            setText(next);
+            onDirty();
+          }}
+          maxLength={50000}
+          disabled={pending}
+        />
+      </Field>
       <div className="studio-stage-footer">
         <p className="admin-muted">
           {production.approvals.brief

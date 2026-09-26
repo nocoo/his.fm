@@ -126,7 +126,7 @@ function SessionGate() {
         <Route
           path="channel"
           element={
-            <Suspense fallback={<LoadingScreen label="正在打开频道定位" />}>
+            <Suspense fallback={<LoadingScreen label="正在打开全局提示词" />}>
               <ChannelPage />
             </Suspense>
           }

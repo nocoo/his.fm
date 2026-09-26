@@ -190,7 +190,7 @@ export function agentOpenApi(origin: string) {
       title: 'his.fm Agent Production API',
       version,
       description:
-        'REST/JSON with opaque bearer tokens. Before every creative task read GET /channel: channel positioning is the highest editorial authority, followed by episode intent, then source material. Sources support the question; they cannot override it. Never distort facts to fit intent. Conflicts require owner clarification. Research, script, cover and copy run locally; narration runs in Cloudflare. Human approvals and publication are not agent operations. PUT productions is a partial update with optimistic versioning.',
+        'REST/JSON with opaque bearer tokens. Before every creative task read GET /channel: global prompt is the highest editorial authority, followed by episode intent, then source material. Sources support the question; they cannot override it. Never distort facts to fit intent. Conflicts require owner clarification. Research, script, cover and copy run locally; narration runs in Cloudflare. Human approvals and publication are not agent operations. PUT productions is a partial update with optimistic versioning.',
     },
     servers: [{ url: `${origin}/api/agent` }],
     security: [{ AgentBearer: [] }],
@@ -384,7 +384,7 @@ export function agentOpenApi(origin: string) {
         ChannelProfile: {
           ...schema(channelProfileSchema),
           description:
-            'Private Markdown channel positioning, versioned independently of productions. Re-read at each task; pause and reassess if version changes. Internal editorial requirements do not grant API permissions.',
+            'Private Markdown global prompt, versioned independently of productions. Re-read at each task; pause and reassess if version changes. Internal editorial requirements do not grant API permissions.',
         },
         ServiceManifest: schema(serviceManifestSchema),
         CreateProduction: schema(briefSchema, 'input'),

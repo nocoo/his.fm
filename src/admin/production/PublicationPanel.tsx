@@ -6,7 +6,6 @@ import { formatWechat, formatXiaoyuzhou } from '../../shared/publication-format'
 import { toLocalDateTime } from '../model';
 import { Choice, Confirm, CopyButton } from './controls';
 import { dateLabel } from './model';
-import { ReadingText } from './ReadingText';
 import { productionService } from './service';
 
 export function PublicationPanel({
@@ -40,7 +39,10 @@ export function PublicationPanel({
           <TabsContent value="wechat">
             <div className="studio-stack">
               <div className="studio-row">
-                <CopyButton label="复制公众号富文本" read={() => wechat} />
+                <div className="studio-actions">
+                  <CopyButton label="复制微信公众号格式" read={() => wechat} />
+                  <CopyButton label="复制 Markdown" read={() => production.transcript} />
+                </div>
                 <Button variant="ghost" asChild>
                   <a href="https://mp.weixin.qq.com/" target="_blank" rel="noopener noreferrer">
                     打开公众号后台 ↗
@@ -49,7 +51,11 @@ export function PublicationPanel({
               </div>
               <details>
                 <summary>展开公众号正文预览</summary>
-                <ReadingText text={production.transcript} />
+                <div
+                  className="studio-wechat-preview"
+                  // biome-ignore lint/security/noDangerouslySetInnerHtml: formatWechat strips raw HTML and escapes all dynamic content and URLs.
+                  dangerouslySetInnerHTML={{ __html: wechat.html }}
+                />
               </details>
             </div>
           </TabsContent>
@@ -63,7 +69,7 @@ export function PublicationPanel({
                   </a>
                 </Button>
               </div>
-              <ReadingText text={xiaoyuzhou} />
+              <div className="studio-prose">{xiaoyuzhou}</div>
             </div>
           </TabsContent>
         </Tabs>

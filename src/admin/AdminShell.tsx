@@ -68,7 +68,7 @@ export function AdminShell({ session, children }: { session: Session; children: 
   const title = storage
     ? '资源管理'
     : channel
-      ? '频道定位'
+      ? '全局提示词'
       : isList
         ? '制作中的节目'
         : voiceReference
@@ -123,7 +123,7 @@ export function AdminShell({ session, children }: { session: Session; children: 
     {
       label: '工作室',
       items: [
-        { href: '/admin/channel', label: '频道定位', icon: Compass, active: channel },
+        { href: '/admin/channel', label: '全局提示词', icon: Compass, active: channel },
         { href: '/admin/settings', label: '工作室设置', icon: Settings, active: settings },
       ],
     },

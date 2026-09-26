@@ -60,7 +60,7 @@ html.dark:has(.admin-app) body {
 .admin-page {
   display: flex;
   flex-direction: column;
-  gap: var(--admin-space-6);
+  gap: var(--admin-space-4);
 }
 .admin-app a.admin-rail-mark {
   width: 44px;
@@ -403,5 +403,37 @@ html.dark:has(.admin-app) body {
   .admin-login-tools {
     left: var(--admin-space-3);
     right: var(--admin-space-3);
+  }
+}
+
+.admin-page > header.basalt-ui > div:first-child {
+  flex-direction: row;
+  align-items: center;
+  gap: var(--admin-space-3);
+}
+.admin-page > header.basalt-ui > div:first-child > div:first-child {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--admin-space-1) var(--admin-space-3);
+}
+.admin-page > header.basalt-ui h1 {
+  font-size: 20px;
+  line-height: 1.4;
+}
+.admin-page > header.basalt-ui p {
+  margin: 0;
+  font-size: 12px;
+}
+.admin-page > header.basalt-ui > div:first-child > div:last-child:not(:first-child) {
+  flex-shrink: 0;
+}
+@media (max-width: 767px) {
+  .admin-page > header.basalt-ui > div:first-child {
+    flex-wrap: wrap;
+    row-gap: var(--admin-space-2);
+  }
+  .admin-page > header.basalt-ui h1 {
+    font-size: 18px;
   }
 }

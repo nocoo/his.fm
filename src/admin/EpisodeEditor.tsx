@@ -12,6 +12,7 @@ import { ArrowLeft, ArrowUpRight, Save } from 'lucide-react';
 import { type FormEvent, useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { categories, type Episode } from '../shared/episode';
+import { MarkdownEditor } from './markdown/MarkdownEditor';
 import { emptyEpisode, errorMessage, readEpisodeForm, toLocalDateTime } from './model';
 import { useUnsavedChanges } from './production/useUnsavedChanges';
 import { adminService } from './service';
@@ -102,8 +103,7 @@ export function EpisodeEditor() {
   return (
     <div className="admin-page">
       <PageHeader
-        title={id ? '把这一期，慢慢打磨好。' : '新的声音，从这里开始。'}
-        description={id ? value.title : '先记下想讲的事，随时可以保存为草稿。'}
+        title={id ? value.title : '新建节目'}
         actions={
           <>
             <Button variant="ghost" asChild>
@@ -197,11 +197,13 @@ export function EpisodeEditor() {
                     error={errors.transcript}
                     hint="保留自然的停顿与表达，让内容可以被阅读、校对和继续打磨。"
                   >
-                    <InputArea
+                    <MarkdownEditor
+                      label="逐字稿"
+                      disabled={pending}
+                      onChange={() => setDirty(true)}
                       id="transcript"
                       name="transcript"
                       defaultValue={value.transcript}
-                      rows={16}
                       maxLength={100000}
                       placeholder="写下这一期的完整讲述……"
                     />
@@ -212,11 +214,13 @@ export function EpisodeEditor() {
                     error={errors.showNotes}
                     hint="补充资料来源、提到的项目或延伸阅读。"
                   >
-                    <InputArea
+                    <MarkdownEditor
+                      label="节目笔记"
+                      disabled={pending}
+                      onChange={() => setDirty(true)}
                       id="showNotes"
                       name="showNotes"
                       defaultValue={value.showNotes}
-                      rows={5}
                       maxLength={20000}
                       placeholder="资料与延伸阅读"
                     />

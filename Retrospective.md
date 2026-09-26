@@ -95,3 +95,15 @@ The browser diagnostic initially compared the serialized object-position string 
 Stage navigation used `scrollIntoView` on the step bar. Switching from the manuscript to the brief also scrolled the overflow-hidden application shell by 56 pixels, hiding the breadcrumb header and exposing a bottom gap. Absolutely positioned control labels lacked an island positioning context and could contribute overflow to the shell. The island now establishes that context, and stage changes reset only its own scroll before paint. Browser checks cover all stages, long manuscripts and history navigation at desktop and phone sizes in Chrome and WebKit; shell/header bounds must remain unchanged.
 
 The WebKit sidebar check also exposed that pointer clicks do not always focus the navigation opener. The overlay therefore captured the document body as its return target. Focus the opener without scrolling before opening the drawer; verify return focus after both route selection and Escape instead of assuming Chrome's pointer-focus behavior.
+
+## 2026-09-26 — Keep Markdown source and publication previews faithful
+
+The channel-only rich-text editor hid the Markdown source and had no explicit preview. Its parse/serialize cycle also made it unsuitable as the common editing path for prompt documents and manuscripts containing tables or code. The studio now shares CodeMirror 6 across long Markdown fields, preserves source text through view changes, and checks formatting, undo, failed saves, restored drafts and version conflicts through browser interactions. Presentation modes must never silently rewrite the saved document.
+
+The publication preview rendered only the manuscript, while copying produced a different HTML document with cover and reference footnotes. The preview now uses the exact sanitized clipboard HTML. Verify actual HTML/plain-text clipboard payloads and their rendered preview together.
+
+Replacing editor dependencies left an already-running Vite process serving stale optimized dependency URLs and returning 504 before the login page mounted. Browser checks were stopped, dependencies were reoptimized with a local Vite restart, and the affected checks rerun. After changing installed dependency graphs, verify browser module loading before interpreting downstream UI failures.
+
+## 2026-09-26 — Separate emulator I/O deadlines from ordinary unit tests
+
+During the editor acceptance run the machine load average rose above 90. Tests making real Miniflare D1/R2 calls repeatedly exceeded the default five-second deadline, and a timed-out pagination test left work running into the following cleanup hook. The same unchanged storage and audio behavior failed in the isolated index-snapshot gate. The three emulator integration files now set a bounded 30-second test/hook deadline; ordinary unit-test deadlines, every assertion, coverage floors and commit-hook blocking remain unchanged. Pagination uses this integration deadline instead of a shorter per-case override. Run browser suites sequentially and avoid overlapping them with emulator coverage on a busy development machine.

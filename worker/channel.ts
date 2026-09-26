@@ -17,7 +17,7 @@ export async function getChannel(db: D1Database): Promise<ChannelProfile> {
       'SELECT version, content, updated_at AS updatedAt, updated_by AS updatedBy FROM channel_profile WHERE id = 1',
     )
     .first<ChannelProfile>();
-  if (!channel) throw new HttpError(503, '频道定位暂时无法读取，请重试');
+  if (!channel) throw new HttpError(503, '全局提示词暂时无法读取，请重试');
   return channel;
 }
 
@@ -25,7 +25,7 @@ export async function routeChannel(request: Request, env: Env, actor: Actor): Pr
   if (request.method === 'GET')
     return json({ channel: await getChannel(env.DB), priority: editorialPriority });
   requireHuman(actor);
-  if (request.method !== 'PUT') throw new HttpError(405, '频道定位使用 GET 读取、PUT 更新');
+  if (request.method !== 'PUT') throw new HttpError(405, '全局提示词使用 GET 读取、PUT 更新');
   const input = await readJson(request, channelUpdateSchema);
   await getChannel(env.DB);
   const channel = await env.DB.prepare(
@@ -33,6 +33,6 @@ export async function routeChannel(request: Request, env: Env, actor: Actor): Pr
   )
     .bind(input.content, new Date().toISOString(), actor.name, input.version)
     .first<ChannelProfile>();
-  if (!channel) throw new HttpError(409, '频道定位已在别处更新。你的草稿已保留，请对照最新版本后保存。');
+  if (!channel) throw new HttpError(409, '全局提示词已在别处更新。你的草稿已保留，请对照最新版本后保存。');
   return json({ channel, priority: editorialPriority });
 }

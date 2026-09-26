@@ -10,14 +10,16 @@
 - The owner editor uses five freely navigable URL stages: brief, script, assets, review, publish. Navigation is read-only; completion and reopening use the shared state machine. Keep one visible stage and one main scroll region.
 - Keep `.admin-content-island` positioned for its absolute descendants. Stage changes reset only this island's scroll; `scrollIntoView` can scroll the overflow-hidden shell and hide the breadcrumb header.
 - Long review text uses Markdown and the private `/admin/fonts/jinkai/` subsets from xray; shell controls retain Basalt typography.
+- Long Markdown fields share `src/admin/markdown/MarkdownEditor.tsx`; keep source text and undo history intact across preview switches. Short plain-text fields retain Basalt inputs. See `docs/markdown-editing.md`.
+- Keep admin headers compact: titles and primary actions share a row where space permits, omit redundant subtitles and card headings, and wrap controls only when required on mobile. WeChat preview must render the exact sanitized HTML used for copying.
 - Audio generation defaults to narration only. Bumpers are opt-in; voice/style overrides are immutable per-job snapshots. Owner-only short previews reuse content-addressed R2 WAVs and never expose the Gemini secret.
 - `worker/entry.ts` exports the Worker and durable `AudioWorkflow`. D1 job and production state transitions must remain atomic and idempotent; completed audio must never regress after replay.
 - Public routes: `/`, `/episodes`, `/episodes/:slug`, `/about`. Admin routes and APIs share `/admin`; `/login` is the public entry badge.
 - Production Access issuer and audience are checked cryptographically in the Worker. Never trust an email header as authentication.
 - Preserve the internal editorial policy in README. Public content and episode materials are Chinese; code and technical documentation are English.
 
-- Channel positioning is private owner-editable Markdown in D1 `channel_profile`, initialized once from `worker/channel-default.md`. `/admin/channel` uses a lazy Tiptap document editor with Basalt controls. Agents can only GET `/api/agent/channel`.
-- Editorial priority is channel positioning, then episode intent, then sources; this never changes factual truth or grants permissions. Every production prompt reads the latest channel profile. Keep channel text out of public discovery and client bundles; profile updates do not implicitly rewrite productions or invalidate approvals.
+- Global prompt is private owner-editable Markdown in D1 `channel_profile`, initialized once from `worker/channel-default.md`. `/admin/channel` uses the shared CodeMirror 6 Markdown editor with Basalt controls and safe previews. Agents can only GET `/api/agent/channel`.
+- Editorial priority is global prompt, then episode intent, then sources; this never changes factual truth or grants permissions. Every production prompt reads the latest channel profile. Keep channel text out of public discovery and client bundles; profile updates do not implicitly rewrite productions or invalidate approvals.
 
 ## Local development
 

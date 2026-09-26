@@ -132,7 +132,6 @@ export function ProductionList() {
     <div className="admin-page">
       <PageHeader
         title="制作中的节目"
-        description="从素材和想法开始，逐步完成一段值得分享的声音。"
         actions={
           <>
             <Button

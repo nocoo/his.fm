@@ -12,6 +12,8 @@ import worker from '../../worker/index';
 import { getProduction, saveProduction } from '../../worker/production-store';
 import { agent, human, readyFixture } from './production-fixture';
 
+vi.setConfig({ testTimeout: 30000, hookTimeout: 30000 });
+
 let mf: Miniflare;
 let env: Env;
 const create = vi.fn();

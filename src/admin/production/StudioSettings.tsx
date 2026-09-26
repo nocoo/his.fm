@@ -19,7 +19,6 @@ export function StudioSettings() {
     <div className="admin-page">
       <PageHeader
         title="工作室设置"
-        description="设置默认音色、试听讲述风格，管理可选贴片与 Hermes 权限。"
         actions={
           <Button variant="outline" asChild>
             <Link to="/admin/voices">试听音色参考</Link>

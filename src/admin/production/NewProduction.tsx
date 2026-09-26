@@ -19,7 +19,6 @@ export function NewProduction() {
     <div className="admin-page">
       <PageHeader
         title="新建制作"
-        description="从一个明确的创作意图出发。选题确认后，再开始写逐字稿。"
         actions={
           <Button variant="ghost" asChild>
             <Link to="/admin">返回制作列表</Link>

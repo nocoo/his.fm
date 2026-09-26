@@ -1,10 +1,10 @@
 import { Button, Field, LayerCard } from '@nocoo/basalt';
 import { FileDropzone } from '@nocoo/basalt/components/file-dropzone';
 import { InputArea } from '@nocoo/basalt/components/input-area';
-import { SegmentControl } from '@nocoo/basalt/components/segment-control';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@nocoo/basalt/components/tabs';
 import { useEffect, useState } from 'react';
 import type { Production } from '../../shared/production';
+import { MarkdownEditor } from '../markdown/MarkdownEditor';
 import { AudioGeneration } from './AudioGeneration';
 import { audioBusy } from './model';
 import { PromptPanel } from './PromptPanel';
@@ -30,7 +30,6 @@ export function Assets({
   const [uploadError, setUploadError] = useState('');
   const [summary, setSummary] = useState(production.summary);
   const [description, setDescription] = useState(production.description);
-  const [mode, setMode] = useState(description ? 'read' : 'edit');
   const copyDirty = summary !== production.summary || description !== production.description;
   useEffect(() => {
     onDirty(copyDirty || Boolean(cover));
@@ -98,49 +97,28 @@ export function Assets({
       </TabsContent>
       <TabsContent value="copy" className="studio-stack">
         <PromptPanel production={production} kind="description" dirty={dirty} />
-        <div className="studio-row">
-          <strong>摘要与发布简介</strong>
-          <SegmentControl
-            legend={<span className="sr-only">发布文案显示方式</span>}
-            value={mode}
-            onValueChange={setMode}
-            options={[
-              { value: 'read', label: '阅读' },
-              { value: 'edit', label: '编辑' },
-            ]}
+        <Field label="节目摘要" htmlFor="production-summary" hint="用于网站列表与分享，最多 2,000 字。">
+          <InputArea
+            className="studio-autosize"
+            id="production-summary"
+            value={summary}
+            onChange={(event) => setSummary(event.target.value)}
+            maxLength={2000}
+            rows={3}
+            disabled={pending}
           />
-        </div>
-        {mode === 'read' ? (
-          <>
-            <ReadingText text={summary || '尚未填写节目摘要。'} />
-            <ReadingText text={description || '尚未填写发布简介。'} />
-          </>
-        ) : (
-          <div className="studio-stack">
-            <Field label="节目摘要" htmlFor="production-summary" hint="用于网站列表与分享，最多 2,000 字。">
-              <InputArea
-                className="studio-autosize"
-                id="production-summary"
-                value={summary}
-                onChange={(event) => setSummary(event.target.value)}
-                maxLength={2000}
-                rows={3}
-                disabled={pending}
-              />
-            </Field>
-            <Field label="发布简介" htmlFor="production-description" hint="小宇宙介绍，支持 Markdown。">
-              <InputArea
-                className="studio-autosize"
-                id="production-description"
-                value={description}
-                onChange={(event) => setDescription(event.target.value)}
-                maxLength={20000}
-                rows={10}
-                disabled={pending}
-              />
-            </Field>
-          </div>
-        )}
+        </Field>
+        <Field label="发布简介" htmlFor="production-description" hint="小宇宙介绍，支持 Markdown。">
+          <MarkdownEditor
+            id="production-description"
+            label="发布简介"
+            value={description}
+            onChange={setDescription}
+            defaultMode={production.description ? 'preview' : 'edit'}
+            maxLength={20000}
+            disabled={pending}
+          />
+        </Field>
         <div className="studio-actions">
           <Button
             variant="outline"

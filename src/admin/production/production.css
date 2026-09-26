@@ -3,7 +3,7 @@
 .studio-stack {
   display: flex;
   flex-direction: column;
-  gap: var(--admin-space-4);
+  gap: var(--admin-space-3);
   min-width: 0;
 }
 .studio-gap-sm {
@@ -66,6 +66,18 @@
 .studio-stack audio {
   width: 100%;
   max-width: 100%;
+}
+.studio-wechat-preview {
+  max-width: 680px;
+  margin: var(--admin-space-3) auto 0;
+  padding: var(--admin-space-6);
+  background: white;
+  color-scheme: light;
+  overflow-wrap: anywhere;
+}
+.studio-wechat-preview table {
+  width: 100%;
+  table-layout: fixed;
 }
 .studio-wrap {
   overflow-wrap: anywhere;
@@ -189,7 +201,7 @@
   justify-content: space-between;
   flex-wrap: wrap;
   gap: var(--admin-space-4);
-  margin-top: var(--admin-space-6);
+  margin-top: var(--admin-space-3);
   padding-block: var(--admin-space-4);
   border-top: 1px solid hsl(var(--basalt-border));
 }
@@ -205,6 +217,55 @@
   border-radius: var(--basalt-radius);
   background: hsl(var(--basalt-secondary));
   padding: var(--admin-space-3) var(--admin-space-4);
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--admin-space-2) var(--admin-space-3);
+}
+.studio-prompt > p:first-child {
+  grid-column: 1;
+  grid-row: 1;
+  font-size: 12px;
+}
+.studio-prompt > details {
+  display: contents;
+}
+.studio-prompt > :where(details) > summary {
+  grid-column: 2;
+  grid-row: 1;
+  font-size: 12px;
+  cursor: pointer;
+}
+.studio-prompt > details > pre {
+  grid-column: 1 / -1;
+  grid-row: 2;
+}
+.studio-prompt > button {
+  grid-column: 3;
+  grid-row: 1;
+}
+.studio-prompt > .studio-prompt-feedback,
+.studio-prompt > [role="alert"] {
+  grid-column: 1 / -1;
+}
+@media (max-width: 767px) {
+  .studio-prompt {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .studio-prompt > p:first-child {
+    grid-column: 1 / -1;
+  }
+  .studio-prompt > :where(details) > summary {
+    grid-column: 1;
+    grid-row: 2;
+  }
+  .studio-prompt > button {
+    grid-column: 2;
+    grid-row: 2;
+  }
+  .studio-prompt > details > pre {
+    grid-row: 3;
+  }
 }
 .studio-prompt-text {
   white-space: pre-wrap;

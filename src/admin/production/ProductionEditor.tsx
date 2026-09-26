@@ -107,7 +107,7 @@ function Editor({ id }: { id: string }) {
     <div className="admin-page studio-editor">
       <PageHeader
         title={production.title}
-        description={`第 ${production.episodeNumber} 期 · ${stageLabels[production.stage]} · ${dirty ? '有未保存改动' : `更新于 ${dateLabel(production.updatedAt)}`}`}
+        description={`第 ${production.episodeNumber} 期 · ${stageLabels[production.stage]} · ${dirty ? '有未保存改动' : '已保存'}`}
         actions={
           <Button variant="outline" disabled={vm.pending} onClick={() => setReload(true)}>
             刷新内容

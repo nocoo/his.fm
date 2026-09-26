@@ -141,7 +141,8 @@ export function CopyButton({
       onClick={async () => {
         setPending(true);
         try {
-          const content = await read();
+          const result = read();
+          const content = result instanceof Promise ? await result : result;
           if (typeof content === 'string') await navigator.clipboard.writeText(content);
           else
             await navigator.clipboard.write([

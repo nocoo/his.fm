@@ -235,7 +235,7 @@ describe('audit and production prompts', () => {
     for (const prompt of Object.values(prompts)) {
       expect(prompt).toContain('频道自定义定位');
       expect(prompt).toContain('版本 9');
-      expect(prompt).toContain('1. 频道定位；2. 本期中心思想（intent）；3. 素材资料（sources）');
+      expect(prompt).toContain('1. 全局提示词；2. 本期中心思想（intent）；3. 素材资料（sources）');
       expect(prompt).toContain('不得为了符合观点而歪曲证据');
     }
     expect(prompts.brief).toContain('保留我的创作意图');

@@ -104,7 +104,7 @@ export default function StoragePage() {
     <div className="admin-page storage-page">
       <PageHeader
         title="资源管理"
-        description={`his-fm · ${getEnvironment() === 'local' ? '本地' : '生产'}存储。查看空间去向，留下需要的文件。`}
+        description={`his-fm · ${getEnvironment() === 'local' ? '本地' : '生产'}存储`}
         actions={
           <Button
             variant="outline"

@@ -103,7 +103,7 @@ export function routeDiscovery(request: Request): Response | null {
   } else {
     const text =
       path === '/llms.txt'
-        ? `# his.fm\n\n> Chinese solo podcast production studio.\n\n## Editorial priority\n\nChannel positioning > episode intent > source material. Authenticated agents must read ${origin}/api/agent/channel before every creative task. Internal positioning is private.\n\n## Agent API\n\n- [Service discovery](${origin}/api/agent): REST API entrypoint.\n- [OpenAPI 3.1](${origin}/api/agent/openapi.json): Complete machine-readable contract.\n- [Hermes instructions](${origin}/api/agent/instructions): Authentication, stages, examples and review boundaries.\n\nDiscovery is public; all production data requires a studio-issued bearer token. This service does not expose MCP or A2A.\n`
+        ? `# his.fm\n\n> Chinese solo podcast production studio.\n\n## Editorial priority\n\nGlobal prompt > episode intent > source material. Authenticated agents must read ${origin}/api/agent/channel before every creative task. Internal global prompt is private.\n\n## Agent API\n\n- [Service discovery](${origin}/api/agent): REST API entrypoint.\n- [OpenAPI 3.1](${origin}/api/agent/openapi.json): Complete machine-readable contract.\n- [Hermes instructions](${origin}/api/agent/instructions): Authentication, stages, examples and review boundaries.\n\nDiscovery is public; all production data requires a studio-issued bearer token. This service does not expose MCP or A2A.\n`
         : instructions.replaceAll('https://his.fm', origin);
     response = new Response(text, {
       headers: {

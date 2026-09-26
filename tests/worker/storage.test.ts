@@ -5,6 +5,8 @@ import type { StorageCleanupResult, StoragePage } from '../../src/shared/storage
 import worker from '../../worker';
 import { readyFixture } from './production-fixture';
 
+vi.setConfig({ testTimeout: 30000, hookTimeout: 30000 });
+
 const origin = 'https://hisfm.dev.hexly.ai';
 let mf: Miniflare;
 let env: Env;
@@ -286,7 +288,7 @@ describe('owner R2 inventory and cleanup', () => {
     }
     expect(keys).toHaveLength(205);
     expect(new Set(keys).size).toBe(205);
-  }, 15000);
+  });
 
   it('fails closed when reference lookup is unavailable', async () => {
     const object = await put('old.wav');

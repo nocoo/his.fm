@@ -185,8 +185,7 @@ export function EpisodeList() {
   return (
     <div className="admin-page">
       <PageHeader
-        title="每一期，都值得好好准备。"
-        description="从一个念头，到一段有人愿意听完的声音。"
+        title="节目目录"
         actions={
           <>
             <Button

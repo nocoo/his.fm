@@ -240,21 +240,27 @@ test('five stages preserve failed edits and advance with owner completion', asyn
   await expect
     .poll(() => page.evaluate(() => navigator.clipboard.readText()))
     .toContain('/api/agent/productions/new-production');
-  await page.getByLabel('完整逐字稿').fill('这份逐字稿在版本冲突时应该保留。');
+  await page
+    .getByRole('textbox', { name: '完整逐字稿', exact: true })
+    .fill('这份逐字稿在版本冲突时应该保留。');
   state.conflict();
   await page.getByRole('button', { name: '保存逐字稿', exact: true }).click();
   await expect(page.getByText('内容已更新，请刷新后重试', { exact: true })).toBeVisible();
-  await expect(page.getByLabel('完整逐字稿')).toHaveValue('这份逐字稿在版本冲突时应该保留。');
+  await expect(page.getByRole('textbox', { name: '完整逐字稿', exact: true })).toContainText(
+    '这份逐字稿在版本冲突时应该保留。',
+  );
   await page.getByRole('button', { name: '刷新内容' }).click();
   await page.getByRole('alertdialog').getByRole('button', { name: '确认加载最新版本' }).click();
   await expect(page.getByRole('alertdialog')).toBeHidden();
-  await page.getByLabel('完整逐字稿').fill('## 晚饭之前\n\n你好，欢迎收听 his.fm。\n\n今晚先吃饭。');
+  await page
+    .getByRole('textbox', { name: '完整逐字稿', exact: true })
+    .fill('## 晚饭之前\n\n你好，欢迎收听 his.fm。\n\n今晚先吃饭。');
   await page.getByRole('button', { name: '标记逐字稿完成', exact: true }).click();
   await expect(page.getByRole('tab', { name: '逐字稿，已完成', exact: true })).toHaveAttribute(
     'data-complete',
     'true',
   );
-  await expect(page.getByLabel('完整逐字稿')).toHaveCount(0);
+  await expect(page.getByRole('textbox', { name: '完整逐字稿', exact: true })).toBeHidden();
   await page.getByRole('tab', { name: '发布文案', exact: true }).click();
   await page.getByLabel('节目摘要', { exact: true }).fill('一次关于工作边界的对话');
   await page.getByLabel('发布简介', { exact: true }).fill('## 本期内容\n\n**先吃饭**，再继续工作。');
@@ -283,7 +289,7 @@ test('five stages preserve failed edits and advance with owner completion', asyn
   await expect(page.getByText('一次关于工作边界的对话', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: '标记最终检查完成', exact: true }).click();
   await expect(page.getByText('展开公众号正文预览', { exact: true })).toBeVisible();
-  await page.getByRole('button', { name: '复制公众号富文本' }).click();
+  await page.getByRole('button', { name: '复制微信公众号格式' }).click();
   await expect
     .poll(() => page.evaluate(async () => (await navigator.clipboard.read())[0].types))
     .toContain('text/html');
@@ -496,7 +502,9 @@ test('real local API persists a production through human review and cleans it up
     id = (await created.json()).production.id;
     await expect(page).toHaveURL(new RegExp(`/admin/productions/${id}$`));
     await page.getByRole('button', { name: '标记选题完成', exact: true }).click();
-    await page.getByLabel('完整逐字稿').fill('你好，这是本地工作室的真实接口验收稿。');
+    await page
+      .getByRole('textbox', { name: '完整逐字稿', exact: true })
+      .fill('你好，这是本地工作室的真实接口验收稿。');
     await page.getByRole('button', { name: '标记逐字稿完成', exact: true }).click();
     await page.getByRole('tab', { name: '选题，已完成', exact: true }).click();
     await page.getByLabel('创作意图', { exact: true }).fill('调整选题，已有逐字稿必须保留。');
@@ -654,11 +662,11 @@ test('imported draft materials are readable before approval and platform timesta
   await expect(page.getByText('已导入的真实逐字稿，可在选题阶段阅读。', { exact: true })).toHaveCount(0);
   await page.getByRole('tab', { name: '逐字稿', exact: true }).click();
   await expect(page.locator('.studio-transcript')).toHaveText('已导入的真实逐字稿，可在选题阶段阅读。');
-  await expect(page.getByLabel('完整逐字稿', { exact: true })).toHaveCount(0);
+  await expect(page.getByRole('textbox', { name: '完整逐字稿', exact: true })).toBeHidden();
   await page.getByRole('tab', { name: '成品制作', exact: true }).click();
   await page.getByRole('tab', { name: '发布文案', exact: true }).click();
-  await expect(page.getByText('已导入的节目摘要', { exact: true })).toBeVisible();
-  await expect(page.getByText('已导入的研究与发布简介', { exact: true })).toBeVisible();
+  await expect(page.getByLabel('节目摘要', { exact: true })).toHaveValue('已导入的节目摘要');
+  await expect(page.getByRole('region', { name: '发布简介预览' })).toHaveText('已导入的研究与发布简介');
   await page.getByRole('tab', { name: '发布', exact: true }).click();
   await expect(page.getByRole('button', { name: '记录已发布', exact: true })).toBeDisabled();
 });
@@ -684,7 +692,7 @@ test('phone stages preserve drafts on canceled navigation and grow long text wit
   expect(reader.loaded).toBe(true);
   expect(reader.scroll).toBeLessThanOrEqual(reader.height + 1);
   await page.getByRole('radio', { name: '编辑', exact: true }).click();
-  const input = page.getByLabel('完整逐字稿', { exact: true });
+  const input = page.getByRole('textbox', { name: '完整逐字稿', exact: true });
   await input.fill(`${text}留下这个未保存的结尾。`);
   const size = await input.evaluate((element) => ({
     height: element.clientHeight,
@@ -696,7 +704,8 @@ test('phone stages preserve drafts on canceled navigation and grow long text wit
   const dialog = page.getByRole('alertdialog');
   await expect(dialog).toContainText('未保存');
   await dialog.getByRole('button', { name: '取消', exact: true }).click();
-  await expect(input).toHaveValue(`${text}留下这个未保存的结尾。`);
+  await page.getByRole('radio', { name: '预览', exact: true }).click();
+  await expect(page.locator('.studio-transcript')).toContainText('留下这个未保存的结尾。');
   expect(state.actions).toHaveLength(0);
   await page.getByRole('tab', { name: '成品制作，已完成', exact: true }).click();
   await dialog.getByRole('button', { name: '切换阶段', exact: true }).click();
@@ -774,4 +783,37 @@ test('voice settings and per-generation choices offer optional previews without 
   await expect(page.getByRole('combobox', { name: '讲述声音', exact: true })).toContainText('Sulafat');
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.screenshot({ path: '.local/audio-settings-mobile.png', fullPage: true });
+});
+
+test('publication copies WeChat formatting with the same cover and references as its preview', async ({
+  page,
+  context,
+}) => {
+  const transcript =
+    '## 一个具体的问题\n\n**生活细节**，参考[项目文档](https://example.com/docs)。\n\n> 留下自己的时间。';
+  await studio(page, readyFixture({ transcript }));
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+  await page.goto('/admin/productions/production-test?step=publish');
+  await page.getByText('展开公众号正文预览', { exact: true }).click();
+  const preview = page.locator('.studio-wechat-preview');
+  await expect(preview.locator('img')).toHaveAttribute('src', 'https://f.no.mt/cover.png');
+  await expect(preview.locator('strong')).toHaveText('生活细节');
+  await expect(preview).toContainText('参考资料');
+  await expect(preview).toContainText('[1] https://example.com/docs');
+  await page.getByRole('button', { name: '复制微信公众号格式', exact: true }).click();
+  const clipboard = await page.evaluate(async () => {
+    const [item] = await navigator.clipboard.read();
+    return {
+      html: await (await item.getType('text/html')).text(),
+      text: await (await item.getType('text/plain')).text(),
+    };
+  });
+  expect(clipboard.html).toContain('<strong>生活细节</strong>');
+  expect(clipboard.html).toContain('https://f.no.mt/cover.png');
+  expect(clipboard.html).toContain('[1] https://example.com/docs');
+  expect(clipboard.html).toMatch(/line-height:\s*1\.9/);
+  expect(clipboard.text).toContain('生活细节');
+  expect(clipboard.text).not.toContain('**');
+  await page.getByRole('button', { name: '复制 Markdown', exact: true }).click();
+  await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toBe(transcript);
 });

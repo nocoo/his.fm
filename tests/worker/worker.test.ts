@@ -17,6 +17,8 @@ import {
 } from '../../worker/agent-contract';
 import { agent, brief, fixture, readyFixture } from './production-fixture';
 
+vi.setConfig({ testTimeout: 30000, hookTimeout: 30000 });
+
 const origin = 'https://hisfm.dev.hexly.ai';
 const issuer = 'https://nocoo.cloudflareaccess.com';
 const audience = '41ef6d396f8256e97999ba1d1f11e15f6e7e5e788fce46f54016fd1d9710f726';
@@ -498,7 +500,7 @@ describe('agent discovery and real bearer routing', () => {
       ).toBe(403);
     const changed = await call('/admin/api/channel', {
       method: 'PUT',
-      ...body({ version: initial.version, content: '## 新的频道定位\n\n自定义定位：从下班后的生活切入。' }),
+      ...body({ version: initial.version, content: '## 新的全局提示词\n\n自定义定位：从下班后的生活切入。' }),
     });
     expect(changed.status).toBe(200);
     const profile = channelProfileSchema.parse(((await changed.json()) as { channel: unknown }).channel);

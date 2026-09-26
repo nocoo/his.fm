@@ -34,7 +34,6 @@ export function VoiceReferences() {
     <div className="admin-page">
       <PageHeader
         title="音色参考"
-        description="试听六种声音，选择适合这间工作室的讲述方式。"
         actions={
           <Button variant="outline" asChild>
             <Link to="/admin/settings">工作室设置</Link>
