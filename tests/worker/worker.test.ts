@@ -85,7 +85,6 @@ beforeAll(async () => {
       {
         config: {
           name: 'hisfm-test',
-          type: 'worker',
           compatibilityDate: '2026-09-24',
           manifest: {
             mainModule: 'index.js',

@@ -105,7 +105,6 @@ beforeAll(async () => {
       {
         config: {
           name: 'hisfm-audio-route-test',
-          type: 'worker',
           compatibilityDate: '2026-09-24',
           manifest: {
             mainModule: 'index.js',

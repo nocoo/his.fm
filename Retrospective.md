@@ -1,5 +1,9 @@
 # Retrospective
 
+## 2026-10-01 - Check emulator types before committing upgrades
+
+The Cloudflare tooling upgrade built successfully and passed runtime tests, but the commit gate rejected five Miniflare fixtures that still supplied the removed `config.type` field. Remove the obsolete discriminator rather than casting around the new schema. For coupled emulator upgrades, run typecheck alongside focused runtime checks before attempting the atomic commit; a successful application build does not validate test fixture types.
+
 ## 2026-09-26 — Publish identity resources atomically
 
 The first theme implementation referenced R2 font URLs before their upload batch had completed. A network interruption left many URLs returning 404, and loading the preview could cache those failures. The user also reported missing header/footer wordmarks while the implementation used external SVG symbol fragments. Fonts now ship with the application as fingerprinted same-origin assets, while wordmarks render inline paths generated from the canonical SVG. Keep large imagery on immutable R2 keys and verify its delivery before release; a local asset manifest alone is not evidence of CDN availability.
