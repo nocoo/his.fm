@@ -2,7 +2,7 @@
 
 ## 2026-10-01 - Check emulator types before committing upgrades
 
-The Cloudflare tooling upgrade built successfully and passed runtime tests, but the commit gate rejected five Miniflare fixtures that still supplied the removed `config.type` field. Remove the obsolete discriminator rather than casting around the new schema. For coupled emulator upgrades, run typecheck alongside focused runtime checks before attempting the atomic commit; a successful application build does not validate test fixture types.
+The Cloudflare tooling upgrade built successfully, but the commit gate rejected five Miniflare fixtures in runtime tests and typecheck that still supplied the removed `config.type` field. Remove the obsolete discriminator rather than casting around the new schema. For coupled emulator upgrades, run typecheck alongside focused runtime checks before attempting the atomic commit; a successful application build does not validate test fixture types.
 
 ## 2026-09-26 — Publish identity resources atomically
 
