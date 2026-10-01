@@ -1,5 +1,9 @@
 # Retrospective
 
+## 2026-10-01 - Avoid zsh's reserved path variable in smoke checks
+
+The post-release route probe used `path` as a loop variable, which overwrote zsh's command-search array and prevented curl and Git from running. The exact-revision health verifier had already passed; rerunning the route probes with `route` confirmed the public pages and agent discovery return 200 and anonymous studio access redirects to Access. Use non-reserved variable names in shell probes, and distinguish a local probe failure from a deployment failure.
+
 ## 2026-10-01 - Check emulator types before committing upgrades
 
 The Cloudflare tooling upgrade built successfully, but the commit gate rejected five Miniflare fixtures in runtime tests and typecheck that still supplied the removed `config.type` field. Remove the obsolete discriminator rather than casting around the new schema. For coupled emulator upgrades, run typecheck alongside focused runtime checks before attempting the atomic commit; a successful application build does not validate test fixture types.
