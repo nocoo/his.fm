@@ -32,7 +32,7 @@
     "@uiw/react-codemirror": "4.25.12",
     "jose": "6.2.12",
     "lucide-react": "1.49.0",
-    "marked": "18.0.13",
+    "marked": "18.0.14",
     "motion": "13.4.0",
     "react": "19.3.0",
     "react-dom": "19.3.0",
