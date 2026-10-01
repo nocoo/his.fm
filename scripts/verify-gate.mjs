@@ -11,10 +11,9 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { join } from 'node:path';
 
-const here = dirname(fileURLToPath(import.meta.url));
+const here = import.meta.dirname;
 const repo = join(here, '..');
 const owned = mkdtempSync(join(tmpdir(), 'hisfm-gate-verify-'));
 let failed = 0;

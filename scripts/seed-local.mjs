@@ -2,9 +2,8 @@ import { spawnSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { fileURLToPath } from 'node:url';
 
-const root = fileURLToPath(new URL('..', import.meta.url));
+const root = join(import.meta.dirname, '..');
 const marker = 'hisfm-website-preview-v1';
 const transcript = readFileSync(
   new URL('../episodes/001-how-to-live-better/transcript.md', import.meta.url),
