@@ -24,7 +24,7 @@ The deploy job uses base-ci `deploy-worker.yml`, which proves the release source
 
 1. resolves the tag to its exact commit and requires a successful CI run (`.github/workflows/ci.yml`, name `CI`, branch `main`) on that same SHA — `workflow_dispatch`-triggered CI runs also count as evidence;
 2. requires the tag `vX.Y.Z` to equal `package.json` version at that commit (`package-version-match`);
-3. rebuilds from the proven source, applies remote D1 migrations (`d1 migrations apply his-fm --remote`, schema only — seeding never runs in CI/CD), and deploys the Worker with the locked local Wrangler `4.140.0` from `wrangler.jsonc`;
+3. rebuilds from the proven source, applies remote D1 migrations (`d1 migrations apply his-fm --remote`, schema only — seeding never runs in CI/CD), and deploys the Worker with the locked local Wrangler `4.145.0` using Vite's generated `dist/his_fm/wrangler.json`;
 4. verifies production through `node scripts/ci-verify-live.mjs`, which compares `/api/live` `status`, `service`, `version` and `revision` against `package.json` and the proven commit (`__BUILD_REVISION__` is injected at build time).
 
 Production deploys hold a non-cancelling lock (`deploy-worker-production`) on the `production` GitHub environment.

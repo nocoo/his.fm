@@ -2,6 +2,23 @@
 
 All notable changes to his.fm are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions use the owner’s patch-only deployment policy in `AGENTS.md`, with the authoritative version in `package.json`.
 
+## 2.0.4 - 2026-10-01
+
+### Changed
+
+- Upgrade the Cloudflare Vite plugin to 1.62.3, Wrangler to 4.145.0 and Miniflare to 5.20260930.0-alpha; keep the deployment toolchain aligned and remove the obsolete worker discriminator from emulator fixtures.
+- Upgrade Vite to 8.3.1, Vitest and its coverage provider to 5.0.3, Biome to 2.5.15 and Node types to 26.6.3.
+- Update CodeMirror state/view, Lezer highlighting and the React editor wrapper, plus Lucide React 1.49.0, Marked 18.0.14 and Motion 13.4.6.
+
+### Security
+
+- Resolve all ten Undici advisories tracked in #11 through the upstream Cloudflare dependency on Undici 7.29.1, without a cross-major override.
+
+### Validation
+
+- 195 unit tests and 28 Chrome scenarios passed. Statement, branch, function and line coverage are 99.17%, 96.96%, 99.60% and 99.77%; strict lint, type checking, reproducible npm installation, production build and staged-gate failure probes passed.
+- The owner accepted the local Caddy/Chrome build before publication. All 15 dependency issues (#1 through #15) are addressed by the resolving commits.
+
 ## 2.0.3 - 2026-09-26
 
 ### Added
