@@ -1,6 +1,6 @@
 # Architecture
 
-his.fm has one React application and one Cloudflare Worker. Public pages use an original editorial design; the separately loaded administration bundle uses Basalt 2.1.8. Both share the episode schema, while frontend models/services and Worker modules own business behavior.
+his.fm has one React application and one Cloudflare Worker. Public pages use an original editorial design; the separately loaded administration bundle uses Basalt 2.2.0. Both share the episode schema, while frontend models/services and Worker modules own business behavior.
 
 ## Request boundaries
 

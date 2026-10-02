@@ -3,7 +3,7 @@
 ## Architecture
 
 - React 19 + Vite 8 + TypeScript 7.0.2, served by one Cloudflare Worker.
-- Public views live in `src/public/`. Admin views live in `src/admin/` and use `@nocoo/basalt` 2.1.8 with standalone CSS and granular shell imports.
+- Public views live in `src/public/`. Admin views live in `src/admin/` and use `@nocoo/basalt` 2.2.0 with standalone CSS and granular shell imports.
 - Keep editable episode validation in `src/shared/episode.ts`, business logic in `model.ts` / `service.ts`, and D1 / Access / R2 logic in `worker/`.
 - Agent discovery lives at `/api/agent`, `/.well-known/api-catalog` and `/llms.txt`; OpenAPI and public onboarding must remain synchronized with shared validators and protected controllers. Tokens use `HISFM_AGENT_TOKEN`; public discovery never proves authentication.
 - Production contracts live in `src/shared/production.ts`; human and agent routes share controllers but never share approval privileges. All writes require optimistic versions. Published episode snapshots are readonly through legacy CRUD.

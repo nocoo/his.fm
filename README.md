@@ -29,7 +29,7 @@ his.fm 是一档面向年轻程序员的中文播客，关注 AI 带来的企业
 
 ## Website
 
-The website is a Cloudflare Worker application built with Vite 8, TypeScript 7.0.2, React 19 and Biome. The public listening room uses original Sunburst artwork, grass greens and restrained violet accents. The editor uses Basalt 2.1.8 and Cloudflare Access.
+The website is a Cloudflare Worker application built with Vite 8, TypeScript 7.0.2, React 19 and Biome. The public listening room uses original Sunburst artwork, grass greens and restrained violet accents. The editor uses Basalt 2.2.0 and Cloudflare Access.
 
 - Public pages: homepage, searchable episode catalogue, episode summaries/transcripts and channel introduction.
 - Studio: source collection, editorial intent, human brief/script/final reviews, AI production, manual WeChat/Xiaoyuzhou publication, voice comparisons and expiring Hermes API tokens.

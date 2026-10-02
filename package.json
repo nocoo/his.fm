@@ -28,7 +28,7 @@
     "@codemirror/state": "6.7.6",
     "@codemirror/view": "6.43.13",
     "@lezer/highlight": "1.2.5",
-    "@nocoo/basalt": "2.1.8",
+    "@nocoo/basalt": "2.2.0",
     "@uiw/react-codemirror": "4.25.12",
     "jose": "6.2.12",
     "lucide-react": "1.49.0",
