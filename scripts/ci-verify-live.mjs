@@ -1,9 +1,8 @@
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { join } from 'node:path';
 
-const repo = join(dirname(fileURLToPath(import.meta.url)), '..');
+const repo = join(import.meta.dirname, '..');
 const expectedVersion = JSON.parse(readFileSync(join(repo, 'package.json'), 'utf8')).version;
 const expectedRevision = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: repo, encoding: 'utf8' }).trim();
 
