@@ -353,3 +353,72 @@ test('publication drafts survive stages and require confirmation before environm
   expect(state.writes).toEqual([]);
   expect(remote).toEqual([]);
 });
+
+test('chat follows initial history and new replies only while the reader stays at the bottom', async ({
+  page,
+}) => {
+  const state = await studio(page);
+  await page.goto('/admin/productions/production-test?step=brief');
+  const log = page.getByRole('log', { name: '主控消息' });
+  const composer = page.getByRole('textbox', { name: '给主控的消息' });
+  const history = Array.from({ length: 35 }, (_, index) => ({
+    id: `history-${index}`,
+    role: 'assistant' as const,
+    text: `Reply ${index}\n\n${'A longer paragraph to make the chat overflow. '.repeat(5)}`,
+    commandId: null,
+    createdAt: '2026-10-03T00:00:00Z',
+  }));
+  await expect(log).toBeVisible();
+  const shellScroll = await page.locator('.admin-shell').evaluate((element) => element.scrollTop);
+  state.send({
+    type: 'snapshot',
+    online: true,
+    messages: history,
+    conversations: [],
+    commands: [],
+    proposals: [],
+  });
+  const bottomGap = () =>
+    log.evaluate((element) => element.scrollHeight - element.clientHeight - element.scrollTop);
+  await expect(log.locator('.agent-message')).toHaveCount(35);
+  await expect.poll(bottomGap).toBeLessThanOrEqual(2);
+  await expect.poll(() => log.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
+  await expect(composer).toBeInViewport();
+  await expect(page.getByRole('button', { name: '发送', exact: true })).toBeInViewport();
+  state.send({
+    type: 'message',
+    message: { ...history[0], id: 'new-at-bottom', text: 'Follow this new reply at the bottom.' },
+  });
+  await expect(log).toContainText('Follow this new reply at the bottom.');
+  await expect.poll(bottomGap).toBeLessThanOrEqual(2);
+  await log.evaluate((element) => {
+    element.scrollTop = 0;
+    element.dispatchEvent(new Event('scroll', { bubbles: true }));
+  });
+  await expect.poll(() => log.evaluate((element) => element.scrollTop)).toBe(0);
+  state.send({
+    type: 'message',
+    message: { ...history[0], id: 'while-reading', text: 'Do not interrupt reading earlier replies.' },
+  });
+  await expect(log).toContainText('Do not interrupt reading earlier replies.');
+  await expect.poll(() => log.evaluate((element) => element.scrollTop)).toBe(0);
+  await expect.poll(bottomGap).toBeGreaterThan(100);
+  await expect(composer).toBeInViewport();
+  await log.evaluate((element) => {
+    element.scrollTop = element.scrollHeight;
+    element.dispatchEvent(new Event('scroll', { bubbles: true }));
+  });
+  await expect.poll(bottomGap).toBeLessThanOrEqual(2);
+  state.send({
+    type: 'message',
+    message: {
+      ...history[0],
+      id: 'resume-following',
+      text: 'Following resumes after returning to the bottom.',
+    },
+  });
+  await expect(log).toContainText('Following resumes after returning to the bottom.');
+  await expect.poll(bottomGap).toBeLessThanOrEqual(2);
+  expect(await page.locator('.admin-shell').evaluate((element) => element.scrollTop)).toBe(shellScroll);
+  expect(state.writes).toEqual([]);
+});

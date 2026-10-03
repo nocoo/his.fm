@@ -132,7 +132,7 @@ export class AgentHub extends DurableObject<Env> {
       const identity = this.identity(socket);
       if (await this.valid(identity)) continue;
       socket.close(
-        identity.lastSeen + 35000 <= Date.now() && identity.expiresAt > Date.now() ? 1013 : 4001,
+        identity.expiresAt <= Date.now() ? 4002 : identity.lastSeen + 35000 <= Date.now() ? 1013 : 4001,
         'Authorization or heartbeat expired',
       );
       await this.release(identity);
@@ -217,7 +217,7 @@ export class AgentHub extends DurableObject<Env> {
         const identity = this.identity(socket);
         if (socket.readyState !== 1 || !(await this.valid(identity))) {
           socket.close(
-            identity.lastSeen + 35000 <= Date.now() && identity.expiresAt > Date.now() ? 1013 : 4001,
+            identity.expiresAt <= Date.now() ? 4002 : identity.lastSeen + 35000 <= Date.now() ? 1013 : 4001,
             'Authorization or heartbeat expired',
           );
           await this.release(identity);

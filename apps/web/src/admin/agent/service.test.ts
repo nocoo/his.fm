@@ -407,6 +407,21 @@ describe('shell-lifetime agent transport', () => {
     expect(sockets).toHaveLength(1);
     expect(client.state.connection).toBe('blocked');
   });
+  it('reconnects after a natural socket lease expires without losing the draft', () => {
+    connect();
+    setPage();
+    setField();
+    const draft = structuredClone(client.context);
+    latest().close(4002);
+    expect(client.state.connection).toBe('offline');
+    vi.advanceTimersByTime(1200);
+    latest().open();
+    latest().receive(snapshot);
+    expect(sockets).toHaveLength(2);
+    expect(client.state.connection).toBe('ready');
+    expect(client.context).toEqual(draft);
+    expect(latest().sent).toContainEqual({ type: 'context', context: draft });
+  });
   it.each(['{', JSON.stringify({ type: 'unknown' }), null, 'x'.repeat(256 * 1024 + 1)])(
     'rejects invalid server frame %j',
     (data) => {

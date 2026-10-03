@@ -1,6 +1,6 @@
 import { Button } from '@nocoo/basalt';
 import { InputArea } from '@nocoo/basalt/components/input-area';
-import { useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import { errorMessage } from '../model';
 import { ReadingText } from '../production/ReadingText';
 import { useAgent, useAgentState } from './AgentProvider';
@@ -16,6 +16,12 @@ function Sidebar({ client }: { client: AgentClient }) {
   const state = useAgentState(client);
   const [text, setText] = useState('');
   const [error, setError] = useState('');
+  const messages = useRef<HTMLDivElement>(null);
+  const followMessages = useRef(true);
+  useLayoutEffect(() => {
+    if (messages.current && followMessages.current)
+      messages.current.scrollTop = messages.current.scrollHeight;
+  });
   const execute = (action: () => unknown) => {
     try {
       action();
@@ -64,7 +70,17 @@ function Sidebar({ client }: { client: AgentClient }) {
           </ul>
         </details>
       )}
-      <div className="agent-messages" role="log" aria-label="主控消息" aria-live="polite">
+      <div
+        ref={messages}
+        className="agent-messages"
+        role="log"
+        aria-label="主控消息"
+        aria-live="polite"
+        onScroll={(event) => {
+          const region = event.currentTarget;
+          followMessages.current = region.scrollHeight - region.clientHeight - region.scrollTop <= 2;
+        }}
+      >
         {!state.messages.length && (
           <p className="admin-muted">在这里和主控讨论这一期，左侧可以继续编辑。保存与审批仍由你确认。</p>
         )}

@@ -572,10 +572,10 @@ describe('hibernating socket lifecycle', () => {
       .bind(new Date().toISOString(), tokenId)
       .run();
     await hub.alarm();
-    expect(machineSocket.close).toHaveBeenCalled();
+    expect(machineSocket.close).toHaveBeenCalledWith(4001, expect.any(String));
     await env.DB.prepare('DELETE FROM local_sessions').run();
     await frame(browser, { type: 'ping' });
-    expect(browser.close).toHaveBeenCalled();
+    expect(browser.close).toHaveBeenCalledWith(4001, expect.any(String));
     await hub.alarm();
     expect(alarm.deleteAlarm).toHaveBeenCalled();
     const detached = new FakeSocket();
@@ -586,7 +586,7 @@ describe('hibernating socket lifecycle', () => {
     });
     sockets.push(detached);
     await hub.alarm();
-    expect(detached.close).toHaveBeenCalled();
+    expect(detached.close).toHaveBeenCalledWith(1013, expect.any(String));
     const expired = new FakeSocket();
     expired.serializeAttachment({
       ...(browser.attachment as ConnectionIdentity),
@@ -596,7 +596,35 @@ describe('hibernating socket lifecycle', () => {
     });
     sockets.push(expired);
     await hub.alarm();
-    expect(expired.close).toHaveBeenCalled();
+    expect(expired.close).toHaveBeenCalledWith(4002, expect.any(String));
+  });
+  it('renews natural socket authorization expiry through a new authenticated connection', async () => {
+    const browser = await connect('browser');
+    browser.serializeAttachment({ ...(browser.attachment as ConnectionIdentity), expiresAt: Date.now() - 1 });
+    await frame(browser, { type: 'ping' });
+    expect(browser.close).toHaveBeenCalledWith(4002, expect.any(String));
+    const renewedBrowser = await connect('browser');
+    expect((renewedBrowser.attachment as ConnectionIdentity).expiresAt).toBeGreaterThan(Date.now());
+    expect((renewedBrowser.attachment as ConnectionIdentity).connectionId).not.toBe(
+      (browser.attachment as ConnectionIdentity).connectionId,
+    );
+    const machineSocket = await start();
+    machineSocket.serializeAttachment({
+      ...(machineSocket.attachment as ConnectionIdentity),
+      expiresAt: Date.now() - 1,
+    });
+    await hub.alarm();
+    expect(machineSocket.close).toHaveBeenCalledWith(4002, expect.any(String));
+    const renewedMachine = await connect();
+    expect((renewedMachine.attachment as ConnectionIdentity).expiresAt).toBeGreaterThan(Date.now());
+    await env.DB.prepare('DELETE FROM local_sessions').run();
+    await expect(
+      connectRuntime(
+        request('/admin/api/agent/live', 'GET', undefined, { Upgrade: 'websocket' }),
+        env,
+        human,
+      ),
+    ).rejects.toThrow('登录');
   });
 });
 
