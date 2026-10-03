@@ -54,3 +54,5 @@ node scripts/verify-gate.mjs
 ```
 
 Tests use fake models/gateways, isolated SQLite/D1 and local WebSockets. Live model acceptance is a separate owner-authorized action, never part of routine unit tests or CI.
+
+Final browser pass on 2026-10-03: the 37-scenario run passed 36 on its first attempt. The eight-theme asset-loading test hit a CDN image-load timeout, then passed an isolated rerun without code changes after the CDN responded 200. All nine native-agent browser scenarios passed in the full run. A preceding 36-scenario full run passed before the final chat-follow/authorization-renewal additions; do not describe the final run as 37/37 on its first attempt.
