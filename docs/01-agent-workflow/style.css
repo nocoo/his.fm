@@ -1551,3 +1551,35 @@ footer small {
     width: 100%;
   }
 }
+.context-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 5px;
+}
+.context-controls .result-link {
+  padding: 0;
+  font-size: 11px;
+}
+.context-controls details {
+  margin: 0;
+  font-size: 11px;
+}
+.context-controls details[open] {
+  width: 100%;
+}
+.context-controls p {
+  font-size: 11px;
+  line-height: 1.65;
+}
+.context-controls a {
+  font-size: 11px;
+}
+#context-selection {
+  overflow-wrap: anywhere;
+}
+#context-activity {
+  color: var(--green);
+}

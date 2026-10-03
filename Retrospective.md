@@ -155,3 +155,7 @@ Moving the application into `apps/web` initially left the root Hermes Markdown i
 Miniflare also chooses `.wrangler/cache` when a workspace has no local node_modules directory, even without any Wrangler dependency. Set `MINIFLARE_CACHE_DIR` explicitly to `.cloudflare/cache` before local CLI startup and tests. Migrated all persisted files with hash verification before deleting the original data directory; do not confuse disposable runtime caches with D1/R2 data.
 
 The shared base-ci installer requires a lockfile in its installation directory. Keep one npm workspace lockfile at root and run the workspace-aware deploy script there rather than copying lockfiles into applications. Preserve exact CLI version checks and version/revision live verification across this change.
+
+## 2026-10-03: Delayed selection events must not retarget page context
+
+The page-context design prototype initially let every browser `select` event replace the active editor target. An asynchronous selection event from the previously edited title arrived after focus moved to the intent field, so a request for the intent incorrectly entered the title's unsaved-draft flow. The browser regression caught this before any production implementation. Accept selection updates only from the active editor, clear cross-field selection on actual focus changes, and preserve the last valid editor selection when focus moves to chat. Pin each command's target and draft revision instead of reading mutable current-page state when its reply arrives.

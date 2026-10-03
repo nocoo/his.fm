@@ -40,6 +40,7 @@ try {
   await page.getByRole('button', { name: '返回选题与素材列表' }).click();
   const title = page.getByLabel('节目标题', { exact: true });
   await title.fill('我的节目标题');
+  await page.getByLabel('创作意图', { exact: true }).focus();
   await page.locator('#ask-improve').click();
   assert.equal(await title.inputValue(), '我的节目标题');
   assert.match(await page.getByLabel('创作意图', { exact: true }).inputValue(), /晚饭已凉/);
@@ -80,6 +81,75 @@ try {
   await page.getByRole('button', { name: '发送给主控', exact: true }).click();
   assert.equal(await page.locator('#chat img').count(), 0);
   assert.doesNotMatch(await page.locator('.studio-demo').innerText(), /Jev|thinking|profile|概率/);
+  await page.locator('#reset-studio').click();
+  await page.locator('#source-list button').first().click();
+  assert.match(await page.locator('#chat-context').textContent(), /素材 s1/);
+  const contextField = page.getByLabel('原始素材正文', { exact: true });
+  await contextField.fill('第一段保留。第二段请修改。第三段不动。');
+  assert.match(await page.locator('#context-version').textContent(), /未保存草稿/);
+  await contextField.evaluate((input) => {
+    input.setSelectionRange(6, 13);
+    input.dispatchEvent(new Event('select', { bubbles: true }));
+  });
+  await page.locator('#owner-message').fill('还没有发送的私有聊天输入');
+  assert.match(await page.locator('#context-selection').textContent(), /第二段请修改/);
+  assert.doesNotMatch(await page.locator('.assistant-context').textContent(), /私有聊天输入/);
+  await page.locator('#ask-context').click();
+  assert.match(await page.locator('#chat').textContent(), /选中的是/);
+  const savedBefore = await page.locator('#canonical-version').textContent();
+  await page.locator('#ask-improve').click();
+  await page.getByRole('button', { name: '按当前草稿修改，不保存', exact: true }).click();
+  const adjusted = await contextField.inputValue();
+  assert.match(adjusted, /示例润色/);
+  assert.equal(adjusted.startsWith('第一段保留。'), true);
+  assert.equal(adjusted.endsWith('第三段不动。'), true);
+  assert.equal(await page.locator('#canonical-version').textContent(), savedBefore);
+  assert.equal(await page.locator('#save-edits').isDisabled(), false);
+  await page.screenshot({ path: join(output, 'page-context-desktop.png'), fullPage: true });
+
+  await page.locator('#simulate-delay').click();
+  await page.locator('#ask-improve').click();
+  await page.getByRole('button', { name: '按当前草稿修改，不保存', exact: true }).click();
+  await contextField.fill('回复到达之前，用户继续输入。');
+  await page.locator('#release-reply').click();
+  assert.equal(await contextField.inputValue(), '回复到达之前，用户继续输入。');
+  assert.match(await page.locator('#chat').textContent(), /草稿建议暂未应用/);
+
+  await page.locator('#simulate-delay').click();
+  await page.locator('#ask-improve').click();
+  await page.getByRole('button', { name: '按当前草稿修改，不保存', exact: true }).click();
+  await page.locator('#toggle-context').click();
+  await page.locator('#toggle-context').click();
+  await page.locator('#release-reply').click();
+  assert.equal(await contextField.inputValue(), '回复到达之前，用户继续输入。');
+
+  await page.locator('#simulate-delay').click();
+  await page.locator('#ask-improve').click();
+  await page.getByRole('button', { name: '按当前草稿修改，不保存', exact: true }).click();
+  await page.locator('[data-stage="1"]').click();
+  const scriptBefore = await page.getByLabel('完整逐字稿', { exact: true }).inputValue();
+  await page.locator('#release-reply').click();
+  assert.equal(await page.getByLabel('完整逐字稿', { exact: true }).inputValue(), scriptBefore);
+  assert.match(await page.locator('#chat').textContent(), /没有改到你后来打开的页面/);
+
+  await page.locator('#toggle-context').click();
+  await page.getByLabel('完整逐字稿', { exact: true }).fill('暂停共享之后的新草稿');
+  assert.match(await page.locator('#chat-context').textContent(), /共享已暂停/);
+  const pausedMessages = await page.locator('#chat .chat-bubble').count();
+  await page.locator('#ask-context').click();
+  assert.equal(await page.locator('#chat .chat-bubble').count(), pausedMessages);
+  await page.locator('#toggle-context').click();
+  await page.locator('#simulate-context-stale').click();
+  await page.locator('#ask-context').click();
+  assert.match(await page.locator('#update-notice').textContent(), /尚未确认同步/);
+  await page.locator('#simulate-context-stale').click();
+  await page.getByLabel('完整逐字稿', { exact: true }).dispatchEvent('compositionstart');
+  await page.locator('#ask-context').click();
+  assert.match(await page.locator('#context-version').textContent(), /中文输入尚未完成/);
+  await page.getByLabel('完整逐字稿', { exact: true }).dispatchEvent('compositionend');
+  await page.locator('#ask-context').click();
+  assert.match(await page.locator('#chat').textContent(), /完整逐字稿/);
+
   await page.locator('#reset-studio').click();
   await page.locator('#approve-stage').click();
   await page.locator('[data-stage="1"]').click();
@@ -153,7 +223,7 @@ try {
   assert.deepEqual(errors, []);
   assert.deepEqual(network, []);
   console.log(
-    'Architecture walkthrough passed: split workspace, source edits, Save, dirty field conflicts, 409, offline queue, no decision chatter, 6 failures, review persistence/export, keyboard, 320/390px, no network or page errors.',
+    'Architecture walkthrough passed: split workspace, source edits, Save, dirty field conflicts, 409, offline queue, page context/selection, draft-only edits, frozen command targets, stale/paused/IME barriers, no decision chatter, 6 failures, review persistence/export, keyboard, 320/390px, no network or page errors.',
   );
 } finally {
   await browser.close();

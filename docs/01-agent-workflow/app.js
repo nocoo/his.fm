@@ -25,9 +25,13 @@ const nodes = {
     does: [
       '右侧主控常驻现有工作室；左侧保留手工编辑、素材详情、五阶段与 Save。',
       '主控已保存内容实时更新左侧；dirty 同字段显示冲突，未保存稿保留。',
+      '持续报告当前页面、素材、编辑字段、选区、草稿 revision 和 Save／冲突状态；命令固定发送时的快照。',
       '角色状态在折叠运行概览；Jev 调度过程不在用户界面播报。',
     ],
-    not: ['浏览器关闭不会停止本机任务。', '未保存表单不静默发送；不展示原始隐藏推理和密钥。'],
+    not: [
+      '浏览器关闭不会停止本机任务。',
+      '协作开启可理解未保存创作稿，但不会自动 Save；秘密字段和未发送聊天输入不采集。',
+    ],
     source: 'apps/web/src/admin/production/ + admin/agent/（拟新增）',
   },
   api: {
@@ -36,6 +40,7 @@ const nodes = {
     description: '网站仍是节目、作品版本与人类批准的权威。主控的内部验收不能覆盖这些规则。',
     does: [
       '复用版本 CAS、capabilities、阶段可写字段和人类身份。',
+      '新增页面 context/session/content 读取、命令快照固定与 draft proposal ACK；浏览器自述不是服务端权限。',
       '新增 durable commands、tasks、events、lease 与 operation receipts；私有稿件放独立无 CDN 的 R2 bucket。',
       '每次机器写回同时核对 operationId、leaseEpoch 和 productionVersion。',
     ],
@@ -230,6 +235,18 @@ let lastChange = '所有内容已保存 · 演示版本';
 let notice = '左侧可以直接编辑。右侧发一句话，主控的修改会回到同一份内容。';
 let messages = [];
 let queuedMessages = [];
+let pageEpoch = 0;
+let contextSeq = 0;
+let sharing = true;
+let shareEpoch = 1;
+let contextStale = false;
+let composing = false;
+let selection = null;
+let lastActivity = '正在查看选题';
+let acknowledgedContext = null;
+let draftRevisions = new Map();
+let delayNextReply = false;
+let delayedReply = null;
 const fieldName = (key) => {
   if (key.startsWith('source:')) return key.endsWith(':title') ? '素材标题' : '原始素材正文';
   return (
@@ -245,8 +262,54 @@ const fieldName = (key) => {
 const valueOf = (key) => drafts.get(key)?.value ?? canonical[key] ?? '';
 const sourceKey = (id, part) => `source:${id}:${part}`;
 function currentTarget() {
+  if (all('[data-field]').some((input) => input.dataset.field === recentField)) return recentField;
   if (stage === 0 && selectedSource) return sourceKey(selectedSource, 'content');
   return ['intent', 'transcript', 'description', 'transcript', 'description'][stage];
+}
+function pageContext() {
+  const target = currentTarget();
+  return {
+    contextId: `demo-context-${contextSeq}`,
+    pageEpoch,
+    shareEpoch,
+    seq: contextSeq,
+    target,
+    location: `第 001 期 · ${stageNames[stage]}${selectedSource ? ` · 素材 ${selectedSource}` : ''}`,
+    viewedVersion: version,
+    savedValue: canonical[target] ?? '',
+    value: valueOf(target),
+    dirty: drafts.has(target),
+    draftRevision: draftRevisions.get(target) ?? 0,
+    dirtyFields: [...drafts.keys()],
+    selection: selection?.target === target && selection.value === valueOf(target) ? { ...selection } : null,
+    activity: lastActivity,
+  };
+}
+function publishContext() {
+  if (sharing && !contextStale && !composing) {
+    contextSeq++;
+    acknowledgedContext = pageContext();
+  }
+  const context = acknowledgedContext;
+  $('#chat-context').textContent = !sharing
+    ? '页面共享已暂停，不再读取当前页面'
+    : context
+      ? `${context.location} · ${fieldName(context.target)}`
+      : '尚无已同步页面';
+  $('#context-version').textContent = !sharing
+    ? '仅保留已经明确发送的任务；不采集新草稿'
+    : contextStale || composing
+      ? `等待页面同步${composing ? ' · 中文输入尚未完成' : ''}，不会用旧页面猜测“这里”`
+      : `页面已同步 · seq ${context.seq} · 网站 v${context.viewedVersion}${context.dirty ? ` · 未保存草稿 r${context.draftRevision}` : ' · 当前字段已保存'}`;
+  $('#context-activity').textContent = sharing && context ? `最近操作：${context.activity}` : '';
+  $('#context-selection').textContent =
+    sharing && context?.selection
+      ? `已选中 ${context.selection.end - context.selection.start} 个 UTF-16 单位：${context.selection.text.slice(0, 42)}`
+      : sharing && context
+        ? `范围：当前字段${context.dirtyFields.length ? ` · 共 ${context.dirtyFields.length} 处未保存` : ''}`
+        : '';
+  $('#toggle-context').textContent = sharing ? '暂停页面共享' : '恢复页面共享';
+  $('#simulate-context-stale').textContent = contextStale ? '模拟上下文同步完成' : '模拟上下文未同步';
 }
 function addMessage(kind, text, target) {
   messages.push({ kind, text, target });
@@ -309,6 +372,7 @@ function syncRemote(patch, actor = '主控') {
     } else if (draft.base !== canonical[key]) conflicts.add(key);
   }
   lastChange = `${actor}已保存 · v${version}`;
+  lastActivity = `收到${actor}的已保存更新${conflicts.size ? ' · 正在处理重叠冲突' : ''}`;
   notice = conflicts.size
     ? `${actor}已保存新内容；${conflicts.size} 处与你的未保存稿重叠。左侧输入保持不变，请先选版。`
     : `${actor}修改已保存，左侧已同步；你的其它草稿保持不变。`;
@@ -327,10 +391,6 @@ function updateStatus() {
   $('#save-edits').disabled = !drafts.size || conflicts.size > 0;
   $('#update-notice').textContent = notice;
   $('#update-notice').classList.toggle('has-conflict', conflicts.size > 0);
-  $('#chat-context').textContent =
-    `第 001 期 · ${stageNames[stage]}${selectedSource ? ` · ${valueOf(sourceKey(selectedSource, 'title'))}` : ''}`;
-  $('#context-version').textContent =
-    `基于已保存 v${version}${drafts.size ? ' · 你的未保存输入尚未发送' : ''}`;
   $('#connection-status').textContent = online ? '已连接 · 演示' : '主控离线 · 你仍可编辑 Save';
   $('#toggle-connection').textContent = online ? '模拟主控断线' : '模拟主控重连';
   $('#simulate-update').disabled = !online;
@@ -354,9 +414,13 @@ function updateStatus() {
   all('[data-stage]').forEach((button) =>
     button.setAttribute('aria-current', Number(button.dataset.stage) === stage ? 'step' : 'false'),
   );
+  publishContext();
 }
 function editField(key, value) {
   recentField = key;
+  draftRevisions.set(key, (draftRevisions.get(key) ?? 0) + 1);
+  selection = null;
+  lastActivity = `正在编辑${fieldName(key)} · 未 Save`;
   if (value === canonical[key]) {
     drafts.delete(key);
     conflicts.delete(key);
@@ -380,8 +444,31 @@ function field(key, rows = 5) {
   if (rows > 1) input.rows = rows;
   input.addEventListener('focus', () => {
     recentField = key;
+    if (selection?.target !== key) selection = null;
+    lastActivity = `正在查看${fieldName(key)}`;
+    publishContext();
   });
   input.addEventListener('input', () => editField(key, input.value));
+  input.addEventListener('select', () => {
+    if (document.activeElement !== input) return;
+    recentField = key;
+    const start = input.selectionStart ?? 0;
+    const end = input.selectionEnd ?? start;
+    selection =
+      start !== end
+        ? { target: key, start, end, text: input.value.slice(start, end), value: input.value }
+        : null;
+    if (selection) lastActivity = `选中了${fieldName(key)}的一段内容`;
+    publishContext();
+  });
+  input.addEventListener('compositionstart', () => {
+    composing = true;
+    publishContext();
+  });
+  input.addEventListener('compositionend', () => {
+    composing = false;
+    editField(key, input.value);
+  });
   const note = document.createElement('small');
   note.textContent =
     rows === 1 ? '你可以直接修改，Save 后生效。' : 'Markdown · 可手工编辑；未保存稿不会被实时更新覆盖。';
@@ -413,6 +500,9 @@ function renderSourceList() {
   );
 }
 function renderEditor() {
+  pageEpoch++;
+  selection = null;
+  lastActivity = `打开${stageNames[stage]}${selectedSource ? ` · 素材 ${selectedSource}` : ''}`;
   $('#editor-stages').replaceChildren(
     ...stageNames.map((name, index) => {
       const button = document.createElement('button');
@@ -501,6 +591,10 @@ function renderEditor() {
         : '# 发布材料\n\n继续沿用已有的微信 / 小宇宙发布流程。\n\n由你实际发布后记录平台 URL 与时间。主控只协助准备，不代替确认。';
     region.append(preview);
   }
+  recentField =
+    stage === 0 && selectedSource
+      ? sourceKey(selectedSource, 'content')
+      : ['intent', 'transcript', 'description', 'transcript', 'description'][stage];
   renderConflicts();
   updateStatus();
 }
@@ -565,6 +659,7 @@ function saveEdits() {
     const key = drafts.keys().next().value;
     syncRemote({ [key]: `${canonical[key]}\n\n主控在你点击 Save 的同时补充了一条说明。` });
     notice = '模拟 409：保存期间网站版本变了。你的输入完整保留，请比较后再保存。';
+    lastActivity = 'Save 返回 409 · 本地稿保留，等待选版';
     updateStatus();
     return false;
   }
@@ -574,6 +669,8 @@ function saveEdits() {
   invalidate(Object.keys(submitted));
   drafts.clear();
   lastChange = `你已保存 · v${version}`;
+  selection = null;
+  lastActivity = `Save 成功 · 网站 v${version}`;
   notice = '保存成功。主控后续工作会读取你的新版本。';
   renderSourceList();
   updateStatus();
@@ -583,37 +680,63 @@ function saveEdits() {
   );
   return true;
 }
+function refreshMessage(message, basis) {
+  publishContext();
+  const context = structuredClone(acknowledgedContext);
+  return { ...message, target: context.target, context, basis };
+}
 function showPending(message) {
   pendingMessage = message;
   const warning = $('#draft-context-warning');
   warning.hidden = false;
   warning.replaceChildren();
   const text = document.createElement('p');
-  text.textContent = '这条请求涉及未保存内容。先保存再发送，或明确只参考网站已保存版。';
+  text.textContent = '主控已理解你正在编辑未保存稿。选择修改草稿（不 Save），或明确只处理网站保存版。';
+  const draft = document.createElement('button');
+  draft.type = 'button';
+  draft.className = 'outline';
+  draft.textContent = '按当前草稿修改，不保存';
+  draft.addEventListener('click', () => runMessage({ ...message, basis: 'draft' }));
   const save = document.createElement('button');
   save.type = 'button';
   save.className = 'outline';
   save.textContent = '先 Save 再发送';
   save.addEventListener('click', () => {
-    if (saveEdits()) runMessage(pendingMessage);
+    if (message.context.pageEpoch !== pageEpoch || message.target !== currentTarget()) {
+      staleReply(message, '待发送请求的原页面已经变化，请回到原对象或重新明确目标。');
+      return;
+    }
+    if (saveEdits()) runMessage(refreshMessage(message, 'canonical'));
   });
   const saved = document.createElement('button');
   saved.type = 'button';
   saved.className = 'outline';
   saved.textContent = '仅基于已保存版本发送';
-  saved.addEventListener('click', () => runMessage(pendingMessage));
-  warning.append(text, save, saved);
+  saved.addEventListener('click', () => runMessage({ ...message, basis: 'canonical' }));
+  warning.append(text, draft, save, saved);
 }
 function requestMessage(text, action = 'improve', fromComposer = false) {
-  const message = {
-    text,
-    action,
-    fromComposer,
-    target: currentTarget(),
-    context: $('#chat-context').textContent,
-  };
-  if (drafts.has(message.target) || (action === 'source' && drafts.has('intent'))) showPending(message);
+  publishContext();
+  if (!sharing || contextStale || composing || !acknowledgedContext) {
+    notice = !sharing
+      ? '页面共享已暂停，主控不会猜测“这里”。请恢复共享，或明确描述一个不依赖页面的任务。'
+      : '当前页面尚未确认同步。先完成输入与同步，再发送“改这里”。';
+    updateStatus();
+    return;
+  }
+  const context = structuredClone(acknowledgedContext);
+  const message = { text, action, fromComposer, target: context.target, context, basis: 'canonical' };
+  if (context.dirty && action === 'improve') showPending(message);
   else runMessage(message);
+}
+function staleReply(message, reason) {
+  notice = reason;
+  updateStatus();
+  addMessage(
+    'controller',
+    `${reason}这次工作仍绑定发送时的${fieldName(message.target)}，没有改到你后来打开的页面。`,
+    message.target,
+  );
 }
 function runMessage(message, queued = false) {
   if (!message) return;
@@ -628,11 +751,30 @@ function runMessage(message, queued = false) {
     queuedMessages.push(message);
     addMessage(
       'controller',
-      '消息已在演示队列中等待，尚未执行。你可以继续在左侧编辑和 Save；主控重连后会基于最新保存版本继续。',
+      '消息和发送时的页面快照已在演示队列中等待。重连先核对原对象和版本，不会跟随新页面改错内容。',
+    );
+    return;
+  }
+  if (delayNextReply && !queued) {
+    delayNextReply = false;
+    delayedReply = structuredClone(message);
+    $('#release-reply').hidden = false;
+    addMessage('controller', '我正在处理你刚才指定的内容。你可以继续操作；这次修改的对象已固定。');
+    return;
+  }
+  if (message.action === 'inspect') {
+    const context = message.context;
+    addMessage(
+      'controller',
+      `你发消息时在${context.location}，${context.activity}。当前对象是${fieldName(context.target)}，${context.dirty ? `你有未 Save 的草稿 r${context.draftRevision}` : `网站保存版 v${context.viewedVersion}`}。${context.selection ? `选中的是“${context.selection.text.slice(0, 70)}”。` : '没有选定局部段落。'}我会按这个对象理解“这里”，不会把未保存稿当已保存内容。`,
     );
     return;
   }
   if (message.action === 'source') {
+    if (message.context.viewedVersion !== version) {
+      staleReply(message, '发送后节目版本已变化，新增素材暂未写回，请重新核对。');
+      return;
+    }
     if (approval.brief) {
       addMessage('controller', '选题已经确认。请先在左侧重新打开选题阶段，我再补充素材。');
       return;
@@ -649,34 +791,71 @@ function runMessage(message, queued = false) {
       '已补充一份原始素材，左侧列表已经更新。你可以点开继续修改，再 Save。',
       sourceKey(id, 'content'),
     );
-  } else {
-    const key = message.target;
+    return;
+  }
+  const key = message.target;
+  const context = message.context;
+  if (message.basis === 'draft') {
     if (
-      ((key === 'intent' || key.startsWith('source:')) && approval.brief) ||
-      (key === 'transcript' && (!approval.brief || approval.script))
+      !sharing ||
+      contextStale ||
+      composing ||
+      context.pageEpoch !== pageEpoch ||
+      context.shareEpoch !== shareEpoch ||
+      context.draftRevision !== (draftRevisions.get(key) ?? 0) ||
+      context.value !== valueOf(key) ||
+      context.viewedVersion !== version
     ) {
-      addMessage(
-        'controller',
-        '这个阶段需要你先在左侧完成前置确认，或重新打开当前阶段。我不会替你改变审批。',
-      );
+      staleReply(message, '你在发送之后换页、继续编辑或更新了版本；草稿建议暂未应用，原输入保留。');
       return;
     }
-    const content =
-      key === 'intent'
-        ? '从一个晚饭已凉、电脑仍亮着的夜晚切入。围绕下周真正要用的一个工具展开，把研究边界讲清楚，让听众为今晚留一点空间。'
-        : `${canonical[key] ?? ''}\n\n## 补充整理\n先写具体场景，再核对来源；没有证据的部分保留为问题，不做确定性断言。`;
-    syncRemote({
-      [key]:
-        content === canonical[key] ? `${content}\n\n本轮补充：用具体场景连接听点，保留核实边界。` : content,
-    });
+    const range = context.selection;
+    const revised = range
+      ? `${context.value.slice(0, range.start)}${range.text}（示例润色：表达更具体）${context.value.slice(range.end)}`
+      : `${context.value}\n\n补充表达：先描述一个具体场景，再交代尚待核实的部分。`;
+    editField(key, revised);
+    const input = all('[data-field]').find((item) => item.dataset.field === key);
+    if (input) input.value = revised;
+    lastActivity = '主控建议已应用到浏览器草稿 · 尚未 Save';
+    notice = '主控已修改左侧草稿，没有保存网站内容。你可以继续编辑，再 Save。';
+    updateStatus();
     addMessage(
       'controller',
-      conflicts.has(key)
-        ? `我已整理并保存${fieldName(key)}。你也正在修改这一处，左侧保留了你的草稿并显示两版，请选择后再继续。`
-        : `已整理并保存${fieldName(key)}，左侧已实时更新，你可以接着改。`,
+      range
+        ? `我根据发送时选中的“${range.text.slice(0, 48)}”调整了这一段，其它段落保留。左侧仍是未保存稿。`
+        : `已基于你的未保存内容调整${fieldName(key)}，没有替你 Save。`,
       key,
     );
+    return;
   }
+  if (context.viewedVersion !== version || context.savedValue !== canonical[key]) {
+    staleReply(message, '网站内容已变化，未用旧页面快照覆盖新版本。');
+    return;
+  }
+  if (
+    ((key === 'intent' || key.startsWith('source:')) && approval.brief) ||
+    (key === 'transcript' && (!approval.brief || approval.script))
+  ) {
+    addMessage('controller', '这个阶段需要你先在左侧完成前置确认，或重新打开当前阶段。我不会替你改变审批。');
+    return;
+  }
+  const range = !context.dirty ? context.selection : null;
+  const content = range
+    ? `${context.savedValue.slice(0, range.start)}${range.text}（示例润色：表达更具体）${context.savedValue.slice(range.end)}`
+    : key === 'intent'
+      ? '从一个晚饭已凉、电脑仍亮着的夜晚切入。围绕下周真正要用的一个工具展开，把研究边界讲清楚，让听众为今晚留一点空间。'
+      : `${context.savedValue}\n\n## 补充整理\n先写具体场景，再核对来源；没有证据的部分保留为问题，不做确定性断言。`;
+  syncRemote({
+    [key]:
+      content === canonical[key] ? `${content}\n\n本轮补充：用具体场景连接听点，保留核实边界。` : content,
+  });
+  addMessage(
+    'controller',
+    conflicts.has(key)
+      ? `我已整理并保存${fieldName(key)}。你也正在修改这一处，左侧保留了你的草稿并显示两版，请选择后再继续。`
+      : `已整理并保存发送时指定的${fieldName(key)}，左侧已同步。`,
+    key,
+  );
 }
 $('#save-edits').addEventListener('click', saveEdits);
 $('#chat-form').addEventListener('submit', (event) => {
@@ -687,6 +866,7 @@ $('#chat-form').addEventListener('submit', (event) => {
 });
 $('#ask-source').addEventListener('click', () => requestMessage('请帮我补充一份原始素材。', 'source'));
 $('#ask-improve').addEventListener('click', () => requestMessage('帮我把当前内容整理得更具体一些。'));
+$('#ask-context').addEventListener('click', () => requestMessage('你看到我在做什么？', 'inspect'));
 $('#simulate-update').addEventListener('click', () => {
   if (!online) return;
   const key = all('[data-field]').some((item) => item.dataset.field === recentField)
@@ -698,6 +878,34 @@ $('#simulate-update').addEventListener('click', () => {
     `已更新${fieldName(key)}。${conflicts.has(key) ? '这处与你的草稿重叠，左侧保留输入等待你选版。' : '左侧已同步。'}`,
     key,
   );
+});
+$('#toggle-context').addEventListener('click', () => {
+  sharing = !sharing;
+  shareEpoch++;
+  if (!sharing) {
+    acknowledgedContext = null;
+    pendingMessage = null;
+    $('#draft-context-warning').hidden = true;
+  } else contextStale = false;
+  notice = sharing
+    ? '页面共享已恢复。创作草稿可被理解，但未自动 Save。'
+    : '已停止新的页面共享。此前明确发送的任务仍保留原来的快照。';
+  updateStatus();
+});
+$('#simulate-context-stale').addEventListener('click', () => {
+  contextStale = !contextStale;
+  publishContext();
+});
+$('#simulate-delay').addEventListener('click', () => {
+  delayNextReply = true;
+  notice = '下次主控回复将延迟送达，你可以测试切页或继续编辑。';
+  updateStatus();
+});
+$('#release-reply').addEventListener('click', () => {
+  const message = delayedReply;
+  delayedReply = null;
+  $('#release-reply').hidden = true;
+  runMessage(message, true);
 });
 $('#simulate-race').addEventListener('click', () => {
   raceNextSave = true;
@@ -767,6 +975,18 @@ $('#reset-studio').addEventListener('click', () => {
   lastChange = '所有内容已保存 · 演示版本';
   messages = [];
   queuedMessages = [];
+  pageEpoch = 0;
+  contextSeq = 0;
+  sharing = true;
+  shareEpoch = 1;
+  contextStale = false;
+  composing = false;
+  selection = null;
+  acknowledgedContext = null;
+  draftRevisions = new Map();
+  delayNextReply = false;
+  delayedReply = null;
+  $('#release-reply').hidden = true;
   $('#owner-message').value = '';
   $('#draft-context-warning').hidden = true;
   addMessage(

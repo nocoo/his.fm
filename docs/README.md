@@ -3,6 +3,7 @@
 ## 待评审设计
 
 - [01 · 核心 Agent 工作流](01-agent-workflow.md) — Pi Durable、本机 Jev、长期／短期 conversation、网站集成与恢复契约；尚未实施。
+- [02 · 页面上下文与主控 API 重构](02-page-context-api.md) — 页面／草稿／正式内容三层、命令快照、选区定位、双向修改与完整接口契约。
 - [工作室协同原型与交互架构图](01-agent-workflow/index.html) — 左侧可编辑并 Save，右侧与主控聊天；可演练实时更新／冲突并导出 Markdown 评审意见。
 
 ## 当前产品与工程

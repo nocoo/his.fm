@@ -2,7 +2,7 @@
 
 状态：架构提案，等待用户 Review。2026-10-03。集成方式已按最新反馈修订：左侧现有制作流程、右侧持续主控聊天；内部 Jev 决策不向用户播报。**本文和交互演示不表示系统已实现，也不授权启动 agent。**
 
-[打开交互架构图](01-agent-workflow/index.html) · [文档目录](README.md)
+[打开交互架构图](01-agent-workflow/index.html) · [文档目录](README.md) · [02 · 页面上下文与 API 重构](02-page-context-api.md)
 
 本机可直接用 Chrome 打开 `docs/01-agent-workflow/index.html`，不需要运行网站。页面的字体也来自仓库内素材，没有第三方网络请求。验证命令：`node docs/01-agent-workflow/verify.mjs`；截图写入被忽略的 `.local/agent-architecture/`。评审页为独立静态文档，不发布到生产，也不冒充已经集成的 Basalt 管理界面。
 
@@ -253,7 +253,7 @@ D1 `agent_stations` 保存 active station、leaseEpoch、expiresAt，领取及�
 - **Jev 不面向用户播报。** 选模、thinking 选择、概率、复用／新建／退休理由仅留本机内部审计，不进入普通聊天、结果卡、运行概览或常规 Web 事件 payload。用户只看到“正在整理资料”“已补充两份素材”“工作暂时排队”等结果与状态；网关故障不显示模型术语，详细故障码仅供本机诊断。架构技术附录仍可解释内部机制，不是产品 UI。
 - 桌面明确采用两个用途清晰的滚动区域：左侧现有 `.admin-content-island`、右侧聊天记录；两者独立但不再嵌套滚动编辑卡。标题、阶段导航和聊天输入固定可见。此设计在批准后**显式替换**当前“全工作室只有一个主滚动区域”的规则，不能靠 `scrollIntoView` 滚动整个 shell。
 - 窄屏不能硬挤左右两列：显示原有编辑主页面，主控作为可全屏打开的侧栏／sheet；关闭后回到原字段、滚动位置与草稿，聊天状态保持。消息未读提示不挡住 Save。静态文档可上下展示以便对照，实施必须验证 sheet、键盘和焦点管理。
-- UI 实施复用现有 Basalt shell／controls 与共享 MarkdownEditor，而非将本页原型的原生 textarea 搬进产品。
+- UI 实施复用现有 Basalt shell／controls 与共享 MarkdownEditor，而非将本页原型的原生 textarea 搬进产品。其选区、输入法 composition、草稿 revision 通过只读 adapter 报告，不抓取整页 DOM。
 
 ### 同时编辑契约：实时更新，但绝不吞掉用户草稿
 
@@ -273,17 +273,19 @@ Save 期间新增的键入不能被旧 response 清除：仅清除与提交快�
 
 实现不是给现有 fetch 加一个定时器就完成：`BriefForm` 当前用 `defaultValue` 和一次性初始化的 sources，`readBrief` 会汇总整个表单。需将服务端快照／dirty 字段比较移入 ViewModel，让未改字段接收外部提交、保存仅发送真正的修改；不能用整份旧表单盖回服务器，也不能给整个表单换 key 强制刷新。保存与外部事件都走相同的版本收敛函数，供单测检验乱序和并发。
 
-**素材必须有持久 ID。** 当前 `sourceSchema` 无 ID，`BriefForm` 生成的 `key` 仅在浏览器有效，`?source=N` 是位置；新增／排序会使位置不再指向同一素材。实施时为已存素材一次性补 stable sourceId，按 ID 合并并将详情 URL 改为 `?source=<id>`，直接删除位置式解析，不保留双路兼容。草稿按 sourceId 保存；完整 sources 数组仍通过版本校验提交，客户端先做 ID 级比较并禁止在删除／内容重叠时自动合并。稳定 ID 可通过脚本和 shared validator 验证，但不是另一套素材数据库。
+**素材必须有持久 ID。** 当前 `sourceSchema` 无 ID，`BriefForm` 生成的 `key` 仅在浏览器有效，`?source=N` 是位置；新增／排序会使位置不再指向同一素材。实施时为已存素材一次性补 stable sourceId，按 ID 合并并将详情 URL 改为 `?source=<id>`，直接删除位置式解析，不保留双路兼容。草稿按 sourceId 保存；sources 编辑重构为 typed create/update/delete/reorder，领域层校验 sourceRevision 和 production.version，再在聚合内原子修改；不让客户端用一份旧数组整体覆盖。稳定 ID 可通过脚本和 shared validator 验证，但不是另一套素材数据库。
 
 ### 用户下达任务时的上下文
 
-聊天消息携带 productionId、当前阶段、可选 sourceId／字段、所见 canonical version。右侧始终显示“基于已保存内容”与当前对象，而不是把未保存输入偷偷发送给 agent。若请求涉及 dirty 字段，提示“先 Save 再发送”或“只基于已保存版本继续”；不强制保存无关字段，用户也可取消。批准阶段仍由左侧显式按钮完成，聊天里的“可以”不是审批操作。
+主控应完整理解当前工作现场，而非只拿 productionId。按 [02 · 页面上下文与 API 重构](02-page-context-api.md)，持续同步 page/session、当前对象／阶段、编辑字段／选区、所见版本、dirty draft revision、Save／冲突和素材／音频工作状态。草稿共享明确标记 browser_draft，不等于自动保存或审批；秘密字段和未发送的聊天草稿不采集。消息发送前等待 context ACK，再固定 immutable contextId，之后页面切换不重定向旧任务。用户可以让主控基于未保存稿给出 draft proposal，精确匹配 revision/hash 后应用为可撤销编辑，仍由用户 Save；也可以明确选择仅按已保存稿操作。批准阶段仍由左侧按钮完成，聊天里的“可以”不是审批。
 
 主控写回后自动出现在左侧，不要求用户再点一次“应用”才能看结果；唯一例外是与未保存稿重叠时暂缓覆盖该字段。修改已批准内容仍遵循现有重开权限，主控在右侧解释需要用户在左侧重开，不擅自升级权限。
 
 本地站点现有生产代理只有 HTTP，不假定 WebSocket 自动可用：新增仅开发态、固定生产目标的 upgrade 代理，保持 cloudflared Token 在服务进程、检查 Origin、禁用任意 URL。环境切换必须同时解除旧 stream、绑定新 siteId、检查并保留草稿，不把本地结果推入生产表单。
 
 ## 8. 数据模型与 API 增量
+
+页面观测、WorkingDraft、context ACK、命令上下文固定与 draft proposal API 详见 [02](02-page-context-api.md)，它是本节必须实施的补充，不是可选的聊天 metadata。
 
 保持现有 `/api/agent` 命名空间和生产 controller，不另开 Hermes 兼容层。同步更新 discovery、OpenAPI、capabilities、`llms.txt`、Token 页面及错误说明。旧 Token 可以通过原有认证验证身份，但接入 runtime 必须显式绑定 station；不能因为拿到一个旧 Token 就自动启动主机执行。
 
@@ -411,6 +413,7 @@ apps/web/src/admin/agent/       viewmodel/service/views；嵌入现有工作室�
 - `worker/agent-api.ts`、`agent-contract.ts`、`agent-tokens.ts`：身份、station binding、runtime 路由及所有机器写回的 operation guard。
 - `worker/production.ts`、`production-store.ts`、`production-model.ts`：复用规则，在领域变化时发布可见事件，保持版本和人工身份验证。
 - `worker/audio-routes.ts`、`audio-workflow.ts`、`production-prompts.ts`：operation 去重、Markdown 播读快照；现有“输出纯播讲文字”提示词改为 Markdown 成果＋独立确定性播读规则，不另造本机 TTS 调度器。
+- `src/admin/production/useProduction.ts`、`ProductionEditor.tsx`、`MarkdownEditor.tsx`：新增 context publisher、selection/composition adapter 和 canonical／draft 双读模型，按 02 约束同步与消息固定。
 - `src/shared/production.ts`、`worker/production.ts`、`src/admin/production/BriefForm.tsx`、`SourceEditor.tsx`：增加持久 sourceId、资料 revision／provenance、ID 路由与字段级草稿合并；去掉每次 mount 随机 key 作为业务身份的依赖。
 - `src/admin/AdminShell.tsx`、`production/ProductionList.tsx`、`ProductionEditor.tsx`、`PromptPanel.tsx`、`StudioSettings.tsx`、`channel/ChannelPage.tsx`：保留现有左侧流程、表单和 Save，挂载持续主控右栏；新增逐字段 draft/CAS/冲突状态，删除复制 Hermes 任务的旧产品路径。
 - `scripts/production-proxy.ts`：开发环境的固定目标 WebSocket upgrade；不能把生产 token 发给浏览器。

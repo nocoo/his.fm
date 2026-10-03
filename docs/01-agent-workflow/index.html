@@ -37,7 +37,7 @@
           <button class="node existing" data-node="api"><span class="node-kicker">CANONICAL STATE</span><strong>生产 API / D1</strong><small>任务 · 稿件版本 · 私有成果 · 人类审批</small><span class="node-tag">复用领域规则 + 新表</span></button></div>
           <div class="cloud-tail"><button class="node proposed compact" data-node="hub"><strong>AgentHub / DO</strong><small>实时通知 · 不运行 LLM</small></button><span class="arrow horizontal" aria-hidden="true">↔</span><button class="node existing compact" data-node="audio"><strong>AudioWorkflow / R2</strong><small>公开媒体 · 私有成果另建 bucket</small></button></div>
         </div>
-        <div class="wire"><span>↑ 本机主动连 WSS / HTTPS · 无本机入站端口 ↓</span><small>持久指令 / operation 回执 / 脱敏事件</small></div>
+        <div class="wire"><span>↑ 本机主动连 WSS / HTTPS · 无本机入站端口 ↓</span><small>页面 + 草稿上下文 / 固定命令快照 / 写回与草稿建议 / 回执</small></div>
         <div class="zone local-zone"><div class="zone-label"><span>02 / 你的电脑</span><span>一个进程 · 一个 Pi Durable Harness</span></div>
           <div class="controller-row"><button class="node proposed controller selected" data-node="controller" aria-pressed="true"><span class="node-kicker">THE ONLY PRODUCT CLIENT</span><strong>主控 + 确定性 Host</strong><small>接收指令 · 派发 · 验收 · 网站写回</small><span class="node-tag">主控模型 / high · 示例</span></button><span class="arrow horizontal" aria-hidden="true">↔</span><button class="node proposed decision-node" data-node="jev"><span class="node-kicker">LOCAL FALCON</span><strong>Jev 决策</strong><small>复用 / 新建 / 退休<br>合法 model + thinking</small><span class="node-tag">只建议，不执行</span></button></div>
           <div class="dispatch-line"><span>↓ 主控提交持久 assignment</span><span>↑ Markdown 成果 / 检查结果</span></div>
@@ -52,7 +52,7 @@
   </section>
 
   <section id="panel-journey" role="tabpanel" aria-labelledby="tab-journey">
-    <div class="section-heading"><h2>不是换一套工作流，而是多一位合作者。</h2><p>直接试试：让主控补素材 → 打开素材手工改 → 模拟主控同时修改 → 选版后 Save。仅本页模拟。</p></div>
+    <div class="section-heading"><h2>不是换一套工作流，而是多一位合作者。</h2><p>试试打开素材、编辑未保存稿、选中一段，再说“改这里”。主控理解的是你的当前工作现场，不只是一份已保存记录。</p></div>
     <div class="studio-demo" aria-label="工作室协同交互原型">
       <header class="studio-top"><div><span class="eyebrow">工作室 / 制作中的节目 / 001</span><strong>下班以后，还要追多少个 AI？</strong></div><span class="status">本地演示 · 不连接网站</span></header>
       <div class="studio-columns">
@@ -66,15 +66,15 @@
         </section>
         <aside class="studio-assistant" aria-label="唯一主控聊天窗口">
           <div class="assistant-top"><div><h3>主控</h3><span id="connection-status" class="live-dot">已连接 · 演示</span></div><details class="runtime-peek"><summary>运行概览</summary><p>研究助手 · 空闲<br>写作助手 · 待命<br>长期审校 · 在线<br>所有工作都由主控协调。</p></details></div>
-          <div class="assistant-context"><span>当前上下文</span><strong id="chat-context"></strong><small id="context-version"></small></div>
+          <div class="assistant-context"><span>主控正在理解的页面</span><strong id="chat-context"></strong><small id="context-version"></small><small id="context-activity"></small><small id="context-selection"></small><div class="context-controls"><button id="toggle-context" class="result-link" type="button">暂停页面共享</button><details><summary>主控能看到什么</summary><p>仅共享当前工作室的创作字段、选区、草稿版本和操作状态。不是自动 Save；不含 Token、密码、剪贴板或尚未发送的聊天输入。</p><a href="../02-page-context-api.md">完整 API 重构设计 ↗</a></details></div></div>
           <div id="chat" class="studio-chat" role="log" aria-live="polite" aria-label="与主控的对话"></div>
-          <div class="suggestions"><button id="ask-source" class="outline">请补充一份原始素材</button><button id="ask-improve" class="outline">帮我整理当前内容</button></div>
-          <form id="chat-form" class="studio-compose"><label for="owner-message">给主控的消息</label><textarea id="owner-message" rows="2" maxlength="500" placeholder="例如：把刚补充的素材整理得更具体一些" required></textarea><div id="draft-context-warning" class="draft-context-warning" hidden></div><button class="primary" type="submit">发送给主控</button><small>以已保存内容为准；不会自动发送你的未保存草稿。</small></form>
+          <div class="suggestions"><button id="ask-source" class="outline">请补充一份原始素材</button><button id="ask-improve" class="outline">帮我整理当前内容</button><button id="ask-context" class="outline">你看到我在做什么？</button></div>
+          <form id="chat-form" class="studio-compose"><label for="owner-message">给主控的消息</label><textarea id="owner-message" rows="2" maxlength="500" placeholder="例如：把刚补充的素材整理得更具体一些" required></textarea><div id="draft-context-warning" class="draft-context-warning" hidden></div><button class="primary" type="submit">发送给主控</button><small>页面草稿可供理解，但不会自动保存。每次消息绑定发送时的对象与选区。</small></form>
         </aside>
       </div>
     </div>
-    <div class="simulation-tools"><strong>测试协同边界</strong><button id="simulate-update" class="outline">模拟主控更新当前字段</button><button id="simulate-race" class="outline">模拟下次 Save 遇到 409</button><button id="toggle-connection" class="outline">模拟主控断线</button><button id="reset-studio" class="quiet">重置演示</button><span>原型不会调用模型或保存真实节目。</span></div>
-    <div class="authority-grid"><article><span>左侧照常操作</span><h3>用户自己改，再 Save</h3><p>素材列表、单份详情与五阶段不变。聊天常驻，切换阶段不会丢输入或对话。</p></article><article><span>同一份内容</span><h3>主控保存后即时更新</h3><p>主控不是遥控点击页面。它保存到同一业务 API，左侧收到版本事件后更新相关字段。</p></article><article><span>本地草稿优先保护</span><h3>重叠修改，明确选版</h3><p>无重叠的更新直接显示；同字段未保存时保留输入和编辑历史，不整页刷新。</p></article></div>
+    <div class="simulation-tools"><strong>测试协同边界</strong><button id="simulate-update" class="outline">模拟主控更新当前字段</button><button id="simulate-context-stale" class="outline">模拟上下文未同步</button><button id="simulate-delay" class="outline">模拟下次回复延迟</button><button id="release-reply" class="outline" hidden>送达延迟回复</button><button id="simulate-race" class="outline">模拟下次 Save 遇到 409</button><button id="toggle-connection" class="outline">模拟主控断线</button><button id="reset-studio" class="quiet">重置演示</button><span>原型不会调用模型或保存真实节目。</span></div>
+    <div class="authority-grid"><article><span>左侧照常操作</span><h3>用户自己改，再 Save</h3><p>素材列表、单份详情与五阶段不变。聊天常驻，切换阶段不会丢输入或对话。</p></article><article><span>看见三层状态</span><h3>页面、草稿与已保存内容</h3><p>主控能定位素材、字段和选区，知道你正编辑还是保存冲突。任务绑定快照，切页后不会改错对象。</p></article><article><span>本地草稿优先保护</span><h3>重叠修改，明确选版</h3><p>无重叠的更新直接显示；同字段未保存时保留输入和编辑历史，不整页刷新。</p></article></div>
   </section>
 
   <section id="panel-recovery" role="tabpanel" aria-labelledby="tab-recovery" hidden>
