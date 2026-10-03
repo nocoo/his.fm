@@ -1317,26 +1317,6 @@ footer small {
   font-size: 12px;
   line-height: 2.1;
 }
-.assistant-context {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  padding: 10px 18px;
-  background: #e7ecdf;
-  border-top: 1px solid var(--line);
-  border-bottom: 1px solid var(--line);
-}
-.assistant-context > span {
-  color: var(--muted);
-  font-size: 11px;
-}
-.assistant-context strong {
-  font-size: 12px;
-  font-weight: 500;
-}
-.assistant-context small {
-  font-size: 11px;
-}
 .studio-chat {
   flex: 1;
   overflow-y: auto;
@@ -1398,18 +1378,6 @@ footer small {
 }
 .studio-compose > small {
   line-height: 1.5;
-}
-.draft-context-warning {
-  background: var(--orange-soft);
-  padding: 10px;
-  margin-top: 8px;
-  border-radius: 7px;
-  font-size: 11px;
-}
-.draft-context-warning button {
-  font-size: 11px;
-  padding: 6px 8px;
-  margin: 8px 4px 0 0;
 }
 .conflict-region {
   margin-bottom: 16px;
@@ -1550,36 +1518,4 @@ footer small {
   .simulation-tools > span {
     width: 100%;
   }
-}
-.context-controls {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  flex-wrap: wrap;
-  margin-top: 5px;
-}
-.context-controls .result-link {
-  padding: 0;
-  font-size: 11px;
-}
-.context-controls details {
-  margin: 0;
-  font-size: 11px;
-}
-.context-controls details[open] {
-  width: 100%;
-}
-.context-controls p {
-  font-size: 11px;
-  line-height: 1.65;
-}
-.context-controls a {
-  font-size: 11px;
-}
-#context-selection {
-  overflow-wrap: anywhere;
-}
-#context-activity {
-  color: var(--green);
 }

@@ -30,7 +30,7 @@ const nodes = {
     ],
     not: [
       '浏览器关闭不会停止本机任务。',
-      '协作开启可理解未保存创作稿，但不会自动 Save；秘密字段和未发送聊天输入不采集。',
+      '默认理解当前创作稿，不提供开启／暂停开关；不会自动 Save，秘密字段和未发送聊天输入不采集。',
     ],
     source: 'apps/web/src/admin/production/ + admin/agent/（拟新增）',
   },
@@ -229,7 +229,6 @@ let audioReady = false;
 let coverReady = false;
 let online = true;
 let raceNextSave = false;
-let pendingMessage = null;
 let recentField = 'intent';
 let lastChange = '所有内容已保存 · 演示版本';
 let notice = '左侧可以直接编辑。右侧发一句话，主控的修改会回到同一份内容。';
@@ -237,8 +236,6 @@ let messages = [];
 let queuedMessages = [];
 let pageEpoch = 0;
 let contextSeq = 0;
-let sharing = true;
-let shareEpoch = 1;
 let contextStale = false;
 let composing = false;
 let selection = null;
@@ -271,7 +268,6 @@ function pageContext() {
   return {
     contextId: `demo-context-${contextSeq}`,
     pageEpoch,
-    shareEpoch,
     seq: contextSeq,
     target,
     location: `第 001 期 · ${stageNames[stage]}${selectedSource ? ` · 素材 ${selectedSource}` : ''}`,
@@ -286,29 +282,10 @@ function pageContext() {
   };
 }
 function publishContext() {
-  if (sharing && !contextStale && !composing) {
+  if (!contextStale && !composing) {
     contextSeq++;
     acknowledgedContext = pageContext();
   }
-  const context = acknowledgedContext;
-  $('#chat-context').textContent = !sharing
-    ? '页面共享已暂停，不再读取当前页面'
-    : context
-      ? `${context.location} · ${fieldName(context.target)}`
-      : '尚无已同步页面';
-  $('#context-version').textContent = !sharing
-    ? '仅保留已经明确发送的任务；不采集新草稿'
-    : contextStale || composing
-      ? `等待页面同步${composing ? ' · 中文输入尚未完成' : ''}，不会用旧页面猜测“这里”`
-      : `页面已同步 · seq ${context.seq} · 网站 v${context.viewedVersion}${context.dirty ? ` · 未保存草稿 r${context.draftRevision}` : ' · 当前字段已保存'}`;
-  $('#context-activity').textContent = sharing && context ? `最近操作：${context.activity}` : '';
-  $('#context-selection').textContent =
-    sharing && context?.selection
-      ? `已选中 ${context.selection.end - context.selection.start} 个 UTF-16 单位：${context.selection.text.slice(0, 42)}`
-      : sharing && context
-        ? `范围：当前字段${context.dirtyFields.length ? ` · 共 ${context.dirtyFields.length} 处未保存` : ''}`
-        : '';
-  $('#toggle-context').textContent = sharing ? '暂停页面共享' : '恢复页面共享';
   $('#simulate-context-stale').textContent = contextStale ? '模拟上下文同步完成' : '模拟上下文未同步';
 }
 function addMessage(kind, text, target) {
@@ -680,54 +657,21 @@ function saveEdits() {
   );
   return true;
 }
-function refreshMessage(message, basis) {
-  publishContext();
-  const context = structuredClone(acknowledgedContext);
-  return { ...message, target: context.target, context, basis };
-}
-function showPending(message) {
-  pendingMessage = message;
-  const warning = $('#draft-context-warning');
-  warning.hidden = false;
-  warning.replaceChildren();
-  const text = document.createElement('p');
-  text.textContent = '主控已理解你正在编辑未保存稿。选择修改草稿（不 Save），或明确只处理网站保存版。';
-  const draft = document.createElement('button');
-  draft.type = 'button';
-  draft.className = 'outline';
-  draft.textContent = '按当前草稿修改，不保存';
-  draft.addEventListener('click', () => runMessage({ ...message, basis: 'draft' }));
-  const save = document.createElement('button');
-  save.type = 'button';
-  save.className = 'outline';
-  save.textContent = '先 Save 再发送';
-  save.addEventListener('click', () => {
-    if (message.context.pageEpoch !== pageEpoch || message.target !== currentTarget()) {
-      staleReply(message, '待发送请求的原页面已经变化，请回到原对象或重新明确目标。');
-      return;
-    }
-    if (saveEdits()) runMessage(refreshMessage(message, 'canonical'));
-  });
-  const saved = document.createElement('button');
-  saved.type = 'button';
-  saved.className = 'outline';
-  saved.textContent = '仅基于已保存版本发送';
-  saved.addEventListener('click', () => runMessage({ ...message, basis: 'canonical' }));
-  warning.append(text, draft, save, saved);
-}
 function requestMessage(text, action = 'improve', fromComposer = false) {
   publishContext();
-  if (!sharing || contextStale || composing || !acknowledgedContext) {
-    notice = !sharing
-      ? '页面共享已暂停，主控不会猜测“这里”。请恢复共享，或明确描述一个不依赖页面的任务。'
-      : '当前页面尚未确认同步。先完成输入与同步，再发送“改这里”。';
-    updateStatus();
+  if (contextStale || composing || !acknowledgedContext) {
+    addMessage(
+      'controller',
+      composing
+        ? '等你把这段输入完成，我再改，避免处理到一半的文字。'
+        : '我暂时没拿到这页的最新内容，恢复后再处理，避免改错。',
+    );
     return;
   }
   const context = structuredClone(acknowledgedContext);
-  const message = { text, action, fromComposer, target: context.target, context, basis: 'canonical' };
-  if (context.dirty && action === 'improve') showPending(message);
-  else runMessage(message);
+  const savedOnly = /(?:仅|只|按).{0,5}已保存/.test(text);
+  const basis = context.dirty && action === 'improve' && !savedOnly ? 'draft' : 'canonical';
+  runMessage({ text, action, fromComposer, target: context.target, context, basis });
 }
 function staleReply(message, reason) {
   notice = reason;
@@ -741,8 +685,6 @@ function staleReply(message, reason) {
 function runMessage(message, queued = false) {
   if (!message) return;
   if (!queued) {
-    pendingMessage = null;
-    $('#draft-context-warning').hidden = true;
     addMessage('owner', message.text);
     if (message.fromComposer && $('#owner-message').value.trim() === message.text)
       $('#owner-message').value = '';
@@ -797,11 +739,9 @@ function runMessage(message, queued = false) {
   const context = message.context;
   if (message.basis === 'draft') {
     if (
-      !sharing ||
       contextStale ||
       composing ||
       context.pageEpoch !== pageEpoch ||
-      context.shareEpoch !== shareEpoch ||
       context.draftRevision !== (draftRevisions.get(key) ?? 0) ||
       context.value !== valueOf(key) ||
       context.viewedVersion !== version
@@ -862,11 +802,18 @@ $('#chat-form').addEventListener('submit', (event) => {
   event.preventDefault();
   const text = $('#owner-message').value.trim();
   if (text)
-    requestMessage(text, /素材|资料/.test(text) && /补充|新增|添加/.test(text) ? 'source' : 'improve', true);
+    requestMessage(
+      text,
+      /你看到|我在做什么/.test(text)
+        ? 'inspect'
+        : /素材|资料/.test(text) && /补充|新增|添加/.test(text)
+          ? 'source'
+          : 'improve',
+      true,
+    );
 });
 $('#ask-source').addEventListener('click', () => requestMessage('请帮我补充一份原始素材。', 'source'));
 $('#ask-improve').addEventListener('click', () => requestMessage('帮我把当前内容整理得更具体一些。'));
-$('#ask-context').addEventListener('click', () => requestMessage('你看到我在做什么？', 'inspect'));
 $('#simulate-update').addEventListener('click', () => {
   if (!online) return;
   const key = all('[data-field]').some((item) => item.dataset.field === recentField)
@@ -878,19 +825,6 @@ $('#simulate-update').addEventListener('click', () => {
     `已更新${fieldName(key)}。${conflicts.has(key) ? '这处与你的草稿重叠，左侧保留输入等待你选版。' : '左侧已同步。'}`,
     key,
   );
-});
-$('#toggle-context').addEventListener('click', () => {
-  sharing = !sharing;
-  shareEpoch++;
-  if (!sharing) {
-    acknowledgedContext = null;
-    pendingMessage = null;
-    $('#draft-context-warning').hidden = true;
-  } else contextStale = false;
-  notice = sharing
-    ? '页面共享已恢复。创作草稿可被理解，但未自动 Save。'
-    : '已停止新的页面共享。此前明确发送的任务仍保留原来的快照。';
-  updateStatus();
 });
 $('#simulate-context-stale').addEventListener('click', () => {
   contextStale = !contextStale;
@@ -969,7 +903,6 @@ $('#reset-studio').addEventListener('click', () => {
   coverReady = false;
   online = true;
   raceNextSave = false;
-  pendingMessage = null;
   recentField = 'intent';
   notice = '演示已重置，可以从补素材开始。';
   lastChange = '所有内容已保存 · 演示版本';
@@ -977,8 +910,6 @@ $('#reset-studio').addEventListener('click', () => {
   queuedMessages = [];
   pageEpoch = 0;
   contextSeq = 0;
-  sharing = true;
-  shareEpoch = 1;
   contextStale = false;
   composing = false;
   selection = null;
@@ -988,7 +919,6 @@ $('#reset-studio').addEventListener('click', () => {
   delayedReply = null;
   $('#release-reply').hidden = true;
   $('#owner-message').value = '';
-  $('#draft-context-warning').hidden = true;
   addMessage(
     'controller',
     '我在右边协助你。你可以直接编辑左侧并 Save，也可以告诉我需要修改什么；完成后内容会出现在左侧。',

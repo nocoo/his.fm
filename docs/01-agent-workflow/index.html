@@ -17,7 +17,7 @@
 <main id="main">
   <section class="intro">
     <div><p class="eyebrow">ARCHITECTURE REVIEW / 待评审提案</p><h1>左边继续制作，<br>右边和<span>主控一起改。</span></h1></div>
-    <div class="intro-note"><span class="stamp">DESIGN ONLY</span><p>现有流程不变，手工编辑与 Save 照常。<br>主控帮你改的内容，实时回到同一份页面。</p><p class="muted">本页只演示方案：不连接网站、不调用模型、不运行 CLI。所有人物、稿件和进度均为示例。</p><a href="../01-agent-workflow.md">阅读完整架构文档 ↗</a></div>
+    <div class="intro-note"><span class="stamp">DESIGN ONLY</span><p>主控默认在场，不用开启，也不用解释页面。<br>继续编辑或直接说要改什么，Save 仍由你决定。</p><p class="muted">本页只演示方案：不连接网站、不调用模型、不运行 CLI。所有人物、稿件和进度均为示例。</p><a href="../01-agent-workflow.md">阅读完整架构文档 ↗</a></div>
   </section>
   <div class="review-strip"><strong>先守住三条边界</strong><span>本机执行，不上云跑主控</span><span>主控验收 ≠ 人类审批</span><span>全 CLI ≠ 凭据安全隔离</span></div>
   <nav class="tabs" role="tablist" aria-label="评审视图">
@@ -66,10 +66,9 @@
         </section>
         <aside class="studio-assistant" aria-label="唯一主控聊天窗口">
           <div class="assistant-top"><div><h3>主控</h3><span id="connection-status" class="live-dot">已连接 · 演示</span></div><details class="runtime-peek"><summary>运行概览</summary><p>研究助手 · 空闲<br>写作助手 · 待命<br>长期审校 · 在线<br>所有工作都由主控协调。</p></details></div>
-          <div class="assistant-context"><span>主控正在理解的页面</span><strong id="chat-context"></strong><small id="context-version"></small><small id="context-activity"></small><small id="context-selection"></small><div class="context-controls"><button id="toggle-context" class="result-link" type="button">暂停页面共享</button><details><summary>主控能看到什么</summary><p>仅共享当前工作室的创作字段、选区、草稿版本和操作状态。不是自动 Save；不含 Token、密码、剪贴板或尚未发送的聊天输入。</p><a href="../02-page-context-api.md">完整 API 重构设计 ↗</a></details></div></div>
           <div id="chat" class="studio-chat" role="log" aria-live="polite" aria-label="与主控的对话"></div>
-          <div class="suggestions"><button id="ask-source" class="outline">请补充一份原始素材</button><button id="ask-improve" class="outline">帮我整理当前内容</button><button id="ask-context" class="outline">你看到我在做什么？</button></div>
-          <form id="chat-form" class="studio-compose"><label for="owner-message">给主控的消息</label><textarea id="owner-message" rows="2" maxlength="500" placeholder="例如：把刚补充的素材整理得更具体一些" required></textarea><div id="draft-context-warning" class="draft-context-warning" hidden></div><button class="primary" type="submit">发送给主控</button><small>页面草稿可供理解，但不会自动保存。每次消息绑定发送时的对象与选区。</small></form>
+          <div class="suggestions"><button id="ask-source" class="outline">请补充一份原始素材</button><button id="ask-improve" class="outline">帮我整理当前内容</button></div>
+          <form id="chat-form" class="studio-compose"><label for="owner-message">给主控的消息</label><textarea id="owner-message" rows="2" maxlength="500" placeholder="例如：把刚补充的素材整理得更具体一些" required></textarea><button class="primary" type="submit">发送给主控</button></form>
         </aside>
       </div>
     </div>

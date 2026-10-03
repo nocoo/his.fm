@@ -1,6 +1,6 @@
 # 02 · 页面上下文与主控 API 重构
 
-状态：待评审设计；不修改生产实现。2026-10-03。延续 [01 · Agent 工作流](01-agent-workflow.md) 的左右工作室布局，本篇细化此前没有定义完整的 API／上下文契约。
+状态：待评审设计；不修改生产实现。2026-10-03。产品原则：agent 默认在场，页面理解是后台固有能力，不提供开启／暂停入口或常驻感知提示。延续 [01 · Agent 工作流](01-agent-workflow.md) 的左右工作室布局，本篇细化此前没有定义完整的 API／上下文契约。
 
 [交互原型](01-agent-workflow/index.html) · [文档目录](README.md)
 
@@ -8,7 +8,7 @@
 
 主控与用户共用同一个工作现场。用户说“整理一下这份资料”“这段太长”“继续刚才的修改”，主控应知道这些指代对应哪一个对象、哪一份内容、哪一次编辑，而非猜测当前网页或反复让用户复制全文。
 
-“完整掌握”是 **覆盖已声明的工作室状态，并明确哪些已知、过期、缺失或被暂停共享**，不是全知。API 不能推断用户意图、证明人已经读过某段文字，也不能把没有收到的页面状态伪装为实时事实。
+“完整掌握”是 **覆盖已声明的工作室状态，并明确哪些已知、过期、缺失或因鉴权／连接失效而不可用**，不是全知。API 不能推断用户意图、证明人已经读过某段文字，也不能把没有收到的页面状态伪装为实时事实。
 
 三个独立平面：
 
@@ -52,7 +52,7 @@ Worker Context Service ← D1 已保存内容／领域权限
 
 ### 3.1 Context Header
 
-`siteId`（服务端生成，不由 URL 猜）、environment、protocolVersion、ownerSessionId、tabId、pageEpoch、contextSeq、serverReceivedAt、expiresAt、contextId、shareState。
+`siteId`（服务端生成，不由 URL 猜）、environment、protocolVersion、ownerSessionId、tabId、pageEpoch、contextSeq、serverReceivedAt、expiresAt、contextId、sessionState。
 
 - 每个 tab 有独立 tabId 和单调递增的 seq；每次切节目／环境／页面对象递增 pageEpoch。刷新创建新 page session，不复用可能冲突的序号。
 - route 使用允许的路由类型和参数，不收任意地址／查询参数／浏览器历史；mode 与后端 stage 是不同字段，用户点“发布”不代表节目已经 ready。
@@ -101,17 +101,19 @@ Worker Context Service ← D1 已保存内容／领域权限
 
 频道全局提示词已有专门只读 API；页面的 profile 草稿可帮助解释“你准备怎么改”，但不是 active policy，任何 agent 都无权通过草稿覆盖其规范优先级。
 
-## 4. 共享策略：草稿可见，但 Save 仍由用户控制
+## 4. 默认在场：无需开启，不可暂停，不做感知提示
 
-推荐“协作开启后，自动共享当前工作室的创作上下文”，右栏始终可见 `页面同步中／已同步／暂停／过期`。本提案把上一版“只有 Save 后才能理解内容”改为：主控可以看见未保存的创作内容，并明确标记 `browser_draft`；**草稿同步不是自动 Save**。
+Agent 是工作室的固有参与者，不是一个需要用户手动挂载的助手插件。进入已授权的工作室后，主控聊天默认出现，页面上下文与创作草稿自动在后台同步；没有“启用 agent”“共享页面”“暂停理解”等开关、首次开启引导、感知横幅或常驻同步徽章。
 
-上下文只在站点已有授权 owner 的协作范围共享。当前网站是单 owner 工作室，不借此扩展多租户；未来引入多用户时必须让 context owner／token scope 独立可验证，不能把任意 Access 用户的页面汇入同一个“最近上下文”。
+用户照常看资料、写稿、Save，主控自然理解“这里”。不会不断复述“我正在理解你的页面”，也不要求用户先选择 saved/draft：默认按用户当前正在编辑的那一版处理；未保存稿走 draft proposal，不自动保存。用户明确要求“只改已保存版”时才将本次操作限定为 canonical；目标或含义确实多义时用聊天澄清，不用通用权限选择面板打断每次修改。
 
-首次开启解释共享范围，并允许随时暂停／恢复。暂停后立即递增 shareEpoch，停止新采集／取值，清除云端 live draft 引用；旧请求不能重新打开共享。已经发送给模型／提交为命令快照的内容无法从其历史“撤回”，UI 要如实说明。仅暂停共享不取消已经明确授权的后台任务，但依赖 live 页面的继续操作要阻塞；用户可另发取消。
+“默认在场”不等于一直调用模型。上下文事件由 host／ViewModel 同步，只有消息、任务与必要异常才唤醒推理。连接状态可按已约定的运行概览展示；页面 ACK、seq、草稿 hash 等不是用户界面内容。网络瞬时抖动／输入法合成在后台等待与恢复；只有阻碍当前操作时，主控才简短说明“等你输入完成”“暂时没拿到最新内容”，不让用户手动开启同步。
 
-“不自动收集秘密字段”靠按页面的 allowlist schema 和专用 adapter，不是对 DOM 文本做一次正则脱敏。不得收集用户其它应用／浏览器 tab、密钥、Cookie、剪贴板或尚未发送的聊天输入；“全 CLI”也不是扩大页面观测范围的理由。
+上下文只在站点已授权 owner 的工作范围流动。退出登录、撤销身份、切换站点、关闭页面和会话过期照常终止对应读取，这是鉴权／生命周期，不是产品的“暂停 agent”功能。用户仍能取消／暂停**具体任务**，但这不关闭主控，也不关闭页面感知；不能取消已经发生的外部效果。
 
-主控读取完整草稿会将内容发往配置的主控模型；执行会话只拿被派发任务所需的最小文本包，Jev 只收任务复杂度／状态摘要，不收选区原文和秘密内容。不能声称传到模型的草稿完全留在浏览器。
+敏感字段排除是不可配置的安全底线：使用按页面的 allowlist schema 和专用 adapter，不抓整页 DOM。不得收集其它应用、未授权浏览器 tab、密钥、Cookie、剪贴板或尚未发送的聊天输入；“无处不在”描述产品体验，不是观测整个系统或绕过授权的许可。
+
+主控读取创作草稿会将所需内容发往配置的主控模型；执行会话仅拿任务必需的固定输入包，Jev 仅收复杂度／状态摘要。真实数据处理范围写入产品文档／隐私说明，不通过常驻上下文提示区域解释。已经发送给模型或绑定为命令快照的内容无法从历史中假装撤回。
 
 ## 5. 实时同步协议：ACK 是事实，不是装饰
 
@@ -133,7 +135,7 @@ observedAt + receivedAt + freshUntil
 canonicalVersions（服务端）
 viewedVersions（浏览器）
 draftRefs（浏览器，未保存）
-coverage / missing / stale / sharingPaused
+coverage / missing / stale / sessionState
 capabilities（服务端，根据 actor 和当前领域规则重新计算）
 ```
 
@@ -147,7 +149,7 @@ capabilities（服务端，根据 actor 和当前领域规则重新计算）
 
 发送聊天前浏览器 flush 当前 editor 状态并等待对应 context ACK；随后提交 `{clientRequestId, contextId, contextDigest, target, instruction}`。命令与 immutable context ref 原子保存。不能引用一个会被后续编辑覆盖的 `latest` 对象。
 
-若断线／IME 未完成／上传缺失：提示“上下文尚未同步”，允许用户等待或**明确**改用最后已确认的 saved revision。不能按旧 context 假装完整。没有指定对象且上下文不足的“改一下这里”应先澄清，不猜测页面目标。
+若断线／IME 未完成／上传缺失：后台等待安全的最新快照并自动重连，不显示常驻同步区域。确实阻碍本次请求时主控简短说明原因；只有用户明确要求时才使用指定 saved revision，不能按旧 context 假装完整。没有指定对象且上下文不足的“改一下这里”应先澄清，不猜测页面目标。
 
 命令保存的范围包含：site、tab、pageEpoch、productionId、field/source ID、selection、observed version、draftRevision/hash、scope（选区／当前字段／本期任务）、write intent（suggest/draft/canonical）。原型可模拟这些身份，但不是生产网络的 ACK。
 
@@ -159,7 +161,7 @@ capabilities（服务端，根据 actor 和当前领域规则重新计算）
 
 ### 多 tab／多设备
 
-不定义全局“最后一条心跳就是当前页面”。每个会话保留来源 tab；用户发消息或点“以此页面为协作上下文”时显式绑定主控聊天 thread 的 context owner，后台 tab 的心跳不能抢占。页面关闭后标 owner unavailable；新页面需显式接续，主控不随意挑另一个 tab。
+不定义全局“最后一条心跳就是当前页面”。每个会话保留来源 tab；主控聊天绑定当前前台活跃工作室 tab，进入页面／聚焦／发送消息时由客户端自动维护 owner，后台 tab 的心跳不能抢占。页面关闭后标 owner unavailable，新页面在有效用户会话下自动重新绑定；主控不从后台心跳猜测当前页。用户无需点“共享”或“接续上下文”。
 
 context owner 的切换以 server ownerEpoch CAS 完成，target site 不同必须另建作用域。后台任务仍用自己的 immutable context；原 tab 新草稿不得被另一 tab 的同名 source 覆盖。
 
@@ -171,18 +173,18 @@ context owner 的切换以 server ownerEpoch CAS 完成，target site 不同必�
 
 | 接口 | 调用者 | 合同 |
 | --- | --- | --- |
-| `POST /admin/api/agent/context-sessions` | Access 浏览器，同源 | 创建绑定站点／用户／tab 的会话；协作 owner 单独 claim；不接任意 machine token |
+| `POST /admin/api/agent/context-sessions` | Access 浏览器，同源 | 创建绑定站点／用户／tab 的会话；协作 owner 按前台会话自动 claim；不接任意 machine token |
 | `PUT /admin/api/agent/context-sessions/:id/snapshot` | 所属浏览器 | schemaVersion/pageEpoch/seq＋page／editor／draft refs；幂等 ACK；旧序号拒绝或忽略但不覆盖 |
 | `POST .../:id/content` | 所属浏览器 | bounded immutable 文本块，返回 contentRef/hash；受隐私字段 allowlist 限制 |
-| `POST .../:id/owner`、`DELETE .../:id` | 所属浏览器 | ownerEpoch CAS 接续／关闭；共享暂停是 snapshot policy transition，回收 live refs |
+| `POST .../:id/owner`、`DELETE .../:id` | 所属浏览器 | ownerEpoch CAS 自动接续／关闭；退出登录、页面关闭或会话过期时回收 live refs |
 | `POST /admin/api/agent/commands` | Access 浏览器，同源 | 必填 context ref 或明确 `contextMode:none`；none 只用于无页面任务，含糊指令仍需澄清；原子固定命令上下文 |
 | `GET /api/agent/context?sessionId=...` | 绑定的主控 Token＋lease | 获取指定协作会话的最新安全包，含 freshness／coverage；不可枚举其它用户／会话 |
 | `GET /api/agent/commands/:id/context` | 领取该命令的主控 | 不可变 command context＋当前 canonical 差异；即使用户已换页也不改变目标 |
 | `GET /api/agent/context-content/:ref` | 同作用域主控 | 按 ref 精确读 Markdown／原文及合法 range/hash；过期／不完整明确返回，不偷偷取另一 revision |
-| `POST /api/agent/context-requests` | 主控 | 请求明确字段／选区上下文；在线浏览器可采集允许值并 ACK；超时／暂停返回 unavailable，不能远程窥探秘密字段 |
+| `POST /api/agent/context-requests` | 主控 | 请求明确字段／选区上下文；在线浏览器可采集允许值并 ACK；超时／鉴权失效返回 unavailable，不能远程窥探秘密字段 |
 | `POST /api/agent/runtime/operations` | 主控 | 类型化 canonical op 或 draft proposal，强制 command/target/version/hash/lease/operation 元数据；无任意 HTTP 代理 |
 | `POST /admin/api/agent/draft-proposals/:id/ack` | 原 context 的浏览器 | 返回 applied/stale/rejected/closed＋实际 draft revision/hash，不修改 canonical；接收消息不等于应用成功 |
-| `GET /admin/api/agent/context-sessions/:id/status` | 所属浏览器 | 同步时间、ACK、共享状态、缺失项；不给用户展示 Jev 内部过程 |
+| `GET /admin/api/agent/context-sessions/:id/status` | 所属浏览器 | 供前端内部消费的同步时间、ACK、会话有效性与缺失项；不渲染上下文状态区域或 Jev 过程 |
 
 `context-requests` 异步，不能让 Worker 持有长 HTTP 等待浏览器回应；机器观察 request status／事件即可。主控未得到必要输入时暂停这项任务，用户界面显示“需要当前选区内容／页面已离线”，而非无限卡住聊天。
 
@@ -227,7 +229,7 @@ context owner 的切换以 server ownerEpoch CAS 完成，target site 不同必�
 ```
 
 - 接收浏览器验证 session、target、page/draft revision、hash 和选区，精确相符且仍被用户授权修改时，才可应用为 editor 的一次可撤销变更；页面提示“主控已修改草稿，未保存”，不说“已保存”。无焦点抢占，不滚动聊天外的 shell。
-- 原字段仍存在于该页面 session 的 draft store 但用户已换页：proposal 默认 pending，不自动应用到另一可见对象；明确定位原对象并复核后可应用。`expected pageEpoch` 防止延迟回应作用到新页面。原字段已删除／页已关／共享已停：stale，不重建用户已丢弃的草稿。
+- 原字段仍存在于该页面 session 的 draft store 但用户已换页：proposal 默认 pending，不自动应用到另一可见对象；明确定位原对象并复核后可应用。`expected pageEpoch` 防止延迟回应作用到新页面。原字段已删除／页已关／所属用户会话已失效：stale，不重建用户已丢弃的草稿。
 - 期间用户继续打字、IME 中、Save 已开始、canonical 基准改变，全部不能盲套旧 patch。保留 proposal 与用户草稿，展示差异，用户选择“采用建议”或主控以新 revision 重新做；不把 offset 平移当可靠的语义合并。
 - `proposal.created` 仅表示可用；只有浏览器的 `applied` ACK 才能说“已更新左侧草稿”。ACK 丢失查询 proposal 状态／重发同 ID，不重复插入。draft proposal 按 TTL 回收，不存在跨设备的“已应用草稿”假象。
 - 用户按 Save 后走 human production service；服务端重新验证当前版本／状态，不靠浏览器 proposal ACK 当审批凭证。若需主控代保存，用户需明确要求并生成新 canonical operation；不得因为允许看草稿就自动持久化。
@@ -248,7 +250,7 @@ host 提供两个主要读取工具，而非裸网页：`read_workspace_context(
 当前草稿：draft revision 12，未保存，内容 ref C12
 选区：UTF-16 [15, 40)，所选文本 hash H12
 刚刚发生：Save 返回 409；用户仍保留本地稿
-上下文：已 ACK seq 28，5 秒前，完整；共享开启
+上下文：已 ACK seq 28，5 秒前，完整；用户会话有效
 允许：读取、提出 draft proposal；不允许：代替用户批准／覆盖 v8
 这次命令：只修改上述选区；不随之后页面切换改变目标
 ```
@@ -263,7 +265,7 @@ facts、浏览器 untrusted text、用户明确命令、频道 policy 与 server
 
 | 数据 | 生命周期／约束 |
 | --- | --- |
-| `agent_context_sessions` | tab/owner/scope、seq、pageEpoch、shareEpoch、TTL、最新 ACK 指针；每个 tab 独立，live 数据可清理 |
+| `agent_context_sessions` | tab/owner/scope、seq、pageEpoch、ownerEpoch、TTL、最新 ACK 指针；每个 tab 独立，live 数据可清理 |
 | `agent_context_snapshots` | immutable contextId/digest、canonical/viewed version vector、draft refs、coverage；命令绑定后固定，不能被 latest 覆盖 |
 | `agent_context_content` | 内容寻址、owner scope、敏感字段拒绝、字节上限、TTL；大正文进独立私有 R2，不进公开 MEDIA |
 | `agent_draft_proposals` | 指向 command/context/field，期望 draft hash/revision、操作和 ACK 状态；不能用 job.status=complete 替代 applied |
@@ -271,7 +273,7 @@ facts、浏览器 untrusted text、用户明确命令、频道 policy 与 server
 
 引用的内容先写不可变 blob，再用 D1 原子插入 snapshot/command refs；未被引用的上传按年龄回收。提交失败时不删除可能被其它 ref 使用的内容。隐私草稿不计为正式节目历史、不增加 production.version，不以高频心跳耗尽原有 200 条业务事件。
 
-保留策略：live context 建议 30 分钟无心跳回收、未绑定命令正文 24 小时清理；命令固定片段按任务保留期处理。用户暂停共享后新的读取立即受 shareEpoch 阻止，但历史命令仍用于其已授权任务；UI 区分“停止今后共享”与“撤回／取消历史任务”。具体期限待实施前确认和测试，不能在设计期清理真实数据。
+保留策略：live context 建议 30 分钟无心跳回收、未绑定命令正文 24 小时清理；命令固定片段按任务保留期处理。退出登录／撤销身份后新的读取受会话与权限检查阻止，不提供独立上下文暂停语义；历史命令是否可继续仍按其任务授权、Token 与 lease 验证，不由页面是否可见决定。具体期限待实施前确认和测试，不能在设计期清理真实数据。
 
 上下文包含模型可见的草稿敏感性，必须在私有 D1／R2、权限 scope 和日志策略里处理。服务端日志只记 ID/hash/size/errorCode，不记 draft 正文或选区原文；debug 页不能变成公共内容泄露口。
 
@@ -279,18 +281,18 @@ facts、浏览器 untrusted text、用户明确命令、频道 policy 与 server
 
 | 类别 | code（拟定） | 用户界面行为 |
 | --- | --- | --- |
-| 页面过期／暂停 | `context_stale` / `context_sharing_paused` | 主控说明当前看不到最新页面，等待同步或用户指定版本 |
+| 页面过期／会话失效 | `context_stale` / `context_session_closed` | 后台恢复；影响本次请求时主控说明暂时无法处理，不提供共享开关 |
 | 内容未齐 | `context_incomplete` / `content_missing` | 不冒充掌握全文；具体指出缺少哪份资料／字段 |
 | 错误对象／选区 | `target_missing` / `selection_changed` | 保留草稿与候选，重新定位或请求确认 |
 | 页面／草稿已变 | `context_epoch_conflict` / `draft_revision_conflict` | proposal 不应用，显式旧稿／新稿对照 |
 | canonical CAS | `production_version_conflict` | 沿用 409，不盲重试；保留本地输入 |
 | 命令重试 | `idempotency_mismatch` | 同 ID 不同 hash 拒绝；重复同内容返回原回执 |
-| owner 歧义 | `context_owner_required` | 用户明确选择协作页面，后台 tab 不抢占 |
+| owner 歧义 | `context_owner_required` | 前台绑定 CAS 自动收敛，后台 tab 不抢占；无法消歧时只问具体工作对象 |
 | 权限／审批 | `forbidden` | 用户看得到的页面不代表 agent 可以写；左侧操作仍可用 |
 
 context／draft version 冲突用 409；未知或无权访问的 context/ref 不泄露存在性；已在当前授权范围内但过期的引用返回 410；超限 413、频率超限 429（带 Retry-After）、暂不可用 503。无论 HTTP 状态怎样，模型工具必须携带结构化 code、可恢复条件和原 target，不把错误变成一段无上下文的文本。
 
-右侧平时仅展示简短状态：“当前：素材 s1 · 正在编辑草稿”“页面已同步”“这份草稿尚未保存”。可展开“主控能看到什么”了解共享范围和 ACK；不用给用户刷一屏 seq/epoch，更不展示 Jev 过程。技术评审原型可以展示协议摘要，它不是线上监控接口。
+右侧只有自然的主控对话和工作结果，不出现“主控正在理解的页面”“当前共享对象”“页面已同步”“主控能看到什么”等区域，也没有开启／暂停入口。左侧仍可显示已有的未保存／冲突提示，因为它们属于编辑行为，而非 agent 感知状态。模型选择、Jev 过程、seq/epoch 和上下文 ACK 都只留内部。技术附录解释协议，不把它映射成常驻产品控件。
 
 ### API 与实现映射
 
@@ -299,7 +301,7 @@ context／draft version 冲突用 409；未知或无权访问的 context/ref 不
 | 位置 | 负责什么 |
 | --- | --- |
 | `packages/contracts/src/context.ts`、`commands.ts`、`operations.ts` | route-kind／fieldRef discriminated unions、快照／内容 ref／错误／回执 schema；共享静态类型不是替代运行时验证 |
-| `apps/web/src/admin/agent/context-model.ts`、`context-service.ts` | 页面状态归一化、seq／ACK、owner、debounce、暂停；不把 DOM 引入 model |
+| `apps/web/src/admin/agent/context-model.ts`、`context-service.ts` | 页面状态归一化、seq／ACK、owner、debounce、自动重连／会话终止；不把 DOM 引入 model |
 | `apps/web/src/admin/production/ProductionEditor.tsx`、`BriefForm.tsx`、`SourceEditor.tsx`、`useProduction.ts` | 从共同 draft store 派生页面和正文状态，稳定 source ID，去掉 bool-only dirty／whole-form replacement 的限制 |
 | `apps/web/src/admin/markdown/MarkdownEditor.tsx` | 只读 selection/composition adapter 与 expected-revision patch 应用；一次可撤销事务、不重挂载 |
 | `apps/web/worker/agent-runtime/context.ts`、`context-store.ts` | 权限、内容／TTL／快照 ref、完整性 assembler、命令固定与读取 |
@@ -311,7 +313,7 @@ context／draft version 冲突用 409；未知或无权访问的 context/ref 不
 ## 12. 纵向实施顺序与验收
 
 1. **shared contracts＋读模型**：提取既有 production schema；补 stable sourceId／sourceRevision、context/session/content schema、只读 assembler 和 server capabilities。先证明页面事实不授予权限。
-2. **ViewModel／context publisher**：生产编辑器、素材详情、MarkdownEditor adapter 接入；canonical/draft/selection 分离，safe allowlist，单 tab ACK；不改变 Save 的语义。
+2. **ViewModel／context publisher**：生产编辑器、素材详情、MarkdownEditor adapter 接入；canonical/draft/selection 分离，safe allowlist，默认后台单 tab ACK；不改变 Save 的语义。
 3. **主控精确读上下文**：消息 capture barrier、immutable refs、内容按需读取；“这里”绑定正确对象，断线／多 tab／IME 明确行为。
 4. **双向编辑闭环**：canonical typed operations 和 draft proposals／ACK，稳定 ID、CAS、冲突 UI；主控能够帮忙但不覆盖用户在途输入。
 5. **全工作室覆盖**：列表、成品、试听、审批、发布、频道与敏感设置页；删除旧 copy-prompt／直接 bypass API，更新 OpenAPI／capabilities／onboarding。
@@ -320,9 +322,9 @@ context／draft version 冲突用 409；未知或无权访问的 context/ref 不
 
 验收必须覆盖：
 
-- **L1 ≥95% 四指标**：context schema／私密字段拒绝、seq/pageEpoch/shareEpoch、stable sourceId、UTF-16 选区 hash、snapshot pinning、draft vs canonical、typed op 权限、source revision、proposal 去重。
-- **L2 真本地 API**：乱序 context PUT、同 seq 异内容、token/site/tab 越界、D1 ref 原子性、partial 内容、暂停后晚到请求、owner CAS、丢 ACK、context ref 过期、proposal applied ACK 伪造不能变成 canonical 保存。
-- **L3**：用户不发消息时切页／点素材／编辑／选中段落，主控上下文仍更新；点聊天后选区保留；发送后换页旧任务不漂移；dirty 文本被理解但没有 Save；同字段继续键入使旧 proposal stale；草稿 Save 中的输入、中文 IME、Ctrl+Z、多 tab 和断线恢复。
+- **L1 ≥95% 四指标**：context schema／私密字段拒绝、seq/pageEpoch/ownerEpoch、stable sourceId、UTF-16 选区 hash、snapshot pinning、draft vs canonical、typed op 权限、source revision、proposal 去重。
+- **L2 真本地 API**：乱序 context PUT、同 seq 异内容、token/site/tab 越界、D1 ref 原子性、partial 内容、会话失效后晚到请求、owner CAS、丢 ACK、context ref 过期、proposal applied ACK 伪造不能变成 canonical 保存。
+- **L3**：无开启／暂停控件、无常驻页面理解／同步提示；进入工作室即生效，无需额外动作；用户不发消息时切页／点素材／编辑／选中段落，主控上下文仍更新；点聊天后选区保留；发送后换页旧任务不漂移；dirty 文本被理解但没有 Save；同字段继续键入使旧 proposal stale；草稿 Save 中的输入、中文 IME、Ctrl+Z、多 tab 和断线恢复。
 - **安全**：Token 输入／未发送聊天草稿／剪贴板／DOM 隐藏数据不被抓取；网页／draft prompt injection 无效；私有 R2 不公开，日志无正文／秘密，模型调用输入范围可核对。
 - **计费和权限**：context 高频变化不频繁唤醒模型；看到正在试听不等于批准；draft 未批准无法合成音频；Jev 内部选择不出现在用户聊天中。
 

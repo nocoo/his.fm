@@ -3,6 +3,7 @@
 ## Architecture
 
 - npm workspaces: `apps/web` owns the website, Worker, migrations and tests; `packages/agent/.gitkeep` reserves the future agent without runtime code or a manifest. Root `package.json` is the only release version; root scripts delegate to `@his-fm/web`. Archives (`artwork`, `episodes`), docs and repository automation remain at root.
+- The native-agent design in `docs/01-agent-workflow.md` and `docs/02-page-context-api.md` is not implemented yet. Its product contract is ambient: the coordinator appears by default, page context updates automatically, and there is no enable/pause control or persistent context-awareness banner. Keep sensitive fields excluded, explicit Save and human approvals intact, and distinguish cancelling a task from disabling the coordinator.
 
 - React 19 + Vite 8 + TypeScript 7.0.2, served by one Cloudflare Worker. Use the pinned project `cf` CLI and `apps/web/cloudflare.config.ts`; never use Wrangler for resource operations or deployment.
 - Public views live in `apps/web/src/public/`. Admin views live in `apps/web/src/admin/` and use `@nocoo/basalt` 2.2.0 with standalone CSS and granular shell imports.
