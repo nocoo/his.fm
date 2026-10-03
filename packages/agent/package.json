@@ -5,6 +5,12 @@
   "engines": {
     "node": ">=22.22"
   },
+  "scripts": {
+    "start": "node --experimental-strip-types src/cli.ts",
+    "typecheck": "tsc --noEmit",
+    "test:coverage": "vitest run --coverage",
+    "test": "vitest run"
+  },
   "dependencies": {
     "@earendil-works/chord": "1.0.0",
     "@earendil-works/pi-ai": "1.0.0",
