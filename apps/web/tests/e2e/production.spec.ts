@@ -395,7 +395,20 @@ test('five stages preserve failed edits and advance with owner completion', asyn
   );
   expect(state.production.stage).toBe('scripting');
   expect(state.production.assets.audio).not.toBeNull();
-  await expect(page.locator('.studio-transcript:visible')).toContainText('今晚先吃饭');
+  const scriptPanel = page.getByRole('tabpanel', { name: '逐字稿', exact: true });
+  const manuscript = scriptPanel.getByRole('textbox', { name: '完整逐字稿', exact: true });
+  const savedScript = '## 晚饭之前\n\n你好，欢迎收听 his.fm。\n\n今晚先吃饭。';
+  await expect(scriptPanel).toBeVisible();
+  await expect(scriptPanel.getByRole('radio', { name: '编辑', exact: true })).toHaveAttribute(
+    'aria-checked',
+    'true',
+  );
+  await expect(manuscript).toBeVisible();
+  await expect.poll(() => manuscript.locator('.cm-line').allTextContents()).toEqual(savedScript.split('\n'));
+  await scriptPanel.getByRole('button', { name: '撤销', exact: true }).click();
+  await expect(manuscript).not.toContainText('今晚先吃饭');
+  await scriptPanel.getByRole('button', { name: '重做', exact: true }).click();
+  await expect.poll(() => manuscript.locator('.cm-line').allTextContents()).toEqual(savedScript.split('\n'));
   expect(errors).toEqual([]);
 });
 

@@ -1,5 +1,7 @@
 # 01 · his.fm 核心 Agent 工作流
 
+Implementation note (2026-10-03): the local native-agent slice is now implemented and locally exercised. This document remains the broader reviewed design, not a claim that every proposed capability exists. See [current implementation status and limits](agent-implementation.md).
+
 状态：架构提案，等待用户 Review。2026-10-03。集成方式已按最新反馈修订：左侧现有制作流程、右侧持续主控聊天；内部 Jev 决策不向用户播报。**本文和交互演示不表示系统已实现，也不授权启动 agent。**
 
 [先看 Archify 架构图](agent-architecture/index.html) · [工作室交互原型](01-agent-workflow/index.html) · [文档目录](README.md) · [02 · 页面上下文与 API 重构](02-page-context-api.md) · [03 · 实时双向连接](03-realtime-agent-link.md)

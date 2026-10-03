@@ -11,6 +11,8 @@
 
 ## 当前产品与工程
 
+- [Native agent implementation and local operation](agent-implementation.md) — executable status, local acceptance and explicit limits.
+
 - [系统架构](architecture.md)
 - [播客生产流程](production.md)
 - [Agent API](agent-api.md)

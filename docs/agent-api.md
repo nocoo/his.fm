@@ -95,12 +95,8 @@ The owner cover endpoint accepts actual raster bytes with the correct `Content-T
 
 Each successful upload uses a new immutable R2 key. A stale database update removes the new unreferenced upload. Production URLs use `https://f.no.mt`; local URLs use `/media/` and local R2. The API cannot attach an arbitrary external asset URL to bypass upload and approval.
 
-```sh
-curl --fail-with-body \
-  -H "Authorization: Bearer $HISFM_AGENT_TOKEN" \
-  https://his.fm/api/agent/productions
+Read productions through the configured coordinator client; never paste a real token into a command or public example.
 
-```
 
 ## Manual publication confirmation
 

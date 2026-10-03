@@ -51,12 +51,13 @@ Husky runs coverage, strict lint and typecheck against the staged Git snapshot. 
 
 See [production workflow](docs/production.md), [Native Agent API](docs/agent-api.md), [CI/CD](docs/ci-cd.md), [architecture](docs/architecture.md), [operations](docs/operations.md) and [artwork provenance](artwork/README.md). Secrets, generated audio/video and local databases remain ignored.
 
-Design review: start with the [Archify agent architecture map](docs/agent-architecture/index.html) ([source and verification](docs/agent-architecture/README.md)), then [native Pi Durable agent workflow](docs/01-agent-workflow.md), [page-context and API redesign](docs/02-page-context-api.md), [interactive Chinese workspace and architecture review](docs/01-agent-workflow/index.html), and [documentation index](docs/README.md). This proposal is not implemented; the walkthrough uses local simulation only.
+Design review: start with the [Archify agent architecture map](docs/agent-architecture/index.html) ([source and verification](docs/agent-architecture/README.md)), then [native Pi Durable agent workflow](docs/01-agent-workflow.md), [page-context and API redesign](docs/02-page-context-api.md), [interactive Chinese workspace and architecture review](docs/01-agent-workflow/index.html), and [documentation index](docs/README.md). The walkthrough remains a static design simulation; see [implementation status and local operation](docs/agent-implementation.md) for the working runtime and its remaining boundaries.
 
 ## Repository layout
 
 - `apps/web`: React website, Cloudflare Worker, migrations and tests (`@his-fm/web`).
-- `packages/agent`: reserved directory, tracked only by `.gitkeep`; no implementation or package manifest yet.
+- `packages/agent`: resident Pi Durable coordinator, local model/Jev clients, conversations and durable transport.
+- `packages/contracts`: shared validated browser/agent/server protocol.
 - Root `package.json` and `package-lock.json`: one release version and one npm workspace dependency graph. Root commands delegate to the web workspace.
 - `artwork`, `episodes`, `docs` and repository-level `scripts` stay at root. Local Worker secrets live in `apps/web/.dev.vars`; persistent state lives in `apps/web/.cloudflare/state`.
 

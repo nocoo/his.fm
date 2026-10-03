@@ -1,5 +1,7 @@
 # 03 · 常驻双向连接：参考 Eagle 的 AgentHub DO 方案
 
+Implementation note (2026-10-03): the local native-agent slice is now implemented and locally exercised. This document remains the broader reviewed design, not a claim that every proposed capability exists. See [current implementation status and limits](agent-implementation.md).
+
 状态：设计提案，未实施／未部署。2026-10-03。补充 [01 · Agent 工作流](01-agent-workflow.md) 与 [02 · 页面上下文 API](02-page-context-api.md)。本篇取代它们此前“WSS 只通知、工作靠 HTTP 领取”的弱实时描述；业务权威和审批规则不变。
 
 [Archify 整体架构图](agent-architecture/index.html) · [文档目录](README.md)

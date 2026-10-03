@@ -69,3 +69,10 @@ Owner APIs inherit Cloudflare Access authentication. Agents have no resource-cle
 Cleanup re-reads D1 references and R2 object metadata before deletion. It protects all production assets and owned media URLs in production text/sources, draft/published episode fields, global prompt and current bumper settings. Queued/running audio jobs protect their entire output prefix and captured bumper keys. `images/` and `reference/` are reserved for brand artwork and voice references. All uploads remain protected for 24 hours to cover pending attachment to D1 and workflow state updates. Replaced covers/bumpers, preview caches and completed/failed job intermediates become candidates only when unreferenced and beyond that retention window.
 
 “Unused” means no detected in-app reference, not proof of no external use. Review externally shared links before confirming deletion. R2 has no conditional-delete primitive or transaction with D1: version checks catch changes since scanning but cannot serialize arbitrary concurrent external bucket writes or new references. Avoid simultaneous reference edits or external overwrites during cleanup. The app generates unique media keys; preview-cache keys are content-addressed. Deleting from R2 reclaims origin storage but does not purge already cached CDN copies. This module does not compress or replace existing media.
+
+
+## Local native agent
+
+The native coordinator runs separately from Vite: `npm run agent -- start --environment local`. Its sole private configuration is `~/.config/his.fm/config.json`; do not put provider/Jev/site keys in `.dev.vars`, browser state or the repository. Explicit owner enrollment binds the chosen token to its station. See [implementation status](agent-implementation.md) and [onboarding](native-agent.md).
+
+The top-right Local/Prod control selects the website data environment only. It does not retarget a live daemon. A production coordinator needs its own token, station binding and deployed matching protocol. Test Local with synthetic data; do not seed production or invoke paid audio during routine verification.

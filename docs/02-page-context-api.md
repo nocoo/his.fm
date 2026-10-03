@@ -1,5 +1,7 @@
 # 02 · 页面上下文与主控 API 重构
 
+Implementation note (2026-10-03): the local native-agent slice is now implemented and locally exercised. This document remains the broader reviewed design, not a claim that every proposed capability exists. See [current implementation status and limits](agent-implementation.md).
+
 状态：待评审设计；不修改生产实现。2026-10-03。产品原则：agent 默认在场，页面理解是后台固有能力，不提供开启／暂停入口或常驻感知提示。延续 [01 · Agent 工作流](01-agent-workflow.md) 的左右工作室布局，本篇细化此前没有定义完整的 API／上下文契约。
 
 [交互原型](01-agent-workflow/index.html) · [文档目录](README.md) · [03 · 实时双向连接](03-realtime-agent-link.md)
