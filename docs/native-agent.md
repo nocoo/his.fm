@@ -48,6 +48,8 @@ Only the owner can approve, reopen, manage tokens/settings/channel policy, or co
 
 The existing studio remains on the left, and the coordinator chat appears on the right. There is no enable/pause or page-awareness banner. Router and editor adapters publish typed page/entity/field state, the active draft revision and selection; they never collect screenshots, terminal screens, the complete DOM, credentials or unsent chat text.
 
+The chat uses Basalt `Dock` and `Fab`, expanded initially. Collapse returns its width (or phone height) to the editor and reveals a floating launcher with the active task count. This is presentation only: the client, task execution, frozen contexts, chat input and message history remain mounted and connected. Escape within the panel collapses it; Escape in a role popover only dismisses that popover. Native Dock/Fab focus handling and a launcher return target keep keyboard navigation usable. Roles use one horizontally scrollable row of icon/status/task cards; full task text is available on demand without growing the chat header. The 44px header and inline send button reserve vertical space for messages.
+
 Each user command freezes its page context. Changing pages after sending a command must not retarget it. Draft suggestions can update only the exact matching browser draft and do not Save. Canonical changes refresh clean fields; conflicts preserve local inputs for explicit resolution.
 
 All textual results use Markdown. Executor conversations return results to the coordinator; they have no website API tool. They run local CLI/file tools without an OS sandbox. This is a trusted-local-user model, not a claim of credential isolation against arbitrary code.

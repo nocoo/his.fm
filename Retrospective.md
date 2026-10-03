@@ -186,3 +186,7 @@ During recovered acceptance, an initial whole-object readback assertion compared
 Sending a chat message displayed two identical bubbles although the website stored only one command. The client used `user:<commandId>` for its optimistic message and offline restoration, while both the live server echo and snapshot used the command ID itself. The reducer correctly merged by ID but therefore treated those messages as different. Both client paths now use the canonical command ID.
 
 The previous browser fixture acknowledged commands without echoing their messages, so its one-frame assertion missed the duplicate display. Regression checks now cover the actual acknowledgment/echo sequence, offline restoration, repeated deliveries and reconnect snapshots. Explicitly sending identical text twice still produces two distinct commands; content-based deduplication would hide legitimate messages.
+
+## 2026-10-04: Verify compact role cards with long task text
+
+The first compact role-card pass used a fixed two-row grid but inherited wrapping from the button, letting a long task spill into a second line. Dark-theme visual inspection exposed it even though the roster height remained bounded. Task summaries now explicitly stay on one ellipsized line, with complete content in a keyboard-accessible Basalt Popover. Test both fixed geometry and actual text overflow when conserving vertical space; a height assertion alone does not prove legibility.

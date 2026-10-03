@@ -130,6 +130,158 @@ test('ambient coordinator keeps one connection across routes and excludes sensit
   expect(state.writes).toEqual([]);
 });
 
+test('dock collapses to a fab without losing drafts, live messages, roles or the connection', async ({
+  page,
+}) => {
+  const state = await studio(page);
+  await page.goto('/admin/productions/production-test?step=brief');
+  const sidebar = page.getByRole('complementary', { name: '主控对话' });
+  const composer = page.getByRole('textbox', { name: '给主控的消息' });
+  await expect(composer).toBeVisible();
+  await page.getByLabel('节目标题', { exact: true }).fill('Unsaved episode title');
+  await composer.fill('Unsent question');
+  const task = 'Retrieve and compare a long set of references without changing the current draft';
+  const conversations = [
+    {
+      id: 'root',
+      role: '主控',
+      lifetime: 'coordinator' as const,
+      status: 'working' as const,
+      task: '核对成果',
+    },
+    { id: 'writer', role: '写作', lifetime: 'task' as const, status: 'waiting' as const, task },
+    {
+      id: 'reviewer',
+      role: '审校',
+      lifetime: 'resident' as const,
+      status: 'failed' as const,
+      task: '来源无法读取',
+    },
+    { id: 'retired', role: '旧写作', lifetime: 'task' as const, status: 'retired' as const, task: '已结束' },
+  ].map((role) => ({ ...role, model: 'private-model', thinkingLevel: 'high' }));
+  state.send({ type: 'status', id: 'roles-initial', conversations });
+  const roster = page.getByRole('region', { name: '运行角色 · 3' });
+  await expect(roster.locator('.agent-role')).toHaveCount(3);
+  await expect(roster).toContainText('工作中');
+  await expect(roster).toContainText('等待中');
+  await expect(roster).toContainText('失败');
+  await expect(roster).not.toContainText('旧写作');
+  await expect(roster).not.toContainText('private-model');
+  const tops = await roster
+    .locator('.agent-role')
+    .evaluateAll((elements) => elements.map((e) => e.getBoundingClientRect().top));
+  expect(new Set(tops).size).toBe(1);
+  expect(await roster.evaluate((e) => e.getBoundingClientRect().height)).toBeLessThanOrEqual(78);
+  expect(await sidebar.locator('.agent-header').evaluate((e) => e.clientHeight)).toBeLessThanOrEqual(48);
+  expect(await sidebar.locator('.agent-composer').evaluate((e) => e.clientHeight)).toBeLessThanOrEqual(80);
+  const writer = roster.getByRole('button', { name: `写作 · 等待中 · ${task}` });
+  await expect(writer.locator('.agent-role-task')).toHaveCSS('white-space', 'nowrap');
+  await expect(writer.locator('.agent-role-task')).toHaveCSS('text-overflow', 'ellipsis');
+  await writer.click();
+  await expect(page.getByRole('dialog', { name: '写作任务详情' })).toContainText(task);
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog', { name: '写作任务详情' })).toHaveCount(0);
+  await expect(sidebar).toBeVisible();
+  await expect(writer).toBeFocused();
+  const island = page.locator('.admin-content-island');
+  const openWidth = await island.evaluate((e) => e.clientWidth);
+  await page.getByRole('button', { name: '收起主控面板' }).click();
+  await expect(sidebar).toHaveCount(0);
+  const launcher = page.getByRole('button', { name: /展开主控面板/ });
+  await expect(launcher).toBeFocused();
+  await expect.poll(() => island.evaluate((e) => e.clientWidth)).toBeGreaterThan(openWidth + 300);
+  state.send({
+    type: 'message',
+    message: {
+      id: 'while-closed',
+      role: 'assistant',
+      text: 'Work continues while the panel is closed.',
+      commandId: null,
+      createdAt: '2026-10-04T00:00:00Z',
+    },
+  });
+  state.send({
+    type: 'command.state',
+    id: 'pending-closed',
+    commandId: 'ongoing',
+    status: 'working',
+    detail: 'Background task',
+  });
+  state.send({
+    type: 'status',
+    id: 'roles-updated',
+    conversations: conversations.map((role) =>
+      role.id === 'writer' ? { ...role, status: 'working' } : role,
+    ),
+  });
+  await expect(launcher).toHaveAccessibleName('展开主控面板，1项任务进行中');
+  await page.getByRole('tab', { name: '逐字稿', exact: true }).click();
+  await expect(sidebar).toHaveCount(0);
+  await launcher.click();
+  await expect(composer).toHaveValue('Unsent question');
+  await expect(sidebar).toContainText('Work continues while the panel is closed.');
+  await expect(roster.getByRole('button', { name: `写作 · 工作中 · ${task}` })).toBeVisible();
+  await composer.focus();
+  await composer.press('Escape');
+  await expect(launcher).toBeFocused();
+  await launcher.press('Enter');
+  await expect(composer).toHaveValue('Unsent question');
+  await page.getByRole('tab', { name: '选题', exact: true }).click();
+  await expect(page.getByLabel('节目标题', { exact: true })).toHaveValue('Unsaved episode title');
+  expect(state.sockets).toHaveLength(1);
+  expect(state.frames.filter((frame) => frame.type === 'cancel' || frame.type === 'command')).toEqual([]);
+  expect(await page.locator('.admin-shell').evaluate((e) => e.scrollTop)).toBe(0);
+  expect(state.writes).toEqual([]);
+});
+
+test('phone dock gives height back to the editor and bounds many roles to one horizontal row', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.emulateMedia({ colorScheme: 'dark' });
+  const state = await studio(page);
+  await page.goto('/admin/productions/production-test?step=brief');
+  const composer = page.getByRole('textbox', { name: '给主控的消息' });
+  await composer.fill('Mobile draft');
+  state.send({
+    type: 'status',
+    id: 'many-roles',
+    conversations: Array.from({ length: 12 }, (_, index) => ({
+      id: String(index),
+      role: `写作${index + 1}`,
+      lifetime: 'task',
+      status: 'idle',
+      task: '等待任务',
+      model: 'fake',
+      thinkingLevel: 'low',
+    })),
+  });
+  const roster = page.getByRole('region', { name: '运行角色 · 12' });
+  await expect(roster.locator('.agent-role')).toHaveCount(12);
+  const geometry = await roster.evaluate((e) => ({
+    height: e.clientHeight,
+    width: e.clientWidth,
+    scrollWidth: e.scrollWidth,
+  }));
+  expect(geometry.height).toBeLessThanOrEqual(66);
+  expect(geometry.scrollWidth).toBeGreaterThan(geometry.width);
+  const island = page.locator('.admin-content-island');
+  const height = await island.evaluate((e) => e.clientHeight);
+  await page.getByRole('button', { name: '收起主控面板' }).click();
+  await expect.poll(() => island.evaluate((e) => e.clientHeight)).toBeGreaterThan(height + 200);
+  await expect(page.getByRole('button', { name: /展开主控面板/ })).toBeInViewport();
+  await page.getByRole('button', { name: /展开主控面板/ }).click();
+  await expect(composer).toHaveValue('Mobile draft');
+  await expect(composer).toBeInViewport();
+  await roster.locator('.agent-role').last().click();
+  await expect(page.getByRole('dialog', { name: '写作12任务详情' })).toBeInViewport();
+  await page.keyboard.press('Escape');
+  await expect(composer).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+  expect(state.sockets).toHaveLength(1);
+  expect(state.writes).toEqual([]);
+});
+
 test('proposals mutate only the exact draft, retain undo, reject stale revisions and IME', async ({
   page,
 }) => {
