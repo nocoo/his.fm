@@ -20,7 +20,10 @@ export default defineConfig(({ mode }) => {
         notFoundHandling: 'single-page-application',
         runWorkerFirst: ['/api/*', '/.well-known/api-catalog', '/llms.txt', '/admin', '/admin/*', '/media/*'],
       },
-      exports: { AudioWorkflow: exports.workflow({ name: workflow }) },
+      exports: {
+        AudioWorkflow: exports.workflow({ name: workflow }),
+        AgentHub: exports.durableObject({ storage: 'sqlite' }),
+      },
       env: {
         ENVIRONMENT: bindings.text<string>(local ? 'local' : 'production'),
         MEDIA_BASE_URL: bindings.text<string>(local ? '/media' : 'https://f.no.mt'),
@@ -31,6 +34,7 @@ export default defineConfig(({ mode }) => {
         }),
         MEDIA: bindings.r2({ name: 'his-fm' }),
         AUDIO_WORKFLOW: bindings.workflow({ name: workflow, worker: name, exportName: 'AudioWorkflow' }),
+        AGENT_HUB: bindings.durableObject({ worker: name, exportName: 'AgentHub' }),
         BUILD_INFO: bindings.versionMetadata(),
         ASSETS: bindings.assets(),
       },

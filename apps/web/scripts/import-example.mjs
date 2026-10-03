@@ -30,12 +30,18 @@ const production = {
   targetDurationSeconds: 600,
   sources: [
     {
+      id: 'example-research-link',
       type: 'github',
       title: 'HowToLiveBetter — researched revision',
       content:
         'https://github.com/eternity4719/HowToLiveBetter/tree/6576d14715d61bf70d05cfeb7e6f45cd88e24e7f',
     },
-    { type: 'text', title: 'Research notes and primary-source verification', content: research },
+    {
+      id: 'example-research-notes',
+      type: 'text',
+      title: 'Research notes and primary-source verification',
+      content: research,
+    },
   ],
   intent:
     '从 AI 转型压力之下的年轻程序员视角，切入下班后还在追赶新工具的夜晚。沿着 HowToLiveBetter，讲清睡眠、邮件查看节奏和呼吸练习的真实研究、适用条件与证据边界。将项目引申到学习任务、团队沟通、晚饭和休息；中文单人讲述，约十分钟，具体自然，不把生活变成另一张任务表。',

@@ -1,11 +1,11 @@
 # AI podcast production
 
-The production record is the coordination boundary between Hermes, local creative agents, Cloudflare and the owner. Sources are stored as references or text; the server does not fetch arbitrary URLs. The editorial intent belongs to the brief and guides all generation prompts. Local agents verify the original sources before writing.
+The production record is the coordination boundary between 本机主控, local creative agents, Cloudflare and the owner. Sources are stored as references or text; the server does not fetch arbitrary URLs. The editorial intent belongs to the brief and guides all generation prompts. Local agents verify the original sources before writing.
 
 | Stage | Executor | Human decision |
 | --- | --- | --- |
-| Brief | Hermes collects article/GitHub URLs or text and intent | Mark the angle complete, or keep editing |
-| Transcript | Hermes delegates to local Codex or another agent | Read and edit the full text, then mark the exact script version complete |
+| Brief | 本机主控 collects article/GitHub URLs or text and intent | Mark the angle complete, or keep editing |
+| Transcript | 本机主控 delegates to local Codex or another agent | Read and edit the full text, then mark the exact script version complete |
 | Parallel production | Local GPT Image 2.5 cover; local description; Cloudflare Gemini audio | Review the cover, introduction and complete recording |
 | Ready | Platform material preparation | Confirm final assets |
 | Manual publication | Owner pastes into WeChat or Xiaoyuzhou | Record actual URL/time and synchronize approved website snapshot |
@@ -30,7 +30,7 @@ Use the Workflow `agi-image-generation` skill, default deployment `gpt-image-2.5
 
 The studio's “下载封面成品” action composes the original with the independent Open Interval frame and episode number into a 1600×1600 PNG. Composition happens only at download time and never replaces or uploads the source. Public pages and normal studio previews display the stored original. The common frame is available under `/admin/appearance`; see [appearance](appearance.md) for its source and regeneration. An older saved editorial profile cannot change this source/export storage contract.
 
-Hermes writes `summary` and `description` after script approval. Platform descriptions should contain meaningful listening points and verified source links. Do not invent timestamps before the final audio has been checked.
+本机主控 writes `summary` and `description` after script approval. Platform descriptions should contain meaningful listening points and verified source links. Do not invent timestamps before the final audio has been checked.
 
 ## Cloud audio
 

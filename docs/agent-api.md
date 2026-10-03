@@ -4,7 +4,7 @@ The production API lets a local agent research and prepare an episode while pres
 
 ## Discovery and onboarding
 
-Start at `GET /api/agent` (with or without a trailing slash). It returns a public manifest with the actual OpenAPI, instruction, authentication and resource links. Read [Hermes onboarding](hermes.md), served directly at `/api/agent/instructions`.
+Start at `GET /api/agent` (with or without a trailing slash). It returns a public manifest with the actual OpenAPI, instruction, authentication and resource links. Read [本机主控 onboarding](native-agent.md), served directly at `/api/agent/instructions`.
 
 - `/.well-known/api-catalog`: RFC 9727 catalog using RFC 9264 `application/linkset+json`.
 - `/api/agent/openapi.json`: OpenAPI 3.1 request/response schemas, methods, bearer security and operation IDs. Request schemas derive from the same Zod validators as the controllers.
@@ -17,7 +17,7 @@ Discovery supports GET, HEAD and OPTIONS. Agent API responses carry `Link` heade
 
 ## Global prompt
 
-Global prompt is the highest editorial authority, followed by the episode's central intent and then sources. GET `/api/agent/channel` before every creative task; it returns the private Markdown profile, its independent version and the priority order. Agents cannot modify it. Read the complete [editorial authority contract](hermes.md#editorial-authority-channel-first), including conflict handling, freshness and keeping internal principles out of published content. All four production prompts embed the current saved channel profile.
+Global prompt is the highest editorial authority, followed by the episode's central intent and then sources. GET `/api/agent/channel` before every creative task; it returns the private Markdown profile, its independent version and the priority order. Agents cannot modify it. Read the complete [editorial authority contract](native-agent.md#editorial-authority-channel-first), including conflict handling, freshness and keeping internal principles out of published content. All four production prompts embed the current saved channel profile.
 
 Owners edit `/admin/channel`; GET/PUT `/admin/api/channel` read/save the full Markdown document with optimistic versioning and the existing Access/same-origin protection. Initial content derives from the owner's README principles and is initialized once; later reads or deployments never overwrite saved edits. Changes do not automatically alter existing approvals or media.
 
@@ -28,7 +28,7 @@ A signed-in human creates a token from the studio. Token management lives under 
 | Method | Path | Body or result |
 | --- | --- | --- |
 | GET | `/admin/api/agent-tokens` | `{ "tokens": [...] }`; metadata only |
-| POST | `/admin/api/agent-tokens` | `{ "name": "Hermes", "expiresInDays": 30 }` → `{ "token": "...", "record": {...} }` |
+| POST | `/admin/api/agent-tokens` | `{ "name": "本机主控", "expiresInDays": 30 }` → `{ "token": "...", "record": {...} }` |
 | DELETE | `/admin/api/agent-tokens/:id` | Revokes immediately; `204` |
 
 The complete token appears only in the creation response. Store it as a secret in the local agent environment. The database keeps a SHA-256 hash, a short identifying prefix, expiry and revocation timestamps. Tokens expire after the requested number of days, from 1 through 365. Successful authentication updates `lastUsedAt`.

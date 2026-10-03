@@ -29,7 +29,9 @@ const validForm = {
 };
 describe('production brief form', () => {
   it('parses numbers, trims values and accepts HTTPS links and text sources', () => {
-    const sources = [{ type: 'url' as const, title: '参考', content: 'https://example.com/article' }];
+    const sources = [
+      { id: 'source-1', type: 'url' as const, title: '参考', content: 'https://example.com/article' },
+    ];
     expect(readBrief(form(validForm), sources)).toEqual({
       error: '',
       data: {
@@ -48,7 +50,9 @@ describe('production brief form', () => {
   });
   it('rejects missing values, invalid links, excessive lengths and invalid durations without losing input', () => {
     const input = form(validForm);
-    expect(readBrief(input, [{ type: 'url', title: '', content: 'http://example.com' }]).data).toBeNull();
+    expect(
+      readBrief(input, [{ id: 'source-1', type: 'url', title: '', content: 'http://example.com' }]).data,
+    ).toBeNull();
     expect(input.get('title')).toBe(validForm.title);
     for (const invalid of [
       new FormData(),

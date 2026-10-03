@@ -1,10 +1,11 @@
-import instructions from '../../../docs/hermes.md?raw';
+import instructions from '../../../docs/native-agent.md?raw';
 import { version } from '../../../package.json';
 import { editorialPriority } from '../src/shared/channel';
 import { type Actor, agentActions, agentEditableFields, type Production } from '../src/shared/production';
 import { voiceSamples } from '../src/shared/voice-samples';
 import { voiceCharacters, voices } from '../src/shared/voices';
 import { agentOpenApi } from './agent-contract';
+import { connectRuntime, routeRuntimeReceipt } from './agent-runtime';
 import { authenticateAgent } from './agent-tokens';
 import { AUDIO_MODEL } from './audio';
 import { routeAudio } from './audio-routes';
@@ -103,7 +104,7 @@ export function routeDiscovery(request: Request): Response | null {
   } else {
     const text =
       path === '/llms.txt'
-        ? `# his.fm\n\n> Chinese solo podcast production studio.\n\n## Editorial priority\n\nGlobal prompt > episode intent > source material. Authenticated agents must read ${origin}/api/agent/channel before every creative task. Internal global prompt is private.\n\n## Agent API\n\n- [Service discovery](${origin}/api/agent): REST API entrypoint.\n- [OpenAPI 3.1](${origin}/api/agent/openapi.json): Complete machine-readable contract.\n- [Hermes instructions](${origin}/api/agent/instructions): Authentication, stages, examples and review boundaries.\n\nDiscovery is public; all production data requires a studio-issued bearer token. This service does not expose MCP or A2A.\n`
+        ? `# his.fm\n\n> Chinese solo podcast production studio.\n\n## Editorial priority\n\nGlobal prompt > episode intent > source material. Authenticated agents must read ${origin}/api/agent/channel before every creative task. Internal global prompt is private.\n\n## Agent API\n\n- [Service discovery](${origin}/api/agent): Read-only REST and typed WebSocket entrypoints.\n- [OpenAPI 3.1](${origin}/api/agent/openapi.json): Complete machine-readable contract.\n- [Native agent instructions](${origin}/api/agent/instructions): Authentication, enrollment, typed operations and review boundaries.\n\nDiscovery is public; all production data requires a studio-issued bearer token. This service does not expose MCP or A2A.\n`
         : instructions.replaceAll('https://his.fm', origin);
     response = new Response(text, {
       headers: {
@@ -160,6 +161,8 @@ export async function routeAgent(request: Request, env: Env): Promise<Response> 
   const path = url.pathname.slice('/api/agent'.length).replace(/\/$/, '');
   const headers: Record<string, string> = { Link: discoveryLinks(url.origin) };
   try {
+    if (path === '/runtime/connect') return connectRuntime(request, env);
+    if (path.startsWith('/runtime/receipts/')) return routeRuntimeReceipt(request, env);
     const actor = await authenticateAgent(request, env);
     if (path === '/channel') {
       const response = await routeChannel(request, env, actor);
@@ -206,6 +209,16 @@ export async function routeAgent(request: Request, env: Env): Promise<Response> 
         headers,
       );
     }
+    if (request.method !== 'GET' && request.method !== 'HEAD')
+      return json(
+        {
+          error: '请通过已绑定主控的类型化操作提交写入',
+          code: 'runtime_required',
+          documentation: `${url.origin}/api/agent/instructions`,
+        },
+        409,
+        headers,
+      );
     const response =
       (await routeAudio(request, env, path, actor)) ?? (await routeProductions(request, env, path, actor));
     if (!response) throw new HttpError(404, '接口不存在，请读取服务发现和 OpenAPI 中的实际路径');

@@ -32,7 +32,7 @@ his.fm 是一档面向年轻程序员的中文播客，关注 AI 带来的企业
 The website is a Cloudflare Worker application built with Vite 8, TypeScript 7.0.2, React 19 and Biome. The public listening room uses original Sunburst artwork, grass greens and restrained violet accents. The editor uses Basalt 2.2.0 and Cloudflare Access.
 
 - Public pages: homepage, searchable episode catalogue, episode summaries/transcripts and channel introduction.
-- Studio: source collection, editorial intent, human brief/script/final reviews, AI production, manual WeChat/Xiaoyuzhou publication, voice comparisons and expiring Hermes API tokens.
+- Studio: source collection, editorial intent, human brief/script/final reviews, AI production, manual WeChat/Xiaoyuzhou publication, voice comparisons and expiring Native Agent API tokens.
 - Local preview: **https://hisfm.dev.hexly.ai**. Run `npm run dev` (the project-pinned `cf` CLI); six preview episodes and the real first-episode draft load into local D1 once, preserving later edits and deletions. The top-right segment switches local admin data between the local Worker and the production Worker, using the editor's Cloudflare Access identity.
 - Production: **https://his.fm**. D1 and R2 are named `his-fm`; media uses **https://f.no.mt**. Published GitHub Releases deploy through pinned `nocoo/base-ci` workflows after exact-revision CI verification.
 - The first episode currently has a complete manuscript. The site explicitly distinguishes written episodes from playable recordings.
@@ -49,7 +49,7 @@ npm run build
 
 Husky runs coverage, strict lint and typecheck against the staged Git snapshot. All four unit coverage floors are 95%. Pure React views are verified through browser interaction checks. Audit results live in nmem; L1 does not imply full 6DQ certification.
 
-See [production workflow](docs/production.md), [Hermes API](docs/agent-api.md), [CI/CD](docs/ci-cd.md), [architecture](docs/architecture.md), [operations](docs/operations.md) and [artwork provenance](artwork/README.md). Secrets, generated audio/video and local databases remain ignored.
+See [production workflow](docs/production.md), [Native Agent API](docs/agent-api.md), [CI/CD](docs/ci-cd.md), [architecture](docs/architecture.md), [operations](docs/operations.md) and [artwork provenance](artwork/README.md). Secrets, generated audio/video and local databases remain ignored.
 
 Design review: start with the [Archify agent architecture map](docs/agent-architecture/index.html) ([source and verification](docs/agent-architecture/README.md)), then [native Pi Durable agent workflow](docs/01-agent-workflow.md), [page-context and API redesign](docs/02-page-context-api.md), [interactive Chinese workspace and architecture review](docs/01-agent-workflow/index.html), and [documentation index](docs/README.md). This proposal is not implemented; the walkthrough uses local simulation only.
 

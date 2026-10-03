@@ -9,7 +9,9 @@ export const brief = {
   category: 'life' as const,
   tags: ['日常'],
   targetDurationSeconds: 600,
-  sources: [{ type: 'text' as const, title: '观察笔记', content: '一段可核实的成年程序员日常材料。' }],
+  sources: [
+    { id: 'source-1', type: 'text' as const, title: '观察笔记', content: '一段可核实的成年程序员日常材料。' },
+  ],
   intent: '从晚饭被工作消息打断的场景切入。',
 };
 export function fixture(changes: Partial<Production> = {}): Production {

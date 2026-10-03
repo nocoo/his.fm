@@ -510,9 +510,14 @@ test('source subpages preserve brief drafts and keep long materials out of the o
     page,
     fixture({
       sources: [
-        { type: 'text', title: '生活记录', content: longText },
-        { type: 'github', title: '项目原文', content: 'https://github.com/eternity4719/HowToLiveBetter' },
-        { type: 'url', title: '参考文章', content: 'https://example.com/reference' },
+        { id: 'source-1', type: 'text', title: '生活记录', content: longText },
+        {
+          id: 'source-2',
+          type: 'github',
+          title: '项目原文',
+          content: 'https://github.com/eternity4719/HowToLiveBetter',
+        },
+        { id: 'source-3', type: 'url', title: '参考文章', content: 'https://example.com/reference' },
       ],
     }),
   );

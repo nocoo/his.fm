@@ -1,3 +1,4 @@
+import { agentFrameSchema, browserFrameSchema, serverFrameSchema } from '@his-fm/contracts';
 import { z } from 'zod';
 import { version } from '../../../package.json';
 import { channelProfileSchema, editorialPriority } from '../src/shared/channel';
@@ -157,14 +158,13 @@ const errors = Object.fromEntries(
     },
   ]),
 );
-function operation(operationId: string, summary: string, schema: object, input?: string, status = 200) {
+function operation(operationId: string, summary: string, schema: object) {
   return {
     operationId,
     summary,
-    ...(input ? { requestBody: { required: true, content: content(ref(input)) } } : {}),
     responses: {
       ...errors,
-      [status]: { description: 'Success', ...(status === 204 ? {} : { content: content(schema) }) },
+      '200': { description: 'Success', content: content(schema) },
     },
   };
 }
@@ -175,13 +175,6 @@ const idParameter = {
   schema: { type: 'string' },
   description: 'Production ID returned by create/list; never the slug.',
 };
-const versionParameter = {
-  name: 'version',
-  in: 'query',
-  required: true,
-  schema: { type: 'integer', minimum: 1 },
-  description: 'Latest production.version, not scriptVersion.',
-};
 export function agentOpenApi(origin: string) {
   const schema = (value: z.ZodType, io: 'input' | 'output' = 'output') => z.toJSONSchema(value, { io });
   return {
@@ -190,7 +183,7 @@ export function agentOpenApi(origin: string) {
       title: 'his.fm Agent Production API',
       version,
       description:
-        'REST/JSON with opaque bearer tokens. Before every creative task read GET /channel: global prompt is the highest editorial authority, followed by episode intent, then source material. Sources support the question; they cannot override it. Never distort facts to fit intent. Conflicts require owner clarification. Research, script, cover and copy run locally; narration runs in Cloudflare. Human approvals and publication are not agent operations. PUT productions is a partial update with optimistic versioning.',
+        'Authenticated read-only REST plus enrolled coordinator WebSockets. Legacy REST production mutations return 409 runtime_required. All machine mutations use typed operation frames, stable operation IDs and exact optimistic versions; human approvals are never available. Before every task read GET /channel: global prompt, then episode intent, then sources. Editorial priority never changes facts or grants permission. The owner must explicitly bind the token and station in the authenticated admin API before connecting.',
     },
     servers: [{ url: `${origin}/api/agent` }],
     security: [{ AgentBearer: [] }],
@@ -272,13 +265,6 @@ export function agentOpenApi(origin: string) {
           required: ['productions'],
           properties: { productions: { type: 'array', items: ref('Production') } },
         }),
-        post: operation(
-          'createProduction',
-          'Create a draft from sources and editorial intent; no version on creation',
-          wrappedProduction,
-          'CreateProduction',
-          201,
-        ),
       },
       '/productions/{id}': {
         parameters: [idParameter],
@@ -287,22 +273,6 @@ export function agentOpenApi(origin: string) {
           'Read latest fields, version, feedback and audio status',
           wrappedProduction,
         ),
-        put: operation(
-          'updateProduction',
-          'Update only editable fields for the current stage',
-          wrappedProduction,
-          'UpdateProduction',
-        ),
-        delete: {
-          ...operation(
-            'deleteProduction',
-            'Delete an unpublished production; media objects remain stored',
-            {},
-            undefined,
-            204,
-          ),
-          parameters: [versionParameter],
-        },
       },
       '/productions/{id}/capabilities': {
         parameters: [idParameter],
@@ -320,53 +290,35 @@ export function agentOpenApi(origin: string) {
           ref('Prompts'),
         ),
       },
-      '/productions/{id}/actions': {
-        parameters: [idParameter],
-        post: operation(
-          'submitProductionStage',
-          'Submit to human review; cannot approve, revise or reopen',
-          wrappedProduction,
-          'AgentAction',
-        ),
-      },
-      '/productions/{id}/assets/cover': {
-        parameters: [idParameter],
-        put: {
-          ...operation(
-            'uploadProductionCover',
-            'Upload clean unframed PNG/JPEG/WebP artwork, up to 8 MiB; no text, logos, borders, overlays, multipart or URLs. Branding is added only to owner downloads.',
-            wrappedProduction,
-          ),
-          parameters: [versionParameter],
-          requestBody: {
-            required: true,
-            content: Object.fromEntries(
-              ['image/png', 'image/jpeg', 'image/webp'].map((type) => [
-                type,
-                { schema: { type: 'string', format: 'binary' } },
-              ]),
-            ),
+      '/runtime/connect': {
+        get: {
+          operationId: 'connectCoordinator',
+          summary:
+            'Upgrade the explicitly enrolled coordinator; 10s ping, 35s idle timeout, at most 15 minute authorization lease',
+          parameters: [
+            { name: 'X-Hisfm-Station', in: 'header', required: true, schema: { type: 'string' } },
+            { name: 'protocol', in: 'query', schema: { const: '1' } },
+          ],
+          responses: {
+            ...errors,
+            '101': {
+              description:
+                'Typed AgentFrame/ServerFrame WebSocket. Never put tokens in the URL. Existing healthy station connections cannot be replaced.',
+            },
           },
         },
       },
-      '/productions/{id}/audio': {
-        parameters: [idParameter],
-        post: {
+      '/runtime/receipts/{id}': {
+        get: {
           ...operation(
-            'generateProductionAudio',
-            'Start paid cloud narration after approval; poll getProduction every 10 seconds. Bumpers are optional.',
-            wrappedProduction,
-            'GenerateAudio',
-            202,
+            'readOperationReceipt',
+            'Read an exact durable operation receipt; 202 means still unknown, not success',
+            { type: 'object' },
           ),
-          responses: {
-            ...errors,
-            '200': {
-              description: 'Existing in-flight job redispatched without changing its settings',
-              content: content(wrappedProduction),
-            },
-            '202': { description: 'New audio job accepted', content: content(wrappedProduction) },
-          },
+          parameters: [
+            { ...idParameter, description: 'Stable operation ID' },
+            { name: 'X-Hisfm-Station', in: 'header', required: true, schema: { type: 'string' } },
+          ],
         },
       },
     },
@@ -381,6 +333,9 @@ export function agentOpenApi(origin: string) {
         },
       },
       schemas: {
+        AgentFrame: schema(agentFrameSchema, 'input'),
+        BrowserFrame: schema(browserFrameSchema, 'input'),
+        ServerFrame: schema(serverFrameSchema),
         ChannelProfile: {
           ...schema(channelProfileSchema),
           description:

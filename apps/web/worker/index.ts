@@ -1,5 +1,6 @@
 import { version } from '../../../package.json';
 import { discoveryLinks, routeAgent, routeDiscovery } from './agent-api';
+import { notifyProductionChanged, routeRuntimeAdmin } from './agent-runtime';
 import { routeAgentTokens } from './agent-tokens';
 import { getAppearance, routeAppearance } from './appearance';
 import { routeAudio } from './audio-routes';
@@ -60,6 +61,8 @@ async function route(request: Request, env: Env): Promise<Response> {
       if (!isLocal(request, env)) return accessLogin();
       return env.ASSETS.fetch(request);
     }
+    if (path.startsWith('/admin/api/agent/'))
+      return routeRuntimeAdmin(request, env, { kind: 'human', name: session.user.email });
     if (path === '/admin/api/channel') {
       if (request.method !== 'GET') requireSameOrigin(request);
       return routeChannel(request, env, { kind: 'human', name: session.user.email });
@@ -82,7 +85,10 @@ async function route(request: Request, env: Env): Promise<Response> {
       const response =
         (await routeAudio(request, env, suffix, actor)) ??
         (await routeProductions(request, env, suffix, actor));
-      if (response) return response;
+      if (response) {
+        if (!['GET', 'HEAD', 'DELETE'].includes(request.method)) await notifyProductionChanged(env, response);
+        return response;
+      }
     }
     if (path.startsWith('/admin/api/agent-tokens')) return routeAgentTokens(request, env, path);
     if (path === '/admin/api/session' && request.method === 'GET') return json(session);

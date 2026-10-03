@@ -145,6 +145,7 @@ describe('owner R2 inventory and cleanup', () => {
     const production = readyFixture();
     production.sources = [
       {
+        id: 'source-1',
         type: 'text',
         title: '素材',
         content:

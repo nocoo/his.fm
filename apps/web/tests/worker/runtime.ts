@@ -5,3 +5,9 @@ export class WorkflowEntrypoint<E> {
   }
 }
 export class NonRetryableError extends Error {}
+export class DurableObject<E> {
+  constructor(
+    protected ctx: DurableObjectState,
+    protected env: E,
+  ) {}
+}

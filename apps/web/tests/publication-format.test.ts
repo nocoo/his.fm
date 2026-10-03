@@ -18,7 +18,7 @@ const content = {
     },
     audio: null,
   },
-  sources: [{ type: 'url' as const, title: '材料', content: 'https://example.com/?a=1&b=2' }],
+  sources: [{ id: 'source-1', type: 'url' as const, title: '材料', content: 'https://example.com/?a=1&b=2' }],
 };
 describe('manual platform publication materials', () => {
   it('cleans Xiaoyuzhou text while keeping timestamps, paragraphs and lists', () => {
@@ -53,8 +53,8 @@ describe('manual platform publication materials', () => {
       ...content,
       transcript: markdown,
       sources: [
-        { type: 'text', title: '', content: '正文' },
-        { type: 'url', title: '', content: 'https://new.example' },
+        { id: 'source-2', type: 'text', title: '', content: '正文' },
+        { id: 'source-3', type: 'url', title: '', content: 'https://new.example' },
       ],
       assets: { cover: null, audio: null },
     });
@@ -70,7 +70,7 @@ describe('manual platform publication materials', () => {
       formatWechat({
         ...content,
         assets: { ...content.assets, cover: { ...content.assets.cover, url: 'javascript:alert(1)' } },
-        sources: [{ type: 'url', title: '', content: 'invalid' }],
+        sources: [{ id: 'source-4', type: 'url', title: '', content: 'invalid' }],
       }).html,
     ).not.toContain('<img');
     expect(cleanText('')).toBe('');

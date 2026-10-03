@@ -24,6 +24,7 @@ export const stageLabels: Record<ProductionStage, string> = {
 };
 export const sourceSchema = z
   .strictObject({
+    id: z.string().min(1).max(160),
     type: z.enum(['url', 'github', 'text']),
     title: z.string().trim().max(200),
     content: z.string().trim().min(1).max(80000),

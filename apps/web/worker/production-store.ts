@@ -1,4 +1,5 @@
 import type { Actor, Production } from '../src/shared/production';
+import { operationFence, operationReceipt } from './agent-runtime-operation';
 import { HttpError } from './http';
 
 export function mediaUrl(env: Pick<Env, 'ENVIRONMENT'>, key: string) {
@@ -48,7 +49,13 @@ export function updateStatement(db: D1Database, production: Production, expected
 
 export async function saveProduction(db: D1Database, production: Production, expectedVersion: number) {
   const next = nextVersion(production, expectedVersion);
-  const result = await updateStatement(db, next, expectedVersion).run();
+  const fence = operationFence(db);
+  const results = await db.batch([
+    ...fence,
+    updateStatement(db, next, expectedVersion),
+    ...operationReceipt(db, next),
+  ]);
+  const result = results[fence.length];
   if (result.meta.changes !== 1) throw new HttpError(409, '内容已更新，请刷新后重试');
   return next;
 }

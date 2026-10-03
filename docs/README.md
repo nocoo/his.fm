@@ -14,7 +14,7 @@
 - [系统架构](architecture.md)
 - [播客生产流程](production.md)
 - [Agent API](agent-api.md)
-- [现有 Hermes 接入](hermes.md) — 当前实现说明；替换计划见 01，不表示已迁移。
+- [本机 Agent 接入](native-agent.md) — 本机运行、显式站点绑定、实时协议和权限边界。
 - [音频生产](audio.md)
 - [Markdown 编辑](markdown-editing.md)
 - [外观与素材](appearance.md)

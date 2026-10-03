@@ -4,6 +4,7 @@ import {
   audioPreviewSchema,
   productionSettingsSchema,
 } from '../src/shared/production';
+import { operationFence, operationReceipt } from './agent-runtime-operation';
 import { AUDIO_MODEL, AudioError, parseWav, readStoredWav, synthesizeSpeech } from './audio';
 import { type AudioSnapshot, getSettings, saveBumper } from './audio-store';
 import { HttpError, json } from './http';
@@ -11,7 +12,7 @@ import { readBytes, readJson } from './production-body';
 import { editAssets } from './production-model';
 import { appendEvent, getProduction, mediaUrl, nextVersion, updateStatement } from './production-store';
 
-async function triggerAudio(env: Env, jobId: string) {
+export async function triggerAudio(env: Env, jobId: string) {
   try {
     await env.AUDIO_WORKFLOW.create({ id: jobId, params: { jobId } });
   } catch {
@@ -36,7 +37,19 @@ async function startAudio(request: Request, env: Env, id: string, actor: Actor) 
   )
     throw new HttpError(409, '请先批准逐字稿再生成音频');
   if (production.audioJob && ['queued', 'running'].includes(production.audioJob.status)) {
-    await triggerAudio(env, production.audioJob.id);
+    const fence = operationFence(env.DB);
+    if (fence.length) {
+      const results = await env.DB.batch([
+        ...fence,
+        env.DB.prepare('UPDATE productions SET version = version WHERE id = ? AND version = ?').bind(
+          id,
+          version,
+        ),
+        ...operationReceipt(env.DB, production, 200),
+      ]);
+      if (results[fence.length].meta.changes !== 1) throw new HttpError(409, '内容已更新，请刷新后重试');
+    }
+    if (production.audioJob.status === 'queued') await triggerAudio(env, production.audioJob.id);
     return json({ production });
   }
   const settings = await getSettings(env);
@@ -73,13 +86,16 @@ async function startAudio(request: Request, env: Env, id: string, actor: Actor) 
     ),
     version,
   );
+  const fence = operationFence(env.DB);
   const results = await env.DB.batch([
+    ...fence,
     env.DB.prepare(
       "INSERT INTO audio_jobs (id, production_id, snapshot, status, created_at, updated_at) SELECT ?, ?, ?, 'queued', ?, ? WHERE EXISTS (SELECT 1 FROM productions WHERE id = ? AND version = ?)",
     ).bind(jobId, id, JSON.stringify(snapshot), now, now, id, version),
     updateStatement(env.DB, next, version),
+    ...operationReceipt(env.DB, next),
   ]);
-  if (results[1].meta.changes !== 1) throw new HttpError(409, '内容已更新，请刷新后重试');
+  if (results[fence.length + 1].meta.changes !== 1) throw new HttpError(409, '内容已更新，请刷新后重试');
   await triggerAudio(env, jobId);
   return json({ production: await getProduction(env.DB, id) }, 202);
 }

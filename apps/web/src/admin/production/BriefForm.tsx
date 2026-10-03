@@ -162,7 +162,16 @@ export function BriefForm({
                 variant="outline"
                 disabled={pending || sources.length >= 30}
                 onClick={() => {
-                  setSources([...sources, { key: crypto.randomUUID(), type: 'url', title: '', content: '' }]);
+                  setSources([
+                    ...sources,
+                    {
+                      id: crypto.randomUUID(),
+                      key: crypto.randomUUID(),
+                      type: 'url',
+                      title: '',
+                      content: '',
+                    },
+                  ]);
                   onDirty();
                   openSource(sources.length);
                 }}

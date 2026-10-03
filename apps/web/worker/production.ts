@@ -6,6 +6,7 @@ import {
   productionPatchSchema,
   publicationSchema,
 } from '../src/shared/production';
+import { operationFence, operationReceipt } from './agent-runtime-operation';
 import { getSettings } from './audio-store';
 import { getChannel } from './channel';
 import { HttpError, json } from './http';
@@ -224,11 +225,10 @@ export async function routeProductions(
         actor,
         'create',
       );
-      await env.DB.prepare(
+      const insert = env.DB.prepare(
         'INSERT INTO productions (id, version, stage, data, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
-      )
-        .bind(production.id, production.version, production.stage, JSON.stringify(production), now, now)
-        .run();
+      ).bind(production.id, production.version, production.stage, JSON.stringify(production), now, now);
+      await env.DB.batch([...operationFence(env.DB), insert, ...operationReceipt(env.DB, production)]);
       return json({ production }, 201);
     }
     throw new HttpError(405, '不支持这个请求方式');

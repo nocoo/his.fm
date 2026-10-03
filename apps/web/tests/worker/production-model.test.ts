@@ -259,7 +259,12 @@ describe('audit and production prompts', () => {
 
   it('validates source URLs and publication URL schemes and credentials', () => {
     expect(
-      sourceSchema.parse({ type: 'github', title: '', content: 'https://github.com/owner/repo' }).content,
+      sourceSchema.parse({
+        id: 'source-1',
+        type: 'github',
+        title: '',
+        content: 'https://github.com/owner/repo',
+      }).content,
     ).toContain('github.com');
     for (const url of ['http://mp.weixin.qq.com/s/test', 'https://:password@mp.weixin.qq.com/s/test']) {
       expect(
@@ -279,7 +284,8 @@ describe('audit and production prompts', () => {
       transcript: '今晚先吃饭。',
     });
     expect(
-      sourceSchema.safeParse({ type: 'github', title: '来源', content: 'http://example.com' }).success,
+      sourceSchema.safeParse({ id: 'source-2', type: 'github', title: '来源', content: 'http://example.com' })
+        .success,
     ).toBe(false);
   });
 });
