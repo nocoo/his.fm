@@ -2,6 +2,21 @@
 
 All notable changes to his.fm are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions use the owner’s patch-only deployment policy in `AGENTS.md`, with the authoritative version in `package.json`.
 
+## 2.0.5 - 2026-10-03
+
+### Changed
+
+- Reorganize the repository as npm workspaces: `apps/web` owns the React app, Worker, migrations and tests; reserve `packages/agent` with only a tracked placeholder.
+- Keep the release version and lockfile at the repository root. Update source imports, archived-font paths, local scripts, staged quality checks and coverage artifacts for the new application directory.
+- Migrate development, builds, D1 operations and deployment to the pinned cf CLI and Cloudflare Vite beta; adopt base-ci v2026.8 without any direct or transitive Wrangler dependency.
+- Preserve and byte-verify local D1/R2/workflow state in `apps/web/.cloudflare/state`, remove the legacy directory, and keep emulator caches inside `.cloudflare/cache`.
+- Deploy the workspace through the release-only shared workflow, with exact local CLI version checks and production version/revision verification.
+- Remove disposable local diagnostics and organize the standalone voice-comparison utility under `scripts/voice-comparison`.
+
+### Validation
+
+- 201 unit tests pass with all four coverage metrics above 95%; strict lint, type checking, production build, cf deployment dry-run and staged-gate failure probes pass at the new paths.
+
 ## 2.0.4 - 2026-10-01
 
 ### Changed
