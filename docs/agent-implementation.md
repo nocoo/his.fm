@@ -38,6 +38,14 @@ An oversized model-authored JSON patch was initially truncated and rejected befo
 
 Recovery evidence is ignored under `.local/prompt-research`, including the final production readback, hash verification and content-field comparison. The runtime's source bodies and reviewer artifacts stay in its private local work directory. No production writes, paid audio or publication were performed. Large model-authored mutation payloads still require careful sizing; the private artifact-reference API remains an explicit boundary below.
 
+### General task autonomy acceptance, 2026-10-04
+
+After the research task completed, the Local coordinator restarted with the generic policy from `aa2c6d9`. A new command specified a local CSV cleaning goal, output contract and independent review, without tool hints or a step-by-step execution plan. The coordinator dispatched a writer and an independent baseline reviewer concurrently, then requested a final comparison and rerun review. They generated a Python standard-library processor, cleaned CSV, six-field JSON summary and Markdown report.
+
+The nine input records yielded five retained records, three invalid records and one duplicate; total duration was 360 seconds (take 1: 300, take 2: 60). The recovered session independently checked these exact values, clean-file equality against the reviewer's recomputation, and the unchanged input hash. The final reviewer recorded 74 passing checks including repeated execution. Durable command state is `complete`, with zero website operation/proposal effects. The ten-minute observer timed out before final acceptance; a read-only observer reattached to the same command and captured completion without redispatch. This establishes live task autonomy, not a latency target or an endorsement of the generated artifact's size.
+
+Evidence and deliverables remain ignored under `.local/autonomy-acceptance`. Rerunning `process.py` regenerates the report and removes the separately appended review; the recorded report-restoration helper validates the original input/script/evidence hashes before restoring that fixed review. These are task artifacts, not new application dependencies or shipped runtime abstractions.
+
 ## Explicit boundaries
 
 - Production rollout is authorized for v2.1.0. The release deploys the matching runtime protocol; each production station must still be explicitly enrolled with a separate machine token. Production acceptance evidence is recorded after deployment, not inferred from local success.
