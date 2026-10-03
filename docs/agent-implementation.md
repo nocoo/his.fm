@@ -30,6 +30,14 @@ Real local model/gateway acceptance used an explicitly named temporary productio
 
 Screenshots and safe task evidence stay ignored under `.local/agent-acceptance`. They are acceptance artifacts, not agent screen collection. Real runtime configuration/secrets stay outside the repository.
 
+### Recovered multi-stage acceptance, 2026-10-04
+
+The previous session's local research command survived with its native process and SQLite state intact after the local website stopped. Restarting only the website resumed its pending result handling without redispatching the command. The runtime retrieved 21 fixed-commit GitHub documents from three repositories (196,616 original bytes), created a manifest and Chinese source summaries, and used a separate reviewer to verify all entries and independently refetch five samples. The recovered session recomputed all 21 archived body hashes and excerpts, plus the five independently fetched hashes.
+
+An oversized model-authored JSON patch was initially truncated and rejected before any website effect. The coordinator produced a smaller presentation of the same five source sections, obtained a second independent review and then saved successfully. The final local production advanced from version 1 to 2 with 21 new stable-ID sources, 22 total, preserving the original source and all other content fields. Readback matches the compact candidate exactly; one agent edit audit event was appended and all human approvals remain empty. The command completed with a successful operation receipt. This is recovered evidence for `8940067`, not proof of the subsequent generic prompt rewrite at `aa2c6d9`.
+
+Recovery evidence is ignored under `.local/prompt-research`, including the final production readback, hash verification and content-field comparison. The runtime's source bodies and reviewer artifacts stay in its private local work directory. No production writes, paid audio or publication were performed. Large model-authored mutation payloads still require careful sizing; the private artifact-reference API remains an explicit boundary below.
+
 ## Explicit boundaries
 
 - Production rollout is authorized for v2.1.0. The release deploys the matching runtime protocol; each production station must still be explicitly enrolled with a separate machine token. Production acceptance evidence is recorded after deployment, not inferred from local success.
@@ -40,7 +48,9 @@ Screenshots and safe task evidence stay ignored under `.local/agent-acceptance`.
 
 ## Current verification
 
-The combined local suite currently passes 264 web tests, 53 agent tests and 2 protocol tests. Each workspace independently exceeds all four 95% coverage floors; strict lint/typecheck, Worker build, frozen workspace installation, staged-gate rejection probes and the exact local model acceptance described above have been exercised. Browser acceptance is recorded separately and must be rerun after editor changes. This does not certify production deployment or paid TTS.
+The 2026-10-04 staged gate at `aa2c6d9` passes 266 web tests, 73 agent tests and 2 protocol tests. Coverage (statements/branches/functions/lines) is 98.63/96.39/99.46/99.56% for web, 98.80/97.03/97.67/99.17% for agent, and 100% throughout for contracts. Strict lint/typecheck pass. The Worker build exits successfully, with existing large-chunk and unavailable-Docker diagnostics. Frozen workspace installation and staged-gate rejection probes were exercised in the prior implementation session, not rerun as part of this recovery. This does not certify production deployment or paid TTS.
+
+The recovered session reran all 25 Chrome agent/editor scenarios successfully, including chat grouping/copy/send, narrow/dark layouts, independent scrolling, draft preservation, source navigation and publication previews. Runtime regressions use real executor CLI tools with fake models to verify both multi-page loopback retrieval and non-research file processing by writers and reviewers; these deterministic checks establish tool wiring and task scope, not live-model reasoning quality.
 
 ## Verification commands
 

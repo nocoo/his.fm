@@ -14,6 +14,28 @@ npm run agent -- start --environment local
 
 The agent connects outbound to `/api/agent/runtime/connect` using its Bearer token and `X-Hisfm-Station` header. The owner must explicitly bind that token and station through `POST /admin/api/agent/station`; first-connect does not acquire authority. Production requires a separate explicit token/binding and deployed runtime protocol. A Local/Prod browser switch never copies local credentials or local tasks into production.
 
+## Local development and debugging
+
+After configuring and enrolling the Local station, run:
+
+```sh
+npm run dev:all
+npm run agent:debug
+npm run agent:debug -- --command COMMAND_ID
+```
+
+`dev:all` starts the missing local website and coordinator, or reuses a healthy website and connected coordinator. It checks the exact service/version at `http://127.0.0.1:7056`; the studio is available at `https://hisfm.dev.hexly.ai`. Shutdown stops only processes it started. If a session crash leaves a disconnected coordinator alive but the website stopped, start `npm run dev` first and let that coordinator reconnect; inspect durable state before sending a replacement task.
+
+`agent:debug` reads local SQLite state without starting models or changing tasks. Output includes command states, pending transport events/effects and tool counts/failures, not credentials or message/tool bodies. `--command` filters commands and inputs; tool statistics explicitly cover the last 1,000 tool results across all conversations. `--environment production` is an explicit read of that environment's local runtime records, not a production API operation.
+
+For Node debugging, stop the existing Local coordinator after its tasks settle, then run `npm run agent:inspect`. The inspector binds only `127.0.0.1:37056`; keep it local because a debugger can access process secrets. Keep the website running separately with `npm run dev`. Routine tests use fake models and isolated state; live model verification is a separate authorized step.
+
+## Delegation and completion
+
+The coordinator owns the goal, plan, website effects and final acceptance. Executors receive outcomes, context and acceptance criteria, with autonomy to select native tools, scripts and verification methods within the current task. Writer/reviewer roles describe responsibilities rather than artificial tool restrictions. Each immutable assignment includes the current owner command and actual capabilities; a previous task's temporary limits remain scoped to that task.
+
+Executors return immutable Markdown plus `done`, `blocked` or `needs_input`, supporting evidence and fixed required/met counts for quantified work. The coordinator reads results with `inspect_work` and accepts them with `finish_command`, citing evidence for every criterion and checking website receipts. A completed report alone does not complete the owner's goal. Requested independent review uses a separate reviewer. Routine reversible steps and recovery stay with the agents; scope changes, new external commitments and human-gated decisions return to the owner.
+
 ## Domain authority
 
 Read `/api/agent/channel` before each creative assignment and recheck its version before canonical writes. Priority is channel policy, episode intent, then sources; none can change factual truth or grant permissions. Read the production and its capabilities to get the current version, script version, stage and editable fields.

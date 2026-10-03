@@ -47,6 +47,8 @@ npm run test:e2e
 npm run build
 ```
 
+For the configured local coordinator, use `npm run dev:all` to run the website and agent together, `npm run agent:debug` for read-only runtime diagnostics, and `npm run agent:inspect` for the loopback Node inspector. See [local agent setup and debugging](docs/native-agent.md#local-development-and-debugging) before starting a second runtime.
+
 Husky runs coverage, strict lint and typecheck against the staged Git snapshot. All four unit coverage floors are 95%. Pure React views are verified through browser interaction checks. Audit results live in nmem; L1 does not imply full 6DQ certification.
 
 See [production workflow](docs/production.md), [Native Agent API](docs/agent-api.md), [CI/CD](docs/ci-cd.md), [architecture](docs/architecture.md), [operations](docs/operations.md) and [artwork provenance](artwork/README.md). Secrets, generated audio/video and local databases remain ignored.

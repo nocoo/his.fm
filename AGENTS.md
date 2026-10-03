@@ -42,6 +42,9 @@
 
 ```sh
 npm run dev
+npm run dev:all
+npm run agent:debug
+npm run agent:inspect
 npm run typecheck
 npm run lint
 npm run test:coverage
@@ -85,4 +88,5 @@ See `docs/architecture.md` and `docs/operations.md` for contracts and operating 
 - AgentHub is a hibernatable DO with an outbound machine WSS connection, typed messages, heartbeat/auth expiry, a fenced D1 station lease and durable receipts. Register a token/station explicitly through the authenticated same-origin owner API before connecting. Legacy direct machine mutations are rejected; typed operations reuse the production controllers.
 - Browser context comes only from explicit route/editor callbacks. Preserve frozen command contexts independently of the latest live pointer. Exact proposals apply to local draft without Save; stale proposals never replace user text. Never expose Jev decisions or raw model reasoning in routine chat.
 - Only the coordinator has website tools. Executors have native CodingTools without an OS sandbox; not injecting secrets is a logical boundary, not isolation from arbitrary same-user CLI code. Human approval, token/settings changes and publication stay owner-only.
+- Delegate outcomes and acceptance criteria with executor autonomy over tools and methods. Immutable assignments carry the current owner command and native capabilities; request-specific limits belong to that command, not later tasks. Inspect structured outcomes and evidence before `finish_command`; a report alone does not establish success, and website effects require successful receipts.
 - Local/Prod switches reset the browser environment, never copy runtime tokens or move queued tasks. Prod runtime requires separately configured token/enrollment and deployed protocol. Local verification must not write production or generate paid audio.
