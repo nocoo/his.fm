@@ -79,7 +79,7 @@ function target(request: IncomingMessage): URL | 'connect' | null {
   return url;
 }
 
-async function accessToken(): Promise<string> {
+export async function accessToken(): Promise<string> {
   try {
     const { stdout } = await run('cloudflared', ['access', 'token', `--app=${application}`], {
       encoding: 'utf8',

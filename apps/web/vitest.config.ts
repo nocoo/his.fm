@@ -24,6 +24,7 @@ export default defineConfig({
         'src/shared/**/*.ts',
         'src/admin/environment.ts',
         'scripts/production-proxy.ts',
+        'scripts/agent-production-proxy.ts',
         'worker/**/*.ts',
         'src/**/model.ts',
         'src/**/models/**/*.ts',
