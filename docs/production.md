@@ -1,16 +1,16 @@
 # AI podcast production
 
-The production record is the coordination boundary between 本机主控, local creative agents, Cloudflare and the owner. Sources are stored as references or text; the server does not fetch arbitrary URLs. The editorial intent belongs to the brief and guides all generation prompts. Local agents verify the original sources before writing.
+The production record is the coordination boundary between The coordinator, local creative agents, Cloudflare and the owner. Sources are stored as references or text; the server does not fetch arbitrary URLs. The editorial intent belongs to the brief and guides all generation prompts. Local agents verify the original sources before writing.
 
 | Stage | Executor | Human decision |
 | --- | --- | --- |
-| Brief | 本机主控 collects article/GitHub URLs or text and intent | Mark the angle complete, or keep editing |
-| Transcript | 本机主控 delegates to local Codex or another agent | Read and edit the full text, then mark the exact script version complete |
+| Brief | The coordinator collects article/GitHub URLs or text and intent | Mark the angle complete, or keep editing |
+| Transcript | The coordinator delegates to Pi Durable execution conversations | Read and edit the full text, then mark the exact script version complete |
 | Parallel production | Local GPT Image 2.5 cover; local description; Cloudflare Gemini audio | Review the cover, introduction and complete recording |
 | Ready | Platform material preparation | Confirm final assets |
 | Manual publication | Owner pastes into WeChat or Xiaoyuzhou | Record actual URL/time and synchronize approved website snapshot |
 
-An agent bearer token can create, read, revise and delete unpublished production records, upload cover images, fetch prompts, submit for review, and dispatch audio. It cannot approve any review or record platform publication. Token creation/revocation is protected by Cloudflare Access; raw tokens are displayed once and only SHA-256 hashes are stored. Agent routes live outside `/admin` at `/api/agent`, so Access does not intercept the independent bearer authentication.
+An enrolled coordinator can read productions/prompts and use typed operations to create, revise, submit for review and dispatch approved audio. Machine legacy REST writes are rejected; binary cover upload remains an owner action. It cannot approve any review or record platform publication. Token creation/revocation is protected by Cloudflare Access; raw tokens are displayed once and only SHA-256 hashes are stored. Agent routes live outside `/admin` at `/api/agent`, so Access does not intercept the independent bearer authentication.
 
 Every write requires the current `version`. A stale write returns 409; refetch and review changes before retrying. Agents edit only fields allowed in the current stage. The owner can edit any stage directly and mark the brief or script complete without a separate submission step. Completion actions can include validated `changes`, saved atomically with the transition. Earlier edits revoke dependent confirmations and make existing media stale while preserving text, files and publication history. A task preserves feedback and review history. Public episodes are immutable publication snapshots; editing those through the old catalog CRUD is blocked. An existing published snapshot remains available while a new revision is prepared.
 
@@ -20,7 +20,7 @@ The top navigation exposes five stages through `?step=brief|script|assets|review
 
 Only one stage is mounted at a time. Cover, copy and audio have their own task tabs, with drafts retained between them. Unsaved changes require confirmation before switching stages or environments. Long text uses the same Charter/TsangerJinKai02 typography as xray Channel, safe Markdown and natural page height. Editing fields grow with content; fonts are private admin assets with provenance in their NOTICE.
 
-Every stage identifies its execution location. Agent task buttons copy the selected environment, production ID, current API contract and saved content into a ready task; credentials are referenced only by environment variable name. Copying is disabled until unsaved content is saved. The owner can explicitly refresh after local agent work.
+The coordinator sidebar remains beside the existing editor. Explicit editor callbacks provide typed context without inspecting the DOM or capturing screens. Commands freeze the current context; exact matching draft proposals apply locally without Save, and stale suggestions remain reviewable. Canonical production events refresh clean fields while preserving dirty conflicts. Visited stage panels stay mounted, preserving draft text and undo. Local/Prod remains a top-right environment switch; it never retargets an in-flight command.
 
 ## Local creative work
 
@@ -30,7 +30,7 @@ Use the Workflow `agi-image-generation` skill, default deployment `gpt-image-2.5
 
 The studio's “下载封面成品” action composes the original with the independent Open Interval frame and episode number into a 1600×1600 PNG. Composition happens only at download time and never replaces or uploads the source. Public pages and normal studio previews display the stored original. The common frame is available under `/admin/appearance`; see [appearance](appearance.md) for its source and regeneration. An older saved editorial profile cannot change this source/export storage contract.
 
-本机主控 writes `summary` and `description` after script approval. Platform descriptions should contain meaningful listening points and verified source links. Do not invent timestamps before the final audio has been checked.
+The coordinator writes `summary` and `description` after script approval. Platform descriptions should contain meaningful listening points and verified source links. Do not invent timestamps before the final audio has been checked.
 
 ## Cloud audio
 

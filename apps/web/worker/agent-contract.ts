@@ -27,7 +27,8 @@ export const serviceManifestSchema = z.object({
   authentication: z.object({
     type: z.literal('http'),
     scheme: z.literal('bearer'),
-    environmentVariable: z.literal('HISFM_AGENT_TOKEN'),
+    configurationFile: z.literal('~/.config/his.fm/config.json'),
+    tokenPath: z.literal('websites.<environment>.token'),
     tokenManagement: z.string(),
     verification: z.string(),
   }),
@@ -329,7 +330,7 @@ export function agentOpenApi(origin: string) {
           scheme: 'bearer',
           bearerFormat: 'hisfm_<64 hex characters>',
           description:
-            'Store the studio-created token in HISFM_AGENT_TOKEN. Never send it to other origins. This is not a Cloudflare Access token or OAuth flow.',
+            'Store the studio-created token in the selected website entry of ~/.config/his.fm/config.json. Never send it to other origins. This is not a Cloudflare Access token or OAuth flow.',
         },
       },
       schemas: {

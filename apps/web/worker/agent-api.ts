@@ -30,7 +30,8 @@ function manifest(origin: string) {
     authentication: {
       type: 'http',
       scheme: 'bearer',
-      environmentVariable: 'HISFM_AGENT_TOKEN',
+      configurationFile: '~/.config/his.fm/config.json',
+      tokenPath: 'websites.<environment>.token',
       tokenManagement: `${origin}/admin/settings`,
       verification: `${base}/me`,
     },
