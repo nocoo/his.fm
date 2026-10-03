@@ -23,7 +23,10 @@
     "lint": "biome check . --error-on-warnings",
     "format": "biome check . --write",
     "prepare": "husky",
-    "agent": "npm run start --workspace @his-fm/agent --"
+    "agent": "npm run start --workspace @his-fm/agent --",
+    "dev:all": "node --experimental-strip-types packages/agent/src/dev.ts",
+    "agent:debug": "node --experimental-strip-types packages/agent/src/debug.ts",
+    "agent:inspect": "node --inspect=127.0.0.1:37056 --experimental-strip-types packages/agent/src/cli.ts start --environment local"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.15",
