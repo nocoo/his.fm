@@ -155,6 +155,18 @@ export class RuntimeStore {
       OR (json_extract(outbox.payload,'$.proposal.commandId')=? AND json_extract(outbox.payload,'$.type')='proposal')) LIMIT 1`)
       .get(commandId, commandId);
   }
+  effects(commandId: string): { id: string; receipt: ReturnType<RuntimeStore['result']> }[] {
+    return this.database
+      .prepare(`SELECT outbox.id,receipts.payload FROM outbox LEFT JOIN receipts ON receipts.id=outbox.id
+      WHERE (json_extract(outbox.payload,'$.operation.commandId')=? AND json_extract(outbox.payload,'$.type')='operation')
+      OR (json_extract(outbox.payload,'$.proposal.commandId')=? AND json_extract(outbox.payload,'$.type')='proposal')
+      ORDER BY outbox.rowid`)
+      .all(commandId, commandId)
+      .map((row) => ({
+        id: row.id as string,
+        receipt: row.payload ? JSON.parse(row.payload as string) : null,
+      }));
+  }
   createdProduction(commandId: string, productionId: string) {
     return !!this.database
       .prepare(`SELECT outbox.id FROM outbox JOIN receipts ON receipts.id=outbox.id

@@ -4,6 +4,7 @@ import type { ToolExecutionApi } from '@earendil-works/pi-durable';
 import { NodeExecutionEnv } from '@earendil-works/pi-durable/env/node';
 import { expect, it, vi } from 'vitest';
 import { fixture, testCommand, testContext } from './testing/fixtures.ts';
+import { acceptWork, successfulResult } from './testing/outcomes.ts';
 
 type Fixture = Awaited<ReturnType<typeof fixture>>;
 async function activeFixture() {
@@ -40,6 +41,172 @@ function invoke(
 }
 const plain = (result: Awaited<ReturnType<typeof invoke>>) =>
   result.content?.map((item) => (item.type === 'text' ? item.text : '')).join('') ?? '';
+
+it('accepts inspected criteria and fixed counts, and requires the independent review requested by the owner', async () => {
+  const test = await activeFixture();
+  const finish = {
+    markdown: '验收完成',
+    outcome: 'done',
+    acceptedAssignmentIds: ['assignment:8001'],
+    checks: [] as { assignmentId: string; criterion: string; evidence: string[] }[],
+  };
+  try {
+    test.store.database
+      .prepare('UPDATE commands SET payload=? WHERE id=?')
+      .run(JSON.stringify(testCommand('command-1', '读取21页并独立审校')), 'command-1');
+    test.fake.setResponses([
+      fauxAssistantMessage(
+        [
+          fauxToolCall('submit_result', {
+            ...successfulResult('21页摘要'),
+            criteria: { required: 21, met: 21 },
+          }),
+        ],
+        { stopReason: 'toolUse' },
+      ),
+    ]);
+    await invoke(
+      test,
+      'delegate',
+      {
+        role: 'writer',
+        instructions: 'Retrieve pages',
+        requiredCriteria: ['21 pages'],
+        requiredCount: 21,
+        revision: 1,
+      },
+      8001,
+    );
+    await expect
+      .poll(async () => (await test.runtime.work()).assignments['assignment:8001']?.status)
+      .toBe('complete');
+    await expect(invoke(test, 'finish_command', finish)).rejects.toThrow('inspect_work');
+    await invoke(test, 'inspect_work', { id: 'assignment:8001' });
+    await expect(invoke(test, 'finish_command', finish)).rejects.toThrow('验收标准');
+    finish.checks = [
+      { assignmentId: 'assignment:8001', criterion: '21 pages', evidence: ['Invented evidence'] },
+    ];
+    await expect(invoke(test, 'finish_command', finish)).rejects.toThrow('验收标准');
+    finish.checks = [
+      { assignmentId: 'assignment:8001', criterion: '21 pages', evidence: ['Verified test deliverable'] },
+    ];
+    await expect(invoke(test, 'finish_command', finish)).rejects.toThrow('独立审校');
+    test.fake.setResponses([
+      fauxAssistantMessage([fauxToolCall('submit_result', successfulResult('独立复核通过'))], {
+        stopReason: 'toolUse',
+      }),
+    ]);
+    await invoke(test, 'delegate', { role: 'reviewer', instructions: 'Review all facts', revision: 1 }, 8002);
+    await expect
+      .poll(async () => (await test.runtime.work()).assignments['assignment:8002']?.status)
+      .toBe('complete');
+    await invoke(test, 'inspect_work', { id: 'assignment:8002' });
+    finish.acceptedAssignmentIds.push('assignment:8002');
+    finish.checks.push({
+      assignmentId: 'assignment:8002',
+      criterion: 'Review all facts',
+      evidence: ['Verified test deliverable'],
+    });
+    expect(plain(await invoke(test, 'finish_command', finish))).toContain('done');
+    const assignments = Object.values((await test.runtime.work()).assignments);
+    expect(assignments[0]?.conversationId).not.toBe(assignments[1]?.conversationId);
+  } finally {
+    await test.close();
+  }
+});
+
+it('rejects unproven counts, altered outcomes and acceptance while work is still running', async () => {
+  const test = await activeFixture();
+  let release = () => {};
+  const blocked = new Promise<ReturnType<typeof fauxAssistantMessage>>((resolve) => {
+    release = () => resolve(fauxAssistantMessage('paused'));
+  });
+  try {
+    test.fake.setResponses([() => blocked]);
+    await invoke(
+      test,
+      'delegate',
+      { role: 'writer', instructions: 'Retrieve 21 pages', requiredCount: 21, revision: 1 },
+      8101,
+    );
+    await expect.poll(() => test.fake.state.callCount).toBe(2);
+    const assignment = (await test.runtime.work()).assignments['assignment:8101'];
+    assert(assignment);
+    const submit = (args: unknown) => invoke(test, 'submit_result', args, 8102, assignment.conversationId);
+    await expect(
+      invoke(test, 'finish_command', {
+        markdown: 'done',
+        outcome: 'done',
+        acceptedAssignmentIds: [],
+        checks: [],
+      }),
+    ).rejects.toThrow('仍在运行');
+    await expect(submit({ ...successfulResult('report'), evidence: [] })).rejects.toThrow('证据');
+    await expect(
+      submit({ ...successfulResult('report'), criteria: { required: 21, met: 0 } }),
+    ).rejects.toThrow('验收数量');
+    await expect(submit(successfulResult('report'))).rejects.toThrow('固定');
+    await expect(
+      submit({ ...successfulResult('report'), criteria: { required: 1, met: 21 } }),
+    ).rejects.toThrow('固定');
+    const result = {
+      markdown: 'fake-site-key blocked',
+      outcome: 'blocked',
+      evidence: ['fake-model-key'],
+      criteria: { required: 21, met: 0 },
+    };
+    await submit(result);
+    await submit(result);
+    await expect(submit({ ...result, outcome: 'needs_input' })).rejects.toThrow('固定');
+    expect((await test.runtime.work()).assignments['assignment:8101']).toMatchObject({
+      result: '[已隐藏] blocked',
+      outcome: { status: 'blocked', evidence: ['[已隐藏]'] },
+    });
+  } finally {
+    release();
+    await test.close();
+  }
+});
+
+it('checks every durable website receipt and distinguishes unfinished outcomes from success', async () => {
+  const test = await activeFixture();
+  const finish = { markdown: '完成', outcome: 'done', acceptedAssignmentIds: [], checks: [] };
+  try {
+    await expect(
+      invoke(test, 'finish_command', { ...finish, acceptedAssignmentIds: ['foreign'] }),
+    ).rejects.toThrow('当前指令');
+    await invoke(test, 'propose_draft', { markdown: 'changed', summary: 'edit' }, 8201);
+    await expect(invoke(test, 'finish_command', finish)).rejects.toThrow('等待回执');
+    test.store.receipt({ type: 'proposal.ack', id: 'proposal:8201', status: 'stale' });
+    await expect(invoke(test, 'finish_command', finish)).rejects.toThrow('未确认');
+    test.store.database.prepare('DELETE FROM receipts WHERE id=?').run('proposal:8201');
+    test.store.receipt({ type: 'proposal.ack', id: 'proposal:8201', status: 'applied' });
+    test.store.enqueue({
+      type: 'operation',
+      operation: {
+        id: 'operation:8202',
+        commandId: 'command-1',
+        kind: 'production.patch',
+        productionId: 'p',
+        version: 1,
+        changes: {},
+      },
+    });
+    test.store.receipt({
+      type: 'operation.result',
+      id: 'operation:8202',
+      ok: false,
+      status: 409,
+      result: { error: 'conflict' },
+    });
+    await expect(invoke(test, 'finish_command', finish)).rejects.toThrow('未确认');
+    expect(plain(await invoke(test, 'finish_command', { ...finish, outcome: 'blocked' }))).toContain(
+      'blocked',
+    );
+  } finally {
+    await test.close();
+  }
+});
 
 it('reads current policies and productions, reports safe Markdown and proposes exact immutable draft context', async () => {
   const test = await activeFixture();
@@ -198,7 +365,7 @@ it('rejects calls without an active command, cancelled commands and invalid dele
     ).rejects.toThrow('约束');
     test.store.state('command-1', 'cancelled', 'cancelled', 'cancel');
     await expect(invoke(test, 'reply', { markdown: 'late' })).rejects.toThrow('取消');
-    await expect(invoke(test, 'submit_result', { markdown: 'unassigned' })).rejects.toThrow('活动');
+    await expect(invoke(test, 'submit_result', successfulResult('unassigned'))).rejects.toThrow('活动');
   } finally {
     await test.close();
   }
@@ -208,7 +375,7 @@ it('freezes assignment plans, reuses only idle compatible residents and retires 
   const test = await activeFixture();
   try {
     test.fake.setResponses([
-      fauxAssistantMessage([fauxToolCall('submit_result', { markdown: '# 审校结果' })], {
+      fauxAssistantMessage([fauxToolCall('submit_result', successfulResult('# 审校结果'))], {
         stopReason: 'toolUse',
       }),
     ]);
@@ -238,7 +405,7 @@ it('freezes assignment plans, reuses only idle compatible residents and retires 
     ).toContain('complete');
     test.decide.mockResolvedValue({ reuse: true, lifetime: 'resident', thinkingLevel: 'high' } as never);
     test.fake.setResponses([
-      fauxAssistantMessage([fauxToolCall('submit_result', { markdown: '# 复审结果' })], {
+      fauxAssistantMessage([fauxToolCall('submit_result', successfulResult('# 复审结果'))], {
         stopReason: 'toolUse',
       }),
     ]);
@@ -285,9 +452,9 @@ it('limits concurrent work, rejects busy retirement and cancels the execution sc
     await expect(
       invoke(test, 'retire_conversation', { id: String(assignment.conversationId) }),
     ).rejects.toThrow('空闲');
-    await invoke(test, 'submit_result', { markdown: 'first' }, 203, assignment.conversationId);
+    await invoke(test, 'submit_result', successfulResult('first'), 203, assignment.conversationId);
     await expect(
-      invoke(test, 'submit_result', { markdown: 'second' }, 204, assignment.conversationId),
+      invoke(test, 'submit_result', successfulResult('second'), 204, assignment.conversationId),
     ).rejects.toThrow('固定');
     test.store.database.prepare('UPDATE commands SET id=? WHERE id=?').run('other', 'command-1');
     await expect(invoke(test, 'reply', { markdown: 'missing' })).rejects.toThrow('取消');
@@ -307,7 +474,7 @@ it('limits concurrent work, rejects busy retirement and cancels the execution sc
 it('reuses idle task writers within one command and keeps production-scoped writers available after completion', async () => {
   const test = await activeFixture();
   const response = () =>
-    fauxAssistantMessage([fauxToolCall('submit_result', { markdown: '# 当前稿件' })], {
+    fauxAssistantMessage([fauxToolCall('submit_result', successfulResult('# 当前稿件'))], {
       stopReason: 'toolUse',
     });
   try {
@@ -348,11 +515,7 @@ it('reuses idle task writers within one command and keeps production-scoped writ
     expect((await test.runtime.work()).assignments['assignment:503']?.conversationId).not.toBe(
       first.conversationId,
     );
-    test.fake.setResponses([
-      fauxAssistantMessage('已验收初稿'),
-      fauxAssistantMessage('已验收修订'),
-      fauxAssistantMessage('全部完成'),
-    ]);
+    test.fake.setResponses(acceptWork(test));
     test.release();
     await expect.poll(() => test.store.command('command-1')?.status).toBe('complete');
     expect(
@@ -366,7 +529,7 @@ it('reuses idle task writers within one command and keeps production-scoped writ
 it('keeps draft proposals waiting until website receipt and does not expose unrelated assignment results', async () => {
   const test = await activeFixture();
   try {
-    test.fake.setResponses([fauxAssistantMessage('草稿已应用。')]);
+    test.fake.setResponses(acceptWork(test, '草稿已应用。'));
     await invoke(test, 'propose_draft', { markdown: 'updated', summary: 'draft proposal' }, 602);
     test.release();
     await expect.poll(() => test.store.command('command-1')?.status).toBe('waiting');
@@ -383,7 +546,7 @@ it('keeps draft proposals waiting until website receipt and does not expose unre
 it('holds pending operations until a durable result and forwards an operation completion as host input', async () => {
   const test = await activeFixture();
   try {
-    test.fake.setResponses([fauxAssistantMessage('音频任务已提交。')]);
+    test.fake.setResponses(acceptWork(test, '音频任务已提交。'));
     test.store.enqueue({
       type: 'operation',
       operation: {
@@ -412,7 +575,7 @@ it('uses actual native CLI tools in executor environments without website creden
       fauxAssistantMessage([fauxToolCall('bash', { command: 'printf "native-cli-ok"' })], {
         stopReason: 'toolUse',
       }),
-      fauxAssistantMessage([fauxToolCall('submit_result', { markdown: '# native-cli-ok' })], {
+      fauxAssistantMessage([fauxToolCall('submit_result', successfulResult('# native-cli-ok'))], {
         stopReason: 'toolUse',
       }),
     ]);
