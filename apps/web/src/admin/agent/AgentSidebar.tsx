@@ -144,8 +144,21 @@ function Sidebar({ client }: { client: AgentClient }) {
                   <strong>{message.role === 'user' ? '你' : '主控'}</strong>
                 </div>
               )}
-              <div className="agent-message-body">
-                <ReadingText text={message.text} />
+              <div className="agent-message-content">
+                <div className="agent-message-body">
+                  <ReadingText text={message.text} />
+                </div>
+                <Button
+                  className="agent-message-copy"
+                  type="button"
+                  size="icon"
+                  variant="ghost"
+                  aria-label={`${copied === message.id ? '已复制' : '复制'}${message.role === 'user' ? '你的' : '主控的'}消息`}
+                  title={copied === message.id ? '已复制' : '复制消息'}
+                  onClick={() => void copy(message.id, message.text)}
+                >
+                  {copied === message.id ? <Check size={14} /> : <Copy size={14} />}
+                </Button>
               </div>
               <div className="agent-message-meta">
                 <time dateTime={message.createdAt}>
@@ -155,16 +168,6 @@ function Sidebar({ client }: { client: AgentClient }) {
                         new Date(message.createdAt),
                       )}
                 </time>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="ghost"
-                  aria-label={`复制${message.role === 'user' ? '你的' : '主控的'}消息`}
-                  onClick={() => void copy(message.id, message.text)}
-                >
-                  {copied === message.id ? <Check size={14} /> : <Copy size={14} />}
-                  {copied === message.id ? '已复制' : '复制'}
-                </Button>
               </div>
             </article>
           ))}

@@ -502,9 +502,28 @@ test('chat presents grouped messages, copies text, and sends only deliberate inp
   await expect(
     sidebar.locator('.agent-message-assistant').first().locator('.agent-message-body strong'),
   ).toContainText('A helpful reply');
-  await sidebar.getByRole('button', { name: '复制主控的消息' }).first().click();
+  const reply = sidebar.locator('.agent-message-assistant').first();
+  const copyButton = reply.locator('.agent-message-copy');
+  await composer.hover();
+  await expect(copyButton).toHaveCSS('opacity', '0');
+  await expect(copyButton).toHaveText('');
+  await reply.hover();
+  await expect(copyButton).toHaveCSS('opacity', '1');
+  const bodyBounds = await reply.locator('.agent-message-body').boundingBox();
+  const copyBounds = await copyButton.boundingBox();
+  if (!bodyBounds || !copyBounds) throw new Error('Expected message and copy button bounds');
+  expect(copyBounds.x).toBeGreaterThanOrEqual(bodyBounds.x + bodyBounds.width);
+  expect(copyBounds.y).toBe(bodyBounds.y);
+  await composer.hover();
+  await expect(copyButton).toHaveCSS('opacity', '0');
+  await copyButton.focus();
+  await expect(copyButton).toHaveCSS('opacity', '1');
+  await copyButton.press('Enter');
   expect(await page.evaluate(() => navigator.clipboard.readText())).toBe('**A helpful reply**');
-  await expect(sidebar.getByRole('button', { name: '复制主控的消息' }).first()).toContainText('已复制');
+  await expect(copyButton).toHaveAccessibleName('已复制主控的消息');
+  await expect(copyButton).toHaveText('');
+  await composer.focus();
+  await expect(copyButton).toHaveCSS('opacity', '0');
   await composer.fill('');
   await expect(sidebar.getByRole('button', { name: '发送', exact: true })).toBeDisabled();
   const command = state.frames.find((frame) => frame.type === 'command');
@@ -520,6 +539,34 @@ test('chat presents grouped messages, copies text, and sends only deliberate inp
   await expect(workingTask).toContainText('正在处理');
   await expect(workingTask.locator('.agent-task-pulse')).toHaveAttribute('data-status', 'working');
   expect(state.writes).toEqual([]);
+});
+
+test.describe('touch chat actions', () => {
+  test.use({ hasTouch: true, viewport: { width: 390, height: 844 }, colorScheme: 'dark' });
+
+  test('keeps icon-only copying reachable without hover', async ({ page, context }) => {
+    await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+    const state = await studio(page);
+    await page.goto('/admin/productions/production-test?step=brief');
+    const composer = page.getByRole('textbox', { name: '给主控的消息' });
+    await composer.fill('Touch message');
+    await page.getByRole('button', { name: '发送', exact: true }).tap();
+    const message = page.locator('.agent-message-user');
+    await expect(message).toHaveCount(1);
+    const copy = message.locator('.agent-message-copy');
+    await expect(copy).toHaveCSS('opacity', '1');
+    await expect(copy).toHaveText('');
+    const bodyBounds = await message.locator('.agent-message-body').boundingBox();
+    const copyBounds = await copy.boundingBox();
+    if (!bodyBounds || !copyBounds) throw new Error('Expected touch message and copy bounds');
+    expect(copyBounds.x + copyBounds.width).toBeLessThanOrEqual(bodyBounds.x);
+    expect(copyBounds.y).toBe(bodyBounds.y);
+    await copy.tap();
+    await expect(copy).toHaveAccessibleName('已复制你的消息');
+    expect(await page.evaluate(() => navigator.clipboard.readText())).toBe('Touch message');
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+    expect(state.writes).toEqual([]);
+  });
 });
 
 test('chat remains usable on narrow screens and in dark theme', async ({ page }) => {

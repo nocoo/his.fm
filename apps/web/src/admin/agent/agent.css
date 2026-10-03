@@ -191,8 +191,18 @@
   color: hsl(var(--basalt-muted-foreground));
   background: hsl(var(--basalt-secondary));
 }
-.agent-message-body {
+.agent-message-content {
+  display: flex;
+  align-items: flex-start;
+  max-width: 100%;
+  min-width: 0;
+  gap: var(--admin-space-1);
+}
+.agent-message-user .agent-message-content {
+  flex-direction: row-reverse;
   max-width: 92%;
+}
+.agent-message-body {
   min-width: 0;
   padding: var(--admin-space-3) var(--admin-space-4);
   border: 1px solid hsl(var(--basalt-border));
@@ -200,7 +210,6 @@
   background: hsl(var(--basalt-card));
 }
 .agent-message-user .agent-message-body {
-  max-width: 85%;
   border-color: hsl(var(--basalt-primary) / 0.16);
   border-radius: 15px 4px 15px 15px;
   background: hsl(var(--basalt-primary) / 0.09);
@@ -233,11 +242,22 @@
   min-height: 24px;
   padding-inline: var(--admin-space-1);
 }
-.agent-message-meta button {
-  height: 24px;
-  padding: 0 var(--admin-space-1);
-  font-size: 12px;
-  gap: 4px;
+.agent-message-copy {
+  flex: none;
+  width: var(--admin-space-8);
+  height: var(--admin-space-8);
+  color: hsl(var(--basalt-muted-foreground));
+}
+@media (hover: hover) and (pointer: fine) {
+  .agent-message-copy {
+    opacity: 0;
+    pointer-events: none;
+  }
+  .agent-message:hover .agent-message-copy,
+  .agent-message:focus-within .agent-message-copy {
+    opacity: 1;
+    pointer-events: auto;
+  }
 }
 .agent-latest {
   position: absolute;
