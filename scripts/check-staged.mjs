@@ -1,5 +1,5 @@
 import { execFileSync, spawn } from 'node:child_process';
-import { existsSync, mkdtempSync, rmSync, symlinkSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, symlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -87,7 +87,22 @@ try {
     if (!existsSync(join(snapshot, 'package.json'))) fail('staged package.json is required');
     const modules = join(snapshot, 'node_modules');
     if (existsSync(modules)) fail('snapshot must not contain node_modules');
-    else symlinkSync(join(root, 'node_modules'), modules);
+    else {
+      mkdirSync(modules);
+      for (const entry of readdirSync(join(root, 'node_modules'))) {
+        if (entry !== '@his-fm') symlinkSync(join(root, 'node_modules', entry), join(modules, entry));
+      }
+      mkdirSync(join(modules, '@his-fm'));
+      for (const [name, directory] of [
+        ['web', 'apps/web'],
+        ['contracts', 'packages/contracts'],
+        ['agent', 'packages/agent'],
+      ]) {
+        if (existsSync(join(snapshot, directory, 'package.json'))) {
+          symlinkSync(join(snapshot, directory), join(modules, '@his-fm', name));
+        }
+      }
+    }
   }
   if (!process.exitCode) {
     const env = { ...process.env, XDG_CACHE_HOME: join(snapshot, '.cache') };

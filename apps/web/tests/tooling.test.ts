@@ -7,14 +7,14 @@ import { describe, expect, it } from 'vitest';
 import config from '../cloudflare.config';
 
 describe('Cloudflare configuration', () => {
-  it('uses one root version and reserves an empty agent workspace', () => {
+  it('uses one root version and includes the local agent workspace', () => {
     const root = JSON.parse(readFileSync(new URL('../../../package.json', import.meta.url), 'utf8'));
     const app = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
     expect(root.workspaces).toEqual(['apps/*', 'packages/*']);
     expect(root.scripts.build).toBe('npm run build --workspace @his-fm/web');
     expect(root.version).toMatch(/^\d+\.\d+\.\d+$/);
     expect(app.version).toBeUndefined();
-    expect(readdirSync(new URL('../../../packages/agent/', import.meta.url))).toEqual(['.gitkeep']);
+    expect(readdirSync(new URL('../../../packages/agent/', import.meta.url))).toContain('package.json');
   });
 
   it('checks the installed CLI before delegating deployment to the web workspace', () => {

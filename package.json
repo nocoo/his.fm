@@ -14,15 +14,16 @@
     "dev": "npm run dev --workspace @his-fm/web",
     "build": "npm run build --workspace @his-fm/web",
     "preview": "npm run preview --workspace @his-fm/web",
-    "typecheck": "npm run typecheck --workspace @his-fm/web",
+    "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "npm run test --workspace @his-fm/web",
-    "test:coverage": "npm run test:coverage --workspace @his-fm/web",
+    "test:coverage": "npm run test:coverage --workspaces --if-present",
     "test:e2e": "npm run test:e2e --workspace @his-fm/web",
     "cf:typegen": "npm run cf:typegen --workspace @his-fm/web",
     "deploy": "npm run deploy --workspace @his-fm/web",
     "lint": "biome check . --error-on-warnings",
     "format": "biome check . --write",
-    "prepare": "husky"
+    "prepare": "husky",
+    "agent": "npm run start --workspace @his-fm/agent --"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.15",
