@@ -180,3 +180,9 @@ A coordinator carried a previous smoke task's CLI restriction into a later resea
 An immutable Markdown report proves that a report exists, not that the requested work succeeded. Structured outcomes, inspected evidence, fixed acceptance counts and website receipts now govern task completion. Regression checks execute both loopback retrieval and local data-processing scripts through real executor tools, including a reviewer, while fake models keep routine tests offline. Live-model acceptance remains separate evidence of model behavior.
 
 During recovered acceptance, an initial whole-object readback assertion compared the agent client's narrowed approval projection with the owner's full response, and treated the expected edit audit event as an unrelated mutation. Compare shared content fields exactly, validate approval values semantically across response projections, and check the expected audit append separately. The corrected check confirms only source content changed; all approvals remain empty.
+
+## 2026-10-04: Match optimistic message IDs to canonical echoes
+
+Sending a chat message displayed two identical bubbles although the website stored only one command. The client used `user:<commandId>` for its optimistic message and offline restoration, while both the live server echo and snapshot used the command ID itself. The reducer correctly merged by ID but therefore treated those messages as different. Both client paths now use the canonical command ID.
+
+The previous browser fixture acknowledged commands without echoing their messages, so its one-frame assertion missed the duplicate display. Regression checks now cover the actual acknowledgment/echo sequence, offline restoration, repeated deliveries and reconnect snapshots. Explicitly sending identical text twice still produces two distinct commands; content-based deduplication would hide legitimate messages.

@@ -155,11 +155,57 @@ describe('shell-lifetime agent transport', () => {
     latest().open();
     latest().receive({
       ...snapshot,
-      messages: [{ id: `user:${id}`, role: 'user', text: 'queued', commandId: id, createdAt: 'now' }],
+      messages: [{ id, role: 'user', text: 'queued', commandId: id, createdAt: 'now' }],
       proposals: [proposal],
     });
     expect(client.state.messages).toHaveLength(1);
     expect(client.state.proposals).toEqual([]);
+  });
+  it('merges optimistic messages with canonical echoes and replay while retaining distinct commands', () => {
+    connect();
+    client.command('A question');
+    const id = client.state.commands[0].id;
+    const message = {
+      id,
+      role: 'user' as const,
+      text: 'A question',
+      commandId: id,
+      createdAt: 'server-time',
+    };
+    expect(latest().sent.filter((frame) => frame.type === 'command')).toHaveLength(1);
+    latest().receive({ type: 'command.ack', id });
+    latest().receive({ type: 'message', message });
+    latest().receive({ type: 'message', message });
+    expect(client.state.messages).toEqual([message]);
+    client.command('A question');
+    const secondId = client.state.commands[1].id;
+    expect(secondId).not.toBe(id);
+    expect(client.state.messages.map((item) => item.id)).toEqual([id, secondId]);
+  });
+  it('restores queued messages with canonical IDs before their server echo', () => {
+    client.command('Offline question');
+    const id = client.state.commands[0].id;
+    connect();
+    expect(client.state.messages).toEqual([
+      expect.objectContaining({ id, commandId: id, text: 'Offline question' }),
+    ]);
+    const message = {
+      id,
+      role: 'user' as const,
+      text: 'Offline question',
+      commandId: id,
+      createdAt: 'server-time',
+    };
+    latest().receive({ type: 'message', message });
+    latest().receive({ type: 'command.ack', id });
+    expect(client.state.messages).toEqual([message]);
+    latest().close();
+    vi.advanceTimersByTime(1200);
+    latest().open();
+    latest().receive({ ...snapshot, messages: [message], commands: [{ id, status: 'working', detail: '' }] });
+    latest().receive({ type: 'message', message });
+    expect(client.state.messages).toEqual([message]);
+    expect(latest().sent.filter((frame) => frame.type === 'command')).toEqual([]);
   });
   it('acks deliveries only after reducer and event application', () => {
     connect();

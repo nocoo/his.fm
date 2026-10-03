@@ -138,7 +138,7 @@ export class AgentClient {
             state = reduceAgent(state, {
               type: 'message',
               message: {
-                id: `user:${pending.id}`,
+                id: pending.id,
                 role: 'user',
                 text: pending.text,
                 commandId: pending.id,
@@ -225,7 +225,7 @@ export class AgentClient {
       reduceAgent(this.state, {
         type: 'message',
         message: {
-          id: `user:${id}`,
+          id,
           role: 'user',
           text: trimmed,
           commandId: id,

@@ -24,7 +24,21 @@ async function studio(
         socket.send(
           JSON.stringify({ type: 'context.ack', seq: frame.context.seq, tabId: frame.context.tabId }),
         );
-      if (frame.type === 'command') socket.send(JSON.stringify({ type: 'command.ack', id: frame.id }));
+      if (frame.type === 'command') {
+        socket.send(JSON.stringify({ type: 'command.ack', id: frame.id }));
+        socket.send(
+          JSON.stringify({
+            type: 'message',
+            message: {
+              id: frame.id,
+              role: 'user',
+              text: frame.text,
+              commandId: frame.id,
+              createdAt: new Date().toISOString(),
+            },
+          }),
+        );
+      }
       if (frame.type === 'proposal.ack') socket.send(JSON.stringify(frame));
     });
     socket.send(
@@ -456,6 +470,13 @@ test('chat presents grouped messages, copies text, and sends only deliberate inp
   await composer.press('Enter');
   await expect(composer).toHaveValue('');
   await expect.poll(() => state.frames.filter((frame) => frame.type === 'command').length).toBe(1);
+  await expect(sidebar.locator('.agent-message-user')).toHaveCount(1);
+  await expect(sidebar.locator('.agent-message-user .agent-message-body')).toHaveText('A question');
+  await composer.fill('A question');
+  await sidebar.getByRole('button', { name: '发送', exact: true }).click();
+  await expect(composer).toHaveValue('');
+  await expect.poll(() => state.frames.filter((frame) => frame.type === 'command').length).toBe(2);
+  await expect(sidebar.locator('.agent-message-user')).toHaveCount(2);
   state.send({
     type: 'message',
     message: {
@@ -495,9 +516,9 @@ test('chat presents grouped messages, copies text, and sends only deliberate inp
     status: 'working',
     detail: 'Checking the manuscript',
   });
-  await expect(sidebar.locator('.agent-task')).toContainText('正在处理');
-  await expect(sidebar.locator('.agent-task')).toContainText('Checking the manuscript');
-  await expect(sidebar.locator('.agent-task-pulse')).toHaveAttribute('data-status', 'working');
+  const workingTask = sidebar.locator('.agent-task').filter({ hasText: 'Checking the manuscript' });
+  await expect(workingTask).toContainText('正在处理');
+  await expect(workingTask.locator('.agent-task-pulse')).toHaveAttribute('data-status', 'working');
   expect(state.writes).toEqual([]);
 });
 
