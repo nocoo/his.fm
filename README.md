@@ -51,6 +51,13 @@ Husky runs coverage, strict lint and typecheck against the staged Git snapshot. 
 
 See [production workflow](docs/production.md), [Hermes API](docs/agent-api.md), [CI/CD](docs/ci-cd.md), [architecture](docs/architecture.md), [operations](docs/operations.md) and [artwork provenance](artwork/README.md). Secrets, generated audio/video and local databases remain ignored.
 
+## Repository layout
+
+- `apps/web`: React website, Cloudflare Worker, migrations and tests (`@his-fm/web`).
+- `packages/agent`: reserved directory, tracked only by `.gitkeep`; no implementation or package manifest yet.
+- Root `package.json` and `package-lock.json`: one release version and one npm workspace dependency graph. Root commands delegate to the web workspace.
+- `artwork`, `episodes`, `docs` and repository-level `scripts` stay at root. Local Worker secrets live in `apps/web/.dev.vars`; persistent state lives in `apps/web/.cloudflare/state`.
+
 ## Voice comparison
 
 The initial voice comparison is a single-speaker Mandarin launch announcement. It predates the editorial direction above and is retained as an audio test, not as the current channel description.

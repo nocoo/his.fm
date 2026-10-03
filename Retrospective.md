@@ -146,3 +146,12 @@ The first identity-art batch used two concurrent high-quality image requests and
 The first local startup after converting to cf failed before seeding: `cf d1 raw` accepted the existing `his-fm-local` identifier, but `cf d1 migrations apply` enforced UUID syntax even with `--local`. A successful read did not prove migration-command compatibility. Assigned a dedicated local-only UUID, copied the existing database through SQLite's backup API, retained the original, and compared application rows before browser acceptance. Runtime `_cf_METADATA` naturally changes on access and is not an application-data equality check.
 
 For future CLI migrations, verify each command's validation and persistence root before changing scripts. Never replace a local identity with the production ID or discard existing state to make startup pass. Also check supported upload headers: cf's R2 upload command currently lacks Cache-Control, so the artwork uploader uses the existing REST endpoint with explicit environment credentials and an offline regression test instead of silently dropping immutable cache metadata.
+
+
+## 2026-10-03: Monorepo paths include data, assets and tooling
+
+Moving the application into `apps/web` initially left the root Hermes Markdown import and archived font URLs at their previous relative depth. Build and Worker tests caught those missing inputs before publication. Update repository-root imports as well as source-to-source imports when moving a workspace.
+
+Miniflare also chooses `.wrangler/cache` when a workspace has no local node_modules directory, even without any Wrangler dependency. Set `MINIFLARE_CACHE_DIR` explicitly to `.cloudflare/cache` before local CLI startup and tests. Migrated all persisted files with hash verification before deleting the original data directory; do not confuse disposable runtime caches with D1/R2 data.
+
+The shared base-ci installer requires a lockfile in its installation directory. Keep one npm workspace lockfile at root and run the workspace-aware deploy script there rather than copying lockfiles into applications. Preserve exact CLI version checks and version/revision live verification across this change.

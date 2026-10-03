@@ -6,53 +6,26 @@
   "engines": {
     "node": ">=22.12"
   },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "scripts": {
-    "dev": "node scripts/dev.mjs",
-    "build": "cf build",
-    "preview": "vite preview --host 127.0.0.1 --port 7056",
-    "typecheck": "npm run cf:typegen && tsc --noEmit",
+    "dev": "npm run dev --workspace @his-fm/web",
+    "build": "npm run build --workspace @his-fm/web",
+    "preview": "npm run preview --workspace @his-fm/web",
+    "typecheck": "npm run typecheck --workspace @his-fm/web",
+    "test": "npm run test --workspace @his-fm/web",
+    "test:coverage": "npm run test:coverage --workspace @his-fm/web",
+    "test:e2e": "npm run test:e2e --workspace @his-fm/web",
+    "cf:typegen": "npm run cf:typegen --workspace @his-fm/web",
+    "deploy": "npm run deploy --workspace @his-fm/web",
     "lint": "biome check . --error-on-warnings",
     "format": "biome check . --write",
-    "test": "vitest run",
-    "test:coverage": "vitest run --coverage",
-    "test:e2e": "playwright test",
-    "cf:typegen": "CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV=false cf workers types",
-    "deploy": "cf d1 migrations apply 66f7e201-22a8-450d-838d-ecbc382afbc6 --dir migrations && cf deploy --prebuilt --mode production",
     "prepare": "husky"
-  },
-  "dependencies": {
-    "@codemirror/commands": "6.11.1",
-    "@codemirror/lang-markdown": "6.5.2",
-    "@codemirror/language": "6.12.4",
-    "@codemirror/search": "6.7.2",
-    "@codemirror/state": "6.7.6",
-    "@codemirror/view": "6.43.13",
-    "@lezer/highlight": "1.2.5",
-    "@nocoo/basalt": "2.2.0",
-    "@uiw/react-codemirror": "4.25.12",
-    "jose": "6.2.12",
-    "lucide-react": "1.49.0",
-    "marked": "18.0.14",
-    "motion": "13.4.6",
-    "react": "19.3.0",
-    "react-dom": "19.3.0",
-    "react-router": "8.4.0",
-    "zod": "4.6.5"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.15",
-    "@cloudflare/vite-plugin": "2.0.0-beta.sha-52b0dc0e9",
-    "@playwright/test": "1.63.0",
-    "@types/node": "26.6.3",
-    "@types/react": "19.3.0",
-    "@types/react-dom": "19.3.0",
-    "@vitejs/plugin-react": "6.1.1",
-    "@vitest/coverage-v8": "5.0.3",
-    "cf": "1.0.0-beta.12",
-    "husky": "9.1.7",
-    "miniflare": "5.20260930.0-alpha",
-    "typescript": "7.0.2",
-    "vite": "8.3.1",
-    "vitest": "5.0.3"
+    "husky": "9.1.7"
   }
 }

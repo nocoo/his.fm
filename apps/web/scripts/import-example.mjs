@@ -1,12 +1,18 @@
 import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+
+process.env.MINIFLARE_CACHE_DIR = '.cloudflare/cache';
 
 const mode = process.argv[2];
 if (!['--local', '--remote'].includes(mode) || process.argv.length !== 3) {
   throw new Error('Usage: node scripts/import-example.mjs --local|--remote');
 }
 const read = (name) =>
-  readFileSync(new URL(`../episodes/001-how-to-live-better/${name}.md`, import.meta.url), 'utf8').trim();
+  readFileSync(
+    new URL(`../../../episodes/001-how-to-live-better/${name}.md`, import.meta.url),
+    'utf8',
+  ).trim();
 const manuscript = read('transcript');
 const description = read('summary');
 const research = read('research');
@@ -68,11 +74,11 @@ if (mode === '--local')
 const result = spawnSync(
   process.execPath,
   [
-    'node_modules/cf/bin/cf',
+    fileURLToPath(new URL('bin/cf', import.meta.resolve('cf/package.json'))),
     'd1',
     'raw',
     mode === '--local' ? '00000000-0000-4000-8000-000000007056' : '66f7e201-22a8-450d-838d-ecbc382afbc6',
-    ...(mode === '--local' ? ['--local', '--persist-to', '.wrangler/state'] : []),
+    ...(mode === '--local' ? ['--local', '--persist-to', '.cloudflare/state'] : []),
     '--sql',
     sql.join('\n'),
   ],

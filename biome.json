@@ -7,7 +7,7 @@
   },
   "files": {
     "ignoreUnknown": true,
-    "includes": ["src/**", "worker/**", "tests/**", "scripts/**", "*.json", "*.ts", "!package-lock.json"]
+    "includes": ["apps/**", "scripts/**", "*.json", "!package-lock.json"]
   },
   "formatter": {
     "indentStyle": "space",

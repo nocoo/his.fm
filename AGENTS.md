@@ -2,27 +2,29 @@
 
 ## Architecture
 
-- React 19 + Vite 8 + TypeScript 7.0.2, served by one Cloudflare Worker. Use the pinned project `cf` CLI and `cloudflare.config.ts`; never use Wrangler for resource operations or deployment.
-- Public views live in `src/public/`. Admin views live in `src/admin/` and use `@nocoo/basalt` 2.2.0 with standalone CSS and granular shell imports.
-- Keep editable episode validation in `src/shared/episode.ts`, business logic in `model.ts` / `service.ts`, and D1 / Access / R2 logic in `worker/`.
+- npm workspaces: `apps/web` owns the website, Worker, migrations and tests; `packages/agent/.gitkeep` reserves the future agent without runtime code or a manifest. Root `package.json` is the only release version; root scripts delegate to `@his-fm/web`. Archives (`artwork`, `episodes`), docs and repository automation remain at root.
+
+- React 19 + Vite 8 + TypeScript 7.0.2, served by one Cloudflare Worker. Use the pinned project `cf` CLI and `apps/web/cloudflare.config.ts`; never use Wrangler for resource operations or deployment.
+- Public views live in `apps/web/src/public/`. Admin views live in `apps/web/src/admin/` and use `@nocoo/basalt` 2.2.0 with standalone CSS and granular shell imports.
+- Keep editable episode validation in `apps/web/src/shared/episode.ts`, business logic in `model.ts` / `service.ts`, and D1 / Access / R2 logic in `apps/web/worker/`.
 - Agent discovery lives at `/api/agent`, `/.well-known/api-catalog` and `/llms.txt`; OpenAPI and public onboarding must remain synchronized with shared validators and protected controllers. Tokens use `HISFM_AGENT_TOKEN`; public discovery never proves authentication.
-- Production contracts live in `src/shared/production.ts`; human and agent routes share controllers but never share approval privileges. All writes require optimistic versions. Published episode snapshots are readonly through legacy CRUD.
+- Production contracts live in `apps/web/src/shared/production.ts`; human and agent routes share controllers but never share approval privileges. All writes require optimistic versions. Published episode snapshots are readonly through legacy CRUD.
 - The owner editor uses five freely navigable URL stages: brief, script, assets, review, publish. Navigation is read-only; completion and reopening use the shared state machine. Keep one visible stage and one main scroll region.
 - Brief sources use a compact list and URL-addressable `?step=brief&source=N` detail pages (one-based position). Keep the brief draft mounted during source navigation; returning preserves inputs, while explicit brief saving persists them together. Do not render every source editor in the overview.
 - Keep `.admin-content-island` positioned for its absolute descendants. Stage changes reset only this island's scroll; `scrollIntoView` can scroll the overflow-hidden shell and hide the breadcrumb header.
 - Long review text uses Markdown and the private `/admin/fonts/jinkai/` subsets from xray; shell controls retain Basalt typography.
-- Long Markdown fields share `src/admin/markdown/MarkdownEditor.tsx`; keep source text and undo history intact across preview switches. Short plain-text fields retain Basalt inputs. See `docs/markdown-editing.md`.
+- Long Markdown fields share `apps/web/src/admin/markdown/MarkdownEditor.tsx`; keep source text and undo history intact across preview switches. Short plain-text fields retain Basalt inputs. See `docs/markdown-editing.md`.
 - Keep admin headers compact: titles and primary actions share a row where space permits, omit redundant subtitles and card headings, and wrap controls only when required on mobile. WeChat preview must render the exact sanitized HTML used for copying.
 - Secondary-page back buttons belong to the left of the title and subtitle group, using an accessible arrow control rather than a right-side action.
 - Audio generation defaults to narration only. Bumpers are opt-in; voice/style overrides are immutable per-job snapshots. Owner-only short previews reuse content-addressed R2 WAVs and never expose the Gemini secret.
-- `worker/entry.ts` exports the Worker and durable `AudioWorkflow`. D1 job and production state transitions must remain atomic and idempotent; completed audio must never regress after replay.
+- `apps/web/worker/entry.ts` exports the Worker and durable `AudioWorkflow`. D1 job and production state transitions must remain atomic and idempotent; completed audio must never regress after replay.
 - Public routes: `/`, `/episodes`, `/episodes/:slug`, `/about`. Admin routes and APIs share `/admin`; `/login` is the public entry badge.
-- Eight public themes share the Open Interval identity in `src/brand/`. `/admin/appearance` owns the versioned D1 selection; `?theme=` is a non-mutating public preview. Images use immutable R2 keys; fonts ship as fingerprinted same-origin Vite assets. See `docs/appearance.md`.
+- Eight public themes share the Open Interval identity in `apps/web/src/brand/`. `/admin/appearance` owns the versioned D1 selection; `?theme=` is a non-mutating public preview. Images use immutable R2 keys; fonts ship as fingerprinted same-origin Vite assets. See `docs/appearance.md`.
 - Generated, uploaded and stored covers must be clean originals without text, logos, borders or overlays. Only the studio's finished-cover download composes the independent brand frame; never upload that composite as a source or rewrite published originals.
 - Production Access issuer and audience are checked cryptographically in the Worker. Never trust an email header as authentication.
 - Preserve the internal editorial policy in README. Public content and episode materials are Chinese; code and technical documentation are English.
 
-- Global prompt is private owner-editable Markdown in D1 `channel_profile`, initialized once from `worker/channel-default.md`. `/admin/channel` uses the shared CodeMirror 6 Markdown editor with Basalt controls and safe previews. Agents can only GET `/api/agent/channel`.
+- Global prompt is private owner-editable Markdown in D1 `channel_profile`, initialized once from `apps/web/worker/channel-default.md`. `/admin/channel` uses the shared CodeMirror 6 Markdown editor with Basalt controls and safe previews. Agents can only GET `/api/agent/channel`.
 - Editorial priority is global prompt, then episode intent, then sources; this never changes factual truth or grants permissions. Every production prompt reads the latest channel profile. Keep channel text out of public discovery and client bundles; profile updates do not implicitly rewrite productions or invalidate approvals.
 
 ## Local development
@@ -30,9 +32,9 @@
 - `npm run dev` migrates and seeds local D1 once, then starts Vite on loopback port 7056.
 - User-facing URL: `https://hisfm.dev.hexly.ai`. Caddy proxies to `127.0.0.1:7056` and permits only loopback clients.
 - Reserved ports: integration 17056, browser 27056, inspector 37056. See nmem `hisfm-local-ports` before changing them.
-- `cloudflare.config.ts` selects local bindings and `ENVIRONMENT=local` only in `development` mode. All other modes use production settings. Local D1 uses `00000000-0000-4000-8000-000000007056`; CLI commands must pass `--local --persist-to .wrangler/state` to share Vite state. Local login requires this flag, an allowed hostname and same-origin requests. It creates an expiring HttpOnly session; production never enables it.
-- Mock content exists only in `scripts/seed-local.mjs`; schema migrations contain no episode content. Never seed mock records into remote D1. Preserve existing local edits and deletions across restarts.
-- The owner explicitly authorized importing the real episode 001 into both databases. `scripts/import-example.mjs --local|--remote` imports existing materials without approvals or publication; this is separate from mock seeding.
+- `apps/web/cloudflare.config.ts` selects local bindings and `ENVIRONMENT=local` only in `development` mode. All other modes use production settings. Local D1 uses `00000000-0000-4000-8000-000000007056`; Run local CLI commands from `apps/web` with `--local --persist-to .cloudflare/state` to share Vite state. Local login requires this flag, an allowed hostname and same-origin requests. It creates an expiring HttpOnly session; production never enables it.
+- Mock content exists only in `apps/web/scripts/seed-local.mjs`; schema migrations contain no episode content. Never seed mock records into remote D1. Preserve existing local edits and deletions across restarts.
+- The owner explicitly authorized importing the real episode 001 into both databases. `apps/web/scripts/import-example.mjs --local|--remote` imports existing materials without approvals or publication; this is separate from mock seeding.
 - The first episode has a complete manuscript, not a finished recording. Preview episodes have no audio URL; do not fabricate playable media.
 
 ## Commands
@@ -69,7 +71,7 @@ Install through an allowed registry on this machine. Never retry blocked `regist
 - D1 ID: `66f7e201-22a8-450d-838d-ecbc382afbc6`.
 - The existing Access application protects `his.fm/admin`; descendant paths inherit its policy unless a more specific application overrides them.
 - `run_worker_first` covers `/admin`, `/admin/*`, `/api/*`, `/media/*`, `/.well-known/api-catalog` and `/llms.txt`.
-- Deploy through published GitHub Releases and pinned `nocoo/base-ci`; use `cf` Build Output in `.cloudflare/output/v0` with `cf deploy --prebuilt --mode production`. The shared workflow selects `deploy-cli: cf`, verifies the exact project-local `cf-version`, and applies D1 migrations by UUID. Keep Wrangler out of both direct and transitive dependencies. Verify `/api/live` against the exact release version and revision.
+- Deploy through published GitHub Releases and pinned `nocoo/base-ci`; use `cf` Build Output in `apps/web/.cloudflare/output/v0` with `cf deploy --prebuilt --mode production`. Install from the repository root with its single lockfile. The shared workflow invokes `scripts/deploy.mjs`, which verifies the web workspace's exact cf version and runs migrations/deployment from `apps/web`. Keep Wrangler out of both direct and transitive dependencies. Verify `/api/live` against the exact release version and revision.
 - Active hero assets use immutable `images/hero-retina-20260926-*.webp` keys; original artwork and derivative provenance live in `artwork/manifest.json`. Mobile `picture` crops place the subject at 61.8%; `sizes` must account for the full rendered image under `object-fit: cover`, including its height. Episode images use `images/episode-01.webp` through `episode-03.webp`. `/media/*` serves configured R2 objects; the owner manages the CDN domain.
 
 See `docs/architecture.md` and `docs/operations.md` for contracts and operating steps.

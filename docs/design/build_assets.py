@@ -442,7 +442,7 @@ def make_brand(brand):
     avatar_content+=place_logo(num,267,766,490,ink if num!='01' else paper)
     (directory/'avatar.svg').write_text(svg(1024,1024,avatar_content))
     art_root=REPO/'artwork/design-20260926'
-    source_hero=REPO/'public/images/hero-retina-20260926-1752.webp' if num=='01' else art_root/'originals'/f'{num}-hero.png'
+    source_hero=REPO/'apps/web/public/images/hero-retina-20260926-1752.webp' if num=='01' else art_root/'originals'/f'{num}-hero.png'
     hero_path=directory/'hero.webp'
     with Image.open(source_hero) as original:
         image=original.convert('RGB')

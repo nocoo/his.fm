@@ -34,9 +34,7 @@ jobs:
       install-policy: project
       build-command: npm run build
       deploy-cli: cf
-      cf-version: '1.0.0-beta.12'
-      d1-migrations: true
-      d1-databases: '66f7e201-22a8-450d-838d-ecbc382afbc6'
+      deploy-script: node scripts/deploy.mjs
       environment: production
       concurrency-group: deploy-worker-production
       timeout-minutes: 15

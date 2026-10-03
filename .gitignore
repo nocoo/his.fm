@@ -20,7 +20,6 @@ __pycache__/
 .DS_Store
 node_modules/
 dist/
-.wrangler/
 .cloudflare/
 .dev.vars
 .dev.vars.*

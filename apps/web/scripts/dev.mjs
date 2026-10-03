@@ -1,17 +1,20 @@
 import { spawn, spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
+
+process.env.MINIFLARE_CACHE_DIR = '.cloudflare/cache';
 
 process.env.CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV = 'false';
 
 for (const args of [
   [
-    'node_modules/cf/bin/cf',
+    fileURLToPath(new URL('bin/cf', import.meta.resolve('cf/package.json'))),
     'd1',
     'migrations',
     'apply',
     '00000000-0000-4000-8000-000000007056',
     '--local',
     '--persist-to',
-    '.wrangler/state',
+    '.cloudflare/state',
     '--dir',
     'migrations',
   ],
@@ -23,9 +26,13 @@ for (const args of [
   if (result.status !== 0) process.exit(result.status ?? 1);
 }
 
-const child = spawn(process.execPath, ['node_modules/cf/bin/cf', 'dev', ...process.argv.slice(2)], {
-  stdio: 'inherit',
-});
+const child = spawn(
+  process.execPath,
+  [fileURLToPath(new URL('bin/cf', import.meta.resolve('cf/package.json'))), 'dev', ...process.argv.slice(2)],
+  {
+    stdio: 'inherit',
+  },
+);
 for (const signal of ['SIGINT', 'SIGTERM']) process.on(signal, () => child.kill(signal));
 child.on('error', (error) => {
   console.error(error.message);

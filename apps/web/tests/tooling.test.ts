@@ -1,15 +1,41 @@
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import config from '../cloudflare.config';
 
 describe('Cloudflare configuration', () => {
+  it('uses one root version and reserves an empty agent workspace', () => {
+    const root = JSON.parse(readFileSync(new URL('../../../package.json', import.meta.url), 'utf8'));
+    const app = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
+    expect(root.workspaces).toEqual(['apps/*', 'packages/*']);
+    expect(root.scripts.build).toBe('npm run build --workspace @his-fm/web');
+    expect(root.version).toMatch(/^\d+\.\d+\.\d+$/);
+    expect(app.version).toBeUndefined();
+    expect(readdirSync(new URL('../../../packages/agent/', import.meta.url))).toEqual(['.gitkeep']);
+  });
+
+  it('checks the installed CLI before delegating deployment to the web workspace', () => {
+    const temporary = mkdtempSync(join(tmpdir(), 'hisfm-deploy-test-'));
+    try {
+      writeFileSync(join(temporary, 'npm'), '#!/bin/sh\nprintf "%s\\n" "$@"\n', { mode: 0o755 });
+      const result = spawnSync(
+        process.execPath,
+        [new URL('../../../scripts/deploy.mjs', import.meta.url).pathname],
+        { encoding: 'utf8', env: { ...process.env, PATH: `${temporary}:${process.env.PATH}` } },
+      );
+      expect(result.status, result.stderr).toBe(0);
+      expect(result.stdout.trim().split('\n')).toEqual(['run', 'deploy', '--workspace', '@his-fm/web']);
+    } finally {
+      rmSync(temporary, { recursive: true, force: true });
+    }
+  });
+
   it('keeps the dependency tree free of Wrangler', () => {
-    const lock = JSON.parse(readFileSync(new URL('../package-lock.json', import.meta.url), 'utf8'));
-    expect(lock.packages[''].devDependencies.cf).toBe('1.0.0-beta.12');
+    const lock = JSON.parse(readFileSync(new URL('../../../package-lock.json', import.meta.url), 'utf8'));
+    expect(lock.packages['apps/web'].devDependencies.cf).toBe('1.0.0-beta.12');
     expect(Object.keys(lock.packages).filter((path) => path.endsWith('/wrangler'))).toEqual([]);
   });
 
@@ -62,7 +88,7 @@ describe('artwork uploader', () => {
           cacheControl: 'public, max-age=31536000, immutable',
         }),
       );
-      const script = new URL('../scripts/upload-brand-assets.mjs', import.meta.url).href;
+      const script = new URL('../../../scripts/upload-brand-assets.mjs', import.meta.url).href;
       const result = spawnSync(
         process.execPath,
         [

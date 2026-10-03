@@ -1,5 +1,7 @@
 import { bindings, defineConfig, exports } from 'cf/config';
 
+process.env.MINIFLARE_CACHE_DIR = '.cloudflare/cache';
+
 export default defineConfig(({ mode }) => {
   const local = mode === 'development';
   const name = local ? 'his-fm-local' : 'his-fm';

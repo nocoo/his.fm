@@ -2,7 +2,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { exportJWK, generateKeyPair, SignJWT } from 'jose';
 import { Miniflare, Response as MiniflareResponse } from 'miniflare';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { version } from '../../package.json';
+import { version } from '../../../../package.json';
 import { type Appearance, appearanceSchema, themeIds } from '../../src/shared/appearance';
 import { channelProfileSchema } from '../../src/shared/channel';
 import type { Episode, EpisodeInput } from '../../src/shared/episode';

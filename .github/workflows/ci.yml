@@ -19,7 +19,7 @@ jobs:
       node-version: '26.9.0'
       install-policy: project
       lockfiles: 'package-lock.json'
-      coverage-path: coverage
+      coverage-path: apps/web/coverage
       build: true
       build-command: npm run build
 

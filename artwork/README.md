@@ -6,7 +6,7 @@ Illustrations generated with Azure OpenAI `gpt-image-2.5-sunburst`, high quality
 - `prompts/` contains the exact submitted prompts.
 - `hero-retina-20260926/` preserves the native 3504×2336 hero, edit prompt, API/usage metadata and previous hero manifest.
 - `manifest.json` records model, dimensions, prompt paths, originals, and delivery assets.
-- `../public/images/` contains optimized WebP derivatives for the website.
+- `../apps/web/public/images/` contains optimized WebP derivatives for the website.
 
 ## Regeneration
 

@@ -1,4 +1,4 @@
-import { version } from '../package.json';
+import { version } from '../../../package.json';
 import { discoveryLinks, routeAgent, routeDiscovery } from './agent-api';
 import { routeAgentTokens } from './agent-tokens';
 import { getAppearance, routeAppearance } from './appearance';

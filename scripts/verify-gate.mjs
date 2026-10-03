@@ -58,9 +58,13 @@ function fixture(name, extra = {}) {
   mkdirSync(join(dir, 'scripts'), { recursive: true });
   mkdirSync(join(dir, '.husky'), { recursive: true });
   execFileSync('git', ['init', '-q'], { cwd: dir });
-  for (const file of ['biome.json', 'tsconfig.json', 'vitest.config.ts']) {
-    writeFileSync(join(dir, file), readFileSync(join(repo, file)));
+  for (const file of ['tsconfig.json', 'vitest.config.ts']) {
+    writeFileSync(join(dir, file), readFileSync(join(repo, 'apps/web', file)));
   }
+  const biome = JSON.parse(readFileSync(join(repo, 'biome.json'), 'utf8'));
+  biome.files.includes = ['src/**', 'scripts/**', '*.json', '*.ts'];
+  writeFileSync(join(dir, 'biome.json'), `${JSON.stringify(biome, null, 2)}\n`);
+  execFileSync(join(repo, 'node_modules/.bin/biome'), ['format', '--write', 'biome.json'], { cwd: dir });
   writeFileSync(join(dir, 'scripts/check-staged.mjs'), readFileSync(join(repo, 'scripts/check-staged.mjs')));
   writeFileSync(join(dir, '.husky/pre-commit'), readFileSync(join(repo, '.husky/pre-commit')));
   chmodSync(join(dir, '.husky/pre-commit'), 0o755);
@@ -88,7 +92,7 @@ function fixture(name, extra = {}) {
     mkdirSync(join(dir, 'src/shared'), { recursive: true });
     writeFileSync(join(dir, 'src/shared/gap.ts'), extra.gap);
   }
-  writeFileSync(join(dir, '.gitignore'), 'node_modules\ncoverage\n');
+  writeFileSync(join(dir, '.gitignore'), 'node_modules\ncoverage\n.cloudflare\n');
   symlinkSync(join(repo, 'node_modules'), join(dir, 'node_modules'));
   execFileSync(
     'git',

@@ -1,5 +1,5 @@
-import instructions from '../docs/hermes.md?raw';
-import { version } from '../package.json';
+import instructions from '../../../docs/hermes.md?raw';
+import { version } from '../../../package.json';
 import { editorialPriority } from '../src/shared/channel';
 import { type Actor, agentActions, agentEditableFields, type Production } from '../src/shared/production';
 import { voiceSamples } from '../src/shared/voice-samples';

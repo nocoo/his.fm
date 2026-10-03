@@ -59,7 +59,7 @@ def download_font(item):
 
 for directory in ['images', 'fonts', 'sources']:
     (ARCHIVE / directory).mkdir(parents=True, exist_ok=True)
-(ROOT / 'src/brand').mkdir(parents=True, exist_ok=True)
+(ROOT / 'apps/web/src/brand').mkdir(parents=True, exist_ok=True)
 
 for index, theme in enumerate(THEMES, 2):
     source = f'artwork/design-20260926/originals/{index:02}-hero.png'
@@ -110,8 +110,8 @@ with concurrent.futures.ThreadPoolExecutor(max_workers=8) as pool:
         css.append(block.replace(source, url))
 for font in ['spacegrotesk', 'notosanssc']:
     shutil.copyfile(ROOT / f'docs/design/assets/fonts/{font}-OFL.txt', ARCHIVE / f'fonts/{font}-OFL.txt')
-(ROOT / 'src/brand/fonts.css').write_text('\n\n'.join(css) + '\n')
-(ROOT / 'src/brand/assets.json').write_text(json.dumps(runtime, ensure_ascii=False, indent=2) + '\n')
+(ROOT / 'apps/web/src/brand/fonts.css').write_text('\n\n'.join(css) + '\n')
+(ROOT / 'apps/web/src/brand/assets.json').write_text(json.dumps(runtime, ensure_ascii=False, indent=2) + '\n')
 (ARCHIVE / 'manifest.json').write_text(json.dumps({
     'identity': 'Open Interval',
     'sourceStudy': 'docs/design/02-interval',

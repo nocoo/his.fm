@@ -16,7 +16,6 @@ export default defineConfig({
     react(),
     productionProxy(),
     cloudflare({
-      persistState: { path: '.wrangler/state' },
       remoteBindings: false,
       inspectorPort: false,
     }),

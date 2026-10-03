@@ -37,7 +37,7 @@ import {
 } from 'lucide-react';
 import { type ReactNode, useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
-import { version } from '../../package.json';
+import { version } from '../../../../package.json';
 import { BrandSymbol, Wordmark } from '../brand/Brand';
 import { errorMessage } from './model';
 import { EnvironmentSwitch } from './production/EnvironmentSwitch';

@@ -1,15 +1,18 @@
 import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+process.env.MINIFLARE_CACHE_DIR = '.cloudflare/cache';
 
 const root = join(import.meta.dirname, '..');
 const marker = 'hisfm-website-preview-v1';
 const transcript = readFileSync(
-  new URL('../episodes/001-how-to-live-better/transcript.md', import.meta.url),
+  new URL('../../../episodes/001-how-to-live-better/transcript.md', import.meta.url),
   'utf8',
 );
 const showNotes = readFileSync(
-  new URL('../episodes/001-how-to-live-better/summary.md', import.meta.url),
+  new URL('../../../episodes/001-how-to-live-better/summary.md', import.meta.url),
   'utf8',
 );
 const published = [
@@ -114,13 +117,13 @@ statements.push(
 const result = spawnSync(
   process.execPath,
   [
-    'node_modules/cf/bin/cf',
+    fileURLToPath(new URL('bin/cf', import.meta.resolve('cf/package.json'))),
     'd1',
     'raw',
     '00000000-0000-4000-8000-000000007056',
     '--local',
     '--persist-to',
-    '.wrangler/state',
+    '.cloudflare/state',
     '--sql',
     statements.join('\n'),
   ],

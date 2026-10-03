@@ -1,6 +1,6 @@
 # Website appearance
 
-The public site has one Open Interval identity and eight selectable visual directions. `src/brand/identity.svg` is the canonical wordmark and parentheses symbol. Generated React components render paths inline; they do not depend on external SVG fragment loading. Public typography is Space Grotesk and Noto Sans SC. Basalt retains its own studio control typography.
+The public site has one Open Interval identity and eight selectable visual directions. `apps/web/src/brand/identity.svg` is the canonical wordmark and parentheses symbol. Generated React components render paths inline; they do not depend on external SVG fragment loading. Public typography is Space Grotesk and Noto Sans SC. Basalt retains its own studio control typography.
 
 | ID | Direction |
 | --- | --- |
@@ -30,7 +30,7 @@ Fonts ship with the application through Vite's fingerprinted `/assets/*.woff2` U
 ```sh
 uv run --no-project --with Pillow==12.3.0 python3 scripts/prepare-brand-assets.py
 uv run --no-project --with fonttools==4.66.0 python3 scripts/prepare-identity.py
-node_modules/.bin/biome check --write src/brand
+node_modules/.bin/biome check --write apps/web/src/brand
 node scripts/upload-brand-assets.mjs
 ```
 
@@ -40,6 +40,6 @@ The image uploader requires explicit `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_API
 
 Generated, uploaded and stored episode covers must be clean images without typography, branding, borders or overlays. The public site and studio show the complete original, using `object-fit: contain` where necessary. Website theme changes do not rewrite cover bytes or published snapshots.
 
-`src/brand/frame.json` fixes the export geometry and neutral Interval palette. `scripts/prepare-identity.py` derives inline components, downloadable logo/symbol, favicon and a self-contained transparent SVG frame from the canonical source. Frame lettering is outlined from the archived Space Grotesk source, whose digest is checked against the approved study's font provenance; the SVG has no font dependency. Only “下载封面成品” composes that frame with the original and the real episode number, locally in the browser. It exports a 1600×1600 PNG, preserves the complete subject, and performs no upload or production mutation. Image/font failures show a retryable error rather than producing an unbranded download. R2 custom-domain CORS must permit the website and development origin for browser composition.
+`apps/web/src/brand/frame.json` fixes the export geometry and neutral Interval palette. `scripts/prepare-identity.py` derives inline components, downloadable logo/symbol, favicon and a self-contained transparent SVG frame from the canonical source. Frame lettering is outlined from the archived Space Grotesk source, whose digest is checked against the approved study's font provenance; the SVG has no font dependency. Only “下载封面成品” composes that frame with the original and the real episode number, locally in the browser. It exports a 1600×1600 PNG, preserves the complete subject, and performs no upload or production mutation. Image/font failures show a retryable error rather than producing an unbranded download. R2 custom-domain CORS must permit the website and development origin for browser composition.
 
 The owner still reviews the generated original and the downloaded composition. The upload endpoint validates actual PNG/JPEG/WebP bytes and size; it does not claim to detect a frame visually.

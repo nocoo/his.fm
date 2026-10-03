@@ -8,8 +8,8 @@ from fontTools.pens.transformPen import TransformPen
 from fontTools.ttLib import TTFont
 
 ROOT = Path(__file__).resolve().parent.parent
-source = (ROOT / 'src/brand/identity.svg').read_text()
-layout = json.loads((ROOT / 'src/brand/frame.json').read_text())
+source = (ROOT / 'apps/web/src/brand/identity.svg').read_text()
+layout = json.loads((ROOT / 'apps/web/src/brand/frame.json').read_text())
 font_path = ROOT / 'artwork/identity/sources/space-grotesk.ttf'
 provenance = next(item for item in json.loads((ROOT / 'docs/design/assets/fonts/sources.json').read_text()) if item['font'] == 'space-grotesk')
 if hashlib.sha256(font_path.read_bytes()).hexdigest() != provenance['source_sha256']:
@@ -52,12 +52,12 @@ for name, css, shape in [('Wordmark', 'wordmark', wordmark), ('BrandSymbol', 'sy
   return <svg className={{`brand-{css} ${{className}}`}} viewBox="{shape[0]}" aria-hidden="true" focusable="false">{body}</svg>;
 }}
 ''')
-(ROOT / 'src/brand/Brand.tsx').write_text('\n'.join(components))
-destination = ROOT / 'public/brand'
+(ROOT / 'apps/web/src/brand/Brand.tsx').write_text('\n'.join(components))
+destination = ROOT / 'apps/web/public/brand'
 destination.mkdir(parents=True, exist_ok=True)
 (destination / 'logo.svg').write_text(svg(*wordmark))
 (destination / 'symbol.svg').write_text(svg(*mark))
-(ROOT / 'public/favicon.svg').write_text(svg('0 0 128 128', f'<rect width="128" height="128" rx="20" fill="{layout["accent"]}"/>{mark[1]}'))
+(ROOT / 'apps/web/public/favicon.svg').write_text(svg('0 0 128 128', f'<rect width="128" height="128" rx="20" fill="{layout["accent"]}"/>{mark[1]}'))
 size = layout['size']
 art = layout['artwork']
 frame = f'''

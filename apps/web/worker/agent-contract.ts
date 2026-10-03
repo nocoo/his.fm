@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { version } from '../package.json';
+import { version } from '../../../package.json';
 import { channelProfileSchema, editorialPriority } from '../src/shared/channel';
 import {
   agentActionSchema,

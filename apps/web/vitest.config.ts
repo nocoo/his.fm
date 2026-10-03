@@ -1,5 +1,7 @@
 import { defineConfig } from 'vitest/config';
 
+process.env.MINIFLARE_CACHE_DIR = '.cloudflare/cache';
+
 export default defineConfig({
   resolve: {
     alias: {
