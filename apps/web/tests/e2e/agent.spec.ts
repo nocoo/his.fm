@@ -403,11 +403,10 @@ test('chat follows initial history and new replies only while the reader stays a
   await expect(log).toContainText('Do not interrupt reading earlier replies.');
   await expect.poll(() => log.evaluate((element) => element.scrollTop)).toBe(0);
   await expect.poll(bottomGap).toBeGreaterThan(100);
+  await expect(page.getByRole('button', { name: '最新消息' })).toBeVisible();
   await expect(composer).toBeInViewport();
-  await log.evaluate((element) => {
-    element.scrollTop = element.scrollHeight;
-    element.dispatchEvent(new Event('scroll', { bubbles: true }));
-  });
+  await page.getByRole('button', { name: '最新消息' }).click();
+  await expect(page.getByRole('button', { name: '最新消息' })).toHaveCount(0);
   await expect.poll(bottomGap).toBeLessThanOrEqual(2);
   state.send({
     type: 'message',
@@ -420,5 +419,102 @@ test('chat follows initial history and new replies only while the reader stays a
   await expect(log).toContainText('Following resumes after returning to the bottom.');
   await expect.poll(bottomGap).toBeLessThanOrEqual(2);
   expect(await page.locator('.admin-shell').evaluate((element) => element.scrollTop)).toBe(shellScroll);
+  expect(state.writes).toEqual([]);
+});
+
+test('chat presents grouped messages, copies text, and sends only deliberate input', async ({
+  page,
+  context,
+}) => {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+  const state = await studio(page);
+  await page.goto('/admin/productions/production-test?step=brief');
+  const sidebar = page.getByRole('complementary', { name: '主控对话' });
+  const composer = page.getByRole('textbox', { name: '给主控的消息' });
+  expect(await sidebar.evaluate((element) => element.getBoundingClientRect().width)).toBeGreaterThan(380);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(1440);
+  await sidebar.getByRole('button', { name: /帮我梳理这一期的思路/ }).click();
+  await expect(composer).toHaveValue('帮我梳理这一期的思路');
+  await expect(composer).toBeFocused();
+  await composer.fill('First line');
+  await composer.press('Shift+Enter');
+  await expect(composer).toHaveValue('First line\n');
+  await composer.fill('A question');
+  await composer.evaluate((element) =>
+    element.dispatchEvent(
+      new KeyboardEvent('keydown', {
+        key: 'Enter',
+        code: 'Enter',
+        isComposing: true,
+        bubbles: true,
+        cancelable: true,
+      }),
+    ),
+  );
+  expect(state.frames.filter((frame) => frame.type === 'command')).toHaveLength(0);
+  await expect(composer).toHaveValue('A question');
+  await composer.press('Enter');
+  await expect(composer).toHaveValue('');
+  await expect.poll(() => state.frames.filter((frame) => frame.type === 'command').length).toBe(1);
+  state.send({
+    type: 'message',
+    message: {
+      id: 'reply-one',
+      role: 'assistant',
+      text: '**A helpful reply**',
+      commandId: null,
+      createdAt: '2026-10-03T08:12:00Z',
+    },
+  });
+  state.send({
+    type: 'message',
+    message: {
+      id: 'reply-two',
+      role: 'assistant',
+      text: 'Second reply',
+      commandId: null,
+      createdAt: '2026-10-03T08:13:00Z',
+    },
+  });
+  await expect(sidebar.locator('.agent-message-assistant')).toHaveCount(2);
+  await expect(sidebar.locator('.agent-message-assistant .agent-message-identity')).toHaveCount(1);
+  await expect(
+    sidebar.locator('.agent-message-assistant').first().locator('.agent-message-body strong'),
+  ).toContainText('A helpful reply');
+  await sidebar.getByRole('button', { name: '复制主控的消息' }).first().click();
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe('**A helpful reply**');
+  await expect(sidebar.getByRole('button', { name: '复制主控的消息' }).first()).toContainText('已复制');
+  await composer.fill('');
+  await expect(sidebar.getByRole('button', { name: '发送', exact: true })).toBeDisabled();
+  const command = state.frames.find((frame) => frame.type === 'command');
+  if (command?.type !== 'command') throw new Error('Expected a sent command');
+  state.send({
+    type: 'command.state',
+    id: 'working-event',
+    commandId: command.id,
+    status: 'working',
+    detail: 'Checking the manuscript',
+  });
+  await expect(sidebar.locator('.agent-task')).toContainText('正在处理');
+  await expect(sidebar.locator('.agent-task')).toContainText('Checking the manuscript');
+  await expect(sidebar.locator('.agent-task-pulse')).toHaveAttribute('data-status', 'working');
+  expect(state.writes).toEqual([]);
+});
+
+test('chat remains usable on narrow screens and in dark theme', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.emulateMedia({ colorScheme: 'dark' });
+  const state = await studio(page);
+  await page.goto('/admin/productions/production-test?step=brief');
+  await expect(page.locator('html')).toHaveClass(/dark/);
+  const sidebar = page.getByRole('complementary', { name: '主控对话' });
+  await expect(sidebar).toBeInViewport();
+  await expect(sidebar.getByRole('textbox', { name: '给主控的消息' })).toBeInViewport();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+  await sidebar.getByRole('textbox', { name: '给主控的消息' }).fill('Narrow screen');
+  await sidebar.getByRole('button', { name: '发送', exact: true }).click();
+  await expect
+    .poll(() => state.frames.some((frame) => frame.type === 'command' && frame.text === 'Narrow screen'))
+    .toBe(true);
   expect(state.writes).toEqual([]);
 });

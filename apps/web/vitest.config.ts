@@ -23,6 +23,7 @@ export default defineConfig({
       include: [
         'src/shared/**/*.ts',
         'src/admin/environment.ts',
+        'src/admin/agent/presentation.ts',
         'scripts/production-proxy.ts',
         'scripts/agent-production-proxy.ts',
         'worker/**/*.ts',
