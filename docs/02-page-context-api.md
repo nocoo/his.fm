@@ -2,7 +2,7 @@
 
 状态：待评审设计；不修改生产实现。2026-10-03。产品原则：agent 默认在场，页面理解是后台固有能力，不提供开启／暂停入口或常驻感知提示。延续 [01 · Agent 工作流](01-agent-workflow.md) 的左右工作室布局，本篇细化此前没有定义完整的 API／上下文契约。
 
-[交互原型](01-agent-workflow/index.html) · [文档目录](README.md)
+[交互原型](01-agent-workflow/index.html) · [文档目录](README.md) · [03 · 实时双向连接](03-realtime-agent-link.md)
 
 ## 1. 产品目标：知道你在做什么，而不是只知道节目 ID
 
@@ -59,9 +59,11 @@ Worker Context Service ← D1 已保存内容／领域权限
 - 相邻状态可合并，旧 seq 不能覆盖新 seq。同 seq／同 digest 为幂等；同 seq／不同 digest 拒绝。
 - 原始 client timestamp 仅供诊断，是否 stale 由服务端接收时间与 TTL 判断。
 
-### 3.2 页面定位与可见对象
+### 3.2 页面定位与当前操作对象
 
 `pageKind`、productionId?、step?、sourceId?、assetTab?、artifactId?、filter/sort/pageCursor?、selectedEntityIds、panelMode、activeDialog、lastEditorFieldRef、editorMode。
+
+这些数据来自应用已有状态，不需要截图、录屏、OCR、终端采集、视觉模型、完整 DOM／可访问性树或鼠标／滚动轨迹。参考 Eagle 的范围仅是实时传输，不是其屏幕内容采集。
 
 `lastEditorFieldRef` 与焦点在聊天输入框是两件事：从逐字稿点击右侧聊天后，仍保留最后操作的稿件／选区；切换到另一素材时必须失效，不能把 A 的选区套到 B 上。
 
@@ -86,13 +88,13 @@ Worker Context Service ← D1 已保存内容／领域权限
 - 字段编辑模式、composition 状态（中文输入法未完成时不发送中间字节）、当前 selection anchor/head、其对应文本 hash、节／段定位。offset 约定 JS／CodeMirror 的 UTF-16 code units；相反选择方向可保留，实际替换使用 min/max，验证文本 hash 才能应用。
 - `interactionSummary` 为有界事实事件，例如 opened_source、edited_field、save_requested、save_succeeded、save_failed、conflict_detected、conflict_resolved、approval_requested/result、audio_started/completed、preview_opened、playback_paused。按钮被点过和请求成功必须分开。
 - 音频仅 report asset/job/version、playback position、playing/paused/error；播放到末尾不等于“已试听通过”。文件上传仅上传类型、状态、目标和字节数；未完成上传的本地文件字节不自动加入上下文。
-- 稿件未改但用户只是在看：报告可见章节／段落范围，不采集像素级滚动轨迹。范围可由 preview／editor adapter 提供，不截图整页。
+- 稿件未改但用户只是在看：只报告当前页面／字段。没有明确选区时不追踪可见段落或滚动位置；用户明确选中内容后才记录选择范围，不采样画面。
 
 ### 3.4 上下文覆盖矩阵
 
 | 页面 | 应当知道 | 按需取全量 | 明确不收集 |
 | --- | --- | --- | --- |
-| 制作列表 | 筛选／排序、当前页、已选节目、可见 ID、加载状态 | 当前结果页与所选节目 | 将“当前页”冒充全部节目 |
+| 制作列表 | 筛选／排序、当前页、已选节目 ID、加载状态 | 当前结果页与所选节目 | 将“当前页”冒充全部节目 |
 | 选题／素材详情 | 选题字段、素材 ID／revision、正在编辑哪份资料、draft／选区／冲突 | 指定素材原文、来源快照、brief 其它字段 | 一次性抓所有隐私材料、位置索引代替 ID |
 | 逐字稿 | 文本来源是 saved 还是 draft、selection、章节、edit/preview、scriptVersion、saveState | 指定 revision 的完整 Markdown／边界上下文 | 浏览器未收到的新 canonical 稿冒充“用户所见” |
 | 成品制作 | cover/audio/description 子页、所选参数、上传／音频任务进度 | 已授权资产 metadata 与 description draft | Gemini secret、未授权本地文件、未完成上传的完整文件 |
@@ -119,10 +121,10 @@ Agent 是工作室的固有参与者，不是一个需要用户手动挂载的�
 
 ### 通道与节奏
 
-- 利用 01 的持久控制／事件通道，不再增加一套实时框架。上下文快照通过鉴权 HTTP 同步，WSS 发 context_changed 通知；丢通知按 contextId/seq 补读。
-- 页面切换、明确目标选择、Save／审批操作结果、冲突产生立即提交；键入与选区 500ms debounce，连续编辑最多每 2 秒一次 committed snapshot。IME 在 compositionend 后提交，不上传半个中文输入状态。
-- 浏览器先形成不可变完整快照并计算 digest；同 tab 的上传串行合并，不无限堆积 every-keystroke events。小文本 inline，大文本先创建 immutable content ref，再引用，不让快照依赖尚未完成的上传。
-- snapshot 传输 envelope 建议 128 KiB，总创作内容按字段上限／按需分块；未提供完整内容时设置 `coverage: partial` 和 missingRefs，禁止静默截断。现有 80k 字符素材、50k transcript 等仍需按 UTF-8 字节检查，不把字符数当字节数。
+- 利用 [03](03-realtime-agent-link.md) 的常驻双向 WSS：小型结构化页面／字段／编辑状态直接传输并 ACK，正文按 API／内容引用读取。鉴权 HTTP 负责大内容与恢复查询，不靠屏幕采样或定时 GET 驱动工作。
+- 页面切换、明确目标选择、Save／审批操作结果、冲突产生立即提交；编辑状态与 draft revision 500ms debounce，连续编辑最多每 2 秒合并一次元数据更新，不不断传全文。IME 在 compositionend 后更新可引用 revision；只有明确选区才提供范围。
+- 浏览器先形成不可变的结构化元数据快照并计算 digest；同 tab 的上传串行合并，不堆积 every-keystroke events。未保存正文留在 draft store，主控需要文本或消息发送要固定输入时，才按精确 revision 提供正文／immutable content ref；仅报告 metadata 时明确 contentPending，不能把不存在的全文引用当完整输入。
+- 常态 context 元数据目标不超过 8 KiB，帧硬上限按 03 的 64 KiB；总创作内容按字段上限／按需分块；未提供完整内容时设置 `coverage: partial` 和 missingRefs，禁止静默截断。现有 80k 字符素材、50k transcript 等仍需按 UTF-8 字节检查，不把字符数当字节数。
 - 心跳可复用已有浏览器 live heartbeat，不写 production.version；建议 60 秒无上下文心跳为 stale，live session 30 分钟清理。用户长时间不操作但页面可连接时保留最近 ACK 的内容，不能把静止理解为离线。
 
 ### 原子提交与版本来源
@@ -169,7 +171,7 @@ context owner 的切换以 server ownerEpoch CAS 完成，target site 不同必�
 
 不在聊天 endpoint 里塞一坨 HTML；也不为每个组件发明 endpoint。形成四个 domain：`context`（观察与任务快照）、`commands`（用户意图）、`operations`（可证明效果）、`events`（用户投影）。所有数据契约放到 `packages/contracts`，可生成 OpenAPI 和 host tools；API server 是最终验证者。
 
-以下都是拟新增／替换的路径，不是已上线接口：
+以下都是拟新增／替换的 application service 动作，不是已上线接口；工作期小消息由 03 的 WSS 类型调用同一服务，HTTP 形式用于引导／内容读取／恢复，不实现双份领域逻辑：
 
 | 接口 | 调用者 | 合同 |
 | --- | --- | --- |
@@ -312,7 +314,7 @@ context／draft version 冲突用 409；未知或无权访问的 context/ref 不
 
 ## 12. 纵向实施顺序与验收
 
-1. **shared contracts＋读模型**：提取既有 production schema；补 stable sourceId／sourceRevision、context/session/content schema、只读 assembler 和 server capabilities。先证明页面事实不授予权限。
+1. **shared contracts＋读模型**：提取既有 production schema；补 stable sourceId／sourceRevision、轻量 context/session/content schema、只读 assembler 和 server capabilities。先证明页面事实不授予权限。
 2. **ViewModel／context publisher**：生产编辑器、素材详情、MarkdownEditor adapter 接入；canonical/draft/selection 分离，safe allowlist，默认后台单 tab ACK；不改变 Save 的语义。
 3. **主控精确读上下文**：消息 capture barrier、immutable refs、内容按需读取；“这里”绑定正确对象，断线／多 tab／IME 明确行为。
 4. **双向编辑闭环**：canonical typed operations 和 draft proposals／ACK，稳定 ID、CAS、冲突 UI；主控能够帮忙但不覆盖用户在途输入。
@@ -325,6 +327,7 @@ context／draft version 冲突用 409；未知或无权访问的 context/ref 不
 - **L1 ≥95% 四指标**：context schema／私密字段拒绝、seq/pageEpoch/ownerEpoch、stable sourceId、UTF-16 选区 hash、snapshot pinning、draft vs canonical、typed op 权限、source revision、proposal 去重。
 - **L2 真本地 API**：乱序 context PUT、同 seq 异内容、token/site/tab 越界、D1 ref 原子性、partial 内容、会话失效后晚到请求、owner CAS、丢 ACK、context ref 过期、proposal applied ACK 伪造不能变成 canonical 保存。
 - **L3**：无开启／暂停控件、无常驻页面理解／同步提示；进入工作室即生效，无需额外动作；用户不发消息时切页／点素材／编辑／选中段落，主控上下文仍更新；点聊天后选区保留；发送后换页旧任务不漂移；dirty 文本被理解但没有 Save；同字段继续键入使旧 proposal stale；草稿 Save 中的输入、中文 IME、Ctrl+Z、多 tab 和断线恢复。
+- **轻量范围**：由 Router／ViewModel 报告页面、对象与字段，不调用 getDisplayMedia／截图／OCR／pane.read，不序列化完整 DOM／可访问性树；正文只在任务需要时按版本读取。
 - **安全**：Token 输入／未发送聊天草稿／剪贴板／DOM 隐藏数据不被抓取；网页／draft prompt injection 无效；私有 R2 不公开，日志无正文／秘密，模型调用输入范围可核对。
 - **计费和权限**：context 高频变化不频繁唤醒模型；看到正在试听不等于批准；draft 未批准无法合成音频；Jev 内部选择不出现在用户聊天中。
 

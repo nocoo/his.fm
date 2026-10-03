@@ -51,7 +51,7 @@ Husky runs coverage, strict lint and typecheck against the staged Git snapshot. 
 
 See [production workflow](docs/production.md), [Hermes API](docs/agent-api.md), [CI/CD](docs/ci-cd.md), [architecture](docs/architecture.md), [operations](docs/operations.md) and [artwork provenance](artwork/README.md). Secrets, generated audio/video and local databases remain ignored.
 
-Design review: [native Pi Durable agent workflow](docs/01-agent-workflow.md), [page-context and API redesign](docs/02-page-context-api.md), [interactive Chinese workspace and architecture review](docs/01-agent-workflow/index.html), and [documentation index](docs/README.md). This proposal is not implemented; the walkthrough uses local simulation only.
+Design review: start with the [Archify agent architecture map](docs/agent-architecture/index.html) ([source and verification](docs/agent-architecture/README.md)), then [native Pi Durable agent workflow](docs/01-agent-workflow.md), [page-context and API redesign](docs/02-page-context-api.md), [interactive Chinese workspace and architecture review](docs/01-agent-workflow/index.html), and [documentation index](docs/README.md). This proposal is not implemented; the walkthrough uses local simulation only.
 
 ## Repository layout
 

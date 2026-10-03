@@ -53,10 +53,10 @@ const nodes = {
   hub: {
     title: 'AgentHub / Durable Object',
     status: '拟新增 / 只做连接协调',
-    description: '本机主动连出；浏览器和主控都连云端枢纽。D1 保存真相，DO 负责有界实时扇出。',
+    description: '本机主动连出；主控与后台常驻双向连接，网页关闭不停止任务。D1 保存真相，DO 负责路由、ACK 与恢复。',
     does: [
       '使用 WebSocket hibernation，attachment 只放安全身份和 epoch。',
-      '用户 HTTP 指令先持久化，再通知在线主控。',
+      '类型化 WSS 指令经共用服务持久化；后台与主控常驻双向连接，不靠定时领取。',
       '断线后按 cursor 补读；落后过多则重新取 snapshot。',
     ],
     not: ['不是模型执行器，不运行 Pi Harness。', '不是另一套数据库；通知丢失不能导致任务丢失。'],

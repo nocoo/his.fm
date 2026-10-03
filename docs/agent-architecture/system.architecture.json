@@ -1,0 +1,418 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "his.fm · Agent 架构与集成提案",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "viewBox": [
+      1380,
+      850
+    ],
+    "views": [
+      {
+        "id": "workspace",
+        "label": "页面协作",
+        "focus": [
+          "workspace",
+          "api",
+          "hub",
+          "controller"
+        ],
+        "note": "左侧沿用制作流程与 Save，右侧默认主控聊天。页面只发 page/entity/field 等结构化状态，不采屏幕。"
+      },
+      {
+        "id": "realtime",
+        "label": "常驻实时链路",
+        "focus": [
+          "workspace",
+          "api",
+          "hub",
+          "controller",
+          "state"
+        ],
+        "note": "本机主动连 WSS，DO 保活与双向传递；D1/SQLite 留回执和 outbox。网页关闭不停止主控工作。"
+      },
+      {
+        "id": "conversations",
+        "label": "主控与执行会话",
+        "focus": [
+          "controller",
+          "jev",
+          "resident",
+          "episode",
+          "state",
+          "tools"
+        ],
+        "note": "Jev 选择复用/新建和 model/think；主控执行决定。只有主控有网站 API client，长期与短期会话只回交成果。"
+      },
+      {
+        "id": "delivery",
+        "label": "作品与审批",
+        "focus": [
+          "workspace",
+          "api",
+          "d1",
+          "audio",
+          "media",
+          "controller"
+        ],
+        "note": "主控验收 Markdown 后写回；人类保留审批。音频复用云端 Workflow，私有文字成果另设 R2 bucket。"
+      },
+      {
+        "id": "trust",
+        "label": "本机信任边界",
+        "focus": [
+          "controller",
+          "resident",
+          "episode",
+          "tools",
+          "state"
+        ],
+        "note": "无沙箱、全部本机 CLI；主控独占 API 是逻辑职责而非 OS 隔离。配置私有、密钥不进 prompt 或 Web。"
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "workspace",
+      "type": "frontend",
+      "label": "Web 工作室",
+      "sublabel": "左侧编辑 / 右侧主控",
+      "tag": "保留现有流程",
+      "pos": [
+        50,
+        360
+      ],
+      "size": [
+        185,
+        84
+      ]
+    },
+    {
+      "id": "api",
+      "type": "backend",
+      "label": "Worker 领域 API",
+      "sublabel": "context / 版本 / 权限",
+      "tag": "重构补齐",
+      "pos": [
+        315,
+        360
+      ],
+      "size": [
+        185,
+        84
+      ]
+    },
+    {
+      "id": "hub",
+      "type": "messagebus",
+      "label": "AgentHub DO",
+      "sublabel": "WSS / ACK / 重连",
+      "tag": "拟新增 · 不跑模型",
+      "pos": [
+        580,
+        360
+      ],
+      "size": [
+        185,
+        84
+      ]
+    },
+    {
+      "id": "controller",
+      "type": "backend",
+      "label": "唯一主控",
+      "sublabel": "Host + root conversation",
+      "tag": "唯一网站 client",
+      "pos": [
+        845,
+        360
+      ],
+      "size": [
+        185,
+        84
+      ]
+    },
+    {
+      "id": "jev",
+      "type": "external",
+      "label": "Jev / Falcon",
+      "sublabel": "选择会话与执行 profile",
+      "tag": "内部决策 · 不上屏",
+      "pos": [
+        1110,
+        360
+      ],
+      "size": [
+        185,
+        84
+      ]
+    },
+    {
+      "id": "d1",
+      "type": "database",
+      "label": "D1 权威状态",
+      "sublabel": "节目 / 审批 / 任务 / 回执",
+      "tag": "既有 + 新表",
+      "pos": [
+        315,
+        120
+      ],
+      "size": [
+        185,
+        84
+      ]
+    },
+    {
+      "id": "audio",
+      "type": "cloud",
+      "label": "AudioWorkflow",
+      "sublabel": "批准稿件 → 云端音频",
+      "tag": "复用既有能力",
+      "pos": [
+        315,
+        650
+      ],
+      "size": [
+        185,
+        84
+      ]
+    },
+    {
+      "id": "media",
+      "type": "database",
+      "label": "R2 成果存储",
+      "sublabel": "公开媒体 / 独立私有文字",
+      "tag": "bucket 权限分离",
+      "pos": [
+        580,
+        650
+      ],
+      "size": [
+        185,
+        84
+      ]
+    },
+    {
+      "id": "resident",
+      "type": "backend",
+      "label": "长期 conversation",
+      "sublabel": "审校 / 术语 · 跨任务复用",
+      "tag": "独立 model + think",
+      "pos": [
+        845,
+        650
+      ],
+      "size": [
+        185,
+        84
+      ]
+    },
+    {
+      "id": "episode",
+      "type": "backend",
+      "label": "短期 conversation",
+      "sublabel": "本期研究 / 翻译 / 改稿",
+      "tag": "完成后退休",
+      "pos": [
+        1110,
+        650
+      ],
+      "size": [
+        185,
+        84
+      ]
+    },
+    {
+      "id": "state",
+      "type": "database",
+      "label": "配置 / SQLite",
+      "sublabel": "~/.config/his.fm",
+      "tag": "config.json + 执行断点",
+      "pos": [
+        845,
+        120
+      ],
+      "size": [
+        185,
+        84
+      ]
+    },
+    {
+      "id": "tools",
+      "type": "external",
+      "label": "本机 CLI / 文件",
+      "sublabel": "NodeExecutionEnv",
+      "tag": "全部 CLI · 无沙箱",
+      "pos": [
+        1110,
+        120
+      ],
+      "size": [
+        185,
+        84
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "浏览器 · 用户操作入口",
+      "wraps": [
+        "workspace"
+      ],
+      "pad": 28
+    },
+    {
+      "kind": "region",
+      "label": "Cloudflare · 业务与实时连接",
+      "wraps": [
+        "api",
+        "hub",
+        "d1",
+        "audio",
+        "media"
+      ],
+      "pad": 32
+    },
+    {
+      "kind": "region",
+      "label": "本机 · Pi Durable / 常驻 daemon",
+      "wraps": [
+        "controller",
+        "jev",
+        "resident",
+        "episode",
+        "state",
+        "tools"
+      ],
+      "pad": 32
+    }
+  ],
+  "connections": [
+    {
+      "id": "web-api",
+      "from": "workspace",
+      "to": "api",
+      "label": "操作/上下文",
+      "variant": "emphasis"
+    },
+    {
+      "id": "api-hub",
+      "from": "api",
+      "to": "hub",
+      "label": "鉴权/路由",
+      "variant": "emphasis"
+    },
+    {
+      "id": "hub-controller",
+      "from": "hub",
+      "to": "controller",
+      "label": "双向 WSS",
+      "variant": "emphasis"
+    },
+    {
+      "id": "api-d1",
+      "from": "api",
+      "to": "d1",
+      "fromSide": "top",
+      "toSide": "bottom",
+      "label": "CAS / 幂等回执"
+    },
+    {
+      "id": "api-audio",
+      "from": "api",
+      "to": "audio",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "label": "人类批准后调用",
+      "variant": "security",
+      "labelDy": 24
+    },
+    {
+      "id": "audio-media",
+      "from": "audio",
+      "to": "media",
+      "label": "保存音频"
+    },
+    {
+      "id": "controller-jev",
+      "from": "controller",
+      "to": "jev",
+      "label": "决策往返",
+      "variant": "dashed"
+    },
+    {
+      "id": "controller-state",
+      "from": "controller",
+      "to": "state",
+      "fromSide": "top",
+      "toSide": "bottom",
+      "label": "配置 / 恢复"
+    },
+    {
+      "id": "controller-resident",
+      "from": "controller",
+      "to": "resident",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "label": "派发 / 验收 Markdown",
+      "labelAt": [
+        930,
+        600
+      ]
+    },
+    {
+      "id": "controller-episode",
+      "from": "controller",
+      "to": "episode",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "label": "派发 / 返回成果"
+    },
+    {
+      "id": "episode-tools",
+      "from": "episode",
+      "to": "tools",
+      "fromSide": "right",
+      "toSide": "right",
+      "label": "本机执行"
+    },
+    {
+      "id": "api-private-artifacts",
+      "from": "api",
+      "to": "media",
+      "fromSide": "right",
+      "toSide": "top",
+      "label": "私有 Markdown",
+      "variant": "dashed"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "用户体验不改成 agent 控制台",
+      "items": [
+        "主控默认在场；无启用/暂停或感知提示。",
+        "页面/字段/选区是结构化状态，不采屏幕。"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "看见、修改、保存、批准分开",
+      "items": [
+        "未保存稿走 draft proposal；旧回复不改错对象。",
+        "主控验收不替代人工批准，也不代发平台。"
+      ]
+    },
+    {
+      "dot": "slate",
+      "title": "提案，尚未实现",
+      "items": [
+        "Eagle 仅参考实时传输，不复制终端采集。",
+        "本机任务恢复与云端业务回执分别持久化。"
+      ]
+    }
+  ]
+}

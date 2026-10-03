@@ -2,7 +2,7 @@
 
 状态：架构提案，等待用户 Review。2026-10-03。集成方式已按最新反馈修订：左侧现有制作流程、右侧持续主控聊天；内部 Jev 决策不向用户播报。**本文和交互演示不表示系统已实现，也不授权启动 agent。**
 
-[打开交互架构图](01-agent-workflow/index.html) · [文档目录](README.md) · [02 · 页面上下文与 API 重构](02-page-context-api.md)
+[先看 Archify 架构图](agent-architecture/index.html) · [工作室交互原型](01-agent-workflow/index.html) · [文档目录](README.md) · [02 · 页面上下文与 API 重构](02-page-context-api.md) · [03 · 实时双向连接](03-realtime-agent-link.md)
 
 本机可直接用 Chrome 打开 `docs/01-agent-workflow/index.html`，不需要运行网站。页面的字体也来自仓库内素材，没有第三方网络请求。验证命令：`node docs/01-agent-workflow/verify.mjs`；截图写入被忽略的 `.local/agent-architecture/`。评审页为独立静态文档，不发布到生产，也不冒充已经集成的 Basalt 管理界面。
 
@@ -67,7 +67,7 @@ Giraffe 当前 Jev 从少数固定 profile 选 worker，并不负责会话复用
 用户（Cloudflare Access）
   └─ Web：只向主控发消息；其余角色只观察
        ├─ Worker /admin/api/agent/*：指令、确认、快照、作品
-       └─ AgentHub Durable Object：WebSocket 通知／连接状态，不运行 LLM
+       └─ AgentHub Durable Object：常驻双向 WebSocket／ACK／恢复，不运行 LLM
                     ↑ 仅本机主动向外连接，无本机入站服务
 本机 hisfm agent
   ├─ Host：单实例锁、租约、收件箱、发件箱、白名单 profile 验证、事件投影
@@ -88,10 +88,10 @@ Giraffe 当前 Jev 从少数固定 profile 选 worker，并不负责会话复用
 | 本机 Pi SQLite | 原始 conversation、durable assignment、决策快照、工具断点、未确认发件箱 | 不取代网站审批、节目版本和用户任务队列 |
 | 云端 D1 | 用户指令、任务状态、机器租约、网站可见事件、成果索引、操作回执、节目／审批 | 不存模型密钥和完整内部推理文本 |
 | R2 | 独立私有 `AGENT_ARTIFACTS` bucket 保存 Markdown 成果／源快照；已有 `MEDIA` bucket 继续存公开音频／封面 | 未审核研究资料不走公开 CDN；本地临时文件不自动上传 |
-| AgentHub DO | 在线 socket、唤醒、扇出通知、连接 attachment | 不当第二个任务数据库，不直接改节目，不保存另一份审批真相 |
+| AgentHub DO | 常驻双向 socket、类型化消息／ACK、连接代际、恢复／背压；调用共用领域服务 | 不运行模型、不采集画面、不当第二个任务／审批数据库 |
 | Web ViewModel | 由快照＋事件生成可见状态 | 不推断“有心跳＝工作成功”，不直接驱动子会话 |
 
-采用 DO 是为单频道的连接协调和 WebSocket 扇出，不是将 Pi Durable 移到 Cloudflare。D1 持久化先成功，再发送 DO 通知；通知可能丢失，因此客户端用游标补读。避免 D1／DO 双写都声称自己是唯一真相。
+采用 DO 维持单频道常驻双向实时链路，参见 [03](03-realtime-agent-link.md)。不是将 Pi Durable 移到云端；D1 持久化＋回执是权威，连接恢复用游标／operationId 对账。只借鉴 Eagle 的传输机制，不引入截图、OCR、终端画面采集、完整 DOM／可访问性树或坐标轨迹；页面直接报告 page/entity/field 等结构化状态。
 
 **不能把私有成果仅换个前缀就写进现有 MEDIA bucket。** 当前 `f.no.mt` 是该 bucket 的公开 CDN，`worker/index.ts` 的 `/media/*` 也可按 key 读取。新增独立、无公开域名的 R2 binding，只有鉴权后的成果 controller 可读写；不提供公开 presigned URL，不让现有资源清理器误扫这个 bucket。已批准的公开内容仍通过现有 publication snapshot 显式发布。
 
@@ -212,21 +212,21 @@ Jev 的请求、概率和决定只写本机内部审计；网站仅接收必要�
 
 ### 启动与在线定义
 
-`validate config → acquire local lock → open storage → install registry → rebuild assignments/tools/outbox → authenticate /me + capabilities → acquire station lease → reconcile commands/effects → resume scheduler → connect live stream`。
+`validate config → acquire local lock → open storage → install registry → rebuild assignments/tools/outbox → authenticate /me + capabilities → acquire station lease → connect live stream → reconcile commands/effects → ready → resume scheduler`。
 
 不能在工具 ticket 重建前 `resume()`，否则恢复的工具读到空 Map。站点／频道变化使用新 storage namespace，拒绝跨环境继续旧任务。Token 到期／撤销后停止领取、新派发及写回；Web 显示 `auth_required`，不弹出无人值守浏览器登录。
 
-本机主动建立 WSS，Web 浏览器单独连同一 AgentHub；不在用户机器开放端口，不要求公网回连。建议 heartbeat 15 秒、45 秒无有效心跳标为离线，站点写租约 60 秒；这些是待验证的产品目标，不是观测结果。休眠／网络断开与“任务失败”分开，显示最后上报时间和未确认结果数。
+本机主动建立常驻 WSS，Web 浏览器单独连同一 AgentHub，不开放本机入站端口。即使无人打开网页，主控链路与已授权工作也不停止。保活／鉴权／重连／背压以 [03](03-realtime-agent-link.md) 为准：应用心跳初始 10 秒、客户端静默 30 秒、Hub 35 秒、写租约独立 60 秒；这些是待实测目标，不宣称网络永不断线。
 
 ### durable 协议
 
-HTTP 持久入口负责写，WSS 只负责通知／状态投影：
+实时工作使用类型化双向 WSS，不再是 HTTP 领取任务、socket 只发通知：
 
-1. 用户向 Access 保护的 `/admin/api/agent/commands` 提交带 clientRequestId 的消息／任务，D1 持久化成功才显示“已收到”；机器离线时仍可排队。
-2. Worker 尝试通知 DO，DO 唤醒机器；丢失通知不丢任务，机器启动／重连／心跳检查 command cursor。
-3. 主控领取 command，保存本地 assignment 后 ACK；commandId 映射为 Pi requestId，重复投递不重复派发。
-4. 运行事件先本地持久化，批量送 Worker；云端分配递增 cursor 并广播。浏览器以 snapshot＋cursor 补读，事件重复去重，缺口重取快照。
-5. WSS 断开不从头生成；本机 outbox 在 ACK 前保留。恢复后先查 operation receipts，再重传未提交事件。
+1. Web 发送轻量 context metadata，必要正文按固定 revision/ref 提供；Hub 完成验证与持久化后 ACK，主控直接收到更新。
+2. 用户 command 固定发送时 context，D1 入库后返回 persisted；机器离线仍可排队，重连对账而非重新创建工作。
+3. 主控收到 command 后先本地保存 assignment，再返回 accepted；执行／取消处理不阻塞心跳和收件 loop。
+4. 主控回复、任务进度、草稿建议、operation 及结果回执双向传递；正式终态先持久化，再扇出页面。ACK 层级与 replay barrier 见 03。
+5. 网站 Save／音频完成产生 transactional outbox，提交后主动唤醒 Hub；定时检查仅修补漏唤醒窗口，不是日常消息配送。大内容走 HTTPS，WSS 传精确引用。
 
 事件区分 `command_received / assignment_started / artifact_ready / review_failed / operation_committed / waiting_human / interrupted / completed`。关键审计事件持久；token 流和 tool 活跃指标可合并，建议每秒至多 5 帧、每批 64 KiB。满队列背压，禁止丢掉完成／撤销／版本冲突事件。浏览器落后于 retention 游标时必须显式 reset snapshot，不能把进度跳变伪装为连续。
 
@@ -285,6 +285,8 @@ Save 期间新增的键入不能被旧 response 清除：仅清除与提交快�
 
 ## 8. 数据模型与 API 增量
 
+本节 HTTP 路由描述共用领域服务的权限／动作；实时调用与恢复契约以 [03](03-realtime-agent-link.md) 为准，不实现另一套独立领域逻辑。
+
 页面观测、WorkingDraft、context ACK、命令上下文固定与 draft proposal API 详见 [02](02-page-context-api.md)，它是本节必须实施的补充，不是可选的聊天 metadata。
 
 保持现有 `/api/agent` 命名空间和生产 controller，不另开 Hermes 兼容层。同步更新 discovery、OpenAPI、capabilities、`llms.txt`、Token 页面及错误说明。旧 Token 可以通过原有认证验证身份，但接入 runtime 必须显式绑定 station；不能因为拿到一个旧 Token 就自动启动主机执行。
@@ -310,7 +312,7 @@ Save 期间新增的键入不能被旧 response 清除：仅清除与提交快�
 | `GET /admin/api/agent/live` | 人类 Access：WebSocket upgrade；非聊天写入口 |
 | `POST /api/agent/runtime/register`、`heartbeat`、`claim`、`ack` | 已绑定机器 Token：连接和指令领取；返回服务端 epoch／cursor |
 | `POST /api/agent/runtime/events`、`artifacts` | 主控 adapter：上传有界事件和验收候选，必须带 assignment／输入指纹 |
-| `GET /api/agent/runtime/connect` | 主控 adapter：WSS 通知，不接受任意工具指令 |
+| `GET /api/agent/runtime/connect` | 主控 adapter：常驻双向类型化消息，拒绝任意 shell／HTTP 指令 |
 | `POST /api/agent/runtime/operations`、`GET .../operations/:id` | 幂等写回／查回执，内部复用现有 controllers；不重复实现领域规则 |
 | 现有 `/api/agent/productions/*` | 领域操作保持 canonical，runtime 写入须带 task＋lease＋operation 元数据；不能留一个绕过 fencing 的旧路径 |
 

@@ -159,3 +159,10 @@ The shared base-ci installer requires a lockfile in its installation directory. 
 ## 2026-10-03: Delayed selection events must not retarget page context
 
 The page-context design prototype initially let every browser `select` event replace the active editor target. An asynchronous selection event from the previously edited title arrived after focus moved to the intent field, so a request for the intent incorrectly entered the title's unsaved-draft flow. The browser regression caught this before any production implementation. Accept selection updates only from the active editor, clear cross-field selection on actual focus changes, and preserve the last valid editor selection when focus moves to chat. Pin each command's target and draft revision instead of reading mutable current-page state when its reply arrives.
+
+
+## 2026-10-03: Verify generated architecture artifacts without guessing viewer APIs
+
+The first Archify candidate exceeded its desktop readability budget and placed two edge labels over nodes. Its structured diagnostics identified the exact labels and viewBox constraint; compacting the canvas and moving only the diagnosed labels produced 9/9 showcase checks without deleting semantic relationships. Keep candidate geometry changes in the JSON source, never patch the generated HTML.
+
+A supplementary browser test initially assumed an unsupported `data-diagram-type` attribute and a guessed reset button label. Inspect the delivered artifact's actual DOM and focus controls instead of inferring its runtime API. Delivery receipts, browser containment checks and visual inspection are separate evidence; none proves that the proposed agent system is implemented.
