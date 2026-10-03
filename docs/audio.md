@@ -1,6 +1,6 @@
 # Cloud audio production
 
-The audio utilities in `worker/audio.ts` use Gemini `gemini-3.8-flash-tts` through the Interactions API already exercised by the repository's `generate.py`.
+The audio utilities in `worker/audio.ts` use Gemini `gemini-3.8-flash-tts` through the Interactions API already exercised by the repository's `scripts/voice-comparison/generate.py`.
 
 ## Format and memory bounds
 

@@ -8,7 +8,7 @@ import urllib.error
 import urllib.request
 import wave
 
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(__file__).resolve().parents[2]
 VOICES = ("Kore", "Zephyr", "Puck", "Charon", "Aoede", "Orus")
 MODEL = "gemini-3.8-flash-tts"
 
@@ -18,7 +18,7 @@ def generate(voice, key):
         "model": MODEL,
         "input": [{"type": "user_input", "content": [{
             "type": "text",
-            "text": (ROOT / "script.txt").read_text().strip(),
+            "text": (Path(__file__).with_name("script.txt")).read_text().strip(),
             "annotations": [{"type": "speech_metadata", "style":
                 "Friendly podcast announcement, natural conversational delivery, "
                 "brisk pace, approximately 20 seconds."}],

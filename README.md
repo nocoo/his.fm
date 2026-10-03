@@ -66,10 +66,10 @@ Requires Python 3. No third-party packages.
 Set `GEMINI_API_KEY` in the environment or in the ignored local `.env` file, then run:
 
 ```sh
-python3 generate.py Kore Zephyr Puck Charon Aoede Orus
+python3 scripts/voice-comparison/generate.py Kore Zephyr Puck Charon Aoede Orus
 ```
 
-Every voice reads the same `script.txt` with the same delivery direction, targeting approximately 20 seconds. Duration varies naturally by voice; output is not truncated or time-stretched. WAV files and request metadata are written to the ignored `output/` directory. Existing files for the selected voices are overwritten.
+Every voice reads the same `scripts/voice-comparison/script.txt` with the same delivery direction, targeting approximately 20 seconds. Duration varies naturally by voice; output is not truncated or time-stretched. WAV files and request metadata are written to the ignored `output/` directory. Existing files for the selected voices are overwritten.
 
 The curated voice descriptions are Kore (firm), Zephyr (bright), Puck (upbeat), Charon (informative), Aoede (breezy), and Orus (firm). These describe the voices, not separate performance prompts.
 
