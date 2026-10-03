@@ -2,6 +2,35 @@
 
 All notable changes to his.fm are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions use the owner’s patch-only deployment policy in `AGENTS.md`, with the authoritative version in `package.json`.
 
+## 2.1.0 - 2026-10-03
+
+The owner explicitly requested this minor release (Y+1).
+
+### Added
+
+- Add a resident local Pi Durable coordinator with `gpt-6-astra/high`, `gpt-6.1-sol` execution conversations, and local Jev batched routing bounded to 16 KiB. Persist conversations, task results, command IDs and transport receipts across restart.
+- Integrate ambient coordinator chat beside the existing studio editor. Typed page/field/draft/selection context replaces manual prompt copying; no screen capture, DOM scraping, activation control or page-awareness banner is introduced.
+- Add an authenticated AgentHub Durable Object with outbound machine WebSockets, explicit owner station enrollment, connection fencing, durable message/operation receipts, heartbeat renewal, cancellation acknowledgement and browser backpressure.
+- Add shared protocol schemas and dedicated runtime tests with independent 95% coverage floors; include all workspaces in root quality commands and CI artifacts.
+
+### Changed
+
+- Replace legacy machine REST mutations with typed, idempotent runtime operations while preserving human-only approval, reopening and real platform publication.
+- Assign persistent source IDs, preserve per-stage drafts and undo, merge clean external changes, and reject stale draft proposals without overwriting local edits.
+- Keep Local/Prod browser switching isolated from runtime identities; add a fixed production WebSocket proxy with exclusive upgrade routing and process-only Access credentials.
+- Recover queued audio Workflow dispatches using the original job ID; distinguish a cancellation request from confirmed stopped work.
+
+### Validation
+
+- Local checks pass 264 web tests, 53 agent tests and 2 protocol tests, with every workspace above all four 95% coverage floors. Strict lint/types, build, deployment dry-run, frozen installation and index-snapshot gate checks pass.
+- All nine agent browser journeys pass. The final 37-case browser run has 36 first-pass successes; the CDN-dependent theme image test passes its isolated rerun after an image timeout.
+- Real local models complete writer -> independent reviewer -> coordinator acceptance -> versioned intent write. Browser draft rewriting leaves the canonical version unchanged; restart preserves root/reviewer identities and receipts.
+- Production acceptance is performed after release deployment; local evidence does not claim production or paid-audio verification.
+
+### Known Boundaries
+
+- The full design's private R2 artifact catalogue, large-content chunk API and deterministic rich-Markdown-to-speech renderer are not part of this release. Paid audio and actual destination-platform publication are not exercised by release acceptance.
+
 ## 2.0.5 - 2026-10-03
 
 ### Changed

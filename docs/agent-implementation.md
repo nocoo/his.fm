@@ -32,7 +32,7 @@ Screenshots and safe task evidence stay ignored under `.local/agent-acceptance`.
 
 ## Explicit boundaries
 
-- This local implementation is not deployed to production by this task. Selecting Prod preserves the established owner proxy path, but the new agent protocol must be released and enrolled there before it is usable. No production credentials or machine token were invented.
+- Production rollout is authorized for v2.1.0. The release deploys the matching runtime protocol; each production station must still be explicitly enrolled with a separate machine token. Production acceptance evidence is recorded after deployment, not inferred from local success.
 - Context payloads are bounded and can reject excessively large draft/value pairs. The separate content-addressed chunk API in the larger design is not implemented yet; there is no silent truncation or screen fallback.
 - Durable assignment results are local Pi documents; a separate private R2 artifact catalogue and deterministic Markdown-to-spoken-text approval UI from the full design are not part of this initial slice. Canonical manuscript writes must remain spoken prose-compatible Markdown until that renderer is implemented. Do not claim rich Markdown audio support or automatic binary-cover upload.
 - The agent has full local CLI ability without OS sandbox isolation, but no permission to use other local credentials to bypass website human-only rules. This remains a trusted-local-user execution model.
