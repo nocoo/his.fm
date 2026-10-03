@@ -53,7 +53,6 @@
     "miniflare": "5.20260930.0-alpha",
     "typescript": "7.0.2",
     "vite": "8.3.1",
-    "vitest": "5.0.3",
-    "wrangler": "4.145.0"
+    "vitest": "5.0.3"
   }
 }

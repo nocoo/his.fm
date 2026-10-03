@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   quality:
-    uses: nocoo/base-ci/.github/workflows/quality.yml@ad43150de3a2be2fa464b5cd2f921dc4fa9f8f0f # v2026.7
+    uses: nocoo/base-ci/.github/workflows/quality.yml@8816553dc9f4544d1e8486bacb5cce630a9f14cb # v2026.8
     with:
       package-manager: npm
       runtime-version: '11.19.1'
@@ -24,6 +24,6 @@ jobs:
       build-command: npm run build
 
   workflow-lint:
-    uses: nocoo/base-ci/.github/workflows/workflow-lint.yml@ad43150de3a2be2fa464b5cd2f921dc4fa9f8f0f # v2026.7
+    uses: nocoo/base-ci/.github/workflows/workflow-lint.yml@8816553dc9f4544d1e8486bacb5cce630a9f14cb # v2026.8
     with:
       required-reusable-workflow: nocoo/base-ci/.github/workflows/quality.yml

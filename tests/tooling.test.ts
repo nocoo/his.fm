@@ -7,6 +7,12 @@ import { describe, expect, it } from 'vitest';
 import config from '../cloudflare.config';
 
 describe('Cloudflare configuration', () => {
+  it('keeps the dependency tree free of Wrangler', () => {
+    const lock = JSON.parse(readFileSync(new URL('../package-lock.json', import.meta.url), 'utf8'));
+    expect(lock.packages[''].devDependencies.cf).toBe('1.0.0-beta.12');
+    expect(Object.keys(lock.packages).filter((path) => path.endsWith('/wrangler'))).toEqual([]);
+  });
+
   it('isolates local login, resources and domains from production', () => {
     const local = config({ mode: 'development', isPreview: false }).worker;
     const production = config({ mode: 'production', isPreview: false }).worker;
