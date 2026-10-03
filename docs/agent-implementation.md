@@ -40,7 +40,7 @@ Screenshots and safe task evidence stay ignored under `.local/agent-acceptance`.
 
 ## Current verification
 
-The combined local suite currently passes 262 web tests, 53 agent tests and 2 protocol tests. Each workspace independently exceeds all four 95% coverage floors; strict lint/typecheck, Worker build, frozen workspace installation, staged-gate rejection probes and the exact local model acceptance described above have been exercised. Browser acceptance is recorded separately and must be rerun after editor changes. This does not certify production deployment or paid TTS.
+The combined local suite currently passes 264 web tests, 53 agent tests and 2 protocol tests. Each workspace independently exceeds all four 95% coverage floors; strict lint/typecheck, Worker build, frozen workspace installation, staged-gate rejection probes and the exact local model acceptance described above have been exercised. Browser acceptance is recorded separately and must be rerun after editor changes. This does not certify production deployment or paid TTS.
 
 ## Verification commands
 

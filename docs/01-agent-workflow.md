@@ -138,7 +138,7 @@ Giraffe 当前 Jev 从少数固定 profile 选 worker，并不负责会话复用
 
 host 先产生**有限合法候选**，每个 planId 绑定 `{action, conversationId?, lifetime, role, profileId}`；Jev 只在这些完整方案中选一个，避免分别选 model／thinking／reuse 后得到不兼容的组合。
 
-输入仅含任务类型、目标、风险、待处理字数、需要的上下文、来源完整性、候选会话摘要／忙闲、profile 能力及预算。不给 Token、完整历史、原始私密材料或原始工具输出。设 24 KiB 决策输入上限，不能截断关键权限和版本字段；超限先生成可验证的摘要再决策。
+输入仅含任务类型、目标、风险、待处理字数、需要的上下文、来源完整性、候选会话摘要／忙闲、profile 能力及预算。不给 Token、完整历史、原始私密材料或原始工具输出。实施采用 16 KiB 完整编码请求硬上限（覆盖 state 和 questions），不能截断关键权限和版本字段；超限先生成可验证的摘要再决策。
 
 输出校验：choice 必须来自候选，概率键完整且和约等于 1，数值有限且在范围内。记录 gateway requestId、模型实际返回名、输入 hash、候选、choice、confidence、probabilities、policy/config digest、时间与决策摘要。概率是相对偏好，不是成功率、事实可信度或授权。
 
@@ -204,7 +204,7 @@ Jev 的请求、概率和决定只写本机内部审计；网站仅接收必要�
 }
 ```
 
-配置预检须拒绝：URL 凭据／query／fragment、不受支持的 provider API 或 thinking level、主控与执行使用相同 model 或相同 thinking level、未知 profile、空凭据、错误站点、目录不可写。这里按需求严格解释“不同的 model 和 think level”为两者均不同，作为 Review 决策项；若要允许同模型不同档，需显式修改此约束。
+当前用户配置决策（实施优先于早期示例）：主控固定 `gpt-6-astra/high`，执行固定 `gpt-6.1-sol`，档位由 Jev 在支持的 low/medium/high 中决定，允许选择 high。配置预检拒绝 URL 凭据／query／fragment、不支持的 provider／thinking、未知模型、空凭据或错误环境；不再要求主控与执行的档位必然不同。
 
 真实可用 thinking level 从 Pi／provider 能力取得，不能把 CLI 的 `max/xhigh` 字符串直接假定成 SDK 参数；不静默 clamp。不支持则启动失败并显示具体配置路径（不输出值）。Jev 无 LLM thinking 参数，不伪造一项。预算字段是运行控制，不自动扩展权限。旧配置 digest 的在途 assignment 必须可重建或安全暂停。
 
@@ -452,7 +452,7 @@ apps/web/src/admin/agent/       viewmodel/service/views；嵌入现有工作室�
 | --- | --- | --- |
 | R1 本机信任 | 接受无沙箱＋全 CLI，主控独占 API 是逻辑约束 | 若要求不可绕过安全隔离，需要改变全 CLI／同用户约束 |
 | R2 审批 | 保留 brief/script/final 人工确认和人工平台发布 | 若要主控代批，这是权限产品变更，不能从“自动工作”推导 |
-| R3 执行配置 | 主控与执行 model、thinking 两者都不同；Jev 只选合法 profile | 可放宽为不同 profile，但须明确允许相同 model／档位 |
+| R3 执行配置（已确定） | 主控 gpt-6-astra/high；执行 gpt-6.1-sol，Jev 选择 low/medium/high | 允许执行 high；Jev 批量请求硬限 16 KiB，原文不进入决策包 |
 | R4 会话销毁 | 逻辑退休＋保留作品／审计，物理清理另定保留期 | 立即物理删除会失去可恢复性和来源，需要额外可验证策略 |
 | R5 工作室集成（本轮已确定） | 左侧保留现有操作／Save，右侧持续主控聊天；已保存修改即时更新，dirty 重叠时明确选版 | 不做另一个 agent 工作台，不用整页刷新覆盖本地输入 |
 | R6 自动范围 | 主控自动交付可编辑文本，付费音频仅在稿件已批准且任务授权后开始 | 每次 canonical 写回都先人类批准更保守，但增加交互成本 |
