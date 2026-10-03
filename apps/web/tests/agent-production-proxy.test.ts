@@ -57,11 +57,14 @@ const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
 function fixture() {
   const server = new EventEmitter();
   const plugin = agentProductionProxy();
-  Reflect.apply(plugin.configureServer as (...args: unknown[]) => void, undefined, [
+  const post = Reflect.apply(plugin.configureServer as (...args: unknown[]) => () => void, undefined, [
     { httpServer: server } as ViteDevServer,
   ]);
+  const otherUpgrade = vi.fn();
+  server.on('upgrade', otherUpgrade);
+  post();
   const socket = Object.assign(new EventEmitter(), { end: vi.fn(), destroyed: false });
-  return { server, socket };
+  return { server, socket, otherUpgrade };
 }
 beforeEach(() => {
   mock.sockets.length = 0;
@@ -88,6 +91,7 @@ describe('fixed production WebSocket proxy', () => {
     ])
       expect(validAgentUpgrade(request({ url }))).toBe(false);
     expect(validAgentUpgrade(request({ method: 'POST' }))).toBe(false);
+    expect(validAgentUpgrade(request({ url: undefined }))).toBe(false);
     expect(validAgentUpgrade(request({ headers: { host: 'bad host' } }))).toBe(false);
     expect(
       validAgentUpgrade(request({ headers: { host: 'evil.example', origin: 'https://evil.example' } })),
@@ -101,10 +105,12 @@ describe('fixed production WebSocket proxy', () => {
     ).toBe(false);
   });
   it('ignores other upgrades and rejects origin or auth failures', async () => {
-    const { server, socket } = fixture();
+    const { server, socket, otherUpgrade } = fixture();
     server.emit('upgrade', request({ url: '/vite-hmr' }), socket, Buffer.alloc(0));
     expect(mock.token).not.toHaveBeenCalled();
+    expect(otherUpgrade).toHaveBeenCalledTimes(1);
     server.emit('upgrade', request({ headers: {} }), socket, Buffer.alloc(0));
+    expect(otherUpgrade).toHaveBeenCalledTimes(1);
     expect(socket.end).toHaveBeenCalledWith(expect.stringContaining('403'));
     mock.token.mockRejectedValueOnce(new Error('secret'));
     server.emit('upgrade', request(), socket, Buffer.alloc(0));
@@ -115,7 +121,9 @@ describe('fixed production WebSocket proxy', () => {
     await settle();
     expect(mock.sockets).toHaveLength(0);
     server.emit('close');
-    Reflect.apply(agentProductionProxy().configureServer as (...args: unknown[]) => void, undefined, [{}]);
+    Reflect.apply(agentProductionProxy().configureServer as (...args: unknown[]) => () => void, undefined, [
+      {},
+    ])();
   });
   it('does not follow redirects or forward browser credentials', async () => {
     const { server, socket } = fixture();

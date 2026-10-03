@@ -166,3 +166,9 @@ The page-context design prototype initially let every browser `select` event rep
 The first Archify candidate exceeded its desktop readability budget and placed two edge labels over nodes. Its structured diagnostics identified the exact labels and viewBox constraint; compacting the canvas and moving only the diagnosed labels produced 9/9 showcase checks without deleting semantic relationships. Keep candidate geometry changes in the JSON source, never patch the generated HTML.
 
 A supplementary browser test initially assumed an unsupported `data-diagram-type` attribute and a guessed reset button label. Inspect the delivered artifact's actual DOM and focus controls instead of inferring its runtime API. Delivery receipts, browser containment checks and visual inspection are separate evidence; none proves that the proposed agent system is implemented.
+
+## 2026-10-03: Give each development WebSocket upgrade exactly one owner
+
+The first complete agent browser run exposed a development-server crash when the environment switch opened the production proxy socket. Both the custom proxy and the Cloudflare Vite plugin listened to the same Node `upgrade` event. The plugin dispatched that proxy request into a custom Node service, where Miniflare asserted that an HTTP response existed for an upgrade. Unit tests had mocked only the proxy and missed the competing handler.
+
+Route the one fixed production-proxy path exclusively after all Vite configure hooks register their listeners; delegate every other upgrade to the original handlers. The regression now proves that the fixed proxy socket is not also dispatched to the Cloudflare handler and that unrelated/HMR sockets retain their original path. Validate Local/Prod navigation on a real development server, not only isolated proxy mocks. Never swallow the runtime assertion or label the resulting 502 cascade as an application test pass.

@@ -43,7 +43,6 @@ export function agentProductionProxy(): Plugin {
           `HTTP/1.1 ${status} Connection rejected\r\nConnection: close\r\nContent-Length: 0\r\n\r\n`,
         );
       const upgrade = async (request: IncomingMessage, socket: Duplex, head: Buffer) => {
-        if (request.url?.split('?')[0] !== path) return;
         if (!validAgentUpgrade(request)) {
           reject(socket, 403);
           return;
@@ -105,11 +104,21 @@ export function agentProductionProxy(): Plugin {
       const listener = (request: IncomingMessage, socket: Duplex, head: Buffer) => {
         void upgrade(request, socket, head);
       };
-      server.httpServer?.on('upgrade', listener);
       server.httpServer?.once('close', () => {
         for (const socket of pending) socket.terminate();
         local.close();
       });
+      return () => {
+        const http = server.httpServer;
+        if (!http) return;
+        const upstream = http.listeners('upgrade');
+        http.removeAllListeners('upgrade');
+        // Cloudflare also handles upgrades; never dispatch this socket to both handlers.
+        http.on('upgrade', (request, socket, head) => {
+          if (request.url?.split('?')[0] === path) listener(request, socket, head);
+          else for (const handler of upstream) Reflect.apply(handler, http, [request, socket, head]);
+        });
+      };
     },
   };
 }
