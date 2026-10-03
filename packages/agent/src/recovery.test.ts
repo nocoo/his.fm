@@ -5,9 +5,111 @@ import { fauxAssistantMessage, fauxToolCall } from '@earendil-works/pi-ai/provid
 import { openNodeSqliteStorage } from '@earendil-works/pi-durable/storage/sqlite/node';
 import { afterEach, expect, it, vi } from 'vitest';
 import { openRuntime } from './runtime.ts';
-import { fixture, testCommand } from './testing/fixtures.ts';
+import { fixture, snapshot, testCommand, testContext } from './testing/fixtures.ts';
 
 afterEach(() => vi.restoreAllMocks());
+
+it('reuses production writers across commands but isolates other productions and retired identities', async () => {
+  const tool = (name: string, args: Parameters<typeof fauxToolCall>[1]) =>
+    fauxAssistantMessage([fauxToolCall(name, args)], { stopReason: 'toolUse' });
+  const dispatch = () =>
+    tool('delegate', { role: 'writer', instructions: 'Revise this script', revision: 1 });
+  const result = (_context: unknown, _options: unknown, _state: unknown, model: { id: string }) =>
+    model.id === 'gpt-6.1-sol'
+      ? tool('submit_result', { markdown: '# 稿件' })
+      : fauxAssistantMessage('等待写作');
+  const responses = () => [dispatch(), result, result, fauxAssistantMessage('已完成写作')];
+  const test = await fixture(responses());
+  const page = (productionId: string) => ({ ...testContext, productionId, field: null, draft: null });
+  try {
+    test.start();
+    test.send(testCommand('first', '写稿', page('p')));
+    await expect.poll(() => test.store.command('first')?.status).toBe('complete');
+    const first = Object.values((await test.runtime.work()).conversations)[0];
+    expect(first?.retired).toBe(false);
+    test.fake.setResponses(responses());
+    test.decide.mockResolvedValueOnce({ reuse: true, lifetime: 'task', thinkingLevel: 'medium' });
+    test.send(testCommand('revision', '改这稿', page('p')));
+    await expect.poll(() => test.store.command('revision')?.status).toBe('complete');
+    expect(Object.keys((await test.runtime.work()).conversations)).toHaveLength(1);
+    expect(test.decide.mock.calls[1]?.[0].availableTask).toBe(true);
+    test.fake.setResponses(responses());
+    test.send(testCommand('other-production', '写另一期', page('other')));
+    await expect.poll(() => test.store.command('other-production')?.status).toBe('complete');
+    expect(test.decide.mock.calls[2]?.[0].availableTask).toBe(false);
+    expect(Object.keys((await test.runtime.work()).conversations)).toHaveLength(2);
+    test.fake.setResponses([
+      tool('retire_conversation', { id: String(first?.id) }),
+      fauxAssistantMessage('已结束这期写作'),
+    ]);
+    test.send(testCommand('retire', '结束这期写作', page('p')));
+    await expect.poll(() => test.store.command('retire')?.status).toBe('complete');
+    expect(
+      Object.values((await test.runtime.work()).conversations).find(
+        (conversation) => conversation.id === first?.id,
+      )?.retired,
+    ).toBe(true);
+    test.fake.setResponses(responses());
+    test.send(testCommand('new-writer', '重写', page('p')));
+    await expect.poll(() => test.store.command('new-writer')?.status).toBe('complete');
+    expect(test.decide.mock.calls[3]?.[0].availableTask).toBe(false);
+    test.channel.version = 2;
+    test.fake.setResponses(responses());
+    test.send(testCommand('new-policy', '按新要求重写', page('p')));
+    await expect.poll(() => test.store.command('new-policy')?.status).toBe('complete');
+    expect(test.decide.mock.calls[4]?.[0].availableTask).toBe(false);
+  } finally {
+    await test.close();
+  }
+});
+
+it('retires unscoped task writers at command completion instead of reusing unrelated general work', async () => {
+  const dispatch = () =>
+    fauxAssistantMessage([fauxToolCall('delegate', { role: 'writer', instructions: 'Write', revision: 1 })], {
+      stopReason: 'toolUse',
+    });
+  const result = (_context: unknown, _options: unknown, _state: unknown, model: { id: string }) =>
+    model.id === 'gpt-6.1-sol'
+      ? fauxAssistantMessage([fauxToolCall('submit_result', { markdown: '# 稿件' })], {
+          stopReason: 'toolUse',
+        })
+      : fauxAssistantMessage('等待');
+  const responses = () => [dispatch(), result, result, fauxAssistantMessage('完成')];
+  const test = await fixture(responses());
+  try {
+    test.start();
+    test.send();
+    await expect.poll(() => test.store.command('command-1')?.status).toBe('complete');
+    expect(Object.values((await test.runtime.work()).conversations)[0]?.retired).toBe(true);
+    test.fake.setResponses(responses());
+    test.send(testCommand('other-general'));
+    await expect.poll(() => test.store.command('other-general')?.status).toBe('complete');
+    expect(test.decide.mock.calls[1]?.[0].availableTask).toBe(false);
+    expect(Object.keys((await test.runtime.work()).conversations)).toHaveLength(2);
+  } finally {
+    await test.close();
+  }
+});
+
+it('persists snapshot cancellation before the command body and eventually confirms without a model call', async () => {
+  const test = await fixture();
+  try {
+    test.start();
+    test.socket.receive({
+      ...snapshot,
+      commands: [{ id: 'late-command', status: 'cancelling', detail: 'stopping' }],
+    });
+    await delay(20);
+    expect(test.store.get('cancelled:late-command')).toBe(true);
+    expect(test.store.event('cancelled:late-command')).toBeNull();
+    test.send(testCommand('late-command'));
+    await expect.poll(() => test.store.command('late-command')?.status).toBe('cancelled');
+    expect(test.store.event('cancelled:late-command')).toMatchObject({ status: 'cancelled' });
+    expect(test.fake.state.callCount).toBe(0);
+  } finally {
+    await test.close();
+  }
+});
 
 it('reopens real Pi SQLite and replays the same root request without another model turn', async () => {
   const test = await fixture([fauxAssistantMessage('持久回复')], { persistent: true });

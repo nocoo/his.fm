@@ -127,12 +127,21 @@ export class RuntimeStore {
     return (
       (this.database
         .prepare(`SELECT inputs.* FROM inputs JOIN commands ON commands.id=inputs.commandId
-      WHERE inputs.done=0 AND commands.status NOT IN ('cancelled','failed','complete') ORDER BY inputs.rowid LIMIT 1`)
+      WHERE inputs.done=0 AND commands.status NOT IN ('cancelled','failed','complete')
+      AND NOT EXISTS (SELECT 1 FROM metadata WHERE metadata.id='cancelled:' || commands.id)
+      ORDER BY inputs.rowid LIMIT 1`)
         .get() as InputRecord | undefined) ?? null
     );
   }
   finishInput(id: string) {
     this.database.prepare('UPDATE inputs SET done=1 WHERE id=?').run(id);
+  }
+  pendingCancellations(): string[] {
+    return this.database
+      .prepare(`SELECT commands.id FROM commands JOIN metadata ON metadata.id='cancelled:' || commands.id
+      WHERE commands.status NOT IN ('cancelled','failed','complete')`)
+      .all()
+      .map((row) => row.id as string);
   }
   hasInput(commandId: string) {
     return !!this.database
@@ -145,6 +154,17 @@ export class RuntimeStore {
       WHERE receipts.id IS NULL AND ((json_extract(outbox.payload,'$.operation.commandId')=? AND json_extract(outbox.payload,'$.type')='operation')
       OR (json_extract(outbox.payload,'$.proposal.commandId')=? AND json_extract(outbox.payload,'$.type')='proposal')) LIMIT 1`)
       .get(commandId, commandId);
+  }
+  createdProduction(commandId: string, productionId: string) {
+    return !!this.database
+      .prepare(`SELECT outbox.id FROM outbox JOIN receipts ON receipts.id=outbox.id
+      WHERE json_extract(outbox.payload,'$.type')='operation'
+      AND json_extract(outbox.payload,'$.operation.kind')='production.create'
+      AND json_extract(outbox.payload,'$.operation.commandId')=?
+      AND json_extract(receipts.payload,'$.type')='operation.result'
+      AND json_extract(receipts.payload,'$.ok')=1
+      AND json_extract(receipts.payload,'$.result.production.id')=? LIMIT 1`)
+      .get(commandId, productionId);
   }
   state(commandId: string, status: Exclude<CommandState, 'queued'>, detail: string, eventId: string) {
     this.atomic(() => {

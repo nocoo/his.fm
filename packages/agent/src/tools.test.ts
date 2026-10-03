@@ -1,6 +1,7 @@
 import { BACKGROUND_CONTEXT } from '@earendil-works/chord/context';
 import { fauxAssistantMessage, fauxToolCall } from '@earendil-works/pi-ai/providers/faux';
 import type { ToolExecutionApi } from '@earendil-works/pi-durable';
+import { NodeExecutionEnv } from '@earendil-works/pi-durable/env/node';
 import { expect, it, vi } from 'vitest';
 import { fixture, testCommand, testContext } from './testing/fixtures.ts';
 
@@ -303,7 +304,7 @@ it('limits concurrent work, rejects busy retirement and cancels the execution sc
   }
 });
 
-it('reuses idle task writers within one command, creates alternatives and retires only at logical completion', async () => {
+it('reuses idle task writers within one command and keeps production-scoped writers available after completion', async () => {
   const test = await activeFixture();
   const response = () =>
     fauxAssistantMessage([fauxToolCall('submit_result', { markdown: '# 当前稿件' })], {
@@ -355,7 +356,7 @@ it('reuses idle task writers within one command, creates alternatives and retire
     test.release();
     await expect.poll(() => test.store.command('command-1')?.status).toBe('complete');
     expect(
-      Object.values((await test.runtime.work()).conversations).every((conversation) => conversation.retired),
+      Object.values((await test.runtime.work()).conversations).every((conversation) => !conversation.retired),
     ).toBe(true);
   } finally {
     await test.close();
@@ -489,3 +490,316 @@ it('reports absent execution handles as failed durable tasks rather than leaking
 });
 
 import assert from 'node:assert/strict';
+
+it('creates an unscoped production draft and reuses stored receipts and pending operations before any effects', async () => {
+  const test = await activeFixture();
+  const args = {
+    profileVersion: 1,
+    brief: JSON.stringify({
+      title: '新一期',
+      slug: 'new-episode',
+      episodeNumber: 7,
+      sources: [{ id: 'source-7', type: 'text', title: '素材', content: '事实' }],
+    }),
+  };
+  try {
+    await expect(invoke(test, 'create_production', args, 1101)).rejects.toThrow('已有节目目标');
+    test.store.database
+      .prepare('UPDATE commands SET payload=? WHERE id=?')
+      .run(JSON.stringify(testCommand()), 'command-1');
+    test.transport.ready = false;
+    await expect(invoke(test, 'create_production', args, 1101)).rejects.toThrow('未执行');
+    test.transport.ready = true;
+    await expect(invoke(test, 'create_production', { ...args, profileVersion: 2 }, 1101)).rejects.toThrow(
+      '提示词',
+    );
+    await expect(invoke(test, 'create_production', { ...args, brief: 'null' }, 1101)).rejects.toThrow();
+    const operation = vi.spyOn(test.transport, 'operation').mockImplementation(async (frame) => {
+      const result = {
+        type: 'operation.result' as const,
+        id: frame.operation.id,
+        ok: true,
+        status: 201,
+        result: { production: { id: 'new-production' } },
+      };
+      test.store.receipt(result);
+      return result;
+    });
+    expect(plain(await invoke(test, 'create_production', args, 1101))).toContain('new-production');
+    expect(operation.mock.calls[0]?.[0]).toMatchObject({
+      type: 'operation',
+      operation: { kind: 'production.create', commandId: 'command-1', brief: JSON.parse(args.brief) },
+    });
+    test.channel.version = 3;
+    await invoke(test, 'create_production', args, 1101);
+    expect(operation).toHaveBeenCalledOnce();
+    test.store.enqueue({
+      type: 'operation',
+      operation: {
+        id: 'operation:1102',
+        commandId: 'command-1',
+        kind: 'production.create',
+        brief: JSON.parse(args.brief),
+      },
+    });
+    await invoke(test, 'create_production', args, 1102);
+    expect(operation).toHaveBeenCalledTimes(2);
+  } finally {
+    await test.close();
+  }
+});
+
+it('allows only three human-review submission actions with strict target, version and policy guards', async () => {
+  const test = await activeFixture();
+  const args = { productionId: 'p', version: 1, profileVersion: 1, action: 'submit_brief' };
+  try {
+    await expect(invoke(test, 'submit_for_review', args, 1201)).rejects.toThrow('未保存');
+    test.store.database
+      .prepare('UPDATE commands SET payload=? WHERE id=?')
+      .run(
+        JSON.stringify(testCommand('command-1', '提交审阅', { ...testContext, draft: null })),
+        'command-1',
+      );
+    await expect(invoke(test, 'submit_for_review', { ...args, productionId: 'other' }, 1201)).rejects.toThrow(
+      '不一致',
+    );
+    await expect(invoke(test, 'submit_for_review', { ...args, version: 2 }, 1201)).rejects.toThrow(
+      '节目版本',
+    );
+    await expect(invoke(test, 'submit_for_review', { ...args, profileVersion: 2 }, 1201)).rejects.toThrow(
+      '提示词',
+    );
+    await expect(
+      invoke(test, 'submit_for_review', { ...args, action: 'approve_brief' }, 1201),
+    ).rejects.toThrow();
+    const operation = vi.spyOn(test.transport, 'operation').mockImplementation(async (frame) => {
+      const result = {
+        type: 'operation.result' as const,
+        id: frame.operation.id,
+        ok: true,
+        status: 200,
+        result: {},
+      };
+      test.store.receipt(result);
+      return result;
+    });
+    for (const [index, action] of ['submit_brief', 'submit_script', 'submit_final'].entries())
+      await invoke(test, 'submit_for_review', { ...args, action }, 1201 + index);
+    expect(
+      operation.mock.calls.map(
+        ([frame]) => frame.operation.kind === 'production.action' && frame.operation.action,
+      ),
+    ).toEqual(['submit_brief', 'submit_script', 'submit_final']);
+    await invoke(test, 'submit_for_review', { ...args, version: 99 }, 1201);
+    expect(operation).toHaveBeenCalledTimes(3);
+    test.store.enqueue({
+      type: 'operation',
+      operation: {
+        id: 'operation:1204',
+        commandId: 'command-1',
+        kind: 'production.action',
+        productionId: 'p',
+        version: 1,
+        action: 'submit_brief',
+      },
+    });
+    await invoke(test, 'submit_for_review', { ...args, version: 99 }, 1204);
+    expect(operation).toHaveBeenCalledTimes(4);
+    test.store.database
+      .prepare('UPDATE commands SET payload=? WHERE id=?')
+      .run(JSON.stringify(testCommand()), 'command-1');
+    await expect(invoke(test, 'submit_for_review', args, 1205)).rejects.toThrow('目标节目');
+    test.store.enqueue({
+      type: 'operation',
+      operation: {
+        id: 'created',
+        commandId: 'command-1',
+        kind: 'production.create',
+        brief: { title: 'new' },
+      },
+    });
+    test.store.receipt({
+      type: 'operation.result',
+      id: 'created',
+      ok: true,
+      status: 201,
+      result: { production: { id: 'p' } },
+    });
+    await invoke(test, 'submit_for_review', args, 1205);
+    expect(operation).toHaveBeenCalledTimes(5);
+    await expect(
+      invoke(test, 'submit_for_review', { ...args, productionId: 'not-created' }, 1206),
+    ).rejects.toThrow('目标节目');
+  } finally {
+    await test.close();
+  }
+});
+
+it('blocks only overlapping dirty fields and keeps unrelated source additions available', async () => {
+  const test = await activeFixture();
+  const args = { productionId: 'p', version: 1, profileVersion: 1 };
+  let sequence = 1300;
+  const patch = (changes: unknown) =>
+    invoke(test, 'patch_production', { ...args, changes: JSON.stringify(changes) }, sequence++);
+  const page = (context: typeof testContext) =>
+    test.store.database
+      .prepare('UPDATE commands SET payload=? WHERE id=?')
+      .run(JSON.stringify(testCommand('command-1', '修改字段', context)), 'command-1');
+  try {
+    const operation = vi
+      .spyOn(test.transport, 'operation')
+      .mockResolvedValue({ pending: true, id: 'pending' });
+    page({ ...testContext, field: { productionId: 'p', field: 'intent' } });
+    await patch({ sources: [{ id: 'new', title: 'source' }] });
+    await patch({ intent: 'old' });
+    await expect(patch({ intent: 'new' })).rejects.toThrow('未保存');
+    page({ ...testContext, field: null });
+    await patch({ transcript: 'new' });
+    page({ ...testContext, draft: { revision: 1, value: 'old', baseValue: 'old' } });
+    await patch({ transcript: 'new' });
+    page({
+      ...testContext,
+      sourceId: 's',
+      field: { productionId: 'p', field: 'source.content', sourceId: 's' },
+    });
+    await patch({ intent: 'other' });
+    await patch({ sources: [null, 'bad', {}, { id: 'other', content: 'new' }, { id: 's', content: 'old' }] });
+    await expect(patch({ sources: [{ id: 's', content: 'changed' }] })).rejects.toThrow('未保存');
+    await expect(patch({ sources: [] })).rejects.toThrow('未保存');
+    await expect(patch({ sources: 'invalid' })).rejects.toThrow('未保存');
+    expect(operation).toHaveBeenCalledTimes(6);
+  } finally {
+    await test.close();
+  }
+});
+
+it('does not acknowledge cancellation until root and child abort plus execution environment cleanup finish', async () => {
+  const test = await activeFixture();
+  let releaseWorker = () => {};
+  const worker = new Promise<ReturnType<typeof fauxAssistantMessage>>((resolve) => {
+    releaseWorker = () => resolve(fauxAssistantMessage('late worker'));
+  });
+  let releaseCleanup = () => {};
+  const cleanupGate = new Promise<void>((resolve) => {
+    releaseCleanup = resolve;
+  });
+  const cleanup = vi
+    .spyOn(NodeExecutionEnv.prototype, 'cleanup')
+    .mockImplementationOnce(async () => cleanupGate);
+  try {
+    test.fake.setResponses([() => worker]);
+    await invoke(test, 'delegate', { role: 'writer', instructions: 'Write', revision: 1 }, 1401);
+    await expect.poll(() => test.fake.state.callCount).toBe(2);
+    const cancel = test.runtime.cancel('command-1');
+    expect(test.runtime.cancel('command-1')).toBe(cancel);
+    expect(test.store.command('command-1')?.status).toBe('waiting');
+    expect(test.store.event('cancelling:command-1')).toMatchObject({
+      status: 'waiting',
+      detail: expect.stringContaining('正在停止'),
+    });
+    expect(test.store.event('cancelled:command-1')).toBeNull();
+    expect(test.store.next()).toBeNull();
+    await expect(invoke(test, 'reply', { markdown: 'late' })).rejects.toThrow('取消');
+    test.release();
+    releaseWorker();
+    await expect.poll(() => cleanup.mock.calls.length).toBe(1);
+    expect(test.store.event('cancelled:command-1')).toBeNull();
+    releaseCleanup();
+    await cancel;
+    expect(test.store.event('cancelled:command-1')).toMatchObject({ status: 'cancelled' });
+    await test.runtime.cancel('command-1');
+    expect(test.store.command('command-1')?.status).toBe('cancelled');
+  } finally {
+    releaseCleanup();
+    releaseWorker();
+    cleanup.mockRestore();
+    await test.close();
+  }
+});
+
+it('retains pending cancellation on abort failure and recovers it without resubmitting the model', async () => {
+  const test = await activeFixture();
+  try {
+    const abort = vi
+      .spyOn(test.runtime.root, 'abort')
+      .mockRejectedValueOnce(new Error('private abort error'));
+    await expect(test.runtime.cancel('command-1')).rejects.toThrow('private abort error');
+    expect(test.store.command('command-1')?.status).toBe('waiting');
+    expect(test.store.pendingCancellations()).toEqual(['command-1']);
+    expect(test.store.event('cancelled:command-1')).toBeNull();
+    abort.mockRestore();
+    test.release();
+    await test.runtime.pump();
+    await test.runtime.pump();
+    await expect.poll(() => test.store.command('command-1')?.status).toBe('cancelled');
+    expect(test.fake.state.callCount).toBe(1);
+  } finally {
+    await test.close();
+  }
+});
+
+it('waits for an in-flight allocation before confirming stop and never dispatches its cancelled assignment', async () => {
+  const test = await activeFixture();
+  let releaseDecision = () => {};
+  const decision = new Promise<{ reuse: false; lifetime: 'task'; thinkingLevel: 'high' }>((resolve) => {
+    releaseDecision = () => resolve({ reuse: false, lifetime: 'task', thinkingLevel: 'high' });
+  });
+  try {
+    test.decide.mockImplementationOnce(() => decision);
+    const dispatch = invoke(test, 'delegate', { role: 'writer', instructions: 'Write', revision: 1 }, 1501);
+    const rejected = expect(dispatch).rejects.toThrow('取消');
+    await expect.poll(() => test.decide.mock.calls.length).toBe(1);
+    const cancel = test.runtime.cancel('command-1');
+    test.release();
+    expect(test.store.event('cancelled:command-1')).toBeNull();
+    releaseDecision();
+    await rejected;
+    await cancel;
+    expect(test.store.command('command-1')?.status).toBe('cancelled');
+    expect(Object.keys((await test.runtime.work()).assignments)).toHaveLength(0);
+    expect(test.fake.state.callCount).toBe(1);
+  } finally {
+    releaseDecision();
+    await test.close();
+  }
+});
+
+it('matches server textual audio authorization and rejects negation, preview and unsupported shortcuts', async () => {
+  const test = await activeFixture();
+  const operation = vi.spyOn(test.transport, 'operation').mockResolvedValue({ pending: true, id: 'audio' });
+  let id = 1600;
+  const audio = (text: string) => {
+    test.store.database
+      .prepare('UPDATE commands SET payload=? WHERE id=?')
+      .run(JSON.stringify(testCommand('command-1', text, { ...testContext, draft: null })), 'command-1');
+    return invoke(test, 'request_audio', { productionId: 'p', version: 1, profileVersion: 1 }, id++);
+  };
+  try {
+    for (const text of [
+      '请为本期生成音频',
+      '制作配音',
+      '重录这期录音',
+      'Generate the narration',
+      'create voiceover',
+      'synthesize audio',
+    ])
+      await audio(text);
+    for (const text of [
+      '不要生成音频',
+      '请生成音频预览',
+      '只试听音频',
+      '先不生成音频',
+      'do not generate audio',
+      "don't create voiceover",
+      'never record audio',
+      'preview narration',
+      '/audio',
+      '继续',
+    ])
+      await expect(audio(text)).rejects.toThrow('明确');
+    expect(operation).toHaveBeenCalledTimes(6);
+  } finally {
+    operation.mockRestore();
+    await test.close();
+  }
+});
