@@ -689,6 +689,73 @@ describe('operation fencing and exact durable receipts', () => {
     expect(socket.frames.at(-1)).toMatchObject({ type: 'error', code: 'http_400' });
     expect((await getProduction(env.DB, production.id)).approvals.brief).toBeNull();
   });
+  it('authorizes an unscoped command only for productions created by its own committed create receipt', async () => {
+    const socket = await start();
+    const created = await executeOperation(env, agent, identity(socket), {
+      kind: 'production.create',
+      id: 'create-owned',
+      commandId: command.id,
+      brief,
+    });
+    const production = (created.result as { production: ReturnType<typeof fixture> }).production;
+    const patch: AgentOperation = {
+      kind: 'production.patch',
+      id: 'patch-owned',
+      commandId: command.id,
+      productionId: production.id,
+      version: 1,
+      changes: { intent: 'Same-command continuation' },
+    };
+    expect(await executeOperation(env, agent, identity(socket), patch)).toMatchObject({
+      ok: true,
+      result: { production: { version: 2 } },
+    });
+    expect(
+      await executeOperation(env, agent, identity(socket), {
+        kind: 'production.action',
+        id: 'submit-owned',
+        commandId: command.id,
+        productionId: production.id,
+        version: 2,
+        action: 'submit_brief',
+      }),
+    ).toMatchObject({ ok: true, result: { production: { stage: 'brief_review' } } });
+    await expect(
+      executeOperation(env, agent, identity(socket), {
+        ...patch,
+        id: 'arbitrary-production',
+        productionId: 'p1',
+      }),
+    ).rejects.toThrow('范围');
+    await enqueue(env.DB, { ...command, id: 'other-command', context: null });
+    await expect(
+      executeOperation(env, agent, identity(socket), {
+        ...patch,
+        id: 'other-command-write',
+        commandId: 'other-command',
+        version: 3,
+      }),
+    ).rejects.toThrow('范围');
+    await enqueue(env.DB, { ...command, id: 'page-command', context: { ...context, field: null } });
+    await expect(
+      executeOperation(env, agent, identity(socket), {
+        ...patch,
+        id: 'wrong-page-write',
+        commandId: 'page-command',
+        version: 3,
+      }),
+    ).rejects.toThrow('范围');
+    await env.DB.prepare('UPDATE agent_receipts SET response = NULL WHERE id = ?').bind('create-owned').run();
+    await expect(
+      executeOperation(env, agent, identity(socket), { ...patch, id: 'pending-create', version: 3 }),
+    ).rejects.toThrow('范围');
+    await env.DB.prepare('UPDATE agent_receipts SET response = ? WHERE id = ?')
+      .bind(JSON.stringify({ ...created, ok: false }), 'create-owned')
+      .run();
+    await expect(
+      executeOperation(env, agent, identity(socket), { ...patch, id: 'failed-create', version: 3 }),
+    ).rejects.toThrow('范围');
+  });
   it('rolls back mutation and receipt when a station generation is fenced', async () => {
     const production = await insertProduction();
     const socket = await start({ ...context, productionId: production.id, field: null });
@@ -791,6 +858,99 @@ describe('operation fencing and exact durable receipts', () => {
     dispatch.mockClear();
     expect(await executeOperation(audioEnv, agent, identity(socket), operation)).toEqual(receipt);
     expect(dispatch).not.toHaveBeenCalled();
+  });
+  it('recovers a failed audio dispatch from the durable alarm after all sockets close without creating another job', async () => {
+    const production = await insertProduction(readyFixture({ stage: 'production', audioJob: null }));
+    const socket = await start({ ...context, productionId: production.id, field: null }, '请生成音频');
+    const originalWorkflow = env.AUDIO_WORKFLOW;
+    const originalKey = env.GEMINI_API_KEY;
+    const dispatch = vi.fn().mockRejectedValue(new Error('temporarily unavailable'));
+    const lookup = vi.fn().mockRejectedValue(new Error('temporarily unavailable'));
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+    env.GEMINI_API_KEY = 'test-only';
+    env.AUDIO_WORKFLOW = { create: dispatch, get: lookup } as unknown as Env['AUDIO_WORKFLOW'];
+    try {
+      const operation: AgentOperation = {
+        kind: 'audio.request',
+        id: 'recover-audio',
+        commandId: command.id,
+        productionId: production.id,
+        version: 1,
+        options: {},
+      };
+      await frame(socket, { type: 'operation', operation });
+      expect(socket.frames).toContainEqual(
+        expect.objectContaining({ type: 'operation.result', id: operation.id, ok: true, status: 202 }),
+      );
+      const job = await env.DB.prepare('SELECT id, snapshot FROM audio_jobs').first<{
+        id: string;
+        snapshot: string;
+      }>();
+      if (!job) throw new Error('Expected a durable audio job');
+      expect((await getProduction(env.DB, production.id)).audioJob?.status).toBe('queued');
+      await hub.webSocketClose(socket.socket());
+      alarm.deleteAlarm.mockClear();
+      await hub.alarm();
+      expect(log).toHaveBeenCalledWith(
+        JSON.stringify({ event: 'agent_audio_dispatch_pending', jobId: job.id }),
+      );
+      expect(alarm.setAlarm).toHaveBeenCalled();
+      expect(alarm.deleteAlarm).not.toHaveBeenCalled();
+      dispatch.mockImplementation(async ({ id }: { id: string }) => {
+        await env.DB.prepare("UPDATE audio_jobs SET status = 'running' WHERE id = ? AND status = 'queued'")
+          .bind(id)
+          .run();
+        return {};
+      });
+      await hub.alarm();
+      expect(dispatch.mock.calls).toHaveLength(3);
+      for (const [input] of dispatch.mock.calls)
+        expect(input).toEqual({ id: job.id, params: { jobId: job.id } });
+      expect(await env.DB.prepare('SELECT count(*) AS count FROM audio_jobs').first('count')).toBe(1);
+      expect(
+        await env.DB.prepare('SELECT snapshot FROM audio_jobs WHERE id = ?').bind(job.id).first('snapshot'),
+      ).toBe(job.snapshot);
+      expect(await readReceipt(env.DB, operation.id)).toMatchObject({
+        ok: true,
+        status: 202,
+        result: { production: { audioJob: { status: 'queued' } } },
+      });
+      expect(alarm.deleteAlarm).toHaveBeenCalled();
+      await env.DB.prepare("UPDATE audio_jobs SET status = 'complete' WHERE id = ?").bind(job.id).run();
+      dispatch.mockClear();
+      await hub.alarm();
+      expect(dispatch).not.toHaveBeenCalled();
+      expect(
+        await env.DB.prepare('SELECT status FROM audio_jobs WHERE id = ?').bind(job.id).first('status'),
+      ).toBe('complete');
+    } finally {
+      env.AUDIO_WORKFLOW = originalWorkflow;
+      env.GEMINI_API_KEY = originalKey;
+      log.mockRestore();
+    }
+  });
+  it('bounds audio recovery batches and rotates queued jobs rather than starving later dispatches', async () => {
+    const originalWorkflow = env.AUDIO_WORKFLOW;
+    const dispatch = vi.fn().mockResolvedValue({});
+    env.AUDIO_WORKFLOW = { create: dispatch } as unknown as Env['AUDIO_WORKFLOW'];
+    try {
+      await env.DB.batch(
+        Array.from({ length: 6 }, (_, index) =>
+          env.DB.prepare(
+            "INSERT INTO audio_jobs (id, production_id, snapshot, status, created_at, updated_at) VALUES (?, 'p1', '{}', 'queued', ?, ?)",
+          ).bind(`retry-${index}`, '2020-01-01', '2020-01-01'),
+        ),
+      );
+      await hub.alarm();
+      expect(dispatch).toHaveBeenCalledTimes(5);
+      expect(dispatch.mock.calls.flatMap(([input]) => input.id)).not.toContain('retry-5');
+      dispatch.mockClear();
+      await hub.alarm();
+      expect(dispatch).toHaveBeenCalledTimes(5);
+      expect(dispatch.mock.calls[0][0].id).toBe('retry-5');
+    } finally {
+      env.AUDIO_WORKFLOW = originalWorkflow;
+    }
   });
   it('notifies human mutation versions and skips unsuccessful or nonproduction responses', async () => {
     const browser = await connect('browser');
@@ -1028,6 +1188,24 @@ describe('bounded delivery and context-scoped mutation', () => {
     const socket = await start({ ...context, productionId: production.id, field: null });
     const browser = await connect('browser');
     await frame(browser, { type: 'cancel', commandId: command.id });
+    const waiting = {
+      type: 'command.state',
+      id: 'cancel-waiting',
+      commandId: command.id,
+      status: 'waiting',
+      detail: 'Waiting for executors to stop',
+    };
+    await frame(socket, waiting);
+    expect(socket.frames.at(-1)).toEqual({ type: 'event.ack', id: waiting.id });
+    expect(await requireCommand(env.DB, command.id)).toEqual({ status: 'cancelling' });
+    expect(browser.frames.at(-1)).toEqual({ ...waiting, status: 'cancelling' });
+    await frame(socket, waiting);
+    expect(socket.frames.at(-1)).toEqual({ type: 'event.ack', id: waiting.id });
+    expect((await runtimeSnapshot(env.DB, true)).commands).toContainEqual({
+      id: command.id,
+      status: 'cancelling',
+      detail: waiting.detail,
+    });
     await frame(socket, {
       type: 'command.state',
       id: 'late-progress',

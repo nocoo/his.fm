@@ -129,7 +129,10 @@ export async function persistEvent(
   }
   if (frame.type === 'command.state') {
     const command = await requireCommand(db, frame.commandId, true);
-    if (command.status === 'cancelling' && !['cancelled', 'complete', 'failed'].includes(frame.status))
+    if (
+      command.status === 'cancelling' &&
+      !['waiting', 'cancelled', 'complete', 'failed'].includes(frame.status)
+    )
       throw new HttpError(409, '指令正在取消');
   }
   if (frame.type === 'proposal') {
@@ -154,8 +157,10 @@ export async function persistEvent(
   if (frame.type === 'command.state')
     statements.push(
       db
-        .prepare('UPDATE agent_commands SET status = ?, detail = ? WHERE id = ?')
-        .bind(frame.status, frame.detail, frame.commandId),
+        .prepare(
+          "UPDATE agent_commands SET status = CASE WHEN status = 'cancelling' AND ? = 'waiting' THEN status ELSE ? END, detail = ? WHERE id = ?",
+        )
+        .bind(frame.status, frame.status, frame.detail, frame.commandId),
     );
   if (frame.type === 'proposal')
     statements.push(

@@ -135,8 +135,16 @@ export async function executeOperation(
   if (operation.kind === 'production.create') {
     if (scope?.productionId) throw new HttpError(403, '当前指令不允许创建其他制作任务');
   } else {
-    if (!scope?.productionId || scope.productionId !== operation.productionId)
-      throw new HttpError(403, '操作超出指令的制作任务范围');
+    if (scope?.productionId !== operation.productionId) {
+      const created =
+        !scope?.productionId &&
+        (await env.DB.prepare(
+          "SELECT id FROM agent_receipts WHERE command_id = ? AND json_extract(response, '$.ok') = 1 AND json_extract(response, '$.status') = 201 AND json_extract(response, '$.result.production.id') = ? LIMIT 1",
+        )
+          .bind(operation.commandId, operation.productionId)
+          .first());
+      if (!created) throw new HttpError(403, '操作超出指令的制作任务范围');
+    }
     if (operation.kind === 'audio.request') {
       const text = savedCommand.text;
       if (
@@ -151,7 +159,7 @@ export async function executeOperation(
     }
     if (
       operation.kind === 'production.patch' &&
-      scope.field &&
+      scope?.field &&
       scope.draft &&
       scope.draft.value !== scope.draft.baseValue
     ) {

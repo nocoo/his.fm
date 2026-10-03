@@ -12,6 +12,7 @@ import {
 import type { ConnectionIdentity } from './agent-runtime';
 import { executeOperation, persistOperationFailure } from './agent-runtime-operation';
 import { enqueue, persistEvent, requireCommand, runtimeSnapshot, saveContext } from './agent-runtime-store';
+import { triggerAudio } from './audio-routes';
 import { HttpError, json } from './http';
 
 export class AgentHub extends DurableObject<Env> {
@@ -107,12 +108,16 @@ export class AgentHub extends DurableObject<Env> {
 
   private async schedule() {
     const sockets = this.sockets();
-    if (!sockets.length) {
+    const queuedAudio = await this.env.DB.prepare(
+      "SELECT id FROM audio_jobs WHERE status = 'queued' LIMIT 1",
+    ).first();
+    if (!sockets.length && !queuedAudio) {
       await this.ctx.storage.deleteAlarm();
       return;
     }
     await this.ctx.storage.setAlarm(
       Math.min(
+        Date.now() + 10000,
         ...sockets.map((socket) => {
           const identity = this.identity(socket);
           return Math.min(identity.expiresAt, identity.lastSeen + 35000, Date.now() + 10000);
@@ -251,6 +256,7 @@ export class AgentHub extends DurableObject<Env> {
               .run();
             this.send(socket, { type: 'command.ack', id: frame.commandId });
           } else if (frame.type === 'operation') {
+            if (frame.operation.kind === 'audio.request') await this.ctx.storage.setAlarm(Date.now() + 10000);
             let result: Extract<ServerFrame, { type: 'operation.result' }>;
             try {
               result = await executeOperation(
@@ -280,7 +286,12 @@ export class AgentHub extends DurableObject<Env> {
           } else {
             const event = await persistEvent(this.env.DB, frame);
             this.send(socket, { type: 'event.ack', id: event.id });
-            if (event.inserted) this.broadcast(frame, 'browser');
+            if (event.inserted) {
+              if (frame.type === 'command.state') {
+                const command = await requireCommand(this.env.DB, frame.commandId);
+                this.broadcast({ ...frame, status: command.status }, 'browser');
+              } else this.broadcast(frame, 'browser');
+            }
             if (frame.type === 'proposal' && !event.inserted) {
               const proposal = await this.env.DB.prepare('SELECT status FROM agent_proposals WHERE id = ?')
                 .bind(frame.proposal.id)
@@ -392,6 +403,24 @@ export class AgentHub extends DurableObject<Env> {
     return this.webSocketClose(socket);
   }
   alarm(): Promise<void> {
-    return this.serial(() => this.prune());
+    return this.serial(async () => {
+      const queued = await this.env.DB.prepare(
+        "SELECT id FROM audio_jobs WHERE status = 'queued' ORDER BY updated_at, id LIMIT 5",
+      ).all<{ id: string }>();
+      for (const job of queued.results) {
+        const pending = await this.env.DB.prepare(
+          "UPDATE audio_jobs SET updated_at = ? WHERE id = ? AND status = 'queued' RETURNING id",
+        )
+          .bind(new Date().toISOString(), job.id)
+          .first();
+        if (!pending) continue;
+        try {
+          await triggerAudio(this.env, job.id);
+        } catch {
+          console.error(JSON.stringify({ event: 'agent_audio_dispatch_pending', jobId: job.id }));
+        }
+      }
+      await this.prune();
+    });
   }
 }
