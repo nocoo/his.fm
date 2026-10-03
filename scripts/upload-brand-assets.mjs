@@ -1,4 +1,3 @@
-import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 
@@ -22,31 +21,26 @@ for (const asset of manifest.assets) {
     throw new Error(`Local digest mismatch: ${asset.file}`);
   }
   if (receipts.has(asset.key)) continue;
-  execFileSync(
-    process.execPath,
-    [
-      'node_modules/wrangler/bin/wrangler.js',
-      'r2',
-      'object',
-      'put',
-      `his-fm/${asset.key}`,
-      '--remote',
-      '--config',
-      'wrangler.jsonc',
-      '--file',
-      asset.file,
-      '--content-type',
-      asset.contentType,
-      '--cache-control',
-      manifest.cacheControl,
-      '--force',
-    ],
+  const { CLOUDFLARE_ACCOUNT_ID: account, CLOUDFLARE_API_TOKEN: token } = process.env;
+  if (!account || !token) throw new Error('CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_API_TOKEN are required');
+  const key = asset.key.split('/').map(encodeURIComponent).join('/');
+  const response = await fetch(
+    `https://api.cloudflare.com/client/v4/accounts/${encodeURIComponent(account)}/r2/buckets/his-fm/objects/${key}`,
     {
-      env: { ...process.env, CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV: 'false' },
-      stdio: 'pipe',
-      timeout: 90000,
+      method: 'PUT',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': asset.contentType,
+        'Cache-Control': manifest.cacheControl,
+      },
+      body: data,
+      signal: AbortSignal.timeout(90000),
     },
   );
+  if (!response.ok) {
+    throw new Error(`R2 upload failed: ${response.status} ${asset.key}`);
+  }
+  await response.arrayBuffer();
   receipts.add(asset.key);
   await writeFile(receiptFile, `${JSON.stringify([...receipts], null, 2)}\n`);
   uploaded++;

@@ -11,7 +11,7 @@ If the preferred mirror does not contain a verified release, use the authorized 
 
 Open `https://hisfm.dev.hexly.ai`. Choose the studio link or visit `/login`, then select the local studio button. The local database has six preview episodes; episode 001 imports the manuscript from `episodes/001-how-to-live-better/`.
 
-The dev script listens on 127.0.0.1:7056 and defaults to local D1/R2 bindings. It reads Worker secrets from ignored `.dev.vars`, not the original generation `.env` file. Restarting preserves local records. Do not delete `.wrangler/state` to resolve unrelated issues.
+The dev script listens on 127.0.0.1:7056 and defaults to local D1/R2 bindings. It reads Worker secrets from ignored `.dev.vars`, not the original generation `.env` file. Restarting preserves local records. Do not delete `.wrangler/state` to resolve unrelated issues. Vite explicitly retains that persistence directory; every local `cf` D1 command passes `--local --persist-to .wrangler/state`. The local-only UUID is `00000000-0000-4000-8000-000000007056`. During the cf migration, the original SQLite database was backed up into this identity and existing application rows were checked; the original database is retained. Never substitute the production UUID when accessing local data.
 
 Website styles are selected in `/admin/appearance`. Previewing is read-only; applying saves to the selected environment. See [appearance](appearance.md) for identity assets, R2 delivery, font caching and original-cover/export separation.
 
@@ -28,15 +28,15 @@ node scripts/verify-gate.mjs
 
 `npm run prepare` installs the Husky launcher. The pre-commit hook reads the staged gate implementation and checks an isolated snapshot of the index. It runs coverage, lint and typecheck without auto-fixing or restaging files. Generated outputs stay in temporary directories.
 
-`npm run cf:typegen` regenerates platform declarations without loading `.env`. Update the compatibility date only to a date supported by the installed Workerd runtime.
+`npm run cf:typegen` regenerates ignored `.cloudflare/types/index.d.ts` without loading `.env`; typecheck runs this first, including in isolated staged snapshots. Update the compatibility date only to a date supported by the installed Workerd runtime.
 
 ## Production preparation
 
-Production configuration lives in `wrangler.jsonc`; local configuration is separate. The D1 database and R2 bucket are already created. Production D1 has the schema and no mock episode records. Four generated WebP images are stored in R2 under `images/`.
+Configuration lives in `cloudflare.config.ts`. Only Vite development mode enables local login and local resources; omitted and production modes retain production settings. The D1 database and R2 bucket are already created. Production D1 has the schema and no mock episode records. Four generated WebP images are stored in R2 under `images/`.
 
 Access uses team `nocoo` and application audience `41ef6d396f8256e97999ba1d1f11e15f6e7e5e788fce46f54016fd1d9710f726`. Its protected path is `his.fm/admin`, including descendant routes through policy inheritance. The application verifies JWTs itself as well. `workers.dev` and preview URLs are disabled in production configuration.
 
-Deployment follows published GitHub Releases; see [CI/CD](ci-cd.md). The build generates `dist/his_fm/wrangler.json`, which supplies the bundled Worker entrypoint and asset directory. Both migration and deployment use that generated configuration. Verify `https://his.fm/api/live` against the release version and Git SHA, then check public pages, an actual Access login and anonymous management rejection.
+Deployment follows published GitHub Releases; see [CI/CD](ci-cd.md). The build generates `.cloudflare/output/v0`, containing the bundled Worker, assets and production configuration. The release deploy script applies schema-only migrations by production database UUID, then runs `cf deploy --prebuilt --mode production`. Validate without uploading with `cf deploy --prebuilt --mode production --dry-run`. Wrangler remains installed only because the pinned base-ci workflow unconditionally checks its version; it performs no resource or deployment operations. Verify `https://his.fm/api/live` against the release version and Git SHA, then check public pages, an actual Access login and anonymous management rejection.
 
 The owner-authorized real manuscript example can be imported explicitly after schema migration:
 

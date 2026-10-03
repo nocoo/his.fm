@@ -2,7 +2,7 @@
 
 ## Architecture
 
-- React 19 + Vite 8 + TypeScript 7.0.2, served by one Cloudflare Worker.
+- React 19 + Vite 8 + TypeScript 7.0.2, served by one Cloudflare Worker. Use the pinned project `cf` CLI and `cloudflare.config.ts`; never use Wrangler for resource operations or deployment.
 - Public views live in `src/public/`. Admin views live in `src/admin/` and use `@nocoo/basalt` 2.2.0 with standalone CSS and granular shell imports.
 - Keep editable episode validation in `src/shared/episode.ts`, business logic in `model.ts` / `service.ts`, and D1 / Access / R2 logic in `worker/`.
 - Agent discovery lives at `/api/agent`, `/.well-known/api-catalog` and `/llms.txt`; OpenAPI and public onboarding must remain synchronized with shared validators and protected controllers. Tokens use `HISFM_AGENT_TOKEN`; public discovery never proves authentication.
@@ -27,10 +27,10 @@
 
 ## Local development
 
-- `npm run dev` migrates and seeds local Wrangler D1 once, then starts Vite on loopback port 7056.
+- `npm run dev` migrates and seeds local D1 once, then starts Vite on loopback port 7056.
 - User-facing URL: `https://hisfm.dev.hexly.ai`. Caddy proxies to `127.0.0.1:7056` and permits only loopback clients.
 - Reserved ports: integration 17056, browser 27056, inspector 37056. See nmem `hisfm-local-ports` before changing them.
-- `wrangler.local.jsonc` has only local bindings and `ENVIRONMENT=local`. Local login requires this flag, an allowed hostname and same-origin requests. It creates an expiring HttpOnly session; production never enables it.
+- `cloudflare.config.ts` selects local bindings and `ENVIRONMENT=local` only in `development` mode. All other modes use production settings. Local D1 uses `00000000-0000-4000-8000-000000007056`; CLI commands must pass `--local --persist-to .wrangler/state` to share Vite state. Local login requires this flag, an allowed hostname and same-origin requests. It creates an expiring HttpOnly session; production never enables it.
 - Mock content exists only in `scripts/seed-local.mjs`; schema migrations contain no episode content. Never seed mock records into remote D1. Preserve existing local edits and deletions across restarts.
 - The owner explicitly authorized importing the real episode 001 into both databases. `scripts/import-example.mjs --local|--remote` imports existing materials without approvals or publication; this is separate from mock seeding.
 - The first episode has a complete manuscript, not a finished recording. Preview episodes have no audio URL; do not fabricate playable media.
@@ -58,7 +58,7 @@ Install through an allowed registry on this machine. Never retry blocked `regist
 - Biome uses its maintained recommended preset and rejects warnings. TypeScript is strict.
 - Husky runs checks against the Git index snapshot, without changing the working tree or restaging fixes. Stage explicit paths, then commit through the normal hook.
 - Audit evidence belongs in nmem, using `6dq-audit-github.com-nocoo-his.fm-l1`; no full 6DQ certification is implied by L1.
-- Keep `.env`, `.dev.vars`, generated audio/video, Wrangler state, test screenshots and coverage out of Git. Image-generation originals and prompts are intentionally archived in `artwork/`.
+- Keep `.env`, `.dev.vars`, generated audio/video, local Cloudflare state, test screenshots and coverage out of Git. Image-generation originals and prompts are intentionally archived in `artwork/`.
 - Record corrected mistakes in `Retrospective.md`. Preserve other agents' edits; only the coordinator stages and commits.
 
 ## Cloudflare
@@ -69,7 +69,7 @@ Install through an allowed registry on this machine. Never retry blocked `regist
 - D1 ID: `66f7e201-22a8-450d-838d-ecbc382afbc6`.
 - The existing Access application protects `his.fm/admin`; descendant paths inherit its policy unless a more specific application overrides them.
 - `run_worker_first` covers `/admin`, `/admin/*`, `/api/*`, `/media/*`, `/.well-known/api-catalog` and `/llms.txt`.
-- Deploy through published GitHub Releases and pinned `nocoo/base-ci`; use Vite's generated `dist/his_fm/wrangler.json`, never the source configuration as a deploy override. Verify `/api/live` against the exact release version and revision.
+- Deploy through published GitHub Releases and pinned `nocoo/base-ci`; use `cf` Build Output in `.cloudflare/output/v0` with `cf deploy --prebuilt --mode production`. The pinned shared workflow still checks the installed Wrangler version, but its `deploy-script` runs only `cf` D1 migrations and deployment. Verify `/api/live` against the exact release version and revision.
 - Active hero assets use immutable `images/hero-retina-20260926-*.webp` keys; original artwork and derivative provenance live in `artwork/manifest.json`. Mobile `picture` crops place the subject at 61.8%; `sizes` must account for the full rendered image under `object-fit: cover`, including its height. Episode images use `images/episode-01.webp` through `episode-03.webp`. `/media/*` serves configured R2 objects; the owner manages the CDN domain.
 
 See `docs/architecture.md` and `docs/operations.md` for contracts and operating steps.

@@ -34,9 +34,7 @@ jobs:
       install-policy: project
       build-command: npm run build
       wrangler-version: '4.145.0'
-      wrangler-config: 'dist/his_fm/wrangler.json'
-      d1-migrations: true
-      d1-databases: 'his-fm'
+      deploy-script: npm run deploy
       environment: production
       concurrency-group: deploy-worker-production
       timeout-minutes: 15

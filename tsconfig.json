@@ -21,6 +21,8 @@
     "vitest.config.ts",
     "vite.config.ts",
     "playwright.config.ts",
+    "cloudflare.config.ts",
+    ".cloudflare/types/**/*.d.ts",
     "*.d.ts"
   ]
 }

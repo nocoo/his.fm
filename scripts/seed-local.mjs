@@ -1,6 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 const root = join(import.meta.dirname, '..');
@@ -112,27 +111,20 @@ statements.push(
   `INSERT OR IGNORE INTO local_seed_runs (name, created_at) VALUES (${quote(marker)}, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'));`,
 );
 
-const temporary = mkdtempSync(join(tmpdir(), 'hisfm-seed-'));
-try {
-  const file = join(temporary, 'seed.sql');
-  writeFileSync(file, statements.join('\n'));
-  const result = spawnSync(
-    process.execPath,
-    [
-      'node_modules/wrangler/bin/wrangler.js',
-      'd1',
-      'execute',
-      'his-fm',
-      '--local',
-      '--config',
-      'wrangler.local.jsonc',
-      '--file',
-      file,
-    ],
-    { cwd: root, stdio: 'inherit', env: { ...process.env, CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV: 'false' } },
-  );
-  if (result.error) throw result.error;
-  process.exitCode = result.status ?? 1;
-} finally {
-  rmSync(temporary, { recursive: true, force: true });
-}
+const result = spawnSync(
+  process.execPath,
+  [
+    'node_modules/cf/bin/cf',
+    'd1',
+    'raw',
+    '00000000-0000-4000-8000-000000007056',
+    '--local',
+    '--persist-to',
+    '.wrangler/state',
+    '--sql',
+    statements.join('\n'),
+  ],
+  { cwd: root, stdio: 'inherit', env: { ...process.env, CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV: 'false' } },
+);
+if (result.error) throw result.error;
+process.exitCode = result.status ?? 1;

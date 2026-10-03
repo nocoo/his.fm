@@ -34,7 +34,7 @@ node_modules/.bin/biome check --write src/brand
 node scripts/upload-brand-assets.mjs
 ```
 
-The image uploader validates local digests, records resumable receipts under `.local/appearance/`, uploads all objects before checking CDN responses, then verifies MIME, cache headers and content digests. Verify the CDN before releasing CSS or JSON that references new keys. It never overwrites existing episode images. `images/` and `reference/` remain protected by storage cleanup. On the current development machine, use the existing explicit HTTPS proxy if direct Node networking fails; do not change TLS trust.
+The image uploader requires explicit `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_API_TOKEN` environment variables (R2 write permission). It uses the Cloudflare REST API because `cf r2 objects put` does not currently expose `Cache-Control`; it never reads CLI credentials or changes authentication. The image uploader validates local digests, records resumable receipts under `.local/appearance/`, uploads all objects before checking CDN responses, then verifies MIME, cache headers and content digests. Verify the CDN before releasing CSS or JSON that references new keys. It never overwrites existing episode images. `images/` and `reference/` remain protected by storage cleanup. On the current development machine, use the existing explicit HTTPS proxy if direct Node networking fails; do not change TLS trust.
 
 ## Original covers and finished downloads
 

@@ -6,7 +6,7 @@ import { productionProxy } from './scripts/production-proxy.ts';
 
 process.env.CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV = 'false';
 
-export default defineConfig(({ command }) => ({
+export default defineConfig({
   define: {
     __BUILD_REVISION__: JSON.stringify(
       execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(),
@@ -16,7 +16,8 @@ export default defineConfig(({ command }) => ({
     react(),
     productionProxy(),
     cloudflare({
-      configPath: command === 'serve' ? 'wrangler.local.jsonc' : 'wrangler.jsonc',
+      persistState: { path: '.wrangler/state' },
+      remoteBindings: false,
       inspectorPort: false,
     }),
   ],
@@ -26,4 +27,4 @@ export default defineConfig(({ command }) => ({
     strictPort: true,
     allowedHosts: ['hisfm.dev.hexly.ai'],
   },
-}));
+});

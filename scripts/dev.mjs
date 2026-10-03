@@ -4,14 +4,16 @@ process.env.CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV = 'false';
 
 for (const args of [
   [
-    'node_modules/wrangler/bin/wrangler.js',
+    'node_modules/cf/bin/cf',
     'd1',
     'migrations',
     'apply',
-    'his-fm',
+    '00000000-0000-4000-8000-000000007056',
     '--local',
-    '--config',
-    'wrangler.local.jsonc',
+    '--persist-to',
+    '.wrangler/state',
+    '--dir',
+    'migrations',
   ],
   ['scripts/seed-local.mjs'],
   ['scripts/import-example.mjs', '--local'],
@@ -21,7 +23,7 @@ for (const args of [
   if (result.status !== 0) process.exit(result.status ?? 1);
 }
 
-const child = spawn(process.execPath, ['node_modules/vite/bin/vite.js', ...process.argv.slice(2)], {
+const child = spawn(process.execPath, ['node_modules/cf/bin/cf', 'dev', ...process.argv.slice(2)], {
   stdio: 'inherit',
 });
 for (const signal of ['SIGINT', 'SIGTERM']) process.on(signal, () => child.kill(signal));

@@ -33,7 +33,7 @@ The website is a Cloudflare Worker application built with Vite 8, TypeScript 7.0
 
 - Public pages: homepage, searchable episode catalogue, episode summaries/transcripts and channel introduction.
 - Studio: source collection, editorial intent, human brief/script/final reviews, AI production, manual WeChat/Xiaoyuzhou publication, voice comparisons and expiring Hermes API tokens.
-- Local preview: **https://hisfm.dev.hexly.ai**. Run `npm run dev`; six preview episodes and the real first-episode draft load into local Wrangler D1 once, preserving later edits and deletions. The top-right segment switches local admin data between the local Worker and the production Worker, using the editor's Cloudflare Access identity.
+- Local preview: **https://hisfm.dev.hexly.ai**. Run `npm run dev` (the project-pinned `cf` CLI); six preview episodes and the real first-episode draft load into local D1 once, preserving later edits and deletions. The top-right segment switches local admin data between the local Worker and the production Worker, using the editor's Cloudflare Access identity.
 - Production: **https://his.fm**. D1 and R2 are named `his-fm`; media uses **https://f.no.mt**. Published GitHub Releases deploy through pinned `nocoo/base-ci` workflows after exact-revision CI verification.
 - The first episode currently has a complete manuscript. The site explicitly distinguishes written episodes from playable recordings.
 

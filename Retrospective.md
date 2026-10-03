@@ -139,3 +139,10 @@ The source detail header initially placed its return control in the right-hand a
 ## 2026-09-26 — Serialize image generation for identity studies
 
 The first identity-art batch used two concurrent high-quality image requests and encountered rate-limit responses. Continuing the queue immediately caused further failures without producing usable assets. The driver now sends requests sequentially, skips completed originals, and records previous attempts before explicit retries. Keep successful artwork intact and reduce request concurrency when the provider limits throughput; a failed generation must not silently become a different model or a placeholder in the design delivery.
+
+
+## 2026-10-03: Verify cf migration commands separately
+
+The first local startup after converting to cf failed before seeding: `cf d1 raw` accepted the existing `his-fm-local` identifier, but `cf d1 migrations apply` enforced UUID syntax even with `--local`. A successful read did not prove migration-command compatibility. Assigned a dedicated local-only UUID, copied the existing database through SQLite's backup API, retained the original, and compared application rows before browser acceptance. Runtime `_cf_METADATA` naturally changes on access and is not an application-data equality check.
+
+For future CLI migrations, verify each command's validation and persistence root before changing scripts. Never replace a local identity with the production ID or discard existing state to make startup pass. Also check supported upload headers: cf's R2 upload command currently lacks Cache-Control, so the artwork uploader uses the existing REST endpoint with explicit environment credentials and an offline regression test instead of silently dropping immutable cache metadata.
