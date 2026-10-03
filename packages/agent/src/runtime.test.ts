@@ -2,6 +2,7 @@ import { createServer } from 'node:http';
 import { BACKGROUND_CONTEXT } from '@earendil-works/chord/context';
 import { fauxAssistantMessage, fauxThinking, fauxToolCall } from '@earendil-works/pi-ai/providers/faux';
 import { expect, it } from 'vitest';
+import { EXECUTOR_CAPABILITIES, ROOT_POLICY, WORK_POLICY } from './prompts.ts';
 import { fixture, testCommand } from './testing/fixtures.ts';
 import { acceptWork, successfulResult } from './testing/outcomes.ts';
 
@@ -201,6 +202,86 @@ it.each(['blocked', 'needs_input'] as const)(
       });
       expect(test.socket.frames).not.toContainEqual(
         expect.objectContaining({ type: 'command.state', status: 'complete' }),
+      );
+    } finally {
+      await test.close();
+    }
+  },
+);
+
+it.each(['writer', 'reviewer'] as const)(
+  'gives a %s native file processing and verification tools for a non-research outcome',
+  async (role) => {
+    const test = await fixture();
+    const owner = testCommand('process-data', '整理两条本地时长数据，生成汇总文件并核验总时长。');
+    const script = `const fs = require('node:fs');
+const rows = JSON.parse(fs.readFileSync('durations.json', 'utf8'));
+const total = rows.reduce((sum, row) => sum + row.seconds, 0);
+require('node:assert/strict').equal(total, 180);
+fs.writeFileSync('summary.json', JSON.stringify({ count: rows.length, total }));
+console.log('Verified 2 rows, total 180 seconds');`;
+    const steps = [
+      call('write', { path: 'durations.json', content: '[{"seconds":60},{"seconds":120}]' }),
+      call('write', { path: 'summarize.cjs', content: script }),
+      call('bash', { command: `${JSON.stringify(process.execPath)} summarize.cjs` }),
+      call('read', { path: 'summary.json' }),
+      call('submit_result', {
+        markdown: '已生成 summary.json，两条数据共180秒，脚本断言通过。',
+        outcome: 'done',
+        evidence: ['summary.json: count=2, total=180; script assertion passed'],
+        criteria: { required: 2, met: 2 },
+      }),
+    ];
+    let dispatched = false;
+    const acceptance = acceptWork(test);
+    test.fake.setResponses(
+      Array.from({ length: 12 }, () => async (transcript, _options, _state, model) => {
+        if (model.id === 'gpt-6.1-sol') {
+          if (steps.length === 1) {
+            expect(JSON.stringify(transcript)).toContain('Verified 2 rows, total 180 seconds');
+            expect(JSON.stringify(transcript)).toContain('summary.json');
+          }
+          const step = steps.shift();
+          assert(step);
+          return step;
+        }
+        if (!dispatched) {
+          dispatched = true;
+          return call('delegate', {
+            role,
+            instructions: 'Deliver a verified duration summary file. Choose suitable tools and methods.',
+            requiredCriteria: ['Summarize both records and verify the total'],
+            requiredCount: 2,
+            revision: 1,
+          });
+        }
+        if (Object.values((await test.runtime.work()).assignments)[0]?.status !== 'complete')
+          return fauxAssistantMessage('正在整理和核验数据。');
+        const response = acceptance.shift();
+        assert(response);
+        return response();
+      }),
+    );
+    try {
+      test.start();
+      test.send(owner);
+      await expect.poll(() => test.store.command(owner.id)?.status).toBe('complete');
+      const assignment = Object.values((await test.runtime.work()).assignments)[0];
+      assert(assignment);
+      expect(JSON.parse(assignment.input)).toMatchObject({
+        ownerCommand: owner,
+        capabilities: EXECUTOR_CAPABILITIES,
+      });
+      expect(assignment.outcome).toMatchObject({ status: 'done', criteria: { required: 2, met: 2 } });
+      const executor = await test.runtime.harness.conversation(assignment.conversationId, BACKGROUND_CONTEXT);
+      assert(executor);
+      const agent = await executor.agent(BACKGROUND_CONTEXT);
+      expect(agent.instructions).toBe(`${WORK_POLICY}\nCurrent ownerCommand: ${JSON.stringify(owner)}`);
+      expect(agent.tools.map((tool) => tool.name)).toEqual(
+        expect.arrayContaining(EXECUTOR_CAPABILITIES.tools),
+      );
+      expect((await test.runtime.root.agent(BACKGROUND_CONTEXT)).instructions).toBe(
+        `${ROOT_POLICY}\nCurrent ownerCommand: ${JSON.stringify(owner)}`,
       );
     } finally {
       await test.close();

@@ -397,7 +397,7 @@ export async function openRuntime(options: RuntimeOptions) {
   const delegate = defineTool({
     name: 'delegate',
     description:
-      'Dispatch a concrete deliverable with acceptance criteria. The host supplies current owner scope and CLI/network capabilities and sends results asynchronously.',
+      'Delegate an outcome with context and acceptance criteria; executors choose tools and methods within the current owner scope and native capabilities. Results arrive asynchronously.',
     replay: 'safe',
     parameters: Type.Object({
       role: Type.Union([Type.Literal('writer'), Type.Literal('reviewer')]),
