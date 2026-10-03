@@ -1,0 +1,109 @@
+.admin-workspace {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+}
+.admin-workspace > .admin-island-wrap {
+  min-width: 0;
+}
+.agent-sidebar {
+  width: clamp(280px, 26vw, 380px);
+  flex-shrink: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid hsl(var(--basalt-border));
+  background: hsl(var(--basalt-background));
+}
+.agent-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--admin-space-2);
+  padding: var(--admin-space-3) var(--admin-space-4);
+}
+.agent-header .admin-muted {
+  font-size: 12px;
+}
+.agent-messages {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--admin-space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--admin-space-4);
+  overflow-wrap: anywhere;
+}
+.agent-message,
+.agent-proposal {
+  display: grid;
+  gap: var(--admin-space-2);
+}
+.agent-message-user {
+  padding: var(--admin-space-3);
+  border-radius: var(--basalt-radius);
+  background: hsl(var(--basalt-secondary));
+}
+.agent-roles,
+.agent-tasks,
+.agent-error {
+  padding: var(--admin-space-2) var(--admin-space-4);
+  border-bottom: 1px solid hsl(var(--basalt-border));
+  max-height: 180px;
+  overflow: auto;
+}
+.agent-roles summary,
+.agent-proposal summary {
+  cursor: pointer;
+}
+.agent-roles ul {
+  padding: 0;
+  list-style: none;
+}
+.agent-roles li {
+  display: grid;
+  gap: var(--admin-space-1);
+  margin-top: var(--admin-space-2);
+}
+.agent-roles li span {
+  font-size: 12px;
+  color: hsl(var(--basalt-muted-foreground));
+}
+.agent-composer {
+  display: grid;
+  gap: var(--admin-space-2);
+  padding: var(--admin-space-3);
+  border-top: 1px solid hsl(var(--basalt-border));
+}
+.agent-composer > button {
+  justify-self: end;
+}
+@media (max-width: 1000px) {
+  .agent-sidebar {
+    width: 280px;
+  }
+}
+@media (max-width: 767px) {
+  .admin-workspace {
+    flex-direction: column;
+  }
+  .agent-sidebar {
+    width: 100%;
+    flex-basis: 36%;
+    border-left: 0;
+    border-top: 1px solid hsl(var(--basalt-border));
+  }
+  .agent-header {
+    padding-block: var(--admin-space-1);
+  }
+  .agent-composer {
+    grid-template-columns: 1fr auto;
+    align-items: end;
+  }
+  .agent-composer textarea {
+    min-height: 48px;
+    max-height: 80px;
+  }
+}

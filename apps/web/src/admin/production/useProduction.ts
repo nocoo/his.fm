@@ -1,12 +1,14 @@
 import { toast } from '@nocoo/basalt';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Production } from '../../shared/production';
+import { useAgent } from '../agent/AgentProvider';
 import { errorMessage } from '../model';
 import { ApiError } from '../service';
 import { audioBusy } from './model';
 import { productionService } from './service';
 
 export function useProduction(id: string) {
+  const agent = useAgent();
   const [production, setProduction] = useState<Production | null>(null);
   const [loading, setLoading] = useState(true);
   const [pending, setPending] = useState(false);
@@ -18,7 +20,10 @@ export function useProduction(id: string) {
       setLoading(true);
       try {
         const result = await productionService.get(id, signal);
-        setProduction(result.production);
+        if (!signal?.aborted)
+          setProduction((current) =>
+            !current || result.production.version >= current.version ? result.production : current,
+          );
         setError('');
         setConflict(false);
         return true;
@@ -36,6 +41,28 @@ export function useProduction(id: string) {
     void load(controller.signal);
     return () => controller.abort();
   }, [load]);
+  useEffect(() => {
+    const controller = new AbortController();
+    const unsubscribe = agent?.onFrame((frame) => {
+      if (frame.type !== 'snapshot' && (frame.type !== 'production.changed' || frame.productionId !== id))
+        return;
+      void productionService
+        .get(id, controller.signal)
+        .then((result) => {
+          if (!controller.signal.aborted)
+            setProduction((current) =>
+              !current || result.production.version > current.version ? result.production : current,
+            );
+        })
+        .catch((cause) => {
+          if (!controller.signal.aborted) setError(`内容暂时无法刷新：${errorMessage(cause)}`);
+        });
+    });
+    return () => {
+      controller.abort();
+      unsubscribe?.();
+    };
+  }, [agent, id]);
   const polling = production ? audioBusy(production) : false;
   useEffect(() => {
     if (!polling) return;
@@ -64,7 +91,9 @@ export function useProduction(id: string) {
     setError('');
     try {
       const result = await operation();
-      setProduction(result.production);
+      setProduction((current) =>
+        !current || result.production.version >= current.version ? result.production : current,
+      );
       setConflict(false);
       toast.success(message);
       return true;

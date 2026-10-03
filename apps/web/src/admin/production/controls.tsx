@@ -88,7 +88,7 @@ export function Confirm({
               rows={4}
               maxLength={12000}
               disabled={pending}
-              placeholder="说明需要修改的内容，Hermes 会收到这些意见。"
+              placeholder="说明需要修改的内容，主控会收到这些意见。"
             />
           </Field>
         )}

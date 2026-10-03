@@ -183,7 +183,7 @@ export function ProductionList() {
             empty={
               <LayerCard.Empty
                 title={query || stage !== 'all' ? '没有符合条件的制作' : '开始准备第一期节目'}
-                description="整理素材，写下创作意图，再邀请 Hermes 参与制作。"
+                description="整理素材，写下创作意图，和主控一起制作。"
                 action={
                   <Button asChild variant="outline">
                     <Link to="/admin/productions/new">新建制作</Link>

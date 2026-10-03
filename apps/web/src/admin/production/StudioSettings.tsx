@@ -9,7 +9,7 @@ import type { AgentTokenRecord, ProductionSettings } from '../../shared/producti
 import { getEnvironment } from '../environment';
 import { errorMessage } from '../model';
 import { Confirm, CopyButton, Failure } from './controls';
-import { agentConnectionInstructions, dateLabel } from './model';
+import { dateLabel } from './model';
 import { productionService } from './service';
 import { useUnsavedChanges } from './useUnsavedChanges';
 import { VoiceEditor } from './VoiceEditor';
@@ -236,7 +236,7 @@ function TokenSettings() {
   return (
     <LayerCard padding="none">
       <LayerCard.Header>
-        <strong>Hermes 与智能助手</strong>
+        <strong>本机主控与访问令牌</strong>
       </LayerCard.Header>
       <LayerCard.Body className="studio-stack studio-padding">
         <div className="studio-row">
@@ -246,7 +246,6 @@ function TokenSettings() {
           <CopyButton label="复制接口地址" read={() => `${base}/api/agent`} />
         </div>
         <div className="studio-actions">
-          <CopyButton label="复制 Hermes 接入指令" read={() => agentConnectionInstructions(base)} />
           <Button variant="outline" asChild>
             <a href={`${base}/api/agent/instructions`} target="_blank" rel="noopener noreferrer">
               接入说明
@@ -302,7 +301,7 @@ function TokenSettings() {
         >
           <fieldset disabled={pending || Boolean(token)} className="studio-fieldset studio-token-form">
             <Field label="助手名称" htmlFor="token-name" required>
-              <Input id="token-name" name="name" required maxLength={100} placeholder="例如：Hermes" />
+              <Input id="token-name" name="name" required maxLength={100} placeholder="例如：工作室主控" />
             </Field>
             <Field label="有效天数" htmlFor="token-days" required>
               <Input

@@ -4,11 +4,12 @@ import { InputArea } from '@nocoo/basalt/components/input-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@nocoo/basalt/components/tabs';
 import { useEffect, useState } from 'react';
 import type { Production } from '../../shared/production';
+import { useAgentField, useDraft } from '../agent/AgentProvider';
+import { DraftConflicts } from '../agent/DraftConflicts';
 import { MarkdownEditor } from '../markdown/MarkdownEditor';
 import { AudioGeneration } from './AudioGeneration';
 import { CoverDownload } from './CoverDownload';
 import { audioBusy } from './model';
-import { PromptPanel } from './PromptPanel';
 import { ReadingText } from './ReadingText';
 import { productionService } from './service';
 
@@ -29,8 +30,22 @@ export function Assets({
 }) {
   const [cover, setCover] = useState<File | null>(null);
   const [uploadError, setUploadError] = useState('');
-  const [summary, setSummary] = useState(production.summary);
-  const [description, setDescription] = useState(production.description);
+  const draft = useDraft({ summary: production.summary, description: production.description });
+  const { summary, description } = draft.value;
+  const summaryField = useAgentField(
+    { productionId: production.id, field: 'summary' },
+    summary,
+    production.summary,
+    (next) => draft.change('summary', next),
+    pending || draft.conflicts.length > 0,
+  );
+  const descriptionField = useAgentField(
+    { productionId: production.id, field: 'description' },
+    description,
+    production.description,
+    (next) => draft.change('description', next),
+    pending || draft.conflicts.length > 0,
+  );
   const copyDirty = summary !== production.summary || description !== production.description;
   useEffect(() => {
     onDirty(copyDirty || Boolean(cover));
@@ -47,7 +62,6 @@ export function Assets({
         <TabsTrigger value="audio">音频</TabsTrigger>
       </TabsList>
       <TabsContent value="cover" className="studio-stack">
-        <PromptPanel production={production} kind="cover" dirty={dirty} />
         <LayerCard>
           <div className="studio-stack">
             <CoverPreview production={production} />
@@ -97,13 +111,24 @@ export function Assets({
         </LayerCard>
       </TabsContent>
       <TabsContent value="copy" className="studio-stack">
-        <PromptPanel production={production} kind="description" dirty={dirty} />
+        <DraftConflicts fields={draft.conflicts} resolve={draft.resolve} />
         <Field label="节目摘要" htmlFor="production-summary" hint="用于网站列表与分享，最多 2,000 字。">
           <InputArea
             className="studio-autosize"
             id="production-summary"
             value={summary}
-            onChange={(event) => setSummary(event.target.value)}
+            onFocus={summaryField.onFocus}
+            onChange={(event) => summaryField.onChange(event.target.value)}
+            onSelect={(event) => {
+              const input = event.currentTarget;
+              summaryField.onSelection({
+                from: input.selectionStart,
+                to: input.selectionEnd,
+                text: input.value.slice(input.selectionStart, input.selectionEnd),
+              });
+            }}
+            onCompositionStart={() => summaryField.onComposition(true)}
+            onCompositionEnd={() => summaryField.onComposition(false)}
             maxLength={2000}
             rows={3}
             disabled={pending}
@@ -114,7 +139,9 @@ export function Assets({
             id="production-description"
             label="发布简介"
             value={description}
-            onChange={setDescription}
+            onChange={descriptionField.onChange}
+            onSelection={descriptionField.onSelection}
+            onComposition={descriptionField.onComposition}
             defaultMode={production.description ? 'preview' : 'edit'}
             maxLength={20000}
             disabled={pending}
@@ -124,7 +151,7 @@ export function Assets({
           <Button
             variant="outline"
             loading={pending}
-            disabled={!copyDirty}
+            disabled={!copyDirty || draft.conflicts.length > 0}
             onClick={() => void onSave({ summary, description })}
           >
             保存发布文案
@@ -176,9 +203,7 @@ function CoverPreview({ production }: { production: Production }) {
       <CoverDownload source={cover.url} episodeNumber={production.episodeNumber} />
     </>
   ) : (
-    <p className="admin-muted">
-      尚未上传封面。复制封面任务，交给本地 agent 生成干净原图。品牌框架仅在下载成品时叠加。
-    </p>
+    <p className="admin-muted">尚未上传封面。和主控讨论并生成干净原图。品牌框架仅在下载成品时叠加。</p>
   );
 }
 function AudioPreview({ production }: { production: Production }) {

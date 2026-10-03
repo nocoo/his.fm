@@ -16,16 +16,11 @@ function lastRequest() {
 }
 
 describe('production service contracts', () => {
-  it('loads production data, prompts and settings with cancellation', async () => {
+  it('loads production data and settings with cancellation', async () => {
     const signal = new AbortController().signal;
     for (const [call, url, body] of [
       [() => service.list(signal), '/productions', { productions: [fixture()] }],
       [() => service.get('a/b', signal), '/productions/a%2Fb', { production: fixture() }],
-      [
-        () => service.prompts('a/b'),
-        '/productions/a%2Fb/prompts',
-        { script: '逐字稿提示', cover: '封面提示', description: '简介提示' },
-      ],
       [() => service.settings(signal), '/production-settings', { settings: { voice: 'Kore' } }],
       [() => service.tokens(signal), '/agent-tokens', { tokens: [] }],
       [() => service.channel(signal), '/channel', { channel: { version: 1, content: '定位' } }],

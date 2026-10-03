@@ -195,6 +195,9 @@
 .studio-stage {
   min-width: 0;
 }
+.studio-stage[hidden] {
+  display: none;
+}
 .studio-stage-footer {
   display: flex;
   align-items: center;
@@ -212,48 +215,6 @@
 .studio-location {
   color: hsl(var(--basalt-muted-foreground));
   font-size: 13px;
-}
-.studio-prompt {
-  border-radius: var(--basalt-radius);
-  background: hsl(var(--basalt-secondary));
-  padding: var(--admin-space-3) var(--admin-space-4);
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--admin-space-2) var(--admin-space-3);
-}
-.studio-prompt > p:first-child {
-  flex: 1 1 220px;
-  font-size: 12px;
-}
-.studio-prompt > details {
-  display: contents;
-}
-.studio-prompt > :where(details) > summary {
-  flex: none;
-  white-space: nowrap;
-  font-size: 12px;
-  cursor: pointer;
-}
-.studio-prompt > details > pre {
-  order: 1;
-  flex-basis: 100%;
-  min-width: 0;
-  margin: 0;
-}
-.studio-prompt > button {
-  flex: none;
-}
-.studio-prompt > .studio-prompt-feedback,
-.studio-prompt > [role="alert"] {
-  order: 2;
-  flex-basis: 100%;
-}
-.studio-prompt-text {
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-  font-size: 12px;
-  line-height: 1.7;
 }
 .admin-app .studio-reader {
   width: 100%;

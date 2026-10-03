@@ -5,6 +5,7 @@ import { Check } from 'lucide-react';
 import { useLayoutEffect, useRef, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router';
 import { type ProductionAction, stageLabels } from '../../shared/production';
+import { useAgent } from '../agent/AgentProvider';
 import { Assets, FinalReview } from './Assets';
 import { BriefForm } from './BriefForm';
 import { Confirm, Failure } from './controls';
@@ -18,7 +19,6 @@ import {
   stepLabels,
   studioSteps,
 } from './model';
-import { PromptPanel } from './PromptPanel';
 import { PublicationPanel } from './PublicationPanel';
 import { ScriptStage } from './ScriptStage';
 import { productionService } from './service';
@@ -40,22 +40,40 @@ export function ProductionEditor() {
 }
 function Editor({ id }: { id: string }) {
   const vm = useProduction(id);
+  const agent = useAgent();
   const [query, setQuery] = useSearchParams();
-  const [dirty, setDirty] = useState(false);
-  const [destination, setDestination] = useState<StudioStep | null>(null);
+  const [drafts, setDrafts] = useState<Partial<Record<StudioStep, boolean>>>({});
+  const [visited, setVisited] = useState<StudioStep[]>([]);
   const [reload, setReload] = useState(false);
   const [reopen, setReopen] = useState(false);
   const [formKey, setFormKey] = useState(0);
   const nav = useRef<HTMLDivElement>(null);
-  useUnsavedChanges(dirty);
+  const initialStep = useRef<StudioStep | null>(null);
+  const anyDirty = Object.values(drafts).some(Boolean);
+  useUnsavedChanges(anyDirty);
   const production = vm.production;
+  if (production && !initialStep.current) initialStep.current = currentStep(production.stage);
   const loaded = Boolean(production);
   const source = query.get('source');
   const selected = query.get('step') ?? (source !== null ? 'brief' : null);
   const step = studioSteps.includes(selected as StudioStep)
     ? (selected as StudioStep)
-    : currentStep(production?.stage ?? 'draft');
+    : (initialStep.current ?? 'brief');
   const sourceOpen = source !== null && step === 'brief';
+  const dirty = drafts[step] ?? false;
+  if (production && !visited.includes(step)) setVisited([...visited, step]);
+  const markDirty = (stage: StudioStep, value: boolean) =>
+    setDrafts((current) => (current[stage] === value ? current : { ...current, [stage]: value }));
+  useLayoutEffect(() => {
+    agent?.setPage({
+      route: `/admin/productions/${id}`,
+      productionId: id,
+      step,
+      sourceId: sourceOpen ? source : null,
+      version: production?.version ?? null,
+      activity: vm.pending ? 'saving' : vm.conflict ? 'conflict' : dirty ? 'editing' : 'viewing',
+    });
+  }, [agent, id, step, sourceOpen, source, production?.version, vm.pending, vm.conflict, dirty]);
   // biome-ignore lint/correctness/useExhaustiveDependencies: Reset only the island when a stage opens; scrollIntoView also scrolls the shell and hides its header.
   useLayoutEffect(() => {
     nav.current?.closest('.admin-content-island')?.scrollTo({ top: 0, behavior: 'instant' });
@@ -74,13 +92,9 @@ function Editor({ id }: { id: string }) {
   const done = completedSteps(production);
   const visit = (next: StudioStep) => {
     setQuery({ step: next });
-    setDirty(false);
-    setFormKey((key) => key + 1);
   };
   const save = async (fields: Changes) => {
-    if (await vm.mutate(() => productionService.update(id, production.version, fields), '改动已保存')) {
-      setDirty(false);
-    }
+    await vm.mutate(() => productionService.update(id, production.version, fields), '改动已保存');
   };
   const complete = async (phase: Exclude<StudioStep, 'publish'>, changes?: Changes) => {
     const unchanged =
@@ -110,7 +124,7 @@ function Editor({ id }: { id: string }) {
       {!sourceOpen && (
         <PageHeader
           title={production.title}
-          description={`第 ${production.episodeNumber} 期 · ${stageLabels[production.stage]} · ${dirty ? '有未保存改动' : '已保存'}`}
+          description={`第 ${production.episodeNumber} 期 · ${stageLabels[production.stage]} · ${anyDirty ? '有未保存改动' : '已保存'}`}
           actions={
             <Button variant="outline" disabled={vm.pending} onClick={() => setReload(true)}>
               刷新内容
@@ -129,8 +143,7 @@ function Editor({ id }: { id: string }) {
         activationMode="manual"
         onValueChange={(value) => {
           if (value === step || vm.pending) return;
-          if (dirty) setDestination(value as StudioStep);
-          else visit(value as StudioStep);
+          visit(value as StudioStep);
         }}
       >
         {!sourceOpen && (
@@ -152,101 +165,107 @@ function Editor({ id }: { id: string }) {
             ))}
           </TabsList>
         )}
-        <TabsContent value={step} key={`${step}-${formKey}`} className="studio-stage">
-          {step === 'brief' && (
-            <div className="studio-stack">
-              {!sourceOpen && (
-                <>
-                  <p className="studio-location">
-                    当前浏览器 · 你确定讲述意图；本地 Hermes 可以核实与整理素材
-                  </p>
-                  <PromptPanel production={production} kind="brief" dirty={dirty} />
-                </>
-              )}
-              <BriefForm
-                value={production}
-                pending={vm.pending}
-                completed={done.brief}
-                onDirty={() => setDirty(true)}
-                onSave={save}
-                onComplete={(fields) => complete('brief', fields)}
-              />
-            </div>
-          )}
-          {step === 'script' && (
-            <ScriptStage
-              production={production}
-              pending={vm.pending}
-              dirty={dirty}
-              onDirty={() => setDirty(true)}
-              onSave={save}
-              onComplete={(fields) => complete('script', fields)}
-            />
-          )}
-          {step === 'assets' && (
-            <div className="studio-stack">
-              <Assets
+        {visited.map((panel) => (
+          <TabsContent
+            value={panel}
+            key={`${panel}-${formKey}`}
+            className="studio-stage"
+            forceMount
+            hidden={panel !== step}
+          >
+            {panel === 'brief' && (
+              <div className="studio-stack">
+                {!sourceOpen && <p className="studio-location">你确定讲述意图，主控协助核实与整理素材。</p>}
+                <BriefForm
+                  productionId={id}
+                  value={production}
+                  pending={vm.pending}
+                  completed={done.brief}
+                  onDirty={(value) => markDirty('brief', value)}
+                  onSave={save}
+                  onComplete={(fields) => complete('brief', fields)}
+                />
+              </div>
+            )}
+            {panel === 'script' && (
+              <ScriptStage
                 production={production}
                 pending={vm.pending}
-                dirty={dirty}
-                onDirty={setDirty}
+                dirty={drafts.script ?? false}
+                onDirty={(value) => markDirty('script', value)}
                 onSave={save}
-                mutate={vm.mutate}
+                onComplete={(fields) => complete('script', fields)}
               />
-              <div className="studio-stage-footer">
-                <p className="admin-muted">
-                  {dirty
-                    ? '先保存文案，再标记完成。'
-                    : missing.length
-                      ? `仍需完成：${missing.join('、')}`
-                      : '三份成品准备齐全，进入最后检查。'}
+            )}
+            {panel === 'assets' && (
+              <div className="studio-stack">
+                <Assets
+                  production={production}
+                  pending={vm.pending}
+                  dirty={drafts.assets ?? false}
+                  onDirty={(value) => markDirty('assets', value)}
+                  onSave={save}
+                  mutate={vm.mutate}
+                />
+                <div className="studio-stage-footer">
+                  <p className="admin-muted">
+                    {dirty
+                      ? '先保存文案，再标记完成。'
+                      : missing.length
+                        ? `仍需完成：${missing.join('、')}`
+                        : '三份成品准备齐全，进入最后检查。'}
+                  </p>
+                  <Button
+                    loading={vm.pending}
+                    disabled={dirty || missing.length > 0 || !production.approvals.script}
+                    onClick={() => void complete('assets')}
+                  >
+                    {done.assets ? '继续到最终检查' : '标记成品制作完成'}
+                  </Button>
+                </div>
+              </div>
+            )}
+            {panel === 'review' && (
+              <div className="studio-stack">
+                <p className="studio-location">当前浏览器 · 你阅读文案、查看封面，并听完本次生成的节目音频</p>
+                <FinalReview production={production} />
+                <div className="studio-stage-footer">
+                  <p className="admin-muted">
+                    {done.assets
+                      ? '检查这份成品是否就是你想发布的样子。需要修改时直接切换到前面的阶段。'
+                      : '可以提前查看；标记最终检查完成前，请先完成成品制作。'}
+                  </p>
+                  <Button
+                    loading={vm.pending}
+                    disabled={!done.assets}
+                    onClick={() => void complete('review')}
+                  >
+                    {done.review ? '继续到发布' : '标记最终检查完成'}
+                  </Button>
+                </div>
+              </div>
+            )}
+            {panel === 'publish' && (
+              <div className="studio-stack">
+                <p className="studio-location">
+                  微信公众号 / 小宇宙平台后台 · 你手动发布，随后在这里记录实际链接与时间
                 </p>
-                <Button
-                  loading={vm.pending}
-                  disabled={dirty || missing.length > 0 || !production.approvals.script}
-                  onClick={() => void complete('assets')}
-                >
-                  {done.assets ? '继续到最终检查' : '标记成品制作完成'}
+                {!done.review && (
+                  <p className="studio-notice">可以预览发布内容；记录发布前，请先完成最终检查。</p>
+                )}
+                <PublicationPanel production={production} pending={vm.pending} mutate={vm.mutate} />
+              </div>
+            )}
+            {panel === step && !sourceOpen && step in reopenActions && done[step] && (
+              <div className="studio-row">
+                <p className="admin-muted">需要让本地助手重做时，先重新打开这一阶段。已有内容会保留。</p>
+                <Button variant="ghost" disabled={dirty || vm.pending} onClick={() => setReopen(true)}>
+                  重新打开本阶段
                 </Button>
               </div>
-            </div>
-          )}
-          {step === 'review' && (
-            <div className="studio-stack">
-              <p className="studio-location">当前浏览器 · 你阅读文案、查看封面，并听完本次生成的节目音频</p>
-              <FinalReview production={production} />
-              <div className="studio-stage-footer">
-                <p className="admin-muted">
-                  {done.assets
-                    ? '检查这份成品是否就是你想发布的样子。需要修改时直接切换到前面的阶段。'
-                    : '可以提前查看；标记最终检查完成前，请先完成成品制作。'}
-                </p>
-                <Button loading={vm.pending} disabled={!done.assets} onClick={() => void complete('review')}>
-                  {done.review ? '继续到发布' : '标记最终检查完成'}
-                </Button>
-              </div>
-            </div>
-          )}
-          {step === 'publish' && (
-            <div className="studio-stack">
-              <p className="studio-location">
-                微信公众号 / 小宇宙平台后台 · 你手动发布，随后在这里记录实际链接与时间
-              </p>
-              {!done.review && (
-                <p className="studio-notice">可以预览发布内容；记录发布前，请先完成最终检查。</p>
-              )}
-              <PublicationPanel production={production} pending={vm.pending} mutate={vm.mutate} />
-            </div>
-          )}
-          {!sourceOpen && step in reopenActions && done[step] && (
-            <div className="studio-row">
-              <p className="admin-muted">需要让本地助手重做时，先重新打开这一阶段。已有内容会保留。</p>
-              <Button variant="ghost" disabled={dirty || vm.pending} onClick={() => setReopen(true)}>
-                重新打开本阶段
-              </Button>
-            </div>
-          )}
-        </TabsContent>
+            )}
+          </TabsContent>
+        ))}
       </Tabs>
       {!sourceOpen && (
         <details className="studio-records">
@@ -283,27 +302,18 @@ function Editor({ id }: { id: string }) {
           }
         />
       )}
-      {destination && (
-        <Confirm
-          title="切换阶段"
-          description="这一阶段还有未保存的内容。切换会放弃这些输入；取消后可以先保存。"
-          onClose={() => setDestination(null)}
-          onConfirm={async () => {
-            visit(destination);
-            return true;
-          }}
-        />
-      )}
       {reload && (
         <Confirm
           title="确认加载最新版本"
           description={
-            dirty ? '未保存的输入会被替换，请先复制需要保留的内容。' : '读取本地助手或云端刚完成的内容。'
+            anyDirty
+              ? '所有阶段未保存的输入会被替换，请先保存需要保留的内容。'
+              : '读取本地助手或云端刚完成的内容。'
           }
           onClose={() => setReload(false)}
           onConfirm={async () => {
             if (await vm.reload()) {
-              setDirty(false);
+              setDrafts({});
               setFormKey((key) => key + 1);
               return true;
             }

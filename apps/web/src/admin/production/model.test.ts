@@ -1,8 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { fixture, readyFixture } from '../../../tests/worker/production-fixture';
 import {
-  agentConnectionInstructions,
-  agentTask,
   audioBusy,
   completedSteps,
   currentStep,
@@ -159,17 +157,5 @@ describe('single-owner studio stages', () => {
     expect(completedSteps(production).publish).toBe(false);
     production.approvals.final = null;
     expect(completedSteps(production).review).toBe(false);
-  });
-  it('builds a credential-free task for the selected API environment', () => {
-    for (const base of ['https://his.fm', 'https://hisfm.dev.hexly.ai']) {
-      const task = agentTask('整理素材', fixture(), base);
-      expect(task).toContain(`${base}/api/agent/productions/production-test`);
-      expect(task).toContain('HISFM_AGENT_TOKEN');
-      expect(agentConnectionInstructions(base)).toContain(`${base}/api/agent/me`);
-      expect(agentConnectionInstructions(base)).toContain('HISFM_AGENT_TOKEN');
-      expect(task).toContain('最新 version');
-      expect(task).toContain('整理素材');
-      expect(task).not.toContain('hisfm_one_time');
-    }
   });
 });

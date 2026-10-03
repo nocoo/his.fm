@@ -4,11 +4,12 @@ import { PageHeader } from '@nocoo/basalt/components/page-header';
 import { ArrowLeft, ChevronRight, FileText, GitBranch, Link2, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { type ProductionBrief, sourceSchema } from '../../shared/production';
+import { useAgentField } from '../agent/AgentProvider';
 import { MarkdownEditor } from '../markdown/MarkdownEditor';
 import { Choice, Confirm, Failure } from './controls';
 
 type Source = ProductionBrief['sources'][number];
-export type SourceDraft = Source & { key: string };
+export type SourceDraft = Source;
 const sourceTypes = [
   { value: 'url', label: '文章链接', icon: Link2 },
   { value: 'github', label: 'GitHub 仓库', icon: GitBranch },
@@ -22,7 +23,7 @@ export function SourceList({
 }: {
   sources: SourceDraft[];
   disabled: boolean;
-  onOpen: (index: number) => void;
+  onOpen: (id: string) => void;
 }) {
   return (
     <ul className="studio-source-list" aria-label="原始素材">
@@ -30,14 +31,14 @@ export function SourceList({
         const { label, icon: Icon } =
           sourceTypes.find((type) => type.value === source.type) ?? sourceTypes[0];
         return (
-          <li key={source.key}>
+          <li key={source.id}>
             <Button
               type="button"
               variant="ghost"
               className="studio-source-row"
               disabled={disabled}
               aria-label={`打开素材 ${index + 1}：${source.title || '未命名素材'}`}
-              onClick={() => onOpen(index)}
+              onClick={() => onOpen(source.id)}
             >
               <Icon size={18} aria-hidden="true" />
               <span className="studio-source-copy">
@@ -62,6 +63,9 @@ export function SourceEditor({
   onChange,
   onBack,
   onRemove,
+  productionId,
+  base,
+  proposalBlocked = false,
 }: {
   source: SourceDraft | undefined;
   index: number;
@@ -69,8 +73,29 @@ export function SourceEditor({
   onChange: (source: SourceDraft) => void;
   onBack: () => void;
   onRemove: () => void;
+  productionId?: string;
+  base?: Source;
+  proposalBlocked?: boolean;
 }) {
   const [error, setError] = useState('');
+  const title = useAgentField(
+    productionId && source ? { productionId, field: 'source.title', sourceId: source.id } : null,
+    source?.title ?? '',
+    base?.title ?? '',
+    (next) => {
+      if (source) onChange({ ...source, title: next });
+    },
+    pending || proposalBlocked,
+  );
+  const content = useAgentField(
+    productionId && source ? { productionId, field: 'source.content', sourceId: source.id } : null,
+    source?.content ?? '',
+    base?.content ?? '',
+    (next) => {
+      if (source) onChange({ ...source, content: next });
+    },
+    pending || proposalBlocked,
+  );
   const [removing, setRemoving] = useState(false);
   return (
     <div className="admin-page studio-source-editor">
@@ -94,8 +119,7 @@ export function SourceEditor({
           className="studio-stack"
           onSubmit={(event) => {
             event.preventDefault();
-            const { key: _, ...fields } = source;
-            if (!sourceSchema.safeParse(fields).success) {
+            if (!sourceSchema.safeParse(source).success) {
               setError('请填写素材内容，链接须使用 HTTPS；标题最多 200 字，正文最多 80,000 字。');
               return;
             }
@@ -121,7 +145,10 @@ export function SourceEditor({
                     value={source.title}
                     maxLength={200}
                     placeholder="便于识别的标题"
-                    onChange={(event) => onChange({ ...source, title: event.target.value })}
+                    onFocus={title.onFocus}
+                    onChange={(event) => title.onChange(event.target.value)}
+                    onCompositionStart={() => title.onComposition(true)}
+                    onCompositionEnd={() => title.onComposition(false)}
                   />
                 </Field>
               </div>
@@ -137,7 +164,9 @@ export function SourceEditor({
                     value={source.content}
                     maxLength={80000}
                     disabled={pending}
-                    onChange={(content) => onChange({ ...source, content })}
+                    onChange={content.onChange}
+                    onSelection={content.onSelection}
+                    onComposition={content.onComposition}
                   />
                 ) : (
                   <InputArea
@@ -147,7 +176,18 @@ export function SourceEditor({
                     required
                     rows={2}
                     placeholder="https://"
-                    onChange={(event) => onChange({ ...source, content: event.target.value })}
+                    onFocus={content.onFocus}
+                    onChange={(event) => content.onChange(event.target.value)}
+                    onSelect={(event) => {
+                      const input = event.currentTarget;
+                      content.onSelection({
+                        from: input.selectionStart,
+                        to: input.selectionEnd,
+                        text: input.value.slice(input.selectionStart, input.selectionEnd),
+                      });
+                    }}
+                    onCompositionStart={() => content.onComposition(true)}
+                    onCompositionEnd={() => content.onComposition(false)}
                   />
                 )}
               </Field>

@@ -1,9 +1,11 @@
 import { Button, Field, Input, LayerCard } from '@nocoo/basalt';
 import { Plus } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { categories } from '../../shared/episode';
 import type { ProductionBrief } from '../../shared/production';
+import { useAgentField, useDraft } from '../agent/AgentProvider';
+import { DraftConflicts } from '../agent/DraftConflicts';
 import { MarkdownEditor } from '../markdown/MarkdownEditor';
 import { Choice, Failure } from './controls';
 import { readBrief } from './model';
@@ -16,42 +18,73 @@ export function BriefForm({
   onDirty,
   onComplete,
   completed = false,
+  productionId,
 }: {
   value: ProductionBrief;
   pending: boolean;
   onSave: (brief: ProductionBrief) => Promise<void>;
   onComplete?: (brief: ProductionBrief) => Promise<void>;
   completed?: boolean;
-  onDirty: () => void;
+  onDirty: (dirty: boolean) => void;
+  productionId?: string;
 }) {
   const [query, setQuery] = useSearchParams();
   const selected = query.get('source');
-  const sourceIndex = selected === null ? -1 : Number(selected) - 1;
-  const [sources, setSources] = useState<SourceDraft[]>(() =>
-    value.sources.map((source) => ({ ...source, key: crypto.randomUUID() })),
+  const draft = useDraft({
+    title: value.title,
+    intent: value.intent,
+    episodeNumber: value.episodeNumber,
+    slug: value.slug,
+    category: value.category,
+    targetDurationSeconds: value.targetDurationSeconds,
+    tags: value.tags.join('，'),
+    sources: value.sources,
+  });
+  const { sources, category } = draft.value;
+  const sourceIndex = sources.findIndex((source) => source.id === selected);
+  const setSources = (sources: SourceDraft[]) => draft.change('sources', sources);
+  const title = useAgentField(
+    productionId ? { productionId, field: 'title' } : null,
+    draft.value.title,
+    value.title,
+    (next) => {
+      draft.change('title', next);
+      onDirty(true);
+    },
+    pending || draft.conflicts.length > 0,
   );
-  const [category, setCategory] = useState(value.category);
+  const intent = useAgentField(
+    productionId ? { productionId, field: 'intent' } : null,
+    draft.value.intent,
+    value.intent,
+    (next) => {
+      draft.change('intent', next);
+      onDirty(true);
+    },
+    pending || draft.conflicts.length > 0,
+  );
+  useEffect(() => {
+    onDirty(draft.dirty);
+  }, [draft.dirty, onDirty]);
   const [error, setError] = useState('');
-  const openSource = (index: number | null) => {
+  const openSource = (id: string | null) => {
     const next = new URLSearchParams(query);
-    if (index === null) next.delete('source');
-    else next.set('source', String(index + 1));
+    if (id === null) next.delete('source');
+    else next.set('source', id);
     setQuery(next);
   };
   return (
     <>
+      <DraftConflicts fields={draft.conflicts} resolve={draft.resolve} />
       <form
         hidden={selected !== null}
         className="studio-stack studio-brief-overview"
-        onChange={onDirty}
+        onChange={() => onDirty(true)}
         onSubmit={async (event) => {
           event.preventDefault();
-          const result = readBrief(
-            new FormData(event.currentTarget),
-            sources.map(({ key: _, ...source }) => source),
-          );
+          const result = readBrief(new FormData(event.currentTarget), sources);
           setError(result.error);
-          if (result.data) {
+          if (result.data && !draft.conflicts.length) {
             const complete =
               (event.nativeEvent as SubmitEvent).submitter?.getAttribute('value') === 'complete';
             if (complete && onComplete) await onComplete(result.data);
@@ -70,7 +103,19 @@ export function BriefForm({
                 <Input
                   id="production-title"
                   name="title"
-                  defaultValue={value.title}
+                  value={draft.value.title}
+                  onFocus={title.onFocus}
+                  onChange={(event) => title.onChange(event.target.value)}
+                  onSelect={(event) => {
+                    const input = event.currentTarget;
+                    title.onSelection({
+                      from: input.selectionStart ?? 0,
+                      to: input.selectionEnd ?? 0,
+                      text: input.value.slice(input.selectionStart ?? 0, input.selectionEnd ?? 0),
+                    });
+                  }}
+                  onCompositionStart={() => title.onComposition(true)}
+                  onCompositionEnd={() => title.onComposition(false)}
                   required
                   maxLength={160}
                   placeholder="一个具体、值得讲清楚的问题"
@@ -90,8 +135,10 @@ export function BriefForm({
                   label="创作意图"
                   id="production-intent"
                   name="intent"
-                  defaultValue={value.intent}
-                  onChange={onDirty}
+                  value={draft.value.intent}
+                  onChange={intent.onChange}
+                  onSelection={intent.onSelection}
+                  onComposition={intent.onComposition}
                   disabled={pending}
                   maxLength={12000}
                   placeholder="为什么想讲这个话题？听众听完应该带走什么？"
@@ -105,7 +152,8 @@ export function BriefForm({
                     type="number"
                     min={1}
                     max={99999}
-                    defaultValue={value.episodeNumber}
+                    value={draft.value.episodeNumber}
+                    onChange={(event) => draft.change('episodeNumber', Number(event.target.value))}
                     required
                   />
                 </Field>
@@ -113,7 +161,8 @@ export function BriefForm({
                   <Input
                     id="production-slug"
                     name="slug"
-                    defaultValue={value.slug}
+                    value={draft.value.slug}
+                    onChange={(event) => draft.change('slug', event.target.value)}
                     required
                     pattern="[a-z0-9]+(-[a-z0-9]+)*"
                     maxLength={120}
@@ -129,8 +178,8 @@ export function BriefForm({
                     value={category}
                     disabled={pending}
                     onChange={(next) => {
-                      setCategory(next as ProductionBrief['category']);
-                      onDirty();
+                      draft.change('category', next as ProductionBrief['category']);
+                      onDirty(true);
                     }}
                     options={categories.map(({ id, label }) => ({ value: id, label }))}
                   />
@@ -143,13 +192,21 @@ export function BriefForm({
                     min={1}
                     max={30}
                     step={1}
-                    defaultValue={value.targetDurationSeconds / 60}
+                    value={draft.value.targetDurationSeconds / 60}
+                    onChange={(event) =>
+                      draft.change('targetDurationSeconds', Number(event.target.value) * 60)
+                    }
                     required
                   />
                 </Field>
               </div>
               <Field label="标签" htmlFor="production-tags" hint="使用逗号分隔，最多 10 个。">
-                <Input id="production-tags" name="tags" defaultValue={value.tags.join('，')} />
+                <Input
+                  id="production-tags"
+                  name="tags"
+                  value={draft.value.tags}
+                  onChange={(event) => draft.change('tags', event.target.value)}
+                />
               </Field>
             </LayerCard.Body>
           </LayerCard>
@@ -162,18 +219,10 @@ export function BriefForm({
                 variant="outline"
                 disabled={pending || sources.length >= 30}
                 onClick={() => {
-                  setSources([
-                    ...sources,
-                    {
-                      id: crypto.randomUUID(),
-                      key: crypto.randomUUID(),
-                      type: 'url',
-                      title: '',
-                      content: '',
-                    },
-                  ]);
-                  onDirty();
-                  openSource(sources.length);
+                  const id = crypto.randomUUID();
+                  setSources([...sources, { id, type: 'url', title: '', content: '' }]);
+                  onDirty(true);
+                  openSource(id);
                 }}
               >
                 <Plus size={14} />
@@ -190,11 +239,21 @@ export function BriefForm({
           <div className="studio-stage-footer">
             <p className="admin-muted">明确素材与讲述意图，确认后进入逐字稿。随时可以回来调整。</p>
             <div className="studio-actions">
-              <Button type="submit" variant={onComplete ? 'outline' : 'default'} loading={pending}>
+              <Button
+                type="submit"
+                variant={onComplete ? 'outline' : 'default'}
+                loading={pending}
+                disabled={draft.conflicts.length > 0}
+              >
                 保存选题
               </Button>
               {onComplete && (
-                <Button type="submit" value="complete" loading={pending}>
+                <Button
+                  type="submit"
+                  value="complete"
+                  loading={pending}
+                  disabled={draft.conflicts.length > 0}
+                >
                   {completed ? '确认选题并继续' : '标记选题完成'}
                 </Button>
               )}
@@ -204,18 +263,21 @@ export function BriefForm({
       </form>
       {selected !== null && (
         <SourceEditor
-          key={sources[sourceIndex]?.key ?? selected}
+          key={selected}
+          productionId={productionId}
+          proposalBlocked={draft.conflicts.length > 0}
+          base={value.sources.find((source) => source.id === selected)}
           source={sources[sourceIndex]}
           index={sourceIndex}
           pending={pending}
           onBack={() => openSource(null)}
           onChange={(source) => {
             setSources(sources.map((item, index) => (index === sourceIndex ? source : item)));
-            onDirty();
+            onDirty(true);
           }}
           onRemove={() => {
             setSources(sources.filter((_, index) => index !== sourceIndex));
-            onDirty();
+            onDirty(true);
             openSource(null);
           }}
         />

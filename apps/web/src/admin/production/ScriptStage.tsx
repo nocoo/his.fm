@@ -1,8 +1,9 @@
 import { Button, Field } from '@nocoo/basalt';
-import { useState } from 'react';
+import { useEffect } from 'react';
 import type { Production } from '../../shared/production';
+import { useAgentField, useDraft } from '../agent/AgentProvider';
+import { DraftConflicts } from '../agent/DraftConflicts';
 import { MarkdownEditor } from '../markdown/MarkdownEditor';
-import { PromptPanel } from './PromptPanel';
 
 export function ScriptStage({
   production,
@@ -15,17 +16,31 @@ export function ScriptStage({
   production: Production;
   pending: boolean;
   dirty: boolean;
-  onDirty: () => void;
+  onDirty: (dirty: boolean) => void;
   onSave: (fields: { transcript: string }) => Promise<void>;
   onComplete: (fields: { transcript: string }) => Promise<void>;
 }) {
-  const [text, setText] = useState(production.transcript);
+  const draft = useDraft({ transcript: production.transcript });
+  const text = draft.value.transcript;
+  const field = useAgentField(
+    { productionId: production.id, field: 'transcript' },
+    text,
+    production.transcript,
+    (next) => {
+      draft.change('transcript', next);
+      onDirty(true);
+    },
+    pending || draft.conflicts.length > 0,
+  );
+  useEffect(() => {
+    onDirty(draft.dirty);
+  }, [draft.dirty, onDirty]);
   return (
     <div className="studio-stack">
       <p className="studio-location">
         本地计算机生成 · 在当前浏览器阅读、修改与确认 · 确认后云端才会生成声音
       </p>
-      <PromptPanel production={production} kind="script" dirty={dirty} />
+      <DraftConflicts fields={draft.conflicts} resolve={draft.resolve} />
       <Field
         label={`逐字稿 · 第 ${production.scriptVersion} 版`}
         htmlFor="production-transcript"
@@ -37,10 +52,9 @@ export function ScriptStage({
           value={text}
           defaultMode={production.transcript ? 'preview' : 'edit'}
           previewClassName="studio-transcript"
-          onChange={(next) => {
-            setText(next);
-            onDirty();
-          }}
+          onChange={field.onChange}
+          onSelection={field.onSelection}
+          onComposition={field.onComposition}
           maxLength={50000}
           disabled={pending}
         />
@@ -54,14 +68,14 @@ export function ScriptStage({
         <div className="studio-actions">
           <Button
             variant="outline"
-            disabled={pending || !dirty}
+            disabled={pending || !dirty || draft.conflicts.length > 0}
             onClick={() => void onSave({ transcript: text })}
           >
             保存逐字稿
           </Button>
           <Button
             loading={pending}
-            disabled={!text.trim() || !production.approvals.brief}
+            disabled={!text.trim() || !production.approvals.brief || draft.conflicts.length > 0}
             onClick={() => void onComplete({ transcript: text })}
           >
             {production.approvals.script && !dirty ? '继续到成品制作' : '标记逐字稿完成'}

@@ -317,10 +317,7 @@ test('five stages preserve failed edits and advance with owner completion', asyn
     'data-complete',
     'true',
   );
-  await page.getByRole('button', { name: '复制逐字稿任务' }).click();
-  await expect
-    .poll(() => page.evaluate(() => navigator.clipboard.readText()))
-    .toContain('/api/agent/productions/new-production');
+  await expect(page.getByRole('complementary', { name: '主控对话' })).toBeVisible();
   await page
     .getByRole('textbox', { name: '完整逐字稿', exact: true })
     .fill('这份逐字稿在版本冲突时应该保留。');
@@ -398,7 +395,7 @@ test('five stages preserve failed edits and advance with owner completion', asyn
   );
   expect(state.production.stage).toBe('scripting');
   expect(state.production.assets.audio).not.toBeNull();
-  await expect(page.locator('.studio-transcript')).toContainText('今晚先吃饭');
+  await expect(page.locator('.studio-transcript:visible')).toContainText('今晚先吃饭');
   expect(errors).toEqual([]);
 });
 
@@ -416,12 +413,6 @@ test('audio settings preserve failed uploads and assistant tokens are revocable 
     'href',
     `${origin}/api/agent/openapi.json`,
   );
-  await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
-  await page.getByRole('button', { name: '复制 Hermes 接入指令', exact: true }).click();
-  const instructions = await page.evaluate(() => navigator.clipboard.readText());
-  expect(instructions).toContain(`${origin}/api/agent/me`);
-  expect(instructions).toContain('HISFM_AGENT_TOKEN');
-  expect(instructions).not.toContain('https://his.fm');
   await expect(page.getByText('Gemini 未配置', { exact: true })).toBeVisible();
   await page.getByLabel('讲述风格').fill('舒缓、温暖，留出自然停顿');
   await page.getByRole('button', { name: '保存声音设置' }).click();
@@ -461,7 +452,8 @@ test('catalog snapshots expose production links and never expose editing or dele
   await page.goto('/admin/episodes/production-test');
   await expect(page.getByRole('link', { name: '打开制作记录' })).toBeVisible();
   await expect(page.getByRole('button', { name: '保存节目' })).toHaveCount(0);
-  await expect(page.getByRole('textbox')).toHaveCount(0);
+  await expect(page.getByRole('textbox')).toHaveCount(1);
+  await expect(page.getByRole('textbox', { name: '给主控的消息' })).toBeVisible();
 });
 
 test('stage changes keep the shell fixed and reset only the content island', async ({ page }) => {
@@ -522,13 +514,8 @@ test('source subpages preserve brief drafts and keep long materials out of the o
     }),
   );
   await page.goto('/admin/productions/production-test?step=brief');
-  const summary = page.locator('.studio-prompt summary');
-  await expect(summary).toBeVisible();
-  expect((await summary.boundingBox())?.height).toBeLessThan(30);
-  await summary.click();
-  await expect(page.locator('.studio-prompt-text')).toBeVisible();
+  await expect(page.getByRole('complementary', { name: '主控对话' })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-  await summary.click();
   const list = page.getByRole('list', { name: '原始素材', exact: true });
   await expect(list.getByRole('listitem')).toHaveCount(3);
   expect((await list.boundingBox())?.height).toBeLessThan(240);
@@ -536,7 +523,7 @@ test('source subpages preserve brief drafts and keep long materials out of the o
   await page.getByLabel('节目标题', { exact: true }).fill('保留选题的未保存标题');
   await page.getByLabel('创作意图', { exact: true }).fill('保留正在思考的切入点');
   await list.getByRole('button', { name: '打开素材 1：生活记录', exact: true }).click();
-  await expect(page).toHaveURL(/source=1/);
+  await expect(page).toHaveURL(/source=source-1/);
   await expect(page.getByLabel('节目标题', { exact: true })).toBeHidden();
   await expect(page.getByRole('tablist', { name: '节目制作阶段' })).toHaveCount(0);
   await expect(page.getByRole('link', { name: '选题', exact: true })).toBeVisible();
@@ -587,10 +574,10 @@ test('source subpages preserve brief drafts and keep long materials out of the o
   expect(state.production.title).toBe('保留选题的未保存标题');
   expect(state.production.intent).toBe('保留正在思考的切入点');
   expect(state.production.sources[0].content).toBe(edited);
-  await page.goto('/admin/productions/production-test?step=brief&source=1');
+  await page.goto('/admin/productions/production-test?step=brief&source=source-1');
   await expectDraft();
   expect(await page.locator('.admin-shell').evaluate((el) => el.scrollTop)).toBe(0);
-  await page.goto('/admin/productions/production-test?step=brief&source=999');
+  await page.goto('/admin/productions/production-test?step=brief&source=missing-source');
   await expect(page.getByText('这份素材尚未保存或已被移除，请返回选题查看素材列表。')).toBeVisible();
   await page.getByRole('button', { name: '返回选题', exact: true }).click();
   await expect(list.getByRole('listitem')).toHaveCount(2);
@@ -696,7 +683,9 @@ test('real local API persists a production through human review and cleans it up
     );
     await page.getByRole('tab', { name: '逐字稿', exact: true }).click();
     await page.reload();
-    await expect(page.locator('.studio-transcript')).toHaveText('你好，这是本地工作室的真实接口验收稿。');
+    await expect(page.locator('.studio-transcript:visible')).toHaveText(
+      '你好，这是本地工作室的真实接口验收稿。',
+    );
     await expect(page.getByRole('button', { name: '标记逐字稿完成', exact: true })).toBeDisabled();
     await mkdir('.local', { recursive: true });
     await page.getByRole('heading', { name: '真实接口制作流程验收', exact: true }).scrollIntoViewIfNeeded();
@@ -760,7 +749,7 @@ test('environment switching confirms unsaved edits, recovers login errors and re
   });
   await page.goto('/admin/productions/production-test');
   await page.getByLabel('节目标题', { exact: true }).fill('尚未保存的本地选题');
-  const production = page.getByRole('radio', { name: '生产', exact: true });
+  const production = page.getByRole('radio', { name: 'Prod', exact: true });
   await production.click();
   const dialog = page.getByRole('alertdialog');
   await expect(dialog).toContainText('当前未保存的内容会丢弃');
@@ -780,7 +769,7 @@ test('environment switching confirms unsaved edits, recovers login errors and re
   expect(await page.evaluate(() => localStorage.getItem('hisfm-admin-environment'))).toBe('production');
   expect(connectCalls).toBe(2);
   expect(nativeDialogs).toBe(0);
-  await expect(page.getByRole('radio', { name: '生产', exact: true })).toHaveAttribute(
+  await expect(page.getByRole('radio', { name: 'Prod', exact: true })).toHaveAttribute(
     'aria-checked',
     'true',
   );
@@ -789,23 +778,23 @@ test('environment switching confirms unsaved edits, recovers login errors and re
   authorized = false;
   await page.getByRole('button', { name: '刷新制作列表' }).click();
   await expect(page.getByText('生产认证已失效', { exact: true })).toBeVisible();
-  await expect(page.getByRole('radio', { name: '本地', exact: true })).toBeVisible();
-  await page.getByRole('radio', { name: '本地', exact: true }).click();
+  await expect(page.getByRole('radio', { name: 'Local', exact: true })).toBeVisible();
+  await page.getByRole('radio', { name: 'Local', exact: true }).click();
   await expect(dialog).toHaveCount(0);
   await expect(page.getByRole('link', { name: '下一条提示之前，先吃饭', exact: true })).toBeVisible();
   expect(await page.evaluate(() => localStorage.getItem('hisfm-admin-environment'))).toBe('local');
   expect(connectCalls).toBe(2);
-  await expect(page.getByRole('radio', { name: '本地', exact: true })).toHaveAttribute(
+  await expect(page.getByRole('radio', { name: 'Local', exact: true })).toHaveAttribute(
     'aria-checked',
     'true',
   );
   failLogin = true;
-  await page.getByRole('radio', { name: '生产', exact: true }).click();
+  await page.getByRole('radio', { name: 'Prod', exact: true }).click();
   await expect(page.getByText('生产登录未完成，请重试', { exact: true })).toBeVisible();
   await expect(dialog).toHaveCount(0);
   expect(await page.evaluate(() => localStorage.getItem('hisfm-admin-environment'))).toBe('local');
   failLogin = false;
-  await page.getByRole('radio', { name: '生产', exact: true }).click();
+  await page.getByRole('radio', { name: 'Prod', exact: true }).click();
   await expect(page.getByRole('link', { name: '生产环境参考节目', exact: true })).toBeVisible();
   await expect(dialog).toHaveCount(0);
   expect(connectCalls).toBe(4);
@@ -838,7 +827,9 @@ test('imported draft materials are readable before approval and platform timesta
   await page.getByRole('link', { name: '下一条提示之前，先吃饭', exact: true }).click();
   await expect(page.getByText('已导入的真实逐字稿，可在选题阶段阅读。', { exact: true })).toHaveCount(0);
   await page.getByRole('tab', { name: '逐字稿', exact: true }).click();
-  await expect(page.locator('.studio-transcript')).toHaveText('已导入的真实逐字稿，可在选题阶段阅读。');
+  await expect(page.locator('.studio-transcript:visible')).toHaveText(
+    '已导入的真实逐字稿，可在选题阶段阅读。',
+  );
   await expect(page.getByRole('textbox', { name: '完整逐字稿', exact: true })).toBeHidden();
   await page.getByRole('tab', { name: '成品制作', exact: true }).click();
   await page.getByRole('tab', { name: '发布文案', exact: true }).click();
@@ -856,7 +847,7 @@ test('phone stages preserve drafts on canceled navigation and grow long text wit
   const state = await studio(page, readyFixture({ transcript: text }));
   await page.goto('/admin/productions/production-test?step=script');
   await expect(page.locator('.studio-transcript h1')).toHaveText('今晚先吃饭');
-  const reader = await page.locator('.studio-transcript').evaluate(async (element) => {
+  const reader = await page.locator('.studio-transcript:visible').evaluate(async (element) => {
     await document.fonts.ready;
     return {
       font: getComputedStyle(element).fontFamily,
@@ -879,14 +870,15 @@ test('phone stages preserve drafts on canceled navigation and grow long text wit
   expect(size.scroll).toBeLessThanOrEqual(size.height + 1);
   await page.getByRole('tab', { name: '成品制作，已完成', exact: true }).click();
   const dialog = page.getByRole('alertdialog');
-  await expect(dialog).toContainText('未保存');
-  await dialog.getByRole('button', { name: '取消', exact: true }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(input).toBeHidden();
+  await page.getByRole('tab', { name: '逐字稿，已完成', exact: true }).click();
   await page.getByRole('radio', { name: '预览', exact: true }).click();
-  await expect(page.locator('.studio-transcript')).toContainText('留下这个未保存的结尾。');
+  await expect(page.locator('.studio-transcript:visible')).toContainText('留下这个未保存的结尾。');
   expect(state.actions).toHaveLength(0);
   await page.getByRole('tab', { name: '成品制作，已完成', exact: true }).click();
-  await dialog.getByRole('button', { name: '切换阶段', exact: true }).click();
-  await expect(input).toHaveCount(0);
+  await expect(dialog).toHaveCount(0);
+  await expect(input).toBeHidden();
   await page.getByRole('tab', { name: '发布文案', exact: true }).click();
   await page.getByRole('radio', { name: '编辑', exact: true }).click();
   await page.getByLabel('节目摘要', { exact: true }).fill('跨素材切换仍然保留的摘要');
@@ -899,10 +891,10 @@ test('phone stages preserve drafts on canceled navigation and grow long text wit
     'false',
   );
   await page.getByRole('tab', { name: '逐字稿，已完成', exact: true }).click();
-  await expect(page.locator('.studio-transcript')).not.toContainText('留下这个未保存的结尾');
+  await expect(page.locator('.studio-transcript:visible')).toContainText('留下这个未保存的结尾');
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   const nested = await page
-    .locator('.studio-stage')
+    .locator('.studio-stage:visible')
     .evaluate(
       (element) =>
         [...element.querySelectorAll('*')].filter(

@@ -50,6 +50,8 @@ export function MarkdownEditor({
   value,
   defaultValue = '',
   onChange,
+  onSelection,
+  onComposition,
   name,
   disabled = false,
   maxLength,
@@ -64,6 +66,8 @@ export function MarkdownEditor({
   value?: string;
   defaultValue?: string;
   onChange: (value: string) => void;
+  onSelection?: (selection: { from: number; to: number; text: string }, composing: boolean) => void;
+  onComposition?: (composing: boolean) => void;
   name?: string;
   disabled?: boolean;
   maxLength: number;
@@ -132,14 +136,27 @@ export function MarkdownEditor({
           },
         },
       ]),
-      EditorView.scrollHandler.of((view, range) => {
-        const island = view.dom.closest('.admin-content-island');
-        const cursor = view.coordsAtPos(range.head);
-        if (island && cursor) {
-          const bounds = island.getBoundingClientRect();
-          if (cursor.top < bounds.top + 100) island.scrollTop += cursor.top - bounds.top - 100;
-          else if (cursor.bottom > bounds.bottom - 24) island.scrollTop += cursor.bottom - bounds.bottom + 24;
-        }
+      EditorView.scrollHandler.of((view) => {
+        view.requestMeasure({
+          key: view,
+          read: (editor) => {
+            if (!editor.dom.getClientRects().length) return null;
+            const island = editor.dom.closest('.admin-content-island');
+            const cursor = editor.coordsAtPos(editor.state.selection.main.head);
+            if (!island || !cursor) return null;
+            const bounds = island.getBoundingClientRect();
+            const delta =
+              cursor.top < bounds.top + 100
+                ? cursor.top - bounds.top - 100
+                : cursor.bottom > bounds.bottom - 24
+                  ? cursor.bottom - bounds.bottom + 24
+                  : 0;
+            return { island, top: island.scrollTop + delta };
+          },
+          write: (measurement) => {
+            if (measurement) measurement.island.scrollTop = measurement.top;
+          },
+        });
         return true;
       }),
     ],
@@ -222,7 +239,12 @@ export function MarkdownEditor({
         )}
       </div>
       <div className="markdown-panes">
-        <div className="markdown-source" hidden={display === 'preview'}>
+        <div
+          className="markdown-source"
+          hidden={display === 'preview'}
+          onCompositionStart={() => onComposition?.(true)}
+          onCompositionEnd={() => onComposition?.(false)}
+        >
           <CodeMirror
             ref={editor}
             value={content}
@@ -245,7 +267,11 @@ export function MarkdownEditor({
               setDraft(next);
               onChange(next);
             }}
-            onUpdate={({ state }) => {
+            onUpdate={({ state, view, selectionSet, focusChanged, docChanged }) => {
+              if (view.hasFocus && (selectionSet || focusChanged || docChanged)) {
+                const { from, to } = state.selection.main;
+                onSelection?.({ from, to, text: state.doc.sliceString(from, to) }, view.composing);
+              }
               const next = { undo: undoDepth(state) > 0, redo: redoDepth(state) > 0 };
               setHistory((current) =>
                 current.undo === next.undo && current.redo === next.redo ? current : next,

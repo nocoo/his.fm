@@ -79,7 +79,7 @@ export default function ChannelPage() {
                     : `最近保存于 ${dateLabel(vm.channel.updatedAt)}`)}
               </p>
               <p className="admin-muted">
-                Hermes 每次创作先读取全局提示词。改动作用于后续任务，不会自动改写已有节目或撤销确认。
+                主控每次创作先读取全局提示词。改动作用于后续任务，不会自动改写已有节目或撤销确认。
               </p>
             </div>
             <div className="studio-actions">

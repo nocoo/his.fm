@@ -38,7 +38,7 @@ export function NewProduction() {
       <BriefForm
         value={emptyBrief}
         pending={pending}
-        onDirty={() => setDirty(true)}
+        onDirty={setDirty}
         onSave={async (brief) => {
           if (pending) return;
           setPending(true);

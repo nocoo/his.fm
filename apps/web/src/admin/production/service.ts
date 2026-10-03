@@ -6,7 +6,6 @@ import type {
   Production,
   ProductionAction,
   ProductionBrief,
-  ProductionPrompts,
   ProductionSettings,
   Publication,
 } from '../../shared/production';
@@ -31,7 +30,6 @@ export const productionService = {
     request<Result>(`${path(id)}/actions`, json('POST', action)),
   remove: (id: string, version: number) =>
     request<void>(`${path(id)}?version=${version}`, { method: 'DELETE' }),
-  prompts: (id: string) => request<ProductionPrompts>(`${path(id)}/prompts`),
   cover: (id: string, version: number, file: File) =>
     request<Result>(`${path(id)}/assets/cover?version=${version}`, {
       method: 'PUT',

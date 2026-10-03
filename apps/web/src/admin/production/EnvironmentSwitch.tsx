@@ -30,8 +30,8 @@ export function EnvironmentSwitch() {
         value={environment}
         disabled={pending}
         options={[
-          { value: 'local', label: '本地' },
-          { value: 'production', label: '生产' },
+          { value: 'local', label: 'Local' },
+          { value: 'production', label: 'Prod' },
         ]}
         onValueChange={(value) => {
           if (value === environment) return;
