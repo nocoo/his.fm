@@ -51,6 +51,8 @@ Husky runs coverage, strict lint and typecheck against the staged Git snapshot. 
 
 See [production workflow](docs/production.md), [Hermes API](docs/agent-api.md), [CI/CD](docs/ci-cd.md), [architecture](docs/architecture.md), [operations](docs/operations.md) and [artwork provenance](artwork/README.md). Secrets, generated audio/video and local databases remain ignored.
 
+Design review: [native Pi Durable agent workflow](docs/01-agent-workflow.md), [interactive Chinese workspace and architecture review](docs/01-agent-workflow/index.html), and [documentation index](docs/README.md). This proposal is not implemented; the walkthrough uses local simulation only.
+
 ## Repository layout
 
 - `apps/web`: React website, Cloudflare Worker, migrations and tests (`@his-fm/web`).
