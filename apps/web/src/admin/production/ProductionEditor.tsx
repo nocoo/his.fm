@@ -253,7 +253,12 @@ function Editor({ id }: { id: string }) {
                 {!done.review && (
                   <p className="studio-notice">可以预览发布内容；记录发布前，请先完成最终检查。</p>
                 )}
-                <PublicationPanel production={production} pending={vm.pending} mutate={vm.mutate} />
+                <PublicationPanel
+                  production={production}
+                  pending={vm.pending}
+                  mutate={vm.mutate}
+                  onDirty={(value) => markDirty('publish', value)}
+                />
               </div>
             )}
             {panel === step && !sourceOpen && step in reopenActions && done[step] && (

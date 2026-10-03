@@ -4,7 +4,7 @@ import { InputArea } from '@nocoo/basalt/components/input-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@nocoo/basalt/components/tabs';
 import { useEffect, useState } from 'react';
 import type { Production } from '../../shared/production';
-import { useAgentField, useDraft } from '../agent/AgentProvider';
+import { useAgent, useAgentField, useDraft } from '../agent/AgentProvider';
 import { DraftConflicts } from '../agent/DraftConflicts';
 import { MarkdownEditor } from '../markdown/MarkdownEditor';
 import { AudioGeneration } from './AudioGeneration';
@@ -29,6 +29,7 @@ export function Assets({
   mutate: (operation: () => Promise<{ production: Production }>, message: string) => Promise<boolean>;
 }) {
   const [cover, setCover] = useState<File | null>(null);
+  const agent = useAgent();
   const [uploadError, setUploadError] = useState('');
   const draft = useDraft({ summary: production.summary, description: production.description });
   const { summary, description } = draft.value;
@@ -52,7 +53,7 @@ export function Assets({
   }, [copyDirty, cover, onDirty]);
   const busy = audioBusy(production);
   return (
-    <Tabs defaultValue="cover" className="studio-stack">
+    <Tabs defaultValue="cover" className="studio-stack" onValueChange={() => agent?.clearField()}>
       <p className="studio-location">
         三个任务可并行：封面和文案在本地计算机完成；正文音频由 Cloudflare 云端生成
       </p>

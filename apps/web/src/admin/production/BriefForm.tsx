@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { categories } from '../../shared/episode';
 import type { ProductionBrief } from '../../shared/production';
-import { useAgentField, useDraft } from '../agent/AgentProvider';
+import { useAgent, useAgentField, useDraft } from '../agent/AgentProvider';
 import { DraftConflicts } from '../agent/DraftConflicts';
 import { MarkdownEditor } from '../markdown/MarkdownEditor';
 import { Choice, Failure } from './controls';
@@ -29,6 +29,7 @@ export function BriefForm({
   productionId?: string;
 }) {
   const [query, setQuery] = useSearchParams();
+  const agent = useAgent();
   const selected = query.get('source');
   const draft = useDraft({
     title: value.title,
@@ -149,6 +150,7 @@ export function BriefForm({
                   <Input
                     id="production-number"
                     name="episodeNumber"
+                    onFocus={() => agent?.clearField()}
                     type="number"
                     min={1}
                     max={99999}
@@ -161,6 +163,7 @@ export function BriefForm({
                   <Input
                     id="production-slug"
                     name="slug"
+                    onFocus={() => agent?.clearField()}
                     value={draft.value.slug}
                     onChange={(event) => draft.change('slug', event.target.value)}
                     required
@@ -174,6 +177,7 @@ export function BriefForm({
                 <Field label="分类">
                   <Choice
                     name="category"
+                    onFocus={() => agent?.clearField()}
                     label="分类"
                     value={category}
                     disabled={pending}
@@ -188,6 +192,7 @@ export function BriefForm({
                   <Input
                     id="production-duration"
                     name="durationMinutes"
+                    onFocus={() => agent?.clearField()}
                     type="number"
                     min={1}
                     max={30}
@@ -204,6 +209,7 @@ export function BriefForm({
                 <Input
                   id="production-tags"
                   name="tags"
+                  onFocus={() => agent?.clearField()}
                   value={draft.value.tags}
                   onChange={(event) => draft.change('tags', event.target.value)}
                 />

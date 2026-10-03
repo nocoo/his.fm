@@ -1,13 +1,16 @@
 import type { BrowserFrame, DraftProposal, FieldRef, PageContext, ServerFrame } from '@his-fm/contracts';
 import { expect, type Page, test, type WebSocketRoute } from '@playwright/test';
-import { fixture } from '../worker/production-fixture';
+import { fixture, readyFixture } from '../worker/production-fixture';
 
-async function studio(page: Page) {
-  let production = fixture({
+async function studio(
+  page: Page,
+  initial = fixture({
     transcript: 'A saved manuscript.',
     summary: 'Saved summary',
     description: 'Saved description',
-  });
+  }),
+) {
+  let production = initial;
   const writes: unknown[] = [];
   const frames: BrowserFrame[] = [];
   const sockets: WebSocketRoute[] = [];
@@ -118,7 +121,7 @@ test('proposals mutate only the exact draft, retain undo, reject stale revisions
 }) => {
   const state = await studio(page);
   await page.goto('/admin/productions/production-test?step=script');
-  await page.getByRole('radio', { name: '编辑', exact: true }).click();
+  await page.locator('.studio-stage:visible').getByRole('radio', { name: '编辑', exact: true }).click();
   const editor = page.getByRole('textbox', { name: '完整逐字稿', exact: true });
   await editor.fill('My unsaved manuscript.');
   await expect.poll(() => state.context()?.draft?.value).toBe('My unsaved manuscript.');
@@ -202,10 +205,17 @@ test('stage navigation retains separate drafts, undo and one active context with
   page.on('pageerror', (error) => errors.push(error.message));
   await page.goto('/admin/productions/production-test?step=brief');
   await page.getByLabel('节目标题', { exact: true }).fill('An unsaved brief title');
-  await page.getByRole('tab', { name: '逐字稿', exact: true }).click();
+  const scriptTab = page.getByRole('tab', { name: '逐字稿', exact: true });
+  const scriptPanel = page.getByRole('tabpanel', { name: '逐字稿', exact: true });
+  await scriptTab.click();
+  await expect(page).toHaveURL(/step=script$/);
+  await expect(scriptTab).toHaveAttribute('aria-selected', 'true');
+  await expect(scriptPanel).toBeVisible();
+  await expect(scriptPanel).toHaveAttribute('data-state', 'active');
+  await expect.poll(() => state.context()?.step).toBe('script');
   await expect(page.getByRole('alertdialog')).toHaveCount(0);
-  await page.getByRole('radio', { name: '编辑', exact: true }).click();
-  const manuscript = page.getByRole('textbox', { name: '完整逐字稿', exact: true });
+  await scriptPanel.getByRole('radio', { name: '编辑', exact: true }).click();
+  const manuscript = scriptPanel.getByRole('textbox', { name: '完整逐字稿', exact: true });
   await manuscript.fill('Unsaved script from the first visit.');
   await expect.poll(() => state.context()?.draft?.value).toBe('Unsaved script from the first visit.');
   const oldContext = structuredClone(state.context() as PageContext);
@@ -226,7 +236,7 @@ test('stage navigation retains separate drafts, undo and one active context with
   await page.getByRole('tab', { name: '逐字稿', exact: true }).click();
   await expect(manuscript).toHaveText('Unsaved script from the first visit.');
   await expect(page.getByRole('button', { name: '保存逐字稿', exact: true })).toBeEnabled();
-  await page.getByRole('button', { name: '撤销', exact: true }).click();
+  await scriptPanel.getByRole('button', { name: '撤销', exact: true }).click();
   await expect(manuscript).toHaveText('A saved manuscript.');
   await page.getByRole('tab', { name: '成品制作', exact: true }).click();
   await expect(page.getByLabel('节目摘要', { exact: true })).toHaveValue('Unsaved summary');
@@ -238,4 +248,108 @@ test('stage navigation retains separate drafts, undo and one active context with
   expect(
     errors.filter((error) => /Reading the editor layout|scroll handler|Maximum update depth/.test(error)),
   ).toEqual([]);
+});
+
+test('untracked controls and asset subtabs clear the field but chat retains explicit focus', async ({
+  page,
+}) => {
+  const state = await studio(page);
+  await page.goto('/admin/productions/production-test?step=brief');
+  const title = page.getByLabel('节目标题', { exact: true });
+  await title.fill('Keep this title draft');
+  await expect.poll(() => state.context()?.field?.field).toBe('title');
+  const original = structuredClone(state.context() as PageContext);
+  await page.getByLabel('链接名称', { exact: true }).focus();
+  await expect.poll(() => state.context()?.field).toBeNull();
+  expect(state.context()?.draft).toBeNull();
+  state.proposal(original, 'untracked-field', 'Do not overwrite');
+  await expect
+    .poll(() =>
+      state.frames.some(
+        (frame) =>
+          frame.type === 'proposal.ack' && frame.id === 'untracked-field' && frame.status === 'stale',
+      ),
+    )
+    .toBe(true);
+  await title.focus();
+  await expect.poll(() => state.context()?.field?.field).toBe('title');
+  const focused = structuredClone(state.context() as PageContext);
+  await page.getByRole('textbox', { name: '给主控的消息' }).fill('Use this explicit field');
+  await page.getByRole('button', { name: '发送', exact: true }).click();
+  await expect.poll(() => state.frames.some((frame) => frame.type === 'command')).toBe(true);
+  const command = state.frames.find((frame) => frame.type === 'command');
+  expect(command?.type === 'command' && command.context).toEqual(focused);
+  await page.getByRole('tab', { name: '成品制作', exact: true }).click();
+  await page.getByRole('tab', { name: '发布文案', exact: true }).click();
+  const summary = page.getByLabel('节目摘要', { exact: true });
+  await summary.fill('Keep this summary draft');
+  await expect.poll(() => state.context()?.field?.field).toBe('summary');
+  const copy = structuredClone(state.context() as PageContext);
+  await page.getByRole('tab', { name: '封面', exact: true }).click();
+  await expect.poll(() => state.context()?.field).toBeNull();
+  state.proposal(copy, 'hidden-copy', 'Do not replace hidden copy');
+  await expect
+    .poll(() =>
+      state.frames.some(
+        (frame) => frame.type === 'proposal.ack' && frame.id === 'hidden-copy' && frame.status === 'stale',
+      ),
+    )
+    .toBe(true);
+  await page.getByRole('tab', { name: '发布文案', exact: true }).click();
+  await expect(summary).toHaveValue('Keep this summary draft');
+  expect(state.writes).toEqual([]);
+});
+
+test('source title selection changes invalidate old proposals and bind exact selected text', async ({
+  page,
+}) => {
+  const state = await studio(page);
+  await page.goto('/admin/productions/production-test?step=brief&source=source-1');
+  const title = page.getByLabel('素材标题', { exact: true });
+  await title.fill('Selected source title');
+  await expect.poll(() => state.context()?.field?.field).toBe('source.title');
+  const original = structuredClone(state.context() as PageContext);
+  await title.press('ControlOrMeta+A');
+  await expect.poll(() => state.context()?.selection?.text).toBe('Selected source title');
+  expect(state.context()?.seq).toBeGreaterThan(original.seq);
+  state.proposal(original, 'old-selection', 'Do not replace changed selection');
+  await expect
+    .poll(() =>
+      state.frames.some(
+        (frame) => frame.type === 'proposal.ack' && frame.id === 'old-selection' && frame.status === 'stale',
+      ),
+    )
+    .toBe(true);
+  await expect(title).toHaveValue('Selected source title');
+  await page.getByRole('combobox', { name: '素材 1 类型' }).focus();
+  await expect.poll(() => state.context()?.field).toBeNull();
+  expect(state.writes).toEqual([]);
+});
+
+test('publication drafts survive stages and require confirmation before environment changes or refresh', async ({
+  page,
+}) => {
+  const state = await studio(page, readyFixture());
+  const remote: string[] = [];
+  await page.route('**/admin/remote-api/**', async (route) => {
+    remote.push(route.request().url());
+    await route.abort();
+  });
+  await page.goto('/admin/productions/production-test?step=publish');
+  const url = page.getByLabel('已发布的节目链接', { exact: true });
+  await url.fill('https://example.com/unrecorded');
+  await page.getByLabel('实际发布时间', { exact: true }).fill('2026-10-03T13:00');
+  await page.getByRole('tab', { name: '选题，已完成', exact: true }).click();
+  await page.getByRole('radio', { name: 'Prod', exact: true }).click();
+  const dialog = page.getByRole('alertdialog');
+  await expect(dialog).toContainText('当前未保存的内容会丢弃');
+  await dialog.getByRole('button', { name: '取消', exact: true }).click();
+  await page.getByRole('button', { name: '刷新内容', exact: true }).click();
+  await expect(dialog).toContainText('所有阶段未保存的输入');
+  await dialog.getByRole('button', { name: '取消', exact: true }).click();
+  await page.getByRole('tab', { name: '发布', exact: true }).click();
+  await expect(url).toHaveValue('https://example.com/unrecorded');
+  await expect(page.getByLabel('实际发布时间', { exact: true })).toHaveValue('2026-10-03T13:00');
+  expect(state.writes).toEqual([]);
+  expect(remote).toEqual([]);
 });

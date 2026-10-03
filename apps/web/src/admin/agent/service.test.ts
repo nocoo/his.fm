@@ -87,6 +87,35 @@ afterEach(() => {
 });
 
 describe('shell-lifetime agent transport', () => {
+  it('clears untracked field scope and invalidates earlier proposals without changing page', () => {
+    client.clearField();
+    expect(client.context).toBeNull();
+    connect();
+    setPage();
+    const apply = setField();
+    const original = structuredClone(client.context as PageContext);
+    client.clearField();
+    expect(client.context).toMatchObject({
+      field: null,
+      draft: null,
+      selection: null,
+      pageEpoch: original.pageEpoch,
+      seq: original.seq + 1,
+    });
+    const seq = client.context?.seq;
+    client.clearField();
+    expect(client.context?.seq).toBe(seq);
+    expect(client.proposal({ ...proposal, context: original }, true)).toBe('stale');
+    expect(apply).not.toHaveBeenCalled();
+    setField(apply);
+    expect(
+      client.proposal(
+        { ...proposal, id: 'new-proposal', context: structuredClone(client.context as PageContext) },
+        true,
+      ),
+    ).toBe('applied');
+    expect(apply).toHaveBeenCalledOnce();
+  });
   it('uses the browser WebSocket constructor by default', () => {
     const socket = new Socket();
     vi.stubGlobal(

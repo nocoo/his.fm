@@ -4,7 +4,7 @@ import { PageHeader } from '@nocoo/basalt/components/page-header';
 import { ArrowLeft, ChevronRight, FileText, GitBranch, Link2, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { type ProductionBrief, sourceSchema } from '../../shared/production';
-import { useAgentField } from '../agent/AgentProvider';
+import { useAgent, useAgentField } from '../agent/AgentProvider';
 import { MarkdownEditor } from '../markdown/MarkdownEditor';
 import { Choice, Confirm, Failure } from './controls';
 
@@ -78,6 +78,7 @@ export function SourceEditor({
   proposalBlocked?: boolean;
 }) {
   const [error, setError] = useState('');
+  const agent = useAgent();
   const title = useAgentField(
     productionId && source ? { productionId, field: 'source.title', sourceId: source.id } : null,
     source?.title ?? '',
@@ -133,6 +134,7 @@ export function SourceEditor({
                 <Field label="素材类型">
                   <Choice
                     label={`素材 ${index + 1} 类型`}
+                    onFocus={() => agent?.clearField()}
                     value={source.type}
                     disabled={pending}
                     onChange={(type) => onChange({ ...source, type: type as Source['type'] })}
@@ -147,6 +149,14 @@ export function SourceEditor({
                     placeholder="便于识别的标题"
                     onFocus={title.onFocus}
                     onChange={(event) => title.onChange(event.target.value)}
+                    onSelect={(event) => {
+                      const input = event.currentTarget;
+                      title.onSelection({
+                        from: input.selectionStart ?? 0,
+                        to: input.selectionEnd ?? 0,
+                        text: input.value.slice(input.selectionStart ?? 0, input.selectionEnd ?? 0),
+                      });
+                    }}
                     onCompositionStart={() => title.onComposition(true)}
                     onCompositionEnd={() => title.onComposition(false)}
                   />

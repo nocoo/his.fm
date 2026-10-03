@@ -28,6 +28,7 @@ export function Choice({
   options,
   name,
   disabled,
+  onFocus,
 }: {
   label: string;
   value: string;
@@ -35,10 +36,11 @@ export function Choice({
   options: { value: string; label: string }[];
   name?: string;
   disabled?: boolean;
+  onFocus?: () => void;
 }) {
   return (
     <Select name={name} value={value} onValueChange={onChange} disabled={disabled}>
-      <SelectTrigger aria-label={label}>
+      <SelectTrigger aria-label={label} onFocus={onFocus}>
         <SelectValue />
       </SelectTrigger>
       <SelectContent className="studio-choice-content">

@@ -1,8 +1,9 @@
 import { Button, Field, Input, LayerCard } from '@nocoo/basalt';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@nocoo/basalt/components/tabs';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { type Production, type Publication, publicationSchema } from '../../shared/production';
 import { formatWechat, formatXiaoyuzhou } from '../../shared/publication-format';
+import { useDraft } from '../agent/AgentProvider';
 import { toLocalDateTime } from '../model';
 import { CoverDownload } from './CoverDownload';
 import { Choice, Confirm, CopyButton } from './controls';
@@ -13,12 +14,23 @@ export function PublicationPanel({
   production,
   pending,
   mutate,
+  onDirty,
 }: {
   production: Production;
   pending: boolean;
   mutate: (operation: () => Promise<{ production: Production }>, message: string) => Promise<boolean>;
+  onDirty: (dirty: boolean) => void;
 }) {
-  const [platform, setPlatform] = useState<Publication['platform']>('wechat');
+  const [saved, setSaved] = useState({
+    platform: 'wechat' as Publication['platform'],
+    url: '',
+    publishedAt: toLocalDateTime(new Date().toISOString()),
+  });
+  const draft = useDraft(saved);
+  const { platform, url, publishedAt } = draft.value;
+  useEffect(() => {
+    onDirty(draft.dirty);
+  }, [onDirty, draft.dirty]);
   const [confirm, setConfirm] = useState<Pick<Publication, 'platform' | 'url' | 'publishedAt'> | null>(null);
   const [error, setError] = useState('');
   const wechat = formatWechat(production);
@@ -106,7 +118,7 @@ export function PublicationPanel({
                 <Choice
                   label="记录发布平台"
                   value={platform}
-                  onChange={(next) => setPlatform(next as Publication['platform'])}
+                  onChange={(next) => draft.change('platform', next as Publication['platform'])}
                   options={[
                     { value: 'wechat', label: '微信公众号' },
                     { value: 'xiaoyuzhou', label: '小宇宙' },
@@ -119,7 +131,8 @@ export function PublicationPanel({
                   name="publishedAt"
                   type="datetime-local"
                   required
-                  defaultValue={toLocalDateTime(new Date().toISOString())}
+                  value={publishedAt}
+                  onChange={(event) => draft.change('publishedAt', event.target.value)}
                 />
               </Field>
             </div>
@@ -127,6 +140,8 @@ export function PublicationPanel({
               <Input
                 id="publication-url"
                 name="url"
+                value={url}
+                onChange={(event) => draft.change('url', event.target.value)}
                 type="url"
                 required
                 maxLength={2048}
@@ -164,12 +179,19 @@ export function PublicationPanel({
             title="确认记录此次发布"
             description={`确认内容已在${confirm.platform === 'wechat' ? '微信公众号' : '小宇宙'}发布，链接与时间准确。his.fm 将同步展示本次已批准的节目。`}
             onClose={() => setConfirm(null)}
-            onConfirm={() =>
-              mutate(
+            onConfirm={async () => {
+              const success = await mutate(
                 () => productionService.publish(production.id, production.version, confirm),
                 '已记录发布，节目页已同步',
-              )
-            }
+              );
+              if (success)
+                setSaved({
+                  platform: confirm.platform,
+                  url: confirm.url,
+                  publishedAt: toLocalDateTime(confirm.publishedAt),
+                });
+              return success;
+            }}
           />
         )}
       </LayerCard.Body>

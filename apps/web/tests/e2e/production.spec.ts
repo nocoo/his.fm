@@ -363,7 +363,7 @@ test('five stages preserve failed edits and advance with owner completion', asyn
   await page.getByRole('button', { name: '生成正文音频', exact: true }).click();
   await expect(page.getByText('音频制作完成', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: '标记成品制作完成', exact: true }).click();
-  await expect(page.locator('audio')).toHaveCount(1);
+  await expect(page.locator('audio:visible')).toHaveCount(1);
   await expect(page.getByText('一次关于工作边界的对话', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: '标记最终检查完成', exact: true }).click();
   await expect(page.getByText('展开公众号正文预览', { exact: true })).toBeVisible();
@@ -859,7 +859,7 @@ test('phone stages preserve drafts on canceled navigation and grow long text wit
   expect(reader.font).toContain('TsangerJinKai02');
   expect(reader.loaded).toBe(true);
   expect(reader.scroll).toBeLessThanOrEqual(reader.height + 1);
-  await page.getByRole('radio', { name: '编辑', exact: true }).click();
+  await page.locator('.studio-stage:visible').getByRole('radio', { name: '编辑', exact: true }).click();
   const input = page.getByRole('textbox', { name: '完整逐字稿', exact: true });
   await input.fill(`${text}留下这个未保存的结尾。`);
   const size = await input.evaluate((element) => ({
@@ -873,14 +873,14 @@ test('phone stages preserve drafts on canceled navigation and grow long text wit
   await expect(dialog).toHaveCount(0);
   await expect(input).toBeHidden();
   await page.getByRole('tab', { name: '逐字稿，已完成', exact: true }).click();
-  await page.getByRole('radio', { name: '预览', exact: true }).click();
+  await page.locator('.studio-stage:visible').getByRole('radio', { name: '预览', exact: true }).click();
   await expect(page.locator('.studio-transcript:visible')).toContainText('留下这个未保存的结尾。');
   expect(state.actions).toHaveLength(0);
   await page.getByRole('tab', { name: '成品制作，已完成', exact: true }).click();
   await expect(dialog).toHaveCount(0);
   await expect(input).toBeHidden();
   await page.getByRole('tab', { name: '发布文案', exact: true }).click();
-  await page.getByRole('radio', { name: '编辑', exact: true }).click();
+  await page.locator('.studio-stage:visible').getByRole('radio', { name: '编辑', exact: true }).click();
   await page.getByLabel('节目摘要', { exact: true }).fill('跨素材切换仍然保留的摘要');
   await page.getByRole('tab', { name: '封面', exact: true }).click();
   await page.getByRole('tab', { name: '发布文案', exact: true }).click();

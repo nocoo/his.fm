@@ -241,6 +241,10 @@ export class AgentClient {
   cancel(commandId: string) {
     this.enqueue(`cancel:${commandId}`, { type: 'cancel', commandId });
   }
+  clearField() {
+    this.applyDraft = null;
+    if (this.context) this.setContext({ ...this.context, field: null, draft: null, selection: null });
+  }
   setPage(page: Pick<PageContext, 'route' | 'productionId' | 'step' | 'sourceId' | 'version' | 'activity'>) {
     const previous = this.context;
     const changed =
