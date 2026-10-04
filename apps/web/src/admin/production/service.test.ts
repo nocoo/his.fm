@@ -1,3 +1,4 @@
+import { defaultSpeechSettings } from '@his-fm/contracts';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { brief, fixture } from '../../../tests/worker/production-fixture';
 import { productionService as service } from './service';
@@ -16,6 +17,35 @@ function lastRequest() {
 }
 
 describe('production service contracts', () => {
+  it('reads and saves versioned AI settings and polls native preview receipts', async () => {
+    const config = { version: '0'.repeat(64), settings: defaultSpeechSettings };
+    response({ config });
+    expect(await service.ai()).toEqual({ config });
+    response({ config });
+    expect(await service.saveAi(config)).toEqual({ config });
+    expect(lastRequest()).toMatchObject({ url: '/admin/api/ai-settings', method: 'PUT' });
+    vi.useFakeTimers();
+    try {
+      response({ jobId: 'job' }, 202);
+      response({ jobId: 'job' }, 202);
+      response({ preview: { url: '/media/test.wav' } });
+      const pending = service.preview({
+        provider: 'gemini',
+        voice: 'Kore',
+        speakingStyle: 'calm',
+        text: 'Hello',
+      });
+      await vi.runAllTimersAsync();
+      expect(await pending).toEqual({ preview: { url: '/media/test.wav' } });
+      expect(lastRequest().url).toBe('/admin/api/production-settings/preview/job');
+      response({});
+      await expect(
+        service.preview({ provider: 'gemini', voice: 'Kore', speakingStyle: 'calm', text: 'Hello' }),
+      ).rejects.toThrow('仍在');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
   it('loads production data and settings with cancellation', async () => {
     const signal = new AbortController().signal;
     for (const [call, url, body] of [
@@ -63,16 +93,22 @@ describe('production service contracts', () => {
       body: JSON.stringify(action),
     });
     response({ production }, 202);
-    await service.audio('a/b', { version: 5, voice: 'Sulafat', includeBumpers: false });
+    await service.audio('a/b', { version: 5, voice: 'Sulafat', introId: null, outroId: null });
     expect(lastRequest()).toMatchObject({
       url: '/admin/api/productions/a%2Fb/audio',
       method: 'POST',
-      body: '{"version":5,"voice":"Sulafat","includeBumpers":false}',
+      body: '{"version":5,"voice":"Sulafat","introId":null,"outroId":null}',
     });
     response({ preview: { url: '/media/preview.wav' } });
-    await service.preview({ voice: 'Sulafat', speakingStyle: '自然', text: '这里是 his.fm。' });
+    await service.preview({
+      provider: 'gemini',
+      voice: 'Sulafat',
+      speakingStyle: '自然',
+      text: '这里是 his.fm。',
+    });
     expect(lastRequest()).toMatchObject({ url: '/admin/api/production-settings/preview', method: 'POST' });
     expect(JSON.parse(String(lastRequest().body))).toEqual({
+      provider: 'gemini',
       voice: 'Sulafat',
       speakingStyle: '自然',
       text: '这里是 his.fm。',
@@ -100,23 +136,8 @@ describe('production service contracts', () => {
       body: cover,
       headers: { 'Content-Type': 'image/webp' },
     });
-    const wav = new File(['audio'], 'intro.wav');
-    response({ settings: {} });
-    await service.bumper('intro', wav);
-    expect(lastRequest()).toMatchObject({
-      url: '/admin/api/production-settings/intro',
-      body: wav,
-      headers: { 'Content-Type': 'audio/wav' },
-    });
-    response({ settings: {} });
-    await service.bumper('outro', wav);
-    expect(lastRequest().url).toBe('/admin/api/production-settings/outro');
   });
-  it('saves voice configuration and creates and revokes expiring tokens', async () => {
-    const settings = { voice: 'Kore' as const, speakingStyle: '自然、轻松地讲述' };
-    response({ settings });
-    expect(await service.saveSettings(settings)).toEqual({ settings });
-    expect(lastRequest()).toMatchObject({ method: 'PUT', body: JSON.stringify(settings) });
+  it('creates and revokes expiring tokens', async () => {
     response({ token: 'one-time-token', record: { id: 'one' } }, 201);
     expect((await service.createToken('Hermes', 30)).token).toBe('one-time-token');
     expect(lastRequest()).toMatchObject({

@@ -1,10 +1,5 @@
-import type {
-  AudioJob,
-  Bumper,
-  Production,
-  ProductionAsset,
-  ProductionSettings,
-} from '../src/shared/production';
+import type { AudioJob, Production, ProductionAsset, ProductionSettings } from '../src/shared/production';
+import { runtimeConfiguration } from './ai-settings';
 import { HttpError } from './http';
 import { appendEvent, getProduction, nextVersion, updateStatement } from './production-store';
 
@@ -17,31 +12,24 @@ export type AudioSnapshot = {
   speakingStyle: string;
   introKey: string | null;
   outroKey: string | null;
+  speech: import('@his-fm/contracts').SpeechSnapshot;
 };
-const defaults = {
-  voice: 'Kore',
-  speakingStyle:
-    'Speak Mandarin Chinese as a thoughtful solo podcast host. Natural conversational delivery, calm warmth, clear articulation, gentle pauses. Read only the supplied script, without adding words or music.',
-  intro: null,
-  outro: null,
-};
-
 export async function getSettings(env: Env): Promise<ProductionSettings> {
-  await env.DB.prepare('INSERT INTO production_settings (id, data) VALUES (1, ?) ON CONFLICT DO NOTHING')
-    .bind(JSON.stringify(defaults))
-    .run();
-  const row = await env.DB.prepare('SELECT data FROM production_settings WHERE id = 1').first<{
-    data: string;
-  }>();
-  return { ...JSON.parse(row?.data ?? JSON.stringify(defaults)), ttsConfigured: Boolean(env.GEMINI_API_KEY) };
-}
-
-export async function saveBumper(env: Env, position: 'intro' | 'outro', bumper: Bumper) {
-  await getSettings(env);
-  await env.DB.prepare('UPDATE production_settings SET data = json_set(data, ?, json(?)) WHERE id = 1')
-    .bind(`$.${position}`, JSON.stringify(bumper))
-    .run();
-  return getSettings(env);
+  const config = await runtimeConfiguration(env);
+  const rows = await env.DB.prepare(
+    'SELECT id, name, position, version, data FROM bumpers ORDER BY name, id',
+  ).all<{ id: string; name: string; position: 'intro' | 'outro'; version: number; data: string }>();
+  const provider = config.settings.defaultProvider;
+  return {
+    version: config.version,
+    provider,
+    voice: config.settings[provider].voice,
+    speakingStyle: config.settings.speakingStyle,
+    ttsConfigured: config.providers[provider],
+    providers: { gemini: config.providers.gemini, elevenlabs: config.providers.elevenlabs },
+    voices: { gemini: config.settings.gemini.voice, elevenlabs: config.settings.elevenlabs.voice },
+    bumpers: rows.results.map(({ data, ...record }) => ({ ...JSON.parse(data), ...record })),
+  };
 }
 
 export async function getAudioSnapshot(db: D1Database, jobId: string): Promise<AudioSnapshot> {
@@ -77,6 +65,7 @@ export async function setAudioState(
   status: 'running' | 'failed' | 'complete',
   error: string | null = null,
   asset?: ProductionAsset,
+  transaction?: { before: D1PreparedStatement[]; after: D1PreparedStatement[] },
 ) {
   for (let attempt = 0; attempt < 4; attempt++) {
     const job = await env.DB.prepare('SELECT status FROM audio_jobs WHERE id = ?')
@@ -99,7 +88,12 @@ export async function setAudioState(
       return;
     }
     if (status === 'complete' && !asset) throw new HttpError(400, '完成音频任务需要成品素材');
-    if (current.audioJob?.status === status && current.audioJob.error === error && job.status === status)
+    if (
+      !transaction &&
+      current.audioJob?.status === status &&
+      current.audioJob.error === error &&
+      job.status === status
+    )
       return;
     const next = nextVersion(
       appendEvent(
@@ -108,12 +102,13 @@ export async function setAudioState(
           audioJob: { ...current.audioJob, status, error },
           assets: asset ? { ...current.assets, audio: asset } : current.assets,
         },
-        { kind: 'agent', name: 'Cloudflare Audio' },
+        { kind: 'agent', name: 'Native Speech' },
         `audio_${status}`,
       ),
       current.version,
     );
     const results = await env.DB.batch([
+      ...(transaction?.before ?? []),
       updateStatement(env.DB, next, current.version),
       env.DB.prepare(`UPDATE audio_jobs SET status = ?, error = ?, updated_at = ? WHERE id = ?
         AND EXISTS (SELECT 1 FROM productions WHERE id = ? AND version = ? AND json_extract(data, '$.events[#-1].id') = ?)`).bind(
@@ -125,8 +120,9 @@ export async function setAudioState(
         next.version,
         next.events.at(-1)?.id,
       ),
+      ...(transaction?.after ?? []),
     ]);
-    if (results[0]?.meta.changes === 1) return;
+    if (results[transaction?.before.length ?? 0]?.meta.changes === 1) return;
   }
   throw new HttpError(409, '内容正在更新，请稍后重试');
 }

@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { createModels } from '@earendil-works/pi-ai/models';
 import { type FauxResponseStep, fauxProvider } from '@earendil-works/pi-ai/providers/faux';
 import { MemoryStorage } from '@earendil-works/pi-durable';
-import type { AgentCommand, PageContext } from '@his-fm/contracts';
+import { type AgentCommand, defaultSpeechSettings, type PageContext } from '@his-fm/contracts';
 import { vi } from 'vitest';
 import type WebSocket from 'ws';
 import { WebsiteClient } from '../client.ts';
@@ -18,6 +18,9 @@ import { RuntimeTransport } from '../transport.ts';
 export function testConfig(directory = '/tmp/hisfm-test'): Config {
   return configSchema.parse({
     schemaVersion: 1,
+    configRevision: '0'.repeat(64),
+    speech: defaultSpeechSettings,
+    speechKeys: { gemini: '', elevenlabs: '' },
     providers: {
       raven: { api: 'openai-completions', baseUrl: 'http://127.0.0.1:1', apiKey: 'fake-model-key' },
     },

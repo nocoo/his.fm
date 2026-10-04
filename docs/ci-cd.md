@@ -37,10 +37,10 @@ Release procedure follows `system0-github-versioning`: bump `package.json`, main
 
 Stored as repository Actions secrets and explicitly passed to the reusable deployment workflow. The deploy job targets the `production` environment; environment secrets with the same name would override repository values. Quality jobs receive no deployment secrets:
 
-- `CLOUDFLARE_API_TOKEN` — Cloudflare API token. Minimum scopes: Workers Scripts (Edit), D1 (Edit), Workers Routes (Edit, for the `his.fm` custom domain); Workflows (Edit) is also required for the `his-fm-audio` Workflows binding.
+- `CLOUDFLARE_API_TOKEN` — Cloudflare API token. Minimum scopes: Workers Scripts (Edit), D1 (Edit), Workers Routes (Edit, for the `his.fm` custom domain). Native TTS no longer uses a Workflows binding.
 - `CLOUDFLARE_ACCOUNT_ID` — the Cloudflare account ID.
 
-`GEMINI_API_KEY` is a Worker runtime secret managed by the owner through `cf`; CI/CD never touches it.
+Gemini and ElevenLabs keys live only in the native user's private config. The Worker has no TTS provider secret; CI/CD never reads or deploys these keys. Removing an old remotely stored secret is a separate authorized operational action, not part of this local code change.
 
 ## Local verification
 

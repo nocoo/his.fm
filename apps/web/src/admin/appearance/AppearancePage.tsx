@@ -16,7 +16,7 @@ export default function AppearancePage() {
   return (
     <div className="admin-page appearance-page">
       <PageHeader
-        title="网站外观"
+        title="品牌外观"
         actions={
           <>
             {vm.selected && (
@@ -35,7 +35,7 @@ export default function AppearancePage() {
         }
       />
       {vm.error && <Failure error={vm.error} retry={!vm.saved ? () => void vm.load() : undefined} />}
-      {!vm.saved && !vm.error && <LayerCard.Loading label="正在读取网站外观" />}
+      {!vm.saved && !vm.error && <LayerCard.Loading label="正在读取品牌外观" />}
       {vm.saved && (
         <>
           <LayerCard className="appearance-identity" padding="md">

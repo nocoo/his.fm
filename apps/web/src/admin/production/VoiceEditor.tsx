@@ -2,15 +2,14 @@ import { Button, Field } from '@nocoo/basalt';
 import { InputArea } from '@nocoo/basalt/components/input-area';
 import { useId, useState } from 'react';
 import type { AudioPreview, ProductionSettings } from '../../shared/production';
-import { voiceSamples } from '../../shared/voice-samples';
+import { elevenVoiceSamples, voiceSamples, voiceSampleTranscript } from '../../shared/voice-samples';
 import { voiceCharacters, voices } from '../../shared/voices';
 import { errorMessage } from '../model';
 import { Choice, Failure } from './controls';
 import { productionService } from './service';
 
-type VoiceOptions = Pick<ProductionSettings, 'voice' | 'speakingStyle'>;
-export const previewScript =
-  '这里是 his.fm。下班的路上，先把消息放一放。今天的工作还没有全部完成，也可以好好吃一顿晚饭。我们慢慢聊，聊工具，也聊使用工具的人。';
+type VoiceOptions = Pick<ProductionSettings, 'provider' | 'voice' | 'speakingStyle'>;
+export const previewScript = voiceSampleTranscript;
 
 export function VoiceEditor({
   value,
@@ -18,21 +17,25 @@ export function VoiceEditor({
   configured,
   disabled = false,
   text = previewScript,
+  voices: defaults,
 }: {
   value: VoiceOptions;
   onChange: (value: VoiceOptions) => void;
   configured: boolean;
   disabled?: boolean;
   text?: string;
+  voices: { gemini: string; elevenlabs: string };
 }) {
   const id = useId();
-  const [sampleText, setSampleText] = useState(() => Array.from(text).slice(0, 100).join(''));
+  const [sampleText, setSampleText] = useState(() => Array.from(text).slice(0, 200).join(''));
   const [preview, setPreview] = useState<AudioPreview | null>(null);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState('');
-  const reference = voiceSamples.find((sample) => sample.voice === value.voice);
+  const reference =
+    value.provider === 'gemini' && voiceSamples.find((sample) => sample.voice === value.voice);
   const currentPreview =
-    preview?.voice === value.voice &&
+    preview?.provider === value.provider &&
+    preview.voice === value.voice &&
     preview.speakingStyle === value.speakingStyle.trim() &&
     preview.text === sampleText.trim()
       ? preview
@@ -45,13 +48,50 @@ export function VoiceEditor({
           if (audio !== event.target) audio.pause();
       }}
     >
-      <Field label="讲述声音" hint="Google 的 30 种预置音色，均可生成中文。">
+      <Field label="语音服务">
+        <Choice
+          label="语音服务"
+          value={value.provider}
+          disabled={disabled || pending}
+          onChange={(provider) =>
+            onChange({
+              ...value,
+              provider: provider as VoiceOptions['provider'],
+              voice: defaults[provider as VoiceOptions['provider']],
+            })
+          }
+          options={[
+            { value: 'gemini', label: 'Gemini' },
+            { value: 'elevenlabs', label: 'ElevenLabs · eleven_v4' },
+          ]}
+        />
+      </Field>
+      <Field
+        label="讲述声音"
+        hint={
+          value.provider === 'gemini'
+            ? 'Google 的 30 种预置音色，均可生成中文。'
+            : 'ElevenLabs 的音色在 AI 设置中管理，支持中文。'
+        }
+      >
         <Choice
           label="讲述声音"
           value={value.voice}
           disabled={disabled || pending}
           onChange={(voice) => onChange({ ...value, voice: voice as VoiceOptions['voice'] })}
-          options={voices.map((voice) => ({ value: voice, label: `${voice} · ${voiceCharacters[voice]}` }))}
+          options={
+            value.provider === 'gemini'
+              ? voices.map((voice) => ({ value: voice, label: `${voice} · ${voiceCharacters[voice]}` }))
+              : [
+                  { value: defaults.elevenlabs, label: `配置音色 · ${defaults.elevenlabs}` },
+                  ...elevenVoiceSamples
+                    .filter((sample) => sample.voice !== defaults.elevenlabs)
+                    .map((sample) => ({
+                      value: sample.voice,
+                      label: `${sample.name} · ${sample.character}`,
+                    })),
+                ]
+          }
         />
       </Field>
       {reference && (
@@ -104,7 +144,7 @@ export function VoiceEditor({
         </Field>
       </details>
       <div className="studio-row">
-        <p className="admin-muted">试听可跳过。生成预览会调用 Gemini；相同内容会复用已有预览。</p>
+        <p className="admin-muted">试听可跳过。生成预览由主控调用所选语音服务；相同内容会复用已有预览。</p>
         <Button
           type="button"
           variant="outline"
@@ -127,7 +167,7 @@ export function VoiceEditor({
       </div>
       {pending && (
         <p role="status" className="admin-muted">
-          正在云端生成短预览，通常需要十几秒…
+          主控已安排专职语音会话，正在本机生成短预览…
         </p>
       )}
       {error && <Failure error={error} />}

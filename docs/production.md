@@ -34,15 +34,9 @@ The coordinator writes `summary` and `description` after script approval. Platfo
 
 ## Cloud audio
 
-The Worker secret is `GEMINI_API_KEY`. Settings contain the selected voice, speaking style, and two immutable intro/outro R2 keys. Narration can be generated without bumpers. To include bumpers, upload both and explicitly select them before dispatch; each must be 24 kHz, mono, 16-bit PCM WAV, at most 30 seconds. Convert an existing recording locally when needed:
+The native user-global configuration owns both Gemini and ElevenLabs provider credentials, selected voices and the shared speaking style. AI settings, connection tokens, narration style and the bumper library have separate pages; no existing key can be read back.
 
-```sh
-ffmpeg -i intro-original.mp3 -ar 24000 -ac 1 -c:a pcm_s16le intro.wav
-```
-
-The `his-fm-audio` Cloudflare Workflow snapshots the approved script and settings. It checkpoints narration in sentence-aware chunks of at most 420 Unicode codepoints, calls `gemini-3.8-flash-tts`, saves WAV segments in R2, then streams the narration into a valid WAV. An optional second composition adds the configured intro and outro. No full-recording memory buffer or browser tab is required. Format, source ETag and duration checks protect composition. Files are immutable and delivered through `https://f.no.mt`; local uploads stay in local R2 and use `/media/`.
-
-A script revision invalidates an old running job before another paid generation step or result attachment. Completed checkpoints are reused by Workflow retries; a manually started replacement job has a new identity. The UI displays dispatch/generation failures and permits retry. Provider response bodies and credentials are never returned to clients.
+A versioned website job snapshots the approved script, selected provider/model/voice/style and independent optional intro/outro IDs. A dedicated native speech conversation invokes the local Node script, checkpoints validated WAV segments and returns a scoped website upload receipt. The Worker only validates storage/state and optionally composes selected bumpers. See [native audio](audio.md).
 
 ## Publishing
 

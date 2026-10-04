@@ -46,7 +46,7 @@ node scripts/import-example.mjs --local
 node scripts/import-example.mjs --remote
 ```
 
-The import preserves existing records and records no human approvals or publication. Local startup imports it once; production never loads the mock catalogue. The initial draft contains research, intent, manuscript and description, with no invented audio. Production Gemini credentials are stored as a Worker secret; configure real 24 kHz mono PCM16 WAV intro/outro clips in `/admin/settings` before requesting full narration.
+The import preserves existing records and records no human approvals or publication. Local startup imports it once; production never loads the mock catalogue. The initial draft contains research, intent, manuscript and description, with no invented audio. Provider credentials live only in the native user-global config and are managed through `/admin/ai`. Keep the enrolled native coordinator running for previews and narration. Optional 24 kHz mono PCM16 WAV bumpers are managed at `/admin/bumpers`; narration needs no bumper.
 
 ## Use production data from the local interface
 

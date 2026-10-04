@@ -1,4 +1,7 @@
 import { z } from 'zod';
+import { runtimeRequestSchema } from './speech.ts';
+
+export * from './speech.ts';
 
 export const protocolVersion = 1;
 export const maxFrameBytes = 256 * 1024;
@@ -118,6 +121,7 @@ export const browserFrameSchema = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('proposal.ack'), id, status: z.enum(['applied', 'stale', 'rejected']) }),
 ]);
 export const agentFrameSchema = z.discriminatedUnion('type', [
+  z.strictObject({ type: z.literal('runtime.response'), id, ok: z.boolean(), result: z.unknown() }),
   z.strictObject({ type: z.literal('ping') }),
   z.strictObject({ type: z.literal('accepted'), commandId: id }),
   z.strictObject({ type: z.literal('message'), message: agentMessageSchema }),
@@ -138,6 +142,12 @@ export const commandStateSchema = z.strictObject({
   detail: z.string().max(1000),
 });
 export const serverFrameSchema = z.discriminatedUnion('type', [
+  z.strictObject({
+    deliveryId: z.number().int().positive().optional(),
+    type: z.literal('runtime.request'),
+    id,
+    request: runtimeRequestSchema,
+  }),
   z.strictObject({ deliveryId: z.number().int().positive().optional(), type: z.literal('pong') }),
   z.strictObject({ deliveryId: z.number().int().positive().optional(), type: z.literal('event.ack'), id }),
   z.strictObject({
@@ -236,3 +246,5 @@ export const serverFrameSchema = z.discriminatedUnion('type', [
 export type BrowserFrame = z.infer<typeof browserFrameSchema>;
 export type AgentFrame = z.infer<typeof agentFrameSchema>;
 export type ServerFrame = z.infer<typeof serverFrameSchema>;
+
+export * from './wav.ts';

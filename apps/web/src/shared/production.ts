@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import { voices } from './voices';
 
 export { voices } from './voices';
 
@@ -142,14 +141,16 @@ export const publicationSchema = z.strictObject({
   publishedAt: z.iso.datetime({ offset: true }).transform((value) => new Date(value).toISOString()),
 });
 export const productionSettingsSchema = z.strictObject({
-  voice: z.enum(voices),
+  provider: z.enum(['gemini', 'elevenlabs']),
+  voice: z.string().trim().min(1).max(160),
   speakingStyle: z.string().trim().min(1).max(2000),
 });
 export const audioGenerationSchema = productionSettingsSchema
   .partial()
   .extend({
     version: z.number().int().min(1),
-    includeBumpers: z.boolean().default(false),
+    introId: z.string().max(160).nullable().default(null),
+    outroId: z.string().max(160).nullable().default(null),
   })
   .strict();
 export type AudioGeneration = z.input<typeof audioGenerationSchema>;
@@ -162,9 +163,17 @@ export type AudioPreviewInput = z.infer<typeof audioPreviewSchema>;
 export type AudioPreview = AudioPreviewInput & { url: string; durationSeconds: number; cached: boolean };
 export type Bumper = { key: string; url: string; durationSeconds: number; size: number };
 export type ProductionSettings = z.infer<typeof productionSettingsSchema> & {
-  intro: Bumper | null;
-  outro: Bumper | null;
+  version: string;
+  bumpers: BumperRecord[];
   ttsConfigured: boolean;
+  providers: { gemini: boolean; elevenlabs: boolean };
+  voices: { gemini: string; elevenlabs: string };
+};
+export type BumperRecord = Bumper & {
+  id: string;
+  name: string;
+  position: 'intro' | 'outro';
+  version: number;
 };
 export type AgentTokenRecord = {
   id: string;

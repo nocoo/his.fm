@@ -2,21 +2,49 @@ import { DurableObject } from 'cloudflare:workers';
 import {
   type AgentCommand,
   agentFrameSchema,
+  aiStatusSchema,
   type BrowserFrame,
   browserFrameSchema,
   maxFrameBytes,
   type PageContext,
   protocolVersion,
+  runtimeRequestSchema,
   type ServerFrame,
 } from '@his-fm/contracts';
 import type { ConnectionIdentity } from './agent-runtime';
 import { executeOperation, persistOperationFailure } from './agent-runtime-operation';
 import { enqueue, persistEvent, requireCommand, runtimeSnapshot, saveContext } from './agent-runtime-store';
 import { triggerAudio } from './audio-routes';
+import { getAudioSnapshot, setAudioState } from './audio-store';
 import { HttpError, json } from './http';
 
 export class AgentHub extends DurableObject<Env> {
   private pending: Promise<unknown> = Promise.resolve();
+  private requests = new Map<string, { generation: string; resolve: (response: Response) => void }>();
+
+  async runtimeRequest(request: Request): Promise<Response> {
+    await this.prune();
+    const socket = this.sockets('agent')[0];
+    if (!socket) return json({ error: '主控离线，无法读取或修改本机配置' }, 503);
+    const input = runtimeRequestSchema.safeParse(await request.json());
+    if (!input.success) return json({ error: '配置请求无效' }, 400);
+    const id = crypto.randomUUID();
+    return new Promise((resolve) => {
+      const timeout = setTimeout(() => {
+        this.requests.delete(id);
+        resolve(json({ error: '主控响应超时，请重新读取配置确认状态' }, 504));
+      }, 15000);
+      this.requests.set(id, {
+        generation: this.identity(socket).connectionId,
+        resolve: (response) => {
+          clearTimeout(timeout);
+          this.requests.delete(id);
+          resolve(response);
+        },
+      });
+      this.send(socket, { type: 'runtime.request', id, request: input.data });
+    });
+  }
 
   private serial<Result>(run: () => Promise<Result>): Promise<Result> {
     const result = this.pending.then(run);
@@ -37,6 +65,7 @@ export class AgentHub extends DurableObject<Env> {
   private send(socket: WebSocket, frame: ServerFrame) {
     if (socket.readyState !== 1) return;
     const identity = this.identity(socket);
+    if (identity.role === 'browser' && frame.type === 'runtime.request') return;
     if (
       identity.role === 'browser' &&
       !['pong', 'welcome', 'context.ack', 'command.ack', 'error', 'presence'].includes(frame.type)
@@ -67,6 +96,14 @@ export class AgentHub extends DurableObject<Env> {
 
   private broadcast(frame: ServerFrame, role?: ConnectionIdentity['role']) {
     for (const socket of this.sockets(role)) this.send(socket, frame);
+  }
+
+  private async dispatchSpeech() {
+    const pending = await this.env.DB.prepare(
+      "SELECT agent_commands.data FROM speech_jobs JOIN agent_commands ON agent_commands.id = speech_jobs.command_id WHERE speech_jobs.status IN ('queued', 'running') AND agent_commands.status = 'queued' ORDER BY speech_jobs.created_at LIMIT 5",
+    ).all<{ data: string }>();
+    for (const row of pending.results)
+      this.broadcast({ type: 'command', command: JSON.parse(row.data) as AgentCommand }, 'agent');
   }
 
   private async valid(identity: ConnectionIdentity) {
@@ -109,7 +146,7 @@ export class AgentHub extends DurableObject<Env> {
   private async schedule() {
     const sockets = this.sockets();
     const queuedAudio = await this.env.DB.prepare(
-      "SELECT id FROM audio_jobs WHERE status = 'queued' LIMIT 1",
+      "SELECT id FROM audio_jobs WHERE status = 'queued' UNION ALL SELECT id FROM speech_jobs WHERE status IN ('queued', 'running') LIMIT 1",
     ).first();
     if (!sockets.length && !queuedAudio) {
       await this.ctx.storage.deleteAlarm();
@@ -143,12 +180,18 @@ export class AgentHub extends DurableObject<Env> {
   }
 
   fetch(request: Request): Promise<Response> {
+    if (new URL(request.url).pathname === '/runtime-request') return this.runtimeRequest(request);
     return this.serial(async () => {
       await this.prune();
       const path = new URL(request.url).pathname;
       if (path === '/snapshot')
         return json(await runtimeSnapshot(this.env.DB, this.sockets('agent').length > 0));
       if (path === '/prune') return json({ ok: true });
+      if (path === '/speech-queued') {
+        await this.dispatchSpeech();
+        await this.schedule();
+        return json({ ok: true });
+      }
       if (path === '/production-changed') {
         const frame = (await request.json()) as Extract<ServerFrame, { type: 'production.changed' }>;
         this.broadcast(frame);
@@ -212,6 +255,33 @@ export class AgentHub extends DurableObject<Env> {
   }
 
   webSocketMessage(socket: WebSocket, message: string | ArrayBuffer): Promise<void> {
+    if (typeof message === 'string' && message.length <= maxFrameBytes) {
+      let response: unknown;
+      try {
+        response = JSON.parse(message);
+      } catch {
+        response = null;
+      }
+      const parsed = agentFrameSchema.safeParse(response);
+      if (parsed.success && parsed.data.type === 'runtime.response') {
+        const frame = parsed.data;
+        return (async () => {
+          const identity = this.identity(socket);
+          const pending = this.requests.get(frame.id);
+          if (
+            identity.role !== 'agent' ||
+            !pending ||
+            pending.generation !== identity.connectionId ||
+            !(await this.valid(identity))
+          )
+            return;
+          const status = aiStatusSchema.safeParse(frame.result);
+          pending.resolve(
+            frame.ok && status.success ? json(status.data) : json({ error: '本机配置不可用' }, 409),
+          );
+        })();
+      }
+    }
     return this.serial(async () => {
       try {
         const identity = this.identity(socket);
@@ -246,6 +316,7 @@ export class AgentHub extends DurableObject<Env> {
               identity.stationVersion,
             )
             .run();
+          if (frame.type === 'runtime.response') return;
           if (frame.type === 'ping') this.send(socket, { type: 'pong' });
           else if (frame.type === 'accepted') {
             await requireCommand(this.env.DB, frame.commandId);
@@ -282,6 +353,7 @@ export class AgentHub extends DurableObject<Env> {
                 productionId: value.production.id,
                 version: value.production.version,
               });
+              if (frame.operation.kind === 'audio.request') await this.dispatchSpeech();
             }
           } else {
             const event = await persistEvent(this.env.DB, frame);
@@ -404,6 +476,21 @@ export class AgentHub extends DurableObject<Env> {
   }
   alarm(): Promise<void> {
     return this.serial(async () => {
+      const ended = await this.env.DB.prepare(
+        "SELECT speech_jobs.id, speech_jobs.kind FROM speech_jobs JOIN agent_commands ON agent_commands.id=speech_jobs.command_id WHERE speech_jobs.status IN ('queued','running') AND agent_commands.status IN ('complete','failed','cancelled')",
+      ).all<{ id: string; kind: string }>();
+      for (const job of ended.results) {
+        if (job.kind === 'production')
+          await setAudioState(
+            this.env,
+            await getAudioSnapshot(this.env.DB, job.id),
+            'failed',
+            '主控任务已结束，语音未完成，请重试',
+          );
+        await this.env.DB.prepare("UPDATE speech_jobs SET status='failed' WHERE id=? AND status!='complete'")
+          .bind(job.id)
+          .run();
+      }
       const queued = await this.env.DB.prepare(
         "SELECT id FROM audio_jobs WHERE status = 'queued' ORDER BY updated_at, id LIMIT 5",
       ).all<{ id: string }>();
@@ -420,6 +507,7 @@ export class AgentHub extends DurableObject<Env> {
           console.error(JSON.stringify({ event: 'agent_audio_dispatch_pending', jobId: job.id }));
         }
       }
+      await this.dispatchSpeech();
       await this.prune();
     });
   }

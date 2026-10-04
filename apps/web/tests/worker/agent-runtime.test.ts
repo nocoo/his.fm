@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import {
   type AgentOperation,
+  defaultSpeechSettings,
   type PageContext,
   type ServerFrame,
   serverFrameSchema,
@@ -29,6 +30,7 @@ import {
 import { routeAgentTokens } from '../../worker/agent-tokens';
 import { localLogin } from '../../worker/auth';
 import { HttpError } from '../../worker/http';
+import { queueSpeech } from '../../worker/native-speech';
 import { getProduction } from '../../worker/production-store';
 import { agent, brief, fixture, human, readyFixture } from './production-fixture';
 
@@ -187,6 +189,7 @@ beforeAll(async () => {
     '0004_audio.sql',
     '0005_channel.sql',
     '0007_agent_runtime.sql',
+    '0009_native_speech.sql',
   ]) {
     const sql = readFileSync(new URL(`../../migrations/${filename}`, import.meta.url), 'utf8');
     await env.DB.batch(
@@ -219,6 +222,8 @@ beforeEach(async () => {
   sockets = [];
   await env.DB.batch(
     [
+      'speech_jobs',
+      'bumpers',
       'agent_receipts',
       'agent_station',
       'agent_tokens',
@@ -830,156 +835,6 @@ describe('operation fencing and exact durable receipts', () => {
     expect(await readReceipt(env.DB, operation.id)).toMatchObject({ ok: false, status: 409 });
     expect((await getProduction(env.DB, production.id)).title).toBe(production.title);
   });
-  it('atomically saves audio job and receipt, replays one job and preserves dispatch failure receipt', async () => {
-    const production = await insertProduction(readyFixture({ stage: 'production', audioJob: null }));
-    const socket = await start({ ...context, productionId: production.id, field: null }, '请生成音频');
-    const dispatch = vi.fn().mockResolvedValue({});
-    const audioEnv = {
-      ...env,
-      GEMINI_API_KEY: 'test-only',
-      AUDIO_WORKFLOW: { create: dispatch },
-    } as unknown as Env;
-    const operation: AgentOperation = {
-      kind: 'audio.request',
-      id: 'audio',
-      commandId: command.id,
-      productionId: production.id,
-      version: 1,
-      options: {},
-    };
-    const receipt = await executeOperation(audioEnv, agent, identity(socket), operation);
-    expect(receipt).toMatchObject({ ok: true, status: 202 });
-    expect(await executeOperation(audioEnv, agent, identity(socket), operation)).toEqual(receipt);
-    expect(await env.DB.prepare('SELECT count(*) AS count FROM audio_jobs').first('count')).toBe(1);
-    expect(dispatch.mock.calls[0][0]).toEqual(dispatch.mock.calls[1][0]);
-    expect(
-      await executeOperation(audioEnv, agent, identity(socket), {
-        ...operation,
-        id: 'redispatch',
-        version: 2,
-      }),
-    ).toMatchObject({ ok: true, status: 200 });
-    const next = await insertProduction(readyFixture({ id: 'second', stage: 'production', audioJob: null }));
-    await enqueue(env.DB, {
-      ...command,
-      id: 'cmd2',
-      text: '请生成音频',
-      context: { ...context, seq: 2, productionId: next.id, field: null },
-    });
-    const failing = {
-      ...audioEnv,
-      AUDIO_WORKFLOW: {
-        create: vi.fn().mockRejectedValue(new Error('offline')),
-        get: vi.fn().mockRejectedValue(new Error('offline')),
-      },
-    } as unknown as Env;
-    expect(
-      await executeOperation(failing, agent, identity(socket), {
-        ...operation,
-        id: 'dispatch-failure',
-        commandId: 'cmd2',
-        productionId: next.id,
-      }),
-    ).toMatchObject({ ok: true, status: 202 });
-    expect(await readReceipt(env.DB, 'dispatch-failure')).toMatchObject({ ok: true });
-    await env.DB.prepare("UPDATE audio_jobs SET status = 'complete'").run();
-    dispatch.mockClear();
-    expect(await executeOperation(audioEnv, agent, identity(socket), operation)).toEqual(receipt);
-    expect(dispatch).not.toHaveBeenCalled();
-  });
-  it('recovers a failed audio dispatch from the durable alarm after all sockets close without creating another job', async () => {
-    const production = await insertProduction(readyFixture({ stage: 'production', audioJob: null }));
-    const socket = await start({ ...context, productionId: production.id, field: null }, '请生成音频');
-    const originalWorkflow = env.AUDIO_WORKFLOW;
-    const originalKey = env.GEMINI_API_KEY;
-    const dispatch = vi.fn().mockRejectedValue(new Error('temporarily unavailable'));
-    const lookup = vi.fn().mockRejectedValue(new Error('temporarily unavailable'));
-    const log = vi.spyOn(console, 'error').mockImplementation(() => {});
-    env.GEMINI_API_KEY = 'test-only';
-    env.AUDIO_WORKFLOW = { create: dispatch, get: lookup } as unknown as Env['AUDIO_WORKFLOW'];
-    try {
-      const operation: AgentOperation = {
-        kind: 'audio.request',
-        id: 'recover-audio',
-        commandId: command.id,
-        productionId: production.id,
-        version: 1,
-        options: {},
-      };
-      await frame(socket, { type: 'operation', operation });
-      expect(socket.frames).toContainEqual(
-        expect.objectContaining({ type: 'operation.result', id: operation.id, ok: true, status: 202 }),
-      );
-      const job = await env.DB.prepare('SELECT id, snapshot FROM audio_jobs').first<{
-        id: string;
-        snapshot: string;
-      }>();
-      if (!job) throw new Error('Expected a durable audio job');
-      expect((await getProduction(env.DB, production.id)).audioJob?.status).toBe('queued');
-      await hub.webSocketClose(socket.socket());
-      alarm.deleteAlarm.mockClear();
-      await hub.alarm();
-      expect(log).toHaveBeenCalledWith(
-        JSON.stringify({ event: 'agent_audio_dispatch_pending', jobId: job.id }),
-      );
-      expect(alarm.setAlarm).toHaveBeenCalled();
-      expect(alarm.deleteAlarm).not.toHaveBeenCalled();
-      dispatch.mockImplementation(async ({ id }: { id: string }) => {
-        await env.DB.prepare("UPDATE audio_jobs SET status = 'running' WHERE id = ? AND status = 'queued'")
-          .bind(id)
-          .run();
-        return {};
-      });
-      await hub.alarm();
-      expect(dispatch.mock.calls).toHaveLength(3);
-      for (const [input] of dispatch.mock.calls)
-        expect(input).toEqual({ id: job.id, params: { jobId: job.id } });
-      expect(await env.DB.prepare('SELECT count(*) AS count FROM audio_jobs').first('count')).toBe(1);
-      expect(
-        await env.DB.prepare('SELECT snapshot FROM audio_jobs WHERE id = ?').bind(job.id).first('snapshot'),
-      ).toBe(job.snapshot);
-      expect(await readReceipt(env.DB, operation.id)).toMatchObject({
-        ok: true,
-        status: 202,
-        result: { production: { audioJob: { status: 'queued' } } },
-      });
-      expect(alarm.deleteAlarm).toHaveBeenCalled();
-      await env.DB.prepare("UPDATE audio_jobs SET status = 'complete' WHERE id = ?").bind(job.id).run();
-      dispatch.mockClear();
-      await hub.alarm();
-      expect(dispatch).not.toHaveBeenCalled();
-      expect(
-        await env.DB.prepare('SELECT status FROM audio_jobs WHERE id = ?').bind(job.id).first('status'),
-      ).toBe('complete');
-    } finally {
-      env.AUDIO_WORKFLOW = originalWorkflow;
-      env.GEMINI_API_KEY = originalKey;
-      log.mockRestore();
-    }
-  });
-  it('bounds audio recovery batches and rotates queued jobs rather than starving later dispatches', async () => {
-    const originalWorkflow = env.AUDIO_WORKFLOW;
-    const dispatch = vi.fn().mockResolvedValue({});
-    env.AUDIO_WORKFLOW = { create: dispatch } as unknown as Env['AUDIO_WORKFLOW'];
-    try {
-      await env.DB.batch(
-        Array.from({ length: 6 }, (_, index) =>
-          env.DB.prepare(
-            "INSERT INTO audio_jobs (id, production_id, snapshot, status, created_at, updated_at) VALUES (?, 'p1', '{}', 'queued', ?, ?)",
-          ).bind(`retry-${index}`, '2020-01-01', '2020-01-01'),
-        ),
-      );
-      await hub.alarm();
-      expect(dispatch).toHaveBeenCalledTimes(5);
-      expect(dispatch.mock.calls.flatMap(([input]) => input.id)).not.toContain('retry-5');
-      dispatch.mockClear();
-      await hub.alarm();
-      expect(dispatch).toHaveBeenCalledTimes(5);
-      expect(dispatch.mock.calls[0][0].id).toBe('retry-5');
-    } finally {
-      env.AUDIO_WORKFLOW = originalWorkflow;
-    }
-  });
   it('notifies human mutation versions and skips unsuccessful or nonproduction responses', async () => {
     const browser = await connect('browser');
     await notifyProductionChanged(env, Response.json({ production: { id: 'human-edit', version: 2 } }));
@@ -996,6 +851,110 @@ describe('operation fencing and exact durable receipts', () => {
 });
 
 describe('bounded delivery and context-scoped mutation', () => {
+  it('proxies allowlisted native settings without persisting secrets or serial-queue deadlocks', async () => {
+    expect(
+      (
+        await hub.fetch(
+          new Request('https://hub/runtime-request', {
+            method: 'POST',
+            body: JSON.stringify({ kind: 'settings.read' }),
+          }),
+        )
+      ).status,
+    ).toBe(503);
+    const socket = await start();
+    const status = {
+      version: '0'.repeat(64),
+      settings: defaultSpeechSettings,
+      providers: { gemini: true, elevenlabs: false, raven: true, decision: true },
+      coordinator: { provider: 'raven', model: 'gpt-6-astra', thinkingLevel: 'high' },
+      executor: { provider: 'raven', model: 'gpt-6.1-sol', thinkingLevels: ['low'] },
+      decision: { model: 'jev-latest', maxInputBytes: 16384, maxBatchQuestions: 12 },
+    };
+    expect(
+      (await hub.fetch(new Request('https://hub/runtime-request', { method: 'POST', body: '{}' }))).status,
+    ).toBe(400);
+    const pending = hub.fetch(
+      new Request('https://hub/runtime-request', {
+        method: 'POST',
+        body: JSON.stringify({ kind: 'settings.read' }),
+      }),
+    );
+    await expect
+      .poll(() => socket.frames.some((value) => (value as { type: string }).type === 'runtime.request'))
+      .toBe(true);
+    const sent = socket.frames.find((value) => (value as { type: string }).type === 'runtime.request') as {
+      id: string;
+    };
+    await frame(socket, { type: 'runtime.response', id: sent.id, ok: true, result: status });
+    expect(await (await pending).json()).toEqual(status);
+    expect(
+      await env.DB.prepare("SELECT count(*) AS n FROM agent_events WHERE type='runtime.response'").first('n'),
+    ).toBe(0);
+    socket.frames = [];
+    const invalid = hub.fetch(
+      new Request('https://hub/runtime-request', {
+        method: 'POST',
+        body: JSON.stringify({ kind: 'settings.read' }),
+      }),
+    );
+    await expect.poll(() => socket.frames.length).toBeGreaterThan(0);
+    const id = (socket.frames[0] as { id: string }).id;
+    await frame(socket, {
+      type: 'runtime.response',
+      id,
+      ok: true,
+      result: { ...status, apiKey: 'private-key' },
+    });
+    const response = await invalid;
+    expect(response.status).toBe(409);
+    expect(await response.text()).not.toContain('private-key');
+    await frame(socket, { type: 'runtime.response', id: 'unknown', ok: false, result: {} });
+    const timed = hub.fetch(
+      new Request('https://hub/runtime-request', {
+        method: 'POST',
+        body: JSON.stringify({ kind: 'settings.read' }),
+      }),
+    );
+    expect((await timed).status).toBe(504);
+  });
+  it('dispatches queued speech and retires failed commands without erasing completed results', async () => {
+    const socket = await start();
+    const input = {
+      provider: 'gemini' as const,
+      model: 'gemini-3.8-flash-tts',
+      voice: 'Kore',
+      speakingStyle: 'calm',
+      text: '你好',
+      stability: 0.5,
+      similarity: 0.75,
+    };
+    await queueSpeech(env, 'preview', 'preview', input, null);
+    await hub.fetch(new Request('https://hub/speech-queued'));
+    expect(socket.frames).toContainEqual(
+      expect.objectContaining({
+        type: 'command',
+        command: expect.objectContaining({ id: expect.stringContaining('speech:preview:') }),
+      }),
+    );
+    await env.DB.prepare(
+      "UPDATE agent_commands SET status='failed' WHERE id IN (SELECT command_id FROM speech_jobs)",
+    ).run();
+    await hub.alarm();
+    expect(await env.DB.prepare("SELECT status FROM speech_jobs WHERE id='preview'").first('status')).toBe(
+      'failed',
+    );
+    await queueSpeech(env, 'preview', 'preview', input, null);
+    await hub.alarm();
+    expect(await env.DB.prepare("SELECT status FROM speech_jobs WHERE id='preview'").first('status')).toBe(
+      'queued',
+    );
+    await env.DB.prepare("UPDATE speech_jobs SET status='complete', result='{}'").run();
+    await hub.alarm();
+    expect(await env.DB.prepare("SELECT status FROM speech_jobs WHERE id='preview'").first('status')).toBe(
+      'complete',
+    );
+  });
   it('uses cumulative bounded delivery acknowledgements, rejects zero and future watermarks', async () => {
     const browser = await connect('browser');
     expect(browser.deliveries.find((value) => value.type === 'snapshot')?.deliveryId).toBe(1);
@@ -1163,8 +1122,19 @@ describe('bounded delivery and context-scoped mutation', () => {
     const socket = await start(focused);
     const audioEnv = {
       ...env,
-      GEMINI_API_KEY: 'test-only',
-      AUDIO_WORKFLOW: { create: vi.fn().mockResolvedValue({}) },
+      AGENT_HUB: {
+        getByName: () => ({
+          fetch: async () =>
+            Response.json({
+              version: '0'.repeat(64),
+              settings: defaultSpeechSettings,
+              providers: { gemini: true, elevenlabs: true, raven: true, decision: true },
+              coordinator: { provider: 'raven', model: 'gpt-6-astra', thinkingLevel: 'high' },
+              executor: { provider: 'raven', model: 'gpt-6.1-sol', thinkingLevels: ['low'] },
+              decision: { model: 'jev-latest', maxInputBytes: 16384, maxBatchQuestions: 12 },
+            }),
+        }),
+      },
     } as unknown as Env;
     for (const [index, text] of [
       'Improve this',

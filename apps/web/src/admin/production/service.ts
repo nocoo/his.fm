@@ -1,3 +1,5 @@
+import type { AiStatus, aiUpdateSchema } from '@his-fm/contracts';
+import type { z } from 'zod';
 import type {
   AgentTokenRecord,
   AudioGeneration,
@@ -15,6 +17,9 @@ const path = (id: string) => `/productions/${encodeURIComponent(id)}`;
 const json = (method: string, body: unknown): RequestInit => ({ method, body: JSON.stringify(body) });
 type Result = { production: Production };
 export const productionService = {
+  ai: (signal?: AbortSignal) => request<{ config: AiStatus }>('/ai-settings', { signal }),
+  saveAi: (input: z.infer<typeof aiUpdateSchema>) =>
+    request<{ config: AiStatus }>('/ai-settings', json('PUT', input)),
   channel: (signal?: AbortSignal) => request<{ channel: ChannelProfile }>('/channel', { signal }),
   saveChannel: (input: Pick<ChannelProfile, 'version' | 'content'>) =>
     request<{ channel: ChannelProfile }>('/channel', json('PUT', input)),
@@ -37,8 +42,21 @@ export const productionService = {
       headers: { 'Content-Type': file.type },
     }),
   audio: (id: string, input: AudioGeneration) => request<Result>(`${path(id)}/audio`, json('POST', input)),
-  preview: (input: AudioPreviewInput) =>
-    request<{ preview: AudioPreview }>('/production-settings/preview', json('POST', input)),
+  preview: async (input: AudioPreviewInput) => {
+    let result = await request<{ preview?: AudioPreview; jobId?: string }>(
+      '/production-settings/preview',
+      json('POST', input),
+    );
+    const jobId = result.jobId;
+    for (let attempt = 0; !result.preview && jobId && attempt < 300; attempt++) {
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+      result = await request<{ preview?: AudioPreview; jobId?: string }>(
+        `/production-settings/preview/${jobId}`,
+      );
+    }
+    if (!result.preview) throw new Error('主控仍在生成试听，可在对话面板查看进度并稍后重试。');
+    return { preview: result.preview };
+  },
   publish: (
     id: string,
     version: number,
@@ -46,14 +64,6 @@ export const productionService = {
   ) => request<Result>(`${path(id)}/publications`, json('POST', { ...publication, version })),
   settings: (signal?: AbortSignal) =>
     request<{ settings: ProductionSettings }>('/production-settings', { signal }),
-  saveSettings: (settings: Pick<ProductionSettings, 'voice' | 'speakingStyle'>) =>
-    request<{ settings: ProductionSettings }>('/production-settings', json('PUT', settings)),
-  bumper: (position: 'intro' | 'outro', file: File) =>
-    request<{ settings: ProductionSettings }>(`/production-settings/${position}`, {
-      method: 'PUT',
-      body: file,
-      headers: { 'Content-Type': 'audio/wav' },
-    }),
   tokens: (signal?: AbortSignal) => request<{ tokens: AgentTokenRecord[] }>('/agent-tokens', { signal }),
   createToken: (name: string, expiresInDays: number) =>
     request<{ token: string; record: AgentTokenRecord }>(

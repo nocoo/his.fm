@@ -108,7 +108,7 @@ export async function requireCommand(db: D1Database, id: string, active = false)
 
 export async function persistEvent(
   db: D1Database,
-  frame: Exclude<AgentFrame, { type: 'ping' | 'accepted' | 'operation' }>,
+  frame: Exclude<AgentFrame, { type: 'ping' | 'accepted' | 'operation' | 'runtime.response' }>,
 ) {
   const id =
     frame.type === 'message' ? frame.message.id : frame.type === 'proposal' ? frame.proposal.id : frame.id;

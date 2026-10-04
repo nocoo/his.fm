@@ -1,10 +1,12 @@
 import { version } from '../../../package.json';
 import { discoveryLinks, routeAgent, routeDiscovery } from './agent-api';
-import { notifyProductionChanged, routeRuntimeAdmin } from './agent-runtime';
+import { hub, notifyProductionChanged, routeRuntimeAdmin } from './agent-runtime';
 import { routeAgentTokens } from './agent-tokens';
+import { routeAiSettings } from './ai-settings';
 import { getAppearance, routeAppearance } from './appearance';
 import { routeAudio } from './audio-routes';
 import { accessLogin, authenticate, isLocal, localLogin, logout } from './auth';
+import { routeBumpers } from './bumpers';
 import { routeChannel } from './channel';
 import { getEpisode, listEpisodes, mutateEpisode } from './episodes';
 import { HttpError, json, requireSameOrigin } from './http';
@@ -63,6 +65,14 @@ async function route(request: Request, env: Env): Promise<Response> {
     }
     if (path.startsWith('/admin/api/agent/'))
       return routeRuntimeAdmin(request, env, { kind: 'human', name: session.user.email });
+    if (path === '/admin/api/ai-settings') {
+      if (request.method !== 'GET') requireSameOrigin(request);
+      return routeAiSettings(request, env);
+    }
+    if (path === '/admin/api/bumpers') {
+      if (request.method !== 'GET') requireSameOrigin(request);
+      return routeBumpers(request, env);
+    }
     if (path === '/admin/api/channel') {
       if (request.method !== 'GET') requireSameOrigin(request);
       return routeChannel(request, env, { kind: 'human', name: session.user.email });
@@ -86,6 +96,7 @@ async function route(request: Request, env: Env): Promise<Response> {
         (await routeAudio(request, env, suffix, actor)) ??
         (await routeProductions(request, env, suffix, actor));
       if (response) {
+        if (response.status === 202) await hub(env).fetch('https://hub/speech-queued');
         if (!['GET', 'HEAD', 'DELETE'].includes(request.method)) await notifyProductionChanged(env, response);
         return response;
       }

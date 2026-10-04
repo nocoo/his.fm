@@ -2,10 +2,12 @@ import { EventEmitter } from 'node:events';
 import { type AgentFrame, maxFrameBytes, type ServerFrame, serverFrameSchema } from '@his-fm/contracts';
 import WebSocket from 'ws';
 import type { Config } from './config.ts';
+import { runtimeSettings } from './settings.ts';
 import { frameId, type RuntimeStore } from './store.ts';
 
 export type SocketFactory = (url: string, options: WebSocket.ClientOptions) => WebSocket;
 export class RuntimeTransport extends EventEmitter {
+  generation = '';
   ready = false;
   stopped = true;
   private socket: WebSocket | undefined;
@@ -120,7 +122,23 @@ export class RuntimeTransport extends EventEmitter {
   }
   receive(frame: ServerFrame) {
     switch (frame.type) {
+      case 'runtime.request':
+        void runtimeSettings(frame.request).then(
+          (result) =>
+            this.socket?.send(JSON.stringify({ type: 'runtime.response', id: frame.id, ok: true, result })),
+          () =>
+            this.socket?.send(
+              JSON.stringify({
+                type: 'runtime.response',
+                id: frame.id,
+                ok: false,
+                result: { error: '本机配置读取或保存失败，请刷新并检查配置。' },
+              }),
+            ),
+        );
+        break;
       case 'welcome':
+        this.generation = frame.connectionId;
         this.welcomed = true;
         break;
       case 'snapshot':

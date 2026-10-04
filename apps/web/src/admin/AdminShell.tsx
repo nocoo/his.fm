@@ -63,7 +63,13 @@ export function AdminShell({ session, children }: { session: Session; children: 
   const iconOnly = collapsed && !compact;
   const isList = location.pathname === '/admin' || location.pathname === '/admin/';
   const catalog = location.pathname === '/admin/catalog' || location.pathname.startsWith('/admin/episodes/');
-  const settings = location.pathname === '/admin/settings';
+  const settingsTitle: Record<string, string> = {
+    '/admin/ai': 'AI 设置',
+    '/admin/connections': '连接管理',
+    '/admin/narration': '旁白风格',
+    '/admin/bumpers': '贴片库',
+  };
+  const settings = Boolean(settingsTitle[location.pathname]);
   const channel = location.pathname === '/admin/channel';
   const appearance = location.pathname === '/admin/appearance';
   const storage = location.pathname === '/admin/storage';
@@ -75,7 +81,7 @@ export function AdminShell({ session, children }: { session: Session; children: 
     query.has('source') &&
     (!query.get('step') || query.get('step') === 'brief');
   const title = appearance
-    ? '网站外观'
+    ? '品牌外观'
     : sourceOpen
       ? '素材详情'
       : storage
@@ -87,7 +93,7 @@ export function AdminShell({ session, children }: { session: Session; children: 
             : voiceReference
               ? '音色参考'
               : settings
-                ? '工作室设置'
+                ? (settingsTitle[location.pathname] ?? '工作室')
                 : catalog
                   ? location.pathname === '/admin/catalog'
                     ? '节目目录'
@@ -139,8 +145,13 @@ export function AdminShell({ session, children }: { session: Session; children: 
       label: '工作室',
       items: [
         { href: '/admin/channel', label: '全局提示词', icon: Compass, active: channel },
-        { href: '/admin/appearance', label: '网站外观', icon: Palette, active: appearance },
-        { href: '/admin/settings', label: '工作室设置', icon: Settings, active: settings },
+        { href: '/admin/appearance', label: '品牌外观', icon: Palette, active: appearance },
+        ...Object.entries(settingsTitle).map(([href, label]) => ({
+          href,
+          label,
+          icon: Settings,
+          active: location.pathname === href,
+        })),
       ],
     },
   ];

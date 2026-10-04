@@ -1,39 +1,47 @@
-# Cloud audio production
+# Native audio production
 
-The audio utilities in `apps/web/worker/audio.ts` use Gemini `gemini-3.8-flash-tts` through the Interactions API already exercised by the repository's `scripts/voice-comparison/generate.py`.
+## Execution boundary
 
-## Format and memory bounds
+The Worker does not call a TTS provider and has no Gemini secret or AudioWorkflow binding. It retains authenticated owner APIs, immutable job snapshots, D1 state, R2 storage and deterministic WAV composition. The native coordinator delegates each website-created speech job to a dedicated `speech` conversation with only `generate_speech` and `submit_result`. The tool launches `packages/agent/src/speech-cli.ts` as a bounded Node subprocess. The script reads private credentials itself; neither keys nor raw configuration enter model messages, browser responses, shell arguments or job records.
 
-Approved transcript text is segmented at sentence boundaries where possible, with a hard ceiling of 420 Unicode code points per request. Concatenating the chunks reproduces every original character. Spoken text is submitted as the text content itself; delivery instructions are separate `speech_metadata` annotations.
+The user-global `~/.config/his.fm/config.json` owns `speech`, `speechKeys` and an opaque `configRevision`. Settings updates use a SQLite process lock, optimistic revisions and atomic 0600 file replacement. Local and production runtimes share provider settings but retain separate website tokens, station leases and tasks. Restart does not clear jobs or copy tokens between environments.
 
-Every returned chunk and any selected intro/outro asset must be a complete RIFF WAV containing mono, 24 kHz, signed 16-bit PCM. No resampling, mixing, invented bumpers, or format guesses occur. The parser understands RIFF chunks and their padding rather than assuming every file has a 44-byte header. Header inspection uses an R2 range request capped at 64 KiB. Files with larger pre-audio metadata are rejected.
+## Providers and format
 
-Gemini response JSON is bounded to 16 MiB before parsing, and each request has a 180-second timeout. Error responses are read up to 8 KiB and mapped to fixed explanations for unsupported service regions, billing requirements, invalid keys, unsupported voices, invalid arguments and quota limits. Logs contain only the HTTP status and the fixed category. The provider's response body is never included in HTTP error messages or logs. API credentials are used only in the `x-goog-api-key` header.
+- Gemini: `gemini-3.8-flash-tts`, Interactions API, separate speech metadata for delivery instructions, the existing 30 prebuilt voices.
+- ElevenLabs: `eleven_v4`, text-to-speech conversion API, selected voice ID, Stability and Similarity. Delivery instructions become audio tags; v4 does not support the Speed/Style controls or SSML. Requests specify Mandarin and `pcm_24000`; the native codec wraps PCM in a valid WAV header.
 
-Narration is assembled independently at `narration.wav`. If explicitly requested, a second composition adds both configured bumpers at `final.wav`. The default requires no bumper files. Each output records its voice and whether bumpers were included. Composition reads each source's PCM range sequentially and emits one canonical WAV header. Source ETags are pinned between inspection and consumption. A `FixedLengthStream` gives R2 the exact output byte count and enforces stream length. The complete episode is never buffered in memory. Output is limited to 30 minutes; at the fixed PCM format, a ten-minute narration occupies about 28.8 MB before bumpers. Final objects receive immutable cache metadata, so callers must always supply a unique per-job destination key.
+Both providers produce mono 24 kHz signed 16-bit PCM WAV. Sentence-aware chunks preserve the spoken script and are capped at 420 Unicode code points. Each provider call has a 180-second deadline and bounded response size. HTTP errors are sanitized. Native content-addressed chunks and completed audio survive retries; a lost provider response before local persistence can still incur a second charge. No exactly-once billing guarantee is claimed.
 
-## Orchestration contract
+Native assembly is bounded to 30 minutes and stores its result in the private speech cache. The website accepts binary uploads only from the enrolled active station generation and exact command/job scope. D1 checks the lease, command, approved script version and current job before committing. Job state and production attachment are transactional; completed audio cannot regress on replay.
 
-The caller owns the durable workflow, immutable job snapshot, configured bumper assets, retry policy, and approval/version comparison. It must check existing R2 chunk objects before invoking generation during a retry, persist each successful chunk under its job-specific key, and attach final results only when the current approved script version and job ID still match. A lost provider response before its chunk reaches R2 can require a second paid generation: the current endpoint does not establish an application-level exactly-once billing guarantee.
+## Pages and owner APIs
 
-The utilities expose `AudioError.retryable` for provider HTTP 429 and 5xx responses. Other malformed-response and format errors fail without an automatic format fallback. Transient network exceptions remain ordinary errors for the workflow retry policy.
+- `/admin/appearance`: Brand Appearance, retaining the existing versioned website theme settings.
+- `/admin/ai`: provider model/voice parameters and write-only new keys. `GET /admin/api/ai-settings` returns an allowlisted status projection; `PUT` uses the current version. No endpoint returns an existing key, masked key or complete private config. Offline state is unavailable, not unconfigured.
+- `/admin/connections`: environment-specific machine tokens.
+- `/admin/narration`: provider-independent delivery style and optional short preview.
+- `/admin/bumpers`: named intro/outro WAV library. Production selects each position independently, defaulting to none.
+- `/admin/voices`: same-script Gemini and ElevenLabs comparisons alongside the original six Gemini references.
 
-A successful generation and a valid WAV container establish neither a verbatim acoustic transcription nor editorial approval. The workflow should preserve the submitted script and require an audition before publication.
+`POST /admin/api/production-settings/preview` accepts `{ provider, voice, speakingStyle, text }` with at most 200 characters. It returns a cached preview or `202 { jobId }`. Poll `GET /admin/api/production-settings/preview/:id`; completion exposes the real WAV URL and duration. The canonical cache digest includes provider, model, voice, style, text, Stability and Similarity. Identical active jobs deduplicate; an explicit retry of failed work creates a fresh command attempt over the same cache identity.
 
-## Selection and preview
+`GET /admin/api/production-settings/previews` lists completed previews matching the common comparison script. Samples are actual generated audio, not placeholders. `POST /admin/api/productions/:id/audio` requires the current optimistic version and human-approved script. Optional provider/voice/style overrides and independent `introId`/`outroId` are frozen into the job.
 
-The settings page offers Google's 30 featured prebuilt voices with Mandarin-friendly labels, a delivery-style field and optional short preview. The original six voice references remain available. Per-episode selections override the defaults for that job only; each job snapshots its voice, style and optional bumper keys before dispatch.
+The native speech transport is `GET/POST/PUT/DELETE /api/agent/runtime/speech/:id`, protected by Bearer authentication, station ID, generation and command headers. GET reads the immutable job; POST marks execution; PUT uploads verified audio; DELETE records a failed attempt. It does not grant general file upload, approval, publication or config privileges.
 
-`POST /admin/api/production-settings/preview` is owner-only and accepts `{ voice, speakingStyle, text }`, with text limited to 200 characters. It calls the same Gemini synthesis code as full narration, stores a validated WAV in R2 and returns its CDN URL and duration. A content hash over model, voice, style and text reuses an existing preview. Failed or changed previews never represent another selection. Requests with simultaneous identical misses can both reach the provider; the cache is not an exactly-once billing guarantee.
+## Acceptance and limitations
 
-The key remains a Worker secret (`GEMINI_API_KEY`). The settings response exposes only configuration status; neither an agent nor the browser receives the key. The local production proxy allows a longer deadline for the preview endpoint, matching its bounded provider request. Full narration stays in a durable Workflow.
+Local acceptance generated the same Chinese script with Gemini Kore (25.00 s) and ElevenLabs George (21.04 s), Sarah (21.20 s), Liam (19.92 s). Dedicated speech conversations returned successful website receipts and the comparison page lists the resulting local R2 audio. Credentials never appeared in those receipts. Valid PCM and successful receipts do not establish verbatim acoustic transcription or human listening approval.
 
-## Retrieved references
+The owner's supplied `kLhAstPcnnPxqzk6gS5i` voice remains configured. The current account rejected this library voice with `payment_required`; the three comparison voices were verified separately. Voice-list permission is also absent on this key. The UI never claims a present key guarantees every voice is callable. No account upgrade, production upload or deployment was performed.
 
-Retrieved 2026-09-25:
+## References
 
-- [Gemini speech generation](https://ai.google.dev/gemini-api/docs/speech-generation): Interactions request shape, separate speech annotations, default WAV format, PCM encoding and sample rate.
-- [Gemini 3.8 Flash TTS model](https://ai.google.dev/gemini-api/docs/models/gemini-3.8-flash-tts): 8,192 input-token and 16,384 output-token serving limits. The 420-character segment ceiling is this application's conservative operating limit, not a claimed provider duration guarantee.
-- [Cloudflare Workflow rules](https://developers.cloudflare.com/workflows/build/rules-of-workflows/): idempotent step design and durable state.
-- [Cloudflare Workflow limits](https://developers.cloudflare.com/workflows/reference/limits/): step payload/storage limits and CPU versus wall-clock execution limits.
-- [Cloudflare Workers best practices](https://developers.cloudflare.com/workers/best-practices/workers-best-practices/): bounded buffering, streaming, bindings, secrets, and asynchronous task handling.
+Retrieved 2026-10-04:
+
+- https://elevenlabs.io/docs/overview/capabilities/text-to-speech/eleven-v4
+- https://elevenlabs.io/docs/overview/capabilities/text-to-speech/best-practices
+- https://elevenlabs.io/docs/api-reference/text-to-speech/convert
+- https://ai.google.dev/gemini-api/docs/speech-generation
+- https://developers.cloudflare.com/durable-objects/best-practices/websockets/

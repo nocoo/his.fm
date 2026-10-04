@@ -4,7 +4,7 @@ his.fm uses a resident local Pi Durable coordinator. The website never starts a 
 
 ## Setup
 
-The local runtime reads one private `~/.config/his.fm/config.json`. It contains model gateway settings, the local Jev gateway, and separate `websites.local` / `websites.production` identities. Credentials never belong in prompts, source control, URLs or browser storage. The coordinator uses `gpt-6-astra` with high thinking; execution conversations use `gpt-6.1-sol` with Jev-selected thinking. Jev decisions are batched, limited to 16 KiB encoded requests and never shown in ordinary chat.
+The local runtime reads one private `~/.config/his.fm/config.json`. It contains model gateway settings, the local Jev gateway, speech provider settings/keys with a config revision, and separate `websites.local` / `websites.production` identities. Credentials never belong in prompts, source control, URLs or browser storage. The coordinator uses `gpt-6-astra` with high thinking; execution conversations use `gpt-6.1-sol` with Jev-selected thinking. Jev decisions are batched, limited to 16 KiB encoded requests and never shown in ordinary chat.
 
 Run from the repository root:
 
@@ -55,3 +55,7 @@ Each user command freezes its page context. Changing pages after sending a comma
 All textual results use Markdown. Executor conversations return results to the coordinator; they have no website API tool. They run local CLI/file tools without an OS sandbox. This is a trusted-local-user model, not a claim of credential isolation against arbitrary code.
 
 The runtime stores conversation state and transport receipts locally. Browser closure does not stop it. Reconnects reconcile durable command IDs and operation receipts. Interrupted native commands are not blindly replayed. Model errors, incomplete work and unknown effects are reported as such.
+
+## Native speech
+
+Speech conversations receive only generate_speech and submit_result. The host launches a local bounded script against the immutable website job, then uploads PCM WAV under the active station generation and exact command. Provider credentials stay in the user-global config. Gemini and ElevenLabs eleven_v4 share the preview script and cache contract; see [audio](audio.md). Keep Falcon running for Jev assignment decisions.

@@ -7,11 +7,10 @@ import { voiceCharacters, voices } from '../src/shared/voices';
 import { agentOpenApi } from './agent-contract';
 import { connectRuntime, routeRuntimeReceipt } from './agent-runtime';
 import { authenticateAgent } from './agent-tokens';
-import { AUDIO_MODEL } from './audio';
 import { routeAudio } from './audio-routes';
-import { getSettings } from './audio-store';
 import { routeChannel } from './channel';
 import { HttpError, json } from './http';
+import { routeNativeSpeech } from './native-speech';
 import { routeProductions } from './production';
 import { applyAction } from './production-model';
 import { getProduction } from './production-store';
@@ -32,7 +31,7 @@ function manifest(origin: string) {
       scheme: 'bearer',
       configurationFile: '~/.config/his.fm/config.json',
       tokenPath: 'websites.<environment>.token',
-      tokenManagement: `${origin}/admin/settings`,
+      tokenManagement: `${origin}/admin/connections`,
       verification: `${base}/me`,
     },
     links: {
@@ -163,6 +162,7 @@ export async function routeAgent(request: Request, env: Env): Promise<Response> 
   const headers: Record<string, string> = { Link: discoveryLinks(url.origin) };
   try {
     if (path === '/runtime/connect') return connectRuntime(request, env);
+    if (path.startsWith('/runtime/speech/')) return routeNativeSpeech(request, env);
     if (path.startsWith('/runtime/receipts/')) return routeRuntimeReceipt(request, env);
     const actor = await authenticateAgent(request, env);
     if (path === '/channel') {
@@ -179,7 +179,6 @@ export async function routeAgent(request: Request, env: Env): Promise<Response> 
           200,
           headers,
         );
-      const settings = await getSettings(env);
       return json(
         {
           authentication: 'Bearer',
@@ -193,12 +192,8 @@ export async function routeAgent(request: Request, env: Env): Promise<Response> 
           humanOnly: ['approval', 'revision', 'reopening', 'channel', 'settings', 'tokens', 'publication'],
           limits: { jsonBytes: 750000, coverBytes: 8388608, auditEvents: 200 },
           audio: {
-            model: AUDIO_MODEL,
-            configured: settings.ttsConfigured,
-            voice: settings.voice,
-            speakingStyle: settings.speakingStyle,
-            introReady: Boolean(settings.intro),
-            outroReady: Boolean(settings.outro),
+            execution: 'native',
+            providers: ['gemini', 'elevenlabs'],
             voices: voices.map((id) => ({
               id,
               description: voiceCharacters[id],

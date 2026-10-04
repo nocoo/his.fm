@@ -51,4 +51,30 @@ export class WebsiteClient {
   async productions() {
     return this.get('productions');
   }
+  async speech(id: string, commandId: string, generation: string, method = 'GET', body?: Uint8Array) {
+    let response: Response;
+    try {
+      response = await this.request(
+        new URL(`/api/agent/runtime/speech/${encodeURIComponent(id)}`, this.site.baseUrl),
+        {
+          method,
+          headers: {
+            Authorization: `Bearer ${this.site.token}`,
+            'X-Hisfm-Station': this.site.stationId,
+            'X-Hisfm-Generation': generation,
+            'X-Hisfm-Command': commandId,
+            'Content-Type': 'audio/wav',
+            ...(body ? { 'Content-Length': String(body.byteLength) } : {}),
+          },
+          ...(body ? { body: Buffer.from(body) } : {}),
+          redirect: 'error',
+          signal: AbortSignal.timeout(180000),
+        },
+      );
+    } catch {
+      throw new Error('语音任务传输失败，请重试同一任务。');
+    }
+    if (!response.ok) throw new Error(`语音任务被拒绝（${response.status}）。`);
+    return response.json() as Promise<{ complete?: boolean; input?: unknown; result?: unknown }>;
+  }
 }

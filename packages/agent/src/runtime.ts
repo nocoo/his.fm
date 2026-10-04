@@ -28,6 +28,7 @@ import type { Channel, WebsiteClient } from './client.ts';
 import type { Config } from './config.ts';
 import { type AssignmentPlan, type DecisionInput, decisions } from './decision.ts';
 import { EXECUTOR_CAPABILITIES, ROOT_POLICY, WORK_POLICY } from './prompts.ts';
+import { runSpeechJob } from './speech-job.ts';
 import type { InputRecord, RuntimeStore } from './store.ts';
 import type { RuntimeTransport } from './transport.ts';
 
@@ -37,7 +38,7 @@ type Assignment = {
   id: string;
   commandId: string;
   conversationId: ConversationId;
-  role: 'writer' | 'reviewer';
+  role: 'writer' | 'reviewer' | 'speech';
   profileVersion: number;
   revision: number;
   input: string;
@@ -63,7 +64,7 @@ type CommandFinish = {
 };
 type Resident = {
   id: ConversationId;
-  role: 'writer' | 'reviewer';
+  role: 'writer' | 'reviewer' | 'speech';
   profileVersion: number;
   lifetime: 'resident' | 'task';
   retired: boolean;
@@ -155,6 +156,7 @@ export async function openRuntime(options: RuntimeOptions) {
   const secrets = [
     config.providers.raven.apiKey,
     config.decision.apiKey,
+    ...Object.values(config.speechKeys),
     ...Object.values(config.websites).map((site) => site.token),
   ].filter(Boolean);
   const safeText = (text: string) =>
@@ -198,7 +200,7 @@ export async function openRuntime(options: RuntimeOptions) {
       );
       conversations.push({
         id: String(resident.id),
-        role: resident.role === 'reviewer' ? '审校' : '写作',
+        role: resident.role === 'reviewer' ? '审校' : resident.role === 'speech' ? '语音' : '写作',
         lifetime: resident.lifetime,
         status: assignment ? 'working' : 'idle',
         task: assignment ? '执行已分配任务' : '等待任务',
@@ -353,6 +355,35 @@ export async function openRuntime(options: RuntimeOptions) {
       return { ...textResult({ saved: true, outcome: args.outcome }), control: { terminate: true } };
     },
   });
+  const generate = defineTool({
+    name: 'generate_speech',
+    description:
+      'Execute the assigned approved speech job through the native script. No keys or configuration paths are returned. Return its successful receipt as evidence; never fabricate audio.',
+    replay: 'safe',
+    parameters: Type.Object({ jobId: Type.String({ pattern: '^[a-zA-Z0-9-]+$' }) }),
+    execute: async (args, api, executionContext) => {
+      const assignment = Object.values((await work()).assignments).find(
+        (item) => item.conversationId === api.conversationId && item.status === 'working',
+      );
+      if (
+        assignment?.role !== 'speech' ||
+        !assignment.commandId.startsWith(`speech:${args.jobId}:`) ||
+        commandStopped(assignment.commandId)
+      )
+        throw new Error('当前会话未获授权执行这个语音任务。');
+      const result = await runSpeechJob(
+        client,
+        () => transport.generation,
+        args.jobId,
+        assignment.commandId,
+        join(config.runtime.workspaceRoot, digest(api.conversationId)),
+        executionContext.abortSignal ?? new AbortController().signal,
+      );
+      store.set(`speech-receipt:${assignment.commandId}`, result);
+      return textResult(result);
+    },
+  });
+  const speechExtension = defineExtension({ name: 'hisfm.speech', tools: [generate, submitResult] });
   const executionExtension = defineExtension({ name: 'hisfm.execution', tools: [submitResult] });
   const read = defineTool({
     name: 'read_latest',
@@ -400,7 +431,7 @@ export async function openRuntime(options: RuntimeOptions) {
       'Delegate an outcome with context and acceptance criteria; executors choose tools and methods within the current owner scope and native capabilities. Results arrive asynchronously.',
     replay: 'safe',
     parameters: Type.Object({
-      role: Type.Union([Type.Literal('writer'), Type.Literal('reviewer')]),
+      role: Type.Union([Type.Literal('writer'), Type.Literal('reviewer'), Type.Literal('speech')]),
       instructions: markdown,
       requiredCriteria: Type.Optional(
         Type.Array(Type.String({ minLength: 1, maxLength: 4000 }), { minItems: 1, maxItems: 50 }),
@@ -468,7 +499,7 @@ export async function openRuntime(options: RuntimeOptions) {
             (productionId !== null || item.commandId === active.id),
         );
         const plan = await decide({
-          role: args.role,
+          role: args.role === 'speech' ? 'writer' : args.role,
           revision: args.revision,
           inputBytes: Buffer.byteLength(args.instructions),
           availableResident: !!resident,
@@ -490,13 +521,20 @@ export async function openRuntime(options: RuntimeOptions) {
         if (
           !config.executor.thinkingLevels.includes(plan.thinkingLevel) ||
           (plan.reuse && !available) ||
-          (args.role === 'writer' && plan.lifetime !== 'task')
+          (args.role !== 'reviewer' && plan.lifetime !== 'task')
         )
           throw new Error('任务分配不满足会话约束。');
         const input = JSON.stringify({
           assignmentId: id,
           ownerCommand: active,
-          capabilities: EXECUTOR_CAPABILITIES,
+          capabilities:
+            args.role === 'speech'
+              ? {
+                  tools: ['generate_speech', 'submit_result'],
+                  execution:
+                    'Execute the assigned native speech job; configuration and provider credentials remain inside the script.',
+                }
+              : EXECUTOR_CAPABILITIES,
           role: args.role,
           instructions: args.instructions,
           requiredCriteria: args.requiredCriteria ?? [args.instructions],
@@ -532,7 +570,7 @@ export async function openRuntime(options: RuntimeOptions) {
           await configure(transaction, conversationId, {
             model: { provider: config.executor.provider, modelId: config.executor.model },
             thinkingLevel: plan.thinkingLevel,
-            extensions: [CodingTools, executionExtension],
+            extensions: args.role === 'speech' ? [speechExtension] : [CodingTools, executionExtension],
             instructions: `${WORK_POLICY}\nCurrent ownerCommand: ${JSON.stringify(active)}`,
           });
           saved.conversations[conversationId] = {
@@ -551,7 +589,11 @@ export async function openRuntime(options: RuntimeOptions) {
         visible(
           `dispatch:${id}`,
           active.id,
-          args.role === 'reviewer' ? '已安排审校，完成后我会核对结果。' : '已安排写作，完成后我会核对结果。',
+          args.role === 'reviewer'
+            ? '已安排审校，完成后我会核对结果。'
+            : args.role === 'speech'
+              ? '已安排专职语音会话，完成后我会核对结果。'
+              : '已安排写作，完成后我会核对结果。',
         );
         launch(assignment);
         await statuses();
@@ -788,6 +830,12 @@ export async function openRuntime(options: RuntimeOptions) {
     },
   });
   async function validateFinish(active: AgentCommand, finish: CommandFinish) {
+    if (
+      active.id.startsWith('speech:') &&
+      finish.outcome === 'done' &&
+      !store.get<{ complete?: boolean }>(`speech-receipt:${active.id}`)?.complete
+    )
+      throw new Error('语音任务缺少成功的网站回执。');
     const assignments = Object.values((await work()).assignments).filter(
       (assignment) => assignment.commandId === active.id,
     );
@@ -882,6 +930,7 @@ export async function openRuntime(options: RuntimeOptions) {
   });
   registry.install(CodingTools);
   registry.install(executionExtension);
+  registry.install(speechExtension);
   registry.install(rootExtension);
   await root.configure(
     {
@@ -967,7 +1016,10 @@ export async function openRuntime(options: RuntimeOptions) {
         store.finishInput(input.id);
         const waiting =
           pending || (!finish && store.hasInput(input.commandId)) || store.hasPendingEffect(input.commandId);
-        const requiresAcceptance = assignments.length > 0 || store.effects(input.commandId).length > 0;
+        const requiresAcceptance =
+          input.commandId.startsWith('speech:') ||
+          assignments.length > 0 ||
+          store.effects(input.commandId).length > 0;
         const status =
           finish?.outcome === 'blocked'
             ? 'failed'

@@ -109,6 +109,6 @@ The confirmation and public snapshot are committed in one D1 transaction. A conc
 
 ## Cloud narration
 
-The typed `audio.request` operation invokes the shared audio controller with `{ version, voice?, speakingStyle?, includeBumpers? }`. Omitted voice/style use saved studio defaults; `includeBumpers` defaults to false. The script must be approved. The endpoint returns `202` with the queued production; poll `GET` until `audioJob.status` is complete or failed. A queued job is redispatched with its original snapshot rather than new options.
+The typed `audio.request` operation invokes the shared audio controller with `{ version, provider?, voice?, speakingStyle?, introId?, outroId? }`. Omitted voice/style use saved studio defaults; The intro and outro selections both default to null. Execution belongs to the native speech conversation, not the Worker. The script must be approved. The endpoint returns `202` with the queued production; poll `GET` until `audioJob.status` is complete or failed. A queued job is redispatched with its original snapshot rather than new options.
 
 A completed narration is stored in R2 and attached as `assets.audio`, including the CDN `url`, `durationSeconds`, `voice`, `includesBumpers` and `scriptVersion`. Selecting bumpers requires both configured files. A preview is available only through the owner endpoint described in [Audio implementation](audio.md).

@@ -7,7 +7,6 @@ import {
   publicationSchema,
 } from '../src/shared/production';
 import { operationFence, operationReceipt } from './agent-runtime-operation';
-import { getSettings } from './audio-store';
 import { getChannel } from './channel';
 import { HttpError, json } from './http';
 import { readBytes, readJson } from './production-body';
@@ -266,9 +265,7 @@ export async function routeProductions(
     });
   }
   if (operation === 'prompts' && request.method === 'GET')
-    return json(
-      productionPrompts(await getProduction(env.DB, id), await getChannel(env.DB), await getSettings(env)),
-    );
+    return json(productionPrompts(await getProduction(env.DB, id), await getChannel(env.DB)));
   if (operation) throw new HttpError(405, '不支持这个请求方式');
   if (request.method === 'GET') return json({ production: await getProduction(env.DB, id) });
   if (request.method === 'PUT') {

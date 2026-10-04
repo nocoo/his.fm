@@ -3,11 +3,15 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, expect, it, vi } from 'vitest';
 import type WebSocket from 'ws';
+import * as settings from './settings.ts';
 import { RuntimeStore } from './store.ts';
 import { FakeSocket, snapshot, testCommand, testConfig, testContext } from './testing/fixtures.ts';
 import { RuntimeTransport } from './transport.ts';
 
-afterEach(() => vi.useRealTimers());
+afterEach(() => {
+  vi.useRealTimers();
+  vi.restoreAllMocks();
+});
 async function setup() {
   const directory = await mkdtemp(join(tmpdir(), 'hisfm-transport-'));
   const store = new RuntimeStore(join(directory, 'db.sqlite'), 'test');
@@ -71,6 +75,57 @@ it('persists before acceptance, waits for snapshot and retires confirmed outbox 
     socket.receive({ type: 'presence', online: true });
     socket.receive({ type: 'pong' });
     expect(test.transport.ready).toBe(true);
+  } finally {
+    await test.close();
+  }
+});
+
+it('returns only allowlisted runtime configuration without recording credentials in the outbox', async () => {
+  const test = await setup();
+  const status = settings.configurationStatus(testConfig());
+  const read = vi.spyOn(settings, 'runtimeSettings').mockResolvedValue(status);
+  try {
+    const socket = test.open();
+    test.ready(socket);
+    socket.receive({ type: 'runtime.request', id: 'read', request: { kind: 'settings.read' } });
+    await expect
+      .poll(() =>
+        socket.frames.some(
+          (frame) =>
+            typeof frame === 'object' &&
+            frame !== null &&
+            'type' in frame &&
+            'id' in frame &&
+            frame.type === 'runtime.response' &&
+            frame.id === 'read',
+        ),
+      )
+      .toBe(true);
+    expect(socket.frames).toContainEqual({ type: 'runtime.response', id: 'read', ok: true, result: status });
+    read.mockRejectedValueOnce(new Error('private-key'));
+    socket.receive({
+      type: 'runtime.request',
+      id: 'write',
+      request: {
+        kind: 'settings.update',
+        input: { version: status.version, settings: status.settings, credentials: { gemini: 'private-key' } },
+      },
+    });
+    await expect
+      .poll(() =>
+        socket.frames.some(
+          (frame) =>
+            typeof frame === 'object' &&
+            frame !== null &&
+            'type' in frame &&
+            'id' in frame &&
+            frame.type === 'runtime.response' &&
+            frame.id === 'write',
+        ),
+      )
+      .toBe(true);
+    expect(JSON.stringify(socket.frames)).not.toContain('private-key');
+    expect(test.store.pending()).toEqual([]);
   } finally {
     await test.close();
   }

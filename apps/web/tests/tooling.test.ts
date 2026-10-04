@@ -52,9 +52,8 @@ describe('Cloudflare configuration', () => {
     for (const worker of [local, production]) {
       expect(worker.workersDev).toBe(false);
       expect(worker.previewUrls).toBe(false);
-      expect(worker.env.AUDIO_WORKFLOW.worker).toBe(worker.name);
-      expect(worker.env.AUDIO_WORKFLOW.name).toBe(worker.exports.AudioWorkflow.name);
-      expect(worker.env.AUDIO_WORKFLOW.exportName).toBe('AudioWorkflow');
+      expect(worker.env).not.toHaveProperty('AUDIO_WORKFLOW');
+      expect(worker.env).not.toHaveProperty('GEMINI_API_KEY');
       expect(worker.assets.runWorkerFirst).toEqual([
         '/api/*',
         '/.well-known/api-catalog',

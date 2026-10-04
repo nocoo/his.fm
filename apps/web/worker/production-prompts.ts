@@ -1,11 +1,7 @@
 import type { ChannelProfile } from '../src/shared/channel';
-import type { Production, ProductionPrompts, ProductionSettings } from '../src/shared/production';
+import type { Production, ProductionPrompts } from '../src/shared/production';
 
-export function productionPrompts(
-  production: Production,
-  channel: ChannelProfile,
-  settings?: ProductionSettings,
-): ProductionPrompts {
+export function productionPrompts(production: Production, channel: ChannelProfile): ProductionPrompts {
   const context = JSON.stringify(
     {
       title: production.title,
@@ -13,16 +9,7 @@ export function productionPrompts(
       targetDurationSeconds: production.targetDurationSeconds,
       sources: production.sources,
       transcript: production.transcript,
-      audio: settings
-        ? {
-            model: 'gemini-3.8-flash-tts',
-            voice: settings.voice,
-            speakingStyle: settings.speakingStyle,
-            configured: settings.ttsConfigured,
-            introReady: Boolean(settings.intro),
-            outroReady: Boolean(settings.outro),
-          }
-        : null,
+      audio: { execution: 'native speech conversation', providers: ['gemini', 'elevenlabs'] },
       feedback: production.events
         .filter((event) => event.feedback)
         .map((event) => ({ action: event.action, feedback: event.feedback })),

@@ -4,6 +4,7 @@ import { isAbsolute, join } from 'node:path';
 import type { Model } from '@earendil-works/pi-ai';
 import { openAICompletionsApi } from '@earendil-works/pi-ai/api/openai-completions.lazy';
 import { createModels, createProvider } from '@earendil-works/pi-ai/models';
+import { speechSettingsSchema } from '@his-fm/contracts';
 import { z } from 'zod';
 
 export const environmentSchema = z.enum(['local', 'production']);
@@ -29,6 +30,9 @@ const role = {
 };
 export const configSchema = z.strictObject({
   schemaVersion: z.literal(1),
+  configRevision: z.string().length(64),
+  speech: speechSettingsSchema,
+  speechKeys: z.strictObject({ gemini: z.string().max(500), elevenlabs: z.string().max(500) }),
   providers: z.strictObject({
     raven: z.strictObject({
       api: z.literal('openai-completions'),

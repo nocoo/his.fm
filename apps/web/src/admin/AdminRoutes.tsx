@@ -10,10 +10,12 @@ import { EpisodeEditor } from './EpisodeEditor';
 import { EpisodeList } from './EpisodeList';
 import { LoginBadge } from './LoginBadge';
 import { errorMessage } from './model';
+import { AiSettings } from './production/AiSettings';
+import { BumpersPage } from './production/BumpersPage';
+import { ConnectionsPage } from './production/ConnectionsPage';
 import { NewProduction } from './production/NewProduction';
 import { ProductionEditor } from './production/ProductionEditor';
 import { ProductionList } from './production/ProductionList';
-import { StudioSettings } from './production/StudioSettings';
 import { VoiceReferences } from './production/VoiceReferences';
 import { ApiError, adminService, type Session } from './service';
 import './admin.css';
@@ -123,7 +125,10 @@ function SessionGate() {
         <Route path="catalog" element={<EpisodeList />} />
         <Route path="productions/new" element={<NewProduction />} />
         <Route path="productions/:id" element={<ProductionEditor />} />
-        <Route path="settings" element={<StudioSettings />} />
+        <Route path="ai" element={<AiSettings />} />
+        <Route path="connections" element={<ConnectionsPage />} />
+        <Route path="narration" element={<AiSettings styleOnly />} />
+        <Route path="bumpers" element={<BumpersPage />} />
         <Route
           path="channel"
           element={
@@ -136,7 +141,7 @@ function SessionGate() {
         <Route
           path="appearance"
           element={
-            <Suspense fallback={<LoadingScreen label="正在打开网站外观" />}>
+            <Suspense fallback={<LoadingScreen label="正在打开品牌外观" />}>
               <AppearancePage />
             </Suspense>
           }

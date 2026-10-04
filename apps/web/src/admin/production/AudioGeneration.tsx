@@ -1,10 +1,10 @@
-import { Button, Checkbox, LayerCard } from '@nocoo/basalt';
-import { useCallback, useEffect, useId, useState } from 'react';
+import { Button, Field, LayerCard } from '@nocoo/basalt';
+import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router';
 import type { Production, ProductionSettings } from '../../shared/production';
 import { cleanText } from '../../shared/publication-format';
 import { errorMessage } from '../model';
-import { Confirm, Failure } from './controls';
+import { Choice, Confirm, Failure } from './controls';
 import { audioBusy } from './model';
 import { productionService } from './service';
 import { VoiceEditor } from './VoiceEditor';
@@ -20,10 +20,14 @@ export function AudioGeneration({
   dirty: boolean;
   mutate: (operation: () => Promise<{ production: Production }>, message: string) => Promise<boolean>;
 }) {
-  const id = useId();
   const [settings, setSettings] = useState<ProductionSettings | null>(null);
-  const [options, setOptions] = useState<Pick<ProductionSettings, 'voice' | 'speakingStyle'> | null>(null);
-  const [includeBumpers, setIncludeBumpers] = useState(false);
+  const [options, setOptions] = useState<Pick<
+    ProductionSettings,
+    'provider' | 'voice' | 'speakingStyle'
+  > | null>(null);
+  const [introId, setIntroId] = useState<string | null>(null);
+  const [outroId, setOutroId] = useState<string | null>(null);
+  const includeBumpers = Boolean(introId || outroId);
   const [confirm, setConfirm] = useState(false);
   const [error, setError] = useState('');
   const load = useCallback(async (signal?: AbortSignal) => {
@@ -32,7 +36,11 @@ export function AudioGeneration({
       setSettings(result.settings);
       setOptions(
         (current) =>
-          current ?? { voice: result.settings.voice, speakingStyle: result.settings.speakingStyle },
+          current ?? {
+            provider: result.settings.provider,
+            voice: result.settings.voice,
+            speakingStyle: result.settings.speakingStyle,
+          },
       );
       setError('');
     } catch (cause) {
@@ -48,20 +56,22 @@ export function AudioGeneration({
   const generate = () =>
     mutate(
       () =>
-        productionService.audio(production.id, { version: production.version, ...options, includeBumpers }),
-      '云端音频任务已开始',
+        productionService.audio(production.id, { version: production.version, ...options, introId, outroId }),
+      '已交给本机主控生成音频',
     );
   if (error) return <Failure error={error} retry={() => void load()} />;
   if (!settings || !options) return <LayerCard.Loading label="正在加载音频生成设置" />;
   return (
     <div className="studio-stack">
       {busy ? (
-        <p className="admin-muted">任务使用开始时选定的音色和讲述风格。可以关闭浏览器，云端会继续生成。</p>
+        <p className="admin-muted">
+          任务使用开始时选定的音色和讲述风格。可以关闭浏览器，主控保持运行时会继续生成。
+        </p>
       ) : (
         <>
           <div className="studio-row">
             <strong>本次生成</strong>
-            <Link className="studio-link" to="/admin/settings">
+            <Link className="studio-link" to="/admin/narration">
               声音设置
             </Link>
           </div>
@@ -69,25 +79,34 @@ export function AudioGeneration({
           <VoiceEditor
             value={options}
             onChange={setOptions}
-            configured={settings.ttsConfigured}
+            configured={settings.providers[options.provider]}
+            voices={settings.voices}
             disabled={pending || dirty}
             text={cleanText(production.transcript)}
           />
-          <div className="studio-row">
-            <label className="studio-checkbox" htmlFor={`${id}-bumpers`}>
-              <Checkbox
-                id={`${id}-bumpers`}
-                checked={includeBumpers}
-                onCheckedChange={(checked) => setIncludeBumpers(checked === true)}
-                disabled={pending || !settings.intro || !settings.outro}
-              />
-              添加片头和片尾
-            </label>
-            <p className="admin-muted">
-              {settings.intro && settings.outro ? '已配置两段固定贴片' : '未配置贴片，可直接生成正文'}
-            </p>
+          <div className="studio-grid">
+            {(['intro', 'outro'] as const).map((position) => (
+              <Field key={position} label={position === 'intro' ? '片头' : '片尾'}>
+                <Choice
+                  label={position === 'intro' ? '片头' : '片尾'}
+                  value={(position === 'intro' ? introId : outroId) ?? 'none'}
+                  onChange={(value) =>
+                    (position === 'intro' ? setIntroId : setOutroId)(value === 'none' ? null : value)
+                  }
+                  disabled={pending}
+                  options={[
+                    { value: 'none', label: '不添加' },
+                    ...settings.bumpers
+                      .filter((item) => item.position === position)
+                      .map((item) => ({ value: item.id, label: item.name })),
+                  ]}
+                />
+              </Field>
+            ))}
           </div>
-          {!settings.ttsConfigured && <p className="studio-notice">尚未配置云端 Gemini API 密钥。</p>}
+          {!settings.providers[options.provider] && (
+            <p className="studio-notice">尚未配置所选语音服务的本机 Key。</p>
+          )}
         </>
       )}
       <div className="studio-actions">
@@ -95,7 +114,7 @@ export function AudioGeneration({
           loading={pending}
           disabled={
             dirty ||
-            !settings.ttsConfigured ||
+            !settings.providers[options.provider] ||
             !production.approvals.script ||
             production.audioJob?.status === 'running' ||
             !options.speakingStyle.trim()
@@ -122,7 +141,7 @@ export function AudioGeneration({
       {confirm && (
         <Confirm
           title="确认重新生成音频"
-          description={`使用 ${options.voice} 重新生成${includeBumpers ? '正文与片头片尾' : '正文音频'}。本次会调用 Gemini，新音频完成后需要重新检查。`}
+          description={`使用 ${options.voice} 重新生成${includeBumpers ? '正文与片头片尾' : '正文音频'}。本次会调用所选语音服务，新音频完成后需要重新检查。`}
           onClose={() => setConfirm(false)}
           onConfirm={generate}
         />

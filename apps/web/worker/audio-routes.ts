@@ -1,33 +1,31 @@
-import {
-  type Actor,
-  audioGenerationSchema,
-  audioPreviewSchema,
-  productionSettingsSchema,
-} from '../src/shared/production';
+import { speechCacheContent, speechSnapshotSchema } from '@his-fm/contracts';
+import { type Actor, audioGenerationSchema, audioPreviewSchema } from '../src/shared/production';
+import { cleanText } from '../src/shared/publication-format';
+import { voiceSampleTranscript } from '../src/shared/voice-samples';
 import { operationFence, operationReceipt } from './agent-runtime-operation';
-import { AUDIO_MODEL, AudioError, parseWav, readStoredWav, synthesizeSpeech } from './audio';
-import { type AudioSnapshot, getSettings, saveBumper } from './audio-store';
+import { runtimeConfiguration } from './ai-settings';
+import { readStoredWav } from './audio';
+import { type AudioSnapshot, getSettings } from './audio-store';
 import { HttpError, json } from './http';
-import { readBytes, readJson } from './production-body';
+import { queueSpeech, speechResult } from './native-speech';
+import { readJson } from './production-body';
 import { editAssets } from './production-model';
 import { appendEvent, getProduction, mediaUrl, nextVersion, updateStatement } from './production-store';
 
 export async function triggerAudio(env: Env, jobId: string) {
-  try {
-    await env.AUDIO_WORKFLOW.create({ id: jobId, params: { jobId } });
-  } catch {
-    try {
-      const instance = await env.AUDIO_WORKFLOW.get(jobId);
-      const status = await instance.status();
-      if (status.status === 'errored' || status.status === 'terminated') await instance.restart();
-    } catch {
-      throw new HttpError(503, '音频任务已保存，但派发失败，请重试派发');
-    }
-  }
+  const row = await env.DB.prepare('SELECT snapshot FROM audio_jobs WHERE id = ?')
+    .bind(jobId)
+    .first<{ snapshot: string }>();
+  if (!row) throw new HttpError(404, '音频任务不存在');
+  const snapshot: AudioSnapshot = JSON.parse(row.snapshot);
+  await queueSpeech(env, jobId, 'production', snapshot.speech, snapshot.productionId);
 }
 
 async function startAudio(request: Request, env: Env, id: string, actor: Actor) {
-  const { version, voice, speakingStyle, includeBumpers } = await readJson(request, audioGenerationSchema);
+  const { version, provider, voice, speakingStyle, introId, outroId } = await readJson(
+    request,
+    audioGenerationSchema,
+  );
   const production = await getProduction(env.DB, id);
   if (production.version !== version) throw new HttpError(409, '内容已更新，请刷新后重试');
   if (
@@ -53,9 +51,25 @@ async function startAudio(request: Request, env: Env, id: string, actor: Actor) 
     return json({ production });
   }
   const settings = await getSettings(env);
-  if (!settings.ttsConfigured) throw new HttpError(409, '请先配置 Gemini API 密钥');
-  if (includeBumpers && (!settings.intro || !settings.outro))
-    throw new HttpError(409, '添加贴片前，请先在设置中上传片头与片尾');
+  const config = await runtimeConfiguration(env);
+  const selected = provider ?? settings.provider;
+  if (!config.providers[selected]) throw new HttpError(409, '请先在 AI 设置中配置所选语音服务');
+  const intro = introId
+    ? settings.bumpers.find((item) => item.id === introId && item.position === 'intro')
+    : null;
+  const outro = outroId
+    ? settings.bumpers.find((item) => item.id === outroId && item.position === 'outro')
+    : null;
+  if ((introId && !intro) || (outroId && !outro)) throw new HttpError(409, '所选贴片不存在，请刷新后重试');
+  const speech = speechSnapshotSchema.parse({
+    provider: selected,
+    model: config.settings[selected].model,
+    voice: voice ?? config.settings[selected].voice,
+    speakingStyle: speakingStyle ?? settings.speakingStyle,
+    stability: config.settings.elevenlabs.stability,
+    similarity: config.settings.elevenlabs.similarity,
+    text: cleanText(production.transcript),
+  });
   const jobId = crypto.randomUUID();
   const now = new Date().toISOString();
   const snapshot: AudioSnapshot = {
@@ -63,10 +77,11 @@ async function startAudio(request: Request, env: Env, id: string, actor: Actor) 
     productionId: id,
     scriptVersion: production.scriptVersion,
     transcript: production.transcript,
-    voice: voice ?? settings.voice,
-    speakingStyle: speakingStyle ?? settings.speakingStyle,
-    introKey: includeBumpers ? (settings.intro?.key ?? null) : null,
-    outroKey: includeBumpers ? (settings.outro?.key ?? null) : null,
+    voice: speech.voice,
+    speakingStyle: speech.speakingStyle,
+    speech,
+    introKey: intro?.key ?? null,
+    outroKey: outro?.key ?? null,
   };
   const next = nextVersion(
     appendEvent(
@@ -103,33 +118,31 @@ async function startAudio(request: Request, env: Env, id: string, actor: Actor) 
 async function previewAudio(request: Request, env: Env) {
   if (request.method !== 'POST') throw new HttpError(405, '不支持这个请求方式');
   const input = await readJson(request, audioPreviewSchema);
-  if (!env.GEMINI_API_KEY) throw new HttpError(409, '请先配置 Gemini API 密钥');
+  const config = await runtimeConfiguration(env);
+  if (!config.providers[input.provider]) throw new HttpError(409, '请先配置所选语音服务的 Key');
+  const snapshot = speechSnapshotSchema.parse({
+    ...input,
+    model: config.settings[input.provider].model,
+    stability: config.settings.elevenlabs.stability,
+    similarity: config.settings.elevenlabs.similarity,
+  });
   const digest = await crypto.subtle.digest(
     'SHA-256',
-    new TextEncoder().encode(JSON.stringify([AUDIO_MODEL, input.voice, input.speakingStyle, input.text])),
+    new TextEncoder().encode(speechCacheContent(snapshot)),
   );
   const hash = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
   const key = `audio/previews/${hash}.wav`;
-  const cached = Boolean(await env.MEDIA.head(key));
-  try {
-    let durationSeconds: number;
-    if (cached) durationSeconds = (await readStoredWav(env.MEDIA, key)).durationSeconds;
-    else {
-      const generated = await synthesizeSpeech(
-        env.GEMINI_API_KEY,
-        input.text,
-        input.voice,
-        input.speakingStyle,
-      );
-      await env.MEDIA.put(key, generated.bytes, {
-        httpMetadata: { contentType: 'audio/wav', cacheControl: 'public, max-age=31536000, immutable' },
-      });
-      durationSeconds = generated.info.durationSeconds;
-    }
-    return json({ preview: { ...input, url: mediaUrl(env, key), durationSeconds, cached } });
-  } catch (error) {
-    throw new HttpError(502, error instanceof AudioError ? error.message : '试听生成暂时失败，请重试');
-  }
+  if (await env.MEDIA.head(key))
+    return json({
+      preview: {
+        ...input,
+        url: mediaUrl(env, key),
+        durationSeconds: (await readStoredWav(env.MEDIA, key)).durationSeconds,
+        cached: true,
+      },
+    });
+  await queueSpeech(env, hash, 'preview', snapshot, null);
+  return json({ jobId: hash }, 202);
 }
 
 export async function routeAudio(
@@ -144,43 +157,19 @@ export async function routeAudio(
     return startAudio(request, env, match[1], actor);
   }
   if (!path.startsWith('/production-settings')) return null;
-  if (actor.kind !== 'human') throw new HttpError(403, '只有编辑可以管理工作室配置');
+  if (actor.kind !== 'human') throw new HttpError(403, '只有编辑可以管理语音设置');
   if (path === '/production-settings/preview') return previewAudio(request, env);
-  if (path === '/production-settings') {
-    if (request.method === 'GET') return json({ settings: await getSettings(env) });
-    if (request.method !== 'PUT') throw new HttpError(405, '不支持这个请求方式');
-    const settings = await readJson(request, productionSettingsSchema);
-    await getSettings(env);
-    await env.DB.prepare(
-      "UPDATE production_settings SET data = json_set(data, '$.voice', ?, '$.speakingStyle', ?) WHERE id = 1",
+  if (path === '/production-settings/previews' && request.method === 'GET') {
+    const rows = await env.DB.prepare(
+      "SELECT result FROM speech_jobs WHERE kind = 'preview' AND status = 'complete' AND json_extract(snapshot, '$.text') = ? ORDER BY created_at DESC LIMIT 30",
     )
-      .bind(settings.voice, settings.speakingStyle)
-      .run();
+      .bind(voiceSampleTranscript)
+      .all<{ result: string }>();
+    return json({ previews: rows.results.map((row) => JSON.parse(row.result)) });
+  }
+  const preview = /^\/production-settings\/preview\/([a-f0-9]{64})$/.exec(path);
+  if (preview && request.method === 'GET') return speechResult(env, preview[1]);
+  if (path === '/production-settings' && request.method === 'GET')
     return json({ settings: await getSettings(env) });
-  }
-  const bumper = /^\/production-settings\/(intro|outro)$/.exec(path);
-  if (!bumper) throw new HttpError(404, '接口不存在');
-  if (request.method !== 'PUT') throw new HttpError(405, '不支持这个请求方式');
-  const bytes = await readBytes(request, 3 * 1024 * 1024);
-  let durationSeconds: number;
-  try {
-    durationSeconds = parseWav(bytes).durationSeconds;
-  } catch (error) {
-    if (error instanceof AudioError) throw new HttpError(400, error.message);
-    throw error;
-  }
-  if (durationSeconds > 30) throw new HttpError(400, '片头或片尾不能超过 30 秒');
-  const position = bumper[1] as 'intro' | 'outro';
-  const key = `bumpers/${position}-${crypto.randomUUID()}.wav`;
-  await env.MEDIA.put(key, bytes, {
-    httpMetadata: { contentType: 'audio/wav', cacheControl: 'public, max-age=31536000, immutable' },
-  });
-  return json({
-    settings: await saveBumper(env, position, {
-      key,
-      url: mediaUrl(env, key),
-      durationSeconds,
-      size: bytes.byteLength,
-    }),
-  });
+  throw new HttpError(404, '接口不存在');
 }

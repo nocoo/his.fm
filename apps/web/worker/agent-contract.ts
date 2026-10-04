@@ -132,12 +132,8 @@ export const serviceCapabilitiesSchema = z.object({
   humanOnly: z.array(z.string()),
   limits: z.object({ jsonBytes: z.number(), coverBytes: z.number(), auditEvents: z.number() }),
   audio: z.object({
-    model: z.string(),
-    configured: z.boolean(),
-    voice: z.enum(voices),
-    speakingStyle: z.string(),
-    introReady: z.boolean(),
-    outroReady: z.boolean(),
+    execution: z.literal('native'),
+    providers: z.array(z.enum(['gemini', 'elevenlabs'])),
     voices: z.array(
       z.object({ id: z.enum(voices), description: z.string(), previewUrl: z.string().nullable() }),
     ),
@@ -321,6 +317,41 @@ export function agentOpenApi(origin: string) {
             { name: 'X-Hisfm-Station', in: 'header', required: true, schema: { type: 'string' } },
           ],
         },
+      },
+      '/runtime/speech/{id}': {
+        parameters: [
+          { ...idParameter, description: 'Immutable website speech job ID, not a production ID' },
+          ...['X-Hisfm-Station', 'X-Hisfm-Generation', 'X-Hisfm-Command'].map((name) => ({
+            name,
+            in: 'header',
+            required: true,
+            schema: { type: 'string' },
+          })),
+        ],
+        get: operation('readNativeSpeechJob', 'Read the exact authorized speech job or completed receipt', {
+          type: 'object',
+        }),
+        post: operation(
+          'startNativeSpeechJob',
+          'Mark local speech execution under the active enrolled lease',
+          { type: 'object' },
+        ),
+        put: {
+          ...operation(
+            'completeNativeSpeechJob',
+            'Upload mono 24 kHz PCM16 WAV and atomically attach a still-approved job',
+            { type: 'object' },
+          ),
+          requestBody: {
+            required: true,
+            content: { 'audio/wav': { schema: { type: 'string', format: 'binary' } } },
+          },
+        },
+        delete: operation(
+          'failNativeSpeechJob',
+          'Record a failed native attempt without deleting completed audio',
+          { type: 'object' },
+        ),
       },
     },
     components: {

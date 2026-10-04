@@ -2,9 +2,10 @@ import { Button, LayerCard, toast } from '@nocoo/basalt';
 import { PageHeader } from '@nocoo/basalt/components/page-header';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router';
-import type { ProductionSettings } from '../../shared/production';
-import { voiceSamples, voiceSampleTranscript } from '../../shared/voice-samples';
+import type { AudioPreview, ProductionSettings } from '../../shared/production';
+import { elevenVoiceSamples, voiceSamples, voiceSampleTranscript } from '../../shared/voice-samples';
 import { errorMessage } from '../model';
+import { request } from '../service';
 import { Failure } from './controls';
 import { productionService } from './service';
 
@@ -13,10 +14,14 @@ export function VoiceReferences() {
   const [settings, setSettings] = useState<ProductionSettings | null>(null);
   const [pending, setPending] = useState<string | null>(null);
   const [error, setError] = useState('');
+  const [previews, setPreviews] = useState<AudioPreview[]>([]);
   const load = useCallback(async (signal?: AbortSignal) => {
     try {
       const result = await productionService.settings(signal);
       setSettings(result.settings);
+      setPreviews(
+        (await request<{ previews: AudioPreview[] }>('/production-settings/previews', { signal })).previews,
+      );
       setError('');
     } catch (cause) {
       if (!signal?.aborted) setError(errorMessage(cause));
@@ -36,12 +41,12 @@ export function VoiceReferences() {
         title="音色参考"
         actions={
           <Button variant="outline" asChild>
-            <Link to="/admin/settings">工作室设置</Link>
+            <Link to="/admin/ai">AI 设置</Link>
           </Button>
         }
       />
       <p className="studio-notice">
-        以下是此前制作的约 20 秒播报样片，用于音色比较。完整节目仍需使用已批准的逐字稿单独生成。
+        两家服务使用完全相同的中文文稿，便于比较声音。生成示例会调用所选服务；相同参数复用已有音频，不改默认音色。
       </p>
       <details>
         <summary>查看共同播报文稿</summary>
@@ -53,6 +58,79 @@ export function VoiceReferences() {
         </p>
       )}
       {error && <Failure error={error} retry={() => void load()} />}
+      <div className="studio-grid">
+        {[
+          { provider: 'gemini' as const, voice: 'Kore', name: 'Gemini · Kore', character: '沉稳坚定' },
+          ...elevenVoiceSamples.map((sample) => ({
+            ...sample,
+            provider: 'elevenlabs' as const,
+            name: `ElevenLabs · ${sample.name}`,
+          })),
+        ].map((sample) => {
+          const preview = previews.find(
+            (item) =>
+              item.provider === sample.provider &&
+              item.voice === sample.voice &&
+              item.speakingStyle === settings?.speakingStyle,
+          );
+          return (
+            <LayerCard key={`${sample.provider}:${sample.voice}`} className="studio-stack">
+              <div className="studio-row">
+                <strong>{sample.name}</strong>
+                <span className="admin-muted">{sample.character}</span>
+              </div>
+              <p className="admin-muted">
+                {sample.provider === 'gemini' ? 'gemini-3.8-flash-tts' : 'eleven_v4'}
+              </p>
+              {preview ? (
+                <audio
+                  controls
+                  preload="none"
+                  src={preview.url}
+                  aria-label={`${sample.name} 同文稿试听`}
+                  onPlay={(event) => {
+                    if (activeAudio.current && activeAudio.current !== event.currentTarget)
+                      activeAudio.current.pause();
+                    activeAudio.current = event.currentTarget;
+                  }}
+                >
+                  <track kind="captions" />
+                </audio>
+              ) : (
+                <p className="admin-muted">尚未生成当前风格的示例</p>
+              )}
+              {preview && <p className="admin-muted">{preview.durationSeconds.toFixed(2)} 秒 · 同文稿</p>}
+              <Button
+                variant="outline"
+                size="sm"
+                loading={pending === sample.voice}
+                disabled={pending !== null || !settings?.providers[sample.provider]}
+                onClick={async () => {
+                  if (!settings) return;
+                  setPending(sample.voice);
+                  setError('');
+                  try {
+                    const result = await productionService.preview({
+                      provider: sample.provider,
+                      voice: sample.voice,
+                      speakingStyle: settings.speakingStyle,
+                      text: voiceSampleTranscript,
+                    });
+                    setPreviews((current) => [result.preview, ...current]);
+                  } catch (cause) {
+                    setError(errorMessage(cause));
+                  } finally {
+                    setPending(null);
+                  }
+                }}
+              >
+                {preview ? '复用同文稿试听' : `生成 ${sample.name} 示例`}
+              </Button>
+            </LayerCard>
+          );
+        })}
+      </div>
+      <p className="admin-muted">Gemini 现有音色样片</p>
       <div className="studio-grid">
         {voiceSamples.map(({ voice, ...sample }) => (
           <VoiceSample
@@ -70,12 +148,16 @@ export function VoiceReferences() {
               setPending(voice);
               setError('');
               try {
-                const current = await productionService.settings();
-                const result = await productionService.saveSettings({
-                  voice,
-                  speakingStyle: current.settings.speakingStyle,
+                const { config } = await productionService.ai();
+                await productionService.saveAi({
+                  version: config.version,
+                  settings: {
+                    ...config.settings,
+                    defaultProvider: 'gemini',
+                    gemini: { ...config.settings.gemini, voice },
+                  },
                 });
-                setSettings(result.settings);
+                setSettings((await productionService.settings()).settings);
                 toast.success(`已将讲述声音设为 ${voice}`);
               } catch (cause) {
                 setError(errorMessage(cause));

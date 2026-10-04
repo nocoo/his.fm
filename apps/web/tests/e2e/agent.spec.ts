@@ -121,8 +121,8 @@ test('ambient coordinator keeps one connection across routes and excludes sensit
     .toBe(true);
   await page.getByRole('button', { name: '取消任务', exact: true }).click();
   await expect.poll(() => state.frames.some((frame) => frame.type === 'cancel')).toBe(true);
-  await page.getByRole('button', { name: '工作室设置', exact: true }).click();
-  await expect.poll(() => state.context()?.route).toBe('/admin/settings');
+  await page.getByRole('button', { name: '连接管理', exact: true }).click();
+  await expect.poll(() => state.context()?.route).toBe('/admin/connections');
   expect(state.context()?.field).toBeNull();
   expect(state.context()?.draft).toBeNull();
   expect(state.sockets).toHaveLength(1);

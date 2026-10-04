@@ -41,12 +41,13 @@ function collect(value: unknown, label: string, keys: References['keys'], proper
 }
 
 async function references(db: D1Database): Promise<References> {
-  const [productions, episodes, settings, jobs, channel] = await db.batch<Record<string, unknown>>([
+  const [productions, episodes, settings, jobs, channel, bumpers] = await db.batch<Record<string, unknown>>([
     db.prepare('SELECT data FROM productions'),
     db.prepare('SELECT title, cover_url, audio_url, transcript, show_notes, summary FROM episodes'),
     db.prepare('SELECT data FROM production_settings'),
     db.prepare("SELECT snapshot FROM audio_jobs WHERE status IN ('queued', 'running')"),
     db.prepare('SELECT content FROM channel_profile'),
+    db.prepare('SELECT name, data FROM bumpers'),
   ]);
   const refs: References = { keys: new Map(), prefixes: [] };
   for (const row of productions.results) {
@@ -55,6 +56,7 @@ async function references(db: D1Database): Promise<References> {
   }
   for (const row of episodes.results) collect(row, `节目：${row.title}`, refs.keys);
   for (const row of settings.results) collect(JSON.parse(String(row.data)), '工作室贴片设置', refs.keys);
+  for (const row of bumpers.results) collect(JSON.parse(String(row.data)), `贴片：${row.name}`, refs.keys);
   for (const row of channel.results) collect(row, '频道定位', refs.keys);
   for (const row of jobs.results) {
     const snapshot: AudioSnapshot = JSON.parse(String(row.snapshot));

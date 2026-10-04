@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { mkdir, readFile } from 'node:fs/promises';
+import { defaultSpeechSettings } from '@his-fm/contracts';
 import { expect, type Page, test } from '@playwright/test';
 import type { AgentTokenRecord, ProductionAction, ProductionSettings } from '../../src/shared/production';
 import { applyAction, applyPatch } from '../../worker/production-model';
@@ -15,11 +16,22 @@ async function studio(page: Page, initial = fixture()) {
   let settings: ProductionSettings = {
     voice: 'Kore',
     speakingStyle: '自然地讲述',
-    intro: null,
-    outro: null,
+    provider: 'gemini',
+    version: '0'.repeat(64),
+    bumpers: [],
+    providers: { gemini: false, elevenlabs: false },
+    voices: { gemini: 'Kore', elevenlabs: 'kLhAstPcnnPxqzk6gS5i' },
     ttsConfigured: false,
   };
   let tokens: AgentTokenRecord[] = [];
+  let ai = {
+    version: '0'.repeat(64),
+    settings: structuredClone(defaultSpeechSettings),
+    providers: { gemini: false, elevenlabs: false, raven: true, decision: true },
+    coordinator: { provider: 'raven', model: 'gpt-6-astra', thinkingLevel: 'high' },
+    executor: { provider: 'raven', model: 'gpt-6.1-sol', thinkingLevels: ['low', 'medium', 'high'] },
+    decision: { model: 'jev-latest', maxInputBytes: 16384, maxBatchQuestions: 12 },
+  };
   const actions: ProductionAction[] = [];
   await page.route('**/admin/api/**', async (route) => {
     const request = route.request();
@@ -32,6 +44,45 @@ async function studio(page: Page, initial = fixture()) {
         body: status === 204 ? '' : JSON.stringify(body),
       });
     if (path === '/session') return send({ mode: 'local', user: { email: 'editor@his.fm' } });
+    if (path === '/ai-settings') {
+      if (method === 'PUT') {
+        const input = request.postDataJSON();
+        ai = {
+          ...ai,
+          version: String(Number.parseInt(ai.version, 16) + 1).padStart(64, '0'),
+          settings: input.settings,
+        };
+        settings = {
+          ...settings,
+          provider: ai.settings.defaultProvider,
+          voice: ai.settings[ai.settings.defaultProvider].voice,
+          speakingStyle: ai.settings.speakingStyle,
+          voices: { gemini: ai.settings.gemini.voice, elevenlabs: ai.settings.elevenlabs.voice },
+        };
+      }
+      return send({ config: ai });
+    }
+    if (path === '/production-settings/previews') return send({ previews: [] });
+    if (path === '/bumpers') {
+      if (method === 'GET') return send({ bumpers: settings.bumpers });
+      if (failUpload) {
+        failUpload = false;
+        return send({ error: '上传失败，请重试' }, 503);
+      }
+      const params = new URL(request.url()).searchParams;
+      const bumper = {
+        id: 'bumper-one',
+        name: params.get('name') ?? '',
+        position: 'intro' as const,
+        version: 1,
+        key: 'intro',
+        url: '/media/intro.wav',
+        durationSeconds: 2,
+        size: 96044,
+      };
+      settings = { ...settings, bumpers: [bumper] };
+      return send({ bumper }, 201);
+    }
     if (path === '/agent-tokens') {
       if (method === 'GET') return send({ tokens });
       const input = request.postDataJSON();
@@ -62,15 +113,6 @@ async function studio(page: Page, initial = fixture()) {
       }
       const input = request.postDataJSON();
       return send({ preview: { ...input, url: '/media/preview.wav', durationSeconds: 18, cached: false } });
-    }
-    if (path.startsWith('/production-settings/')) {
-      if (failUpload) {
-        failUpload = false;
-        return send({ error: '上传失败，请重试' }, 503);
-      }
-      const key = path.endsWith('/intro') ? 'intro' : 'outro';
-      settings = { ...settings, [key]: { key, url: `/media/${key}.wav`, durationSeconds: 2, size: 96044 } };
-      return send({ settings });
     }
     if (path === '/productions') {
       if (method === 'POST') {
@@ -206,6 +248,9 @@ async function studio(page: Page, initial = fixture()) {
     },
     configureTts: () => {
       settings.ttsConfigured = true;
+      settings.providers = { gemini: true, elevenlabs: true };
+      ai.providers.gemini = true;
+      ai.providers.elevenlabs = true;
     },
     failPreview: () => {
       failPreview = true;
@@ -412,34 +457,26 @@ test('five stages preserve failed edits and advance with owner completion', asyn
   expect(errors).toEqual([]);
 });
 
-test('audio settings preserve failed uploads and assistant tokens are revocable and transient', async ({
+test('separate bumper and connection pages preserve failed uploads and transient tokens', async ({
   page,
 }) => {
   const state = await studio(page);
-  await page.goto('/admin/settings');
+  await page.goto('/admin/bumpers');
+  await page.getByLabel('贴片名称').fill('Opening');
+  await page
+    .locator('input[type=file]')
+    .setInputFiles({ name: 'intro.wav', mimeType: 'audio/wav', buffer: Buffer.alloc(96) });
+  state.failUpload();
+  await page.getByRole('button', { name: '加入贴片库', exact: true }).click();
+  await expect(page.getByText('上传失败，请重试', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: '加入贴片库', exact: true }).click();
+  await expect(page.locator('audio[src="/media/intro.wav"]')).toBeVisible();
+  await page.goto('/admin/connections');
   const origin = new URL(page.url()).origin;
   await expect(page.getByRole('link', { name: '接入说明', exact: true })).toHaveAttribute(
     'href',
     `${origin}/api/agent/instructions`,
   );
-  await expect(page.getByRole('link', { name: 'OpenAPI', exact: true })).toHaveAttribute(
-    'href',
-    `${origin}/api/agent/openapi.json`,
-  );
-  await expect(page.getByText('Gemini 未配置', { exact: true })).toBeVisible();
-  await page.getByLabel('讲述风格').fill('舒缓、温暖，留出自然停顿');
-  await page.getByRole('button', { name: '保存声音设置' }).click();
-  await page.getByText('可选：片头与片尾贴片', { exact: true }).click();
-  await expect(page.getByRole('button', { name: '选择片头: 上传片头' })).toBeEnabled();
-  await page
-    .locator('input[type=file]')
-    .first()
-    .setInputFiles({ name: 'intro.wav', mimeType: 'audio/wav', buffer: Buffer.alloc(96) });
-  state.failUpload();
-  await page.getByRole('button', { name: '上传片头', exact: true }).click();
-  await expect(page.getByText('上传失败，请重试', { exact: true })).toBeVisible();
-  await page.getByRole('button', { name: '上传片头', exact: true }).click();
-  await expect(page.locator('audio[src="/media/intro.wav"]')).toBeVisible();
   await page.getByLabel('助手名称').fill('Hermes');
   await page.getByLabel('有效天数').fill('7');
   await page.getByRole('button', { name: '创建助手令牌', exact: true }).click();
@@ -606,7 +643,7 @@ test('phone studio navigation, dark theme and settings remain usable', async ({ 
   await expect(drawer.getByRole('region', { name: '节目制作', exact: true })).toBeVisible();
   await expect(drawer.getByRole('region', { name: '素材与声音', exact: true })).toBeVisible();
   await expect(drawer.getByRole('region', { name: '工作室', exact: true })).toBeVisible();
-  await drawer.getByRole('button', { name: '工作室设置', exact: true }).click();
+  await drawer.getByRole('button', { name: 'AI 设置', exact: true }).click();
   await expect(drawer).toBeHidden();
   await expect(menu).toBeFocused();
   await menu.click();
@@ -645,10 +682,12 @@ test('voice references use six CDN samples and selecting a voice preserves speak
   });
   expect(pauses).toBe(1);
   const request = page.waitForRequest(
-    (request) => request.url().endsWith('/production-settings') && request.method() === 'PUT',
+    (request) => request.url().endsWith('/ai-settings') && request.method() === 'PUT',
   );
   await page.getByRole('button', { name: '使用 Puck 音色', exact: true }).click();
-  expect((await request).postDataJSON()).toEqual({ voice: 'Puck', speakingStyle: '自然地讲述' });
+  expect((await request).postDataJSON()).toMatchObject({
+    settings: { gemini: { voice: 'Puck' }, speakingStyle: defaultSpeechSettings.speakingStyle },
+  });
   await expect(page.getByRole('button', { name: '使用 Kore 音色', exact: true })).toBeEnabled();
   await mkdir('.local', { recursive: true });
   await page.screenshot({ path: '.local/studio-voices.png', fullPage: true });
@@ -953,7 +992,7 @@ test('voice settings and per-generation choices offer optional previews without 
     readyFixture({ stage: 'production', assets: { cover: null, audio: null }, audioJob: null }),
   );
   state.configureTts();
-  await page.goto('/admin/settings');
+  await page.goto('/admin/narration');
   await page.getByRole('combobox', { name: '讲述声音', exact: true }).click();
   await expect(page.getByRole('option')).toHaveCount(30);
   await page.getByRole('option', { name: 'Sulafat · 温暖', exact: true }).click();
@@ -964,12 +1003,12 @@ test('voice settings and per-generation choices offer optional previews without 
   await expect(page.getByLabel('讲述风格', { exact: true })).toHaveValue('平静、自然的普通话');
   await page.getByRole('button', { name: '生成试听预览', exact: true }).click();
   await expect(page.getByLabel('本次生成的试听预览')).toHaveAttribute('src', '/media/preview.wav');
-  await page.getByRole('button', { name: '保存声音设置', exact: true }).click();
-  await expect(page.getByRole('button', { name: '保存声音设置', exact: true })).toBeEnabled();
+  await page.getByRole('button', { name: '保存旁白风格', exact: true }).click();
+  await expect(page.getByRole('button', { name: '保存旁白风格', exact: true })).toBeEnabled();
   await page.goto('/admin/productions/production-test?step=assets');
   await page.getByRole('tab', { name: '音频', exact: true }).click();
   await expect(page.getByRole('combobox', { name: '讲述声音', exact: true })).toContainText('Sulafat');
-  await expect(page.getByRole('checkbox', { name: '添加片头和片尾', exact: true })).toBeDisabled();
+  await expect(page.getByRole('combobox', { name: '片头', exact: true })).toContainText('不添加');
   await expect(page.getByRole('button', { name: '生成正文音频', exact: true })).toBeEnabled();
   await page.getByRole('button', { name: '生成试听预览', exact: true }).click();
   await expect(page.getByLabel('本次生成的试听预览')).toBeVisible();
@@ -983,10 +1022,11 @@ test('voice settings and per-generation choices offer optional previews without 
   expect((await generated).postDataJSON()).toMatchObject({
     voice: 'Vindemiatrix',
     speakingStyle: '平静、自然的普通话',
-    includeBumpers: false,
+    introId: null,
+    outroId: null,
   });
   await expect(page.getByText('音频制作完成', { exact: true })).toBeVisible();
-  await page.goto('/admin/settings');
+  await page.goto('/admin/narration');
   await expect(page.getByRole('combobox', { name: '讲述声音', exact: true })).toContainText('Sulafat');
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.screenshot({ path: '.local/audio-settings-mobile.png', fullPage: true });
