@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
 import { errorMessage } from '../model';
 import { Choice, Failure } from './controls';
+import { ProviderMark } from './ProviderMark';
 import { productionService } from './service';
 import { useUnsavedChanges } from './useUnsavedChanges';
 import { VoiceEditor } from './VoiceEditor';
@@ -107,9 +108,16 @@ export function AiSettings({ styleOnly = false }: { styleOnly?: boolean }) {
               </Field>
               <div className="studio-grid">
                 {(['gemini', 'elevenlabs'] as const).map((provider) => (
-                  <LayerCard className="studio-stack" key={provider}>
+                  <LayerCard
+                    className="studio-stack studio-provider-card"
+                    data-provider={provider}
+                    key={provider}
+                  >
                     <div className="studio-row">
-                      <strong>{provider === 'gemini' ? 'Gemini' : 'ElevenLabs'}</strong>
+                      <strong className="studio-provider-heading">
+                        <ProviderMark provider={provider} />
+                        {provider === 'gemini' ? 'Gemini' : 'ElevenLabs'}
+                      </strong>
                       <TagBadge
                         name={config.providers[provider] ? 'Key 已配置' : '未配置'}
                         color={config.providers[provider] ? 'success' : 'amber'}

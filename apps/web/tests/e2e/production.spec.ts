@@ -658,6 +658,78 @@ test('phone studio navigation, dark theme and settings remain usable', async ({ 
   await page.screenshot({ path: '.local/studio-mobile-dark.png', fullPage: true });
 });
 
+test('provider cards use distinct tints and local SVG marks in both themes and viewports', async ({
+  page,
+}) => {
+  await studio(page);
+  await page.routeWebSocket('**/admin/api/agent/live?protocol=1', () => {});
+  await page.goto('/admin/ai');
+  for (const theme of ['light', 'dark']) {
+    await page.evaluate((theme) => localStorage.setItem('hisfm-theme', theme), theme);
+    for (const width of [1440, 390]) {
+      await page.setViewportSize({ width, height: 1000 });
+      for (const route of ['ai', 'voices']) {
+        await page.goto(`/admin/${route}`);
+        const cards = page.locator('.studio-provider-card');
+        await expect(cards).toHaveCount(route === 'ai' ? 2 : 10);
+        const gemini = cards.filter({ has: page.locator('.studio-provider-mark[data-provider="gemini"]') });
+        const elevenlabs = cards.filter({
+          has: page.locator('.studio-provider-mark[data-provider="elevenlabs"]'),
+        });
+        await expect(gemini.first()).toContainText('Gemini');
+        await expect(elevenlabs.first()).toContainText('ElevenLabs');
+        const tint = (provider: typeof cards) =>
+          provider.first().evaluate((element) => getComputedStyle(element).backgroundImage);
+        expect(await tint(gemini)).not.toBe(await tint(elevenlabs));
+        expect(await tint(gemini)).toContain('linear-gradient');
+        for (const provider of [gemini, elevenlabs]) {
+          expect(
+            await provider.first().evaluate((element) => {
+              const style = getComputedStyle(element);
+              const rgb = (value: string) => (value.match(/[\d.]+/g) ?? []).map(Number);
+              const base = rgb(style.backgroundColor);
+              const accent = rgb(style.backgroundImage.match(/rgba?\([^)]+\)/)?.[0] ?? '');
+              const background = base.map(
+                (channel, index) => channel * (1 - accent[3]) + accent[index] * accent[3],
+              );
+              const foreground = rgb(
+                getComputedStyle(element.querySelector('.admin-muted') ?? element).color,
+              );
+              const luminance = (channels: number[]) =>
+                channels.reduce((sum, channel, index) => {
+                  const value = channel / 255;
+                  return (
+                    sum +
+                    (value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4) *
+                      [0.2126, 0.7152, 0.0722][index]
+                  );
+                }, 0);
+              const values = [luminance(background), luminance(foreground)].sort((a, b) => a - b);
+              return (values[1] + 0.05) / (values[0] + 0.05);
+            }),
+          ).toBeGreaterThanOrEqual(4.5);
+          const mark = provider.first().locator('.studio-provider-mark > span');
+          expect(
+            await mark.evaluate(async (element) => {
+              const source = getComputedStyle(element).maskImage.match(/^url\("?(.*?)"?\)$/)?.[1];
+              if (
+                !source ||
+                (!source.startsWith('data:image/svg+xml') && new URL(source).origin !== location.origin)
+              )
+                return false;
+              const image = new Image();
+              image.src = source;
+              await image.decode();
+              return image.naturalWidth > 0;
+            }),
+          ).toBe(true);
+        }
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      }
+    }
+  }
+});
+
 test('voice references use six CDN samples and selecting a voice preserves speaking style', async ({
   page,
 }) => {

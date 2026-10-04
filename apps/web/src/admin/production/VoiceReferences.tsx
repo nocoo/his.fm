@@ -7,6 +7,7 @@ import { elevenVoiceSamples, voiceSamples, voiceSampleTranscript } from '../../s
 import { errorMessage } from '../model';
 import { request } from '../service';
 import { Failure } from './controls';
+import { ProviderMark } from './ProviderMark';
 import { productionService } from './service';
 
 export function VoiceReferences() {
@@ -74,9 +75,16 @@ export function VoiceReferences() {
               item.speakingStyle === settings?.speakingStyle,
           );
           return (
-            <LayerCard key={`${sample.provider}:${sample.voice}`} className="studio-stack">
+            <LayerCard
+              key={`${sample.provider}:${sample.voice}`}
+              className="studio-stack studio-provider-card"
+              data-provider={sample.provider}
+            >
               <div className="studio-row">
-                <strong>{sample.name}</strong>
+                <strong className="studio-provider-heading">
+                  <ProviderMark provider={sample.provider} />
+                  {sample.name}
+                </strong>
                 <span className="admin-muted">{sample.character}</span>
               </div>
               <p className="admin-muted">
@@ -195,9 +203,12 @@ function VoiceSample({
   const audio = useRef<HTMLAudioElement | null>(null);
   const [failed, setFailed] = useState(false);
   return (
-    <LayerCard padding="none">
+    <LayerCard padding="none" className="studio-provider-card" data-provider="gemini">
       <LayerCard.Header className="studio-row">
-        <strong>{voice}</strong>
+        <strong className="studio-provider-heading">
+          <ProviderMark provider="gemini" />
+          Gemini · {voice}
+        </strong>
         <span className="admin-muted">
           {selected ? '工作室当前音色 · ' : ''}
           {character} · {durationSeconds} 秒
