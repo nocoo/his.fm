@@ -190,3 +190,9 @@ The previous browser fixture acknowledged commands without echoing their message
 ## 2026-10-04: Verify compact role cards with long task text
 
 The first compact role-card pass used a fixed two-row grid but inherited wrapping from the button, letting a long task spill into a second line. Dark-theme visual inspection exposed it even though the roster height remained bounded. Task summaries now explicitly stay on one ellipsized line, with complete content in a keyboard-accessible Basalt Popover. Test both fixed geometry and actual text overflow when conserving vertical space; a height assertion alone does not prove legibility.
+
+## 2026-10-04: Preserve Basalt control typography
+
+The admin-wide `font: inherit` reset overrode Basalt's layered typography utilities. The Local/Prod segments rendered at 14px and weight 400 despite the installed component specifying 11px and weight 600. Inherit only the font family and let Basalt own control sizes and weights. Check computed typography against the installed package on desktop and phone; using a library component alone does not prevent consumer CSS from overriding its design.
+
+The verification gate also exposed the native harness tests' implicit one-second polling deadline under concurrent local load. The suite already allowed 15 seconds per test, but that did not extend `expect.poll`. Set a bounded ten-second polling deadline for asynchronous runtime assertions without changing the tested outcomes, coverage floors or hook enforcement.

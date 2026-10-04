@@ -718,6 +718,31 @@ test('real local API persists a production through human review and cleans it up
   }
 });
 
+test('environment switch retains Basalt segment typography on desktop and phone', async ({ page }) => {
+  await studio(page);
+  await page.routeWebSocket('**/admin/api/agent/live?protocol=1', () => {});
+  await page.goto('/admin/productions/production-test');
+  const environment = page.getByRole('radiogroup', { name: '工作室数据环境' });
+  for (const viewport of [
+    { width: 1440, height: 1000 },
+    { width: 390, height: 844 },
+  ]) {
+    await page.setViewportSize(viewport);
+    for (const name of ['Local', 'Prod']) {
+      const segment = environment.getByRole('radio', { name, exact: true });
+      await expect(segment).toBeInViewport();
+      await expect(segment).toHaveCSS('font-size', '11px');
+      await expect(segment).toHaveCSS('font-weight', '600');
+      await expect(segment).toHaveCSS('letter-spacing', '0.275px');
+      await expect(segment).toHaveCSS(
+        'font-family',
+        await page.locator('.admin-app').evaluate((element) => getComputedStyle(element).fontFamily),
+      );
+    }
+  }
+  await expect(environment.getByRole('radio', { name: 'Local', exact: true })).toBeChecked();
+});
+
 test('environment switching confirms unsaved edits, recovers login errors and resets data on reload', async ({
   page,
 }) => {

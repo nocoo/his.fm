@@ -39,7 +39,7 @@ html.dark:has(.admin-app) body {
 .admin-app button,
 .admin-app input,
 .admin-app textarea {
-  font: inherit;
+  font-family: inherit;
 }
 .admin-shell {
   position: relative;
