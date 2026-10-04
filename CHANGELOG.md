@@ -2,6 +2,42 @@
 
 All notable changes to his.fm are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions use the owner’s patch-only deployment policy in `AGENTS.md`, with the authoritative version in `package.json`.
 
+## 2.2.0 - 2026-10-05
+
+The owner explicitly requested this minor release (Y+1).
+
+### Added
+
+- Split studio configuration into Brand Appearance, AI Settings, Connections, Narration and Bumpers. Keep provider credentials in the native user's private config; authenticated settings responses expose only key presence and allowlisted model parameters.
+- Add ElevenLabs `eleven_v4` alongside Gemini `gemini-3.8-flash-tts`. Dedicated speech conversations run a bounded local Node script, checkpoint content-addressed WAVs and return scoped website upload receipts.
+- Group same-script voice comparisons into Charon/George, Aoede/Sarah and Orus/Liam pairs, with Gemini on the left and ElevenLabs on the right. Add provider SVG marks, distinct theme-aware card tints and aligned card, player and action rows.
+- Add named intro/outro WAV libraries with independent per-production selection; narration still defaults to no bumpers.
+- Add local combined development, runtime inspection and debugging commands.
+
+### Changed
+
+- Remove Worker-side TTS calls, the Gemini secret binding and AudioWorkflow. The website retains approval checks, immutable job snapshots, fenced uploads, transactional attachment and optional WAV composition; the enrolled native coordinator executes speech.
+- Require immutable owner-scoped assignments, inspected execution evidence and successful website receipts before the coordinator accepts delegated outcomes. Preserve exact command context across recovery and prevent prior task restrictions from leaking into unrelated assignments.
+- Keep the coordinator in a compact, collapsible Basalt Dock with persistent drafts/connections, horizontal role cards, safe copy actions and a message composer that grows from three to five lines before scrolling.
+
+### Fixed
+
+- Merge optimistic chat messages with their canonical echoes instead of rendering duplicate bubbles.
+- Restore Basalt control typography and enforce accessible provider-card contrast in both themes.
+- Make paired provider cards equal-height without forcing fixed content heights or breaking mobile grouping.
+
+### Validation
+
+- The staged gate runs all web, native-agent and shared-contract tests with all four coverage floors at 95%, plus warning-free lint and strict type checking.
+- Focused Chrome checks cover equal-height cards, desktop/tablet/mobile pairing, SVG marks, contrast, playback coordination, failed preview recovery and fixed comparison style without modifying studio defaults.
+- Real local native conversations delivered three new ElevenLabs benchmark samples (19.04 s, 19.68 s and 19.60 s). Their fixed script/style matches verified Gemini reference WAVs (16.76 s, 18.60 s and 19.72 s); browser decoding and stored durations agree.
+
+### Deployment Notes
+
+- Migration `0009_native_speech.sql` creates speech-job and bumper tables before the new Worker is deployed. No mock content or local media is imported into production.
+- Production audio requires an independently enrolled, connected Prod coordinator with the current native runtime and private provider config. Local tokens, jobs and example WAVs are not copied into production by this release.
+- The owner's configured ElevenLabs library voice requires a paid account; the comparison voices were verified separately. Key presence does not guarantee voice access. Gemini API connectivity was unavailable during the final comparison run, so existing verified references were reused rather than reported as newly generated.
+
 ## 2.1.0 - 2026-10-03
 
 The owner explicitly requested this minor release (Y+1).
