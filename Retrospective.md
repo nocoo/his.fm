@@ -206,3 +206,9 @@ Live verification found Falcon was not running and the owner's ElevenLabs librar
 ## 2026-10-04: Measure contrast on tinted provider surfaces
 
 The initial provider-card tint used the same 20% accent overlay in both themes. On dark surfaces, existing muted text fell below 4.5:1 even though the original Basalt tokens were accessible. Reduce the dark-theme overlay to 14%, verify text against the composited gradient endpoints, and retain visible provider names alongside logo and color. Token reuse alone does not establish contrast after compositing.
+
+## 2026-10-05: Compare paired cards and matching speech inputs
+
+Provider branding retained the shared grid's `align-items: start`, so different form lengths produced visibly unequal cards. The flat sample list also put unrelated providers next to each other. Provider cards now stretch to their row height, and explicit voice pairs keep Gemini left and ElevenLabs right with shared subgrid rows for media and actions. Regression checks cover desktop, tablet, phone, empty samples and populated comparisons.
+
+New Gemini requests failed because its public API was unreachable and the configured local proxy was not running. Do not relabel old audio as newly generated or silently mix delivery styles. Verify the baseline's original request, use its exact fixed text/style for the other provider, and identify the benchmark separately from editable studio defaults. Three matching ElevenLabs samples completed with real receipts; failed Gemini attempts remained failed.

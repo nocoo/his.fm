@@ -1,8 +1,13 @@
 import { randomUUID } from 'node:crypto';
 import { mkdir, readFile } from 'node:fs/promises';
-import { defaultSpeechSettings } from '@his-fm/contracts';
+import { defaultSpeechSettings, wavHeader } from '@his-fm/contracts';
 import { expect, type Page, test } from '@playwright/test';
 import type { AgentTokenRecord, ProductionAction, ProductionSettings } from '../../src/shared/production';
+import {
+  voiceComparisonPairs,
+  voiceComparisonStyle,
+  voiceSampleTranscript,
+} from '../../src/shared/voice-samples';
 import { applyAction, applyPatch } from '../../worker/production-model';
 import { fixture, human, readyFixture } from '../worker/production-fixture';
 
@@ -671,7 +676,21 @@ test('provider cards use distinct tints and local SVG marks in both themes and v
       for (const route of ['ai', 'voices']) {
         await page.goto(`/admin/${route}`);
         const cards = page.locator('.studio-provider-card');
-        await expect(cards).toHaveCount(route === 'ai' ? 2 : 10);
+        await expect(cards).toHaveCount(route === 'ai' ? 2 : 12);
+        for (const grid of await page
+          .locator(route === 'ai' ? '.studio-grid' : '.studio-voice-pair .studio-grid')
+          .all()) {
+          const pair = grid.locator(':scope > .studio-provider-card');
+          const bounds = await pair.evaluateAll((elements) =>
+            elements.map((element) => element.getBoundingClientRect().toJSON()),
+          );
+          expect(bounds).toHaveLength(2);
+          if (width > 767) {
+            expect(bounds[0].height).toBeCloseTo(bounds[1].height, 0);
+            expect(bounds[0].top).toBeCloseTo(bounds[1].top, 0);
+            expect(bounds[0].right).toBeLessThan(bounds[1].left);
+          } else expect(bounds[0].bottom).toBeLessThanOrEqual(bounds[1].top);
+        }
         const gemini = cards.filter({ has: page.locator('.studio-provider-mark[data-provider="gemini"]') });
         const elevenlabs = cards.filter({
           has: page.locator('.studio-provider-mark[data-provider="elevenlabs"]'),
@@ -735,7 +754,8 @@ test('voice references use six CDN samples and selecting a voice preserves speak
 }) => {
   await studio(page);
   await page.goto('/admin/voices');
-  const samples = page.locator('audio');
+  await page.getByText('历史 Gemini 样片 · 6 段，非本轮配对', { exact: true }).click();
+  const samples = page.locator('.studio-voice-history audio');
   await expect(samples).toHaveCount(6);
   for (const voice of ['Kore', 'Zephyr', 'Puck', 'Charon', 'Aoede', 'Orus']) {
     const sample = page.getByLabel(`${voice} 音色样片`, { exact: true });
@@ -743,7 +763,7 @@ test('voice references use six CDN samples and selecting a voice preserves speak
     await expect(sample).toHaveAttribute('preload', 'none');
   }
   const pauses = await page.evaluate(() => {
-    const samples = [...document.querySelectorAll('audio')];
+    const samples = [...document.querySelectorAll<HTMLAudioElement>('.studio-voice-history audio')];
     let pauses = 0;
     samples[0].pause = () => {
       pauses++;
@@ -763,6 +783,122 @@ test('voice references use six CDN samples and selecting a voice preserves speak
   await expect(page.getByRole('button', { name: '使用 Kore 音色', exact: true })).toBeEnabled();
   await mkdir('.local', { recursive: true });
   await page.screenshot({ path: '.local/studio-voices.png', fullPage: true });
+});
+
+test('voice comparisons pair similar descriptions and align playback and actions across providers', async ({
+  page,
+}) => {
+  await studio(page);
+  await page.routeWebSocket('**/admin/api/agent/live?protocol=1', () => {});
+  const previews = voiceComparisonPairs.flatMap((pair) =>
+    (['gemini', 'elevenlabs'] as const).map((provider) => ({
+      provider,
+      voice: pair[provider].voice,
+      speakingStyle: voiceComparisonStyle,
+      text: voiceSampleTranscript,
+      url: `/media/${provider}-${pair.id}.wav`,
+      durationSeconds: 1,
+      cached: true,
+    })),
+  );
+  await page.route('**/admin/api/production-settings/previews', (route) =>
+    route.fulfill({ json: { previews } }),
+  );
+  const bytes = Buffer.concat([wavHeader(48000), new Uint8Array(48000)]);
+  await page.route('**/media/*.wav', (route) => route.fulfill({ contentType: 'audio/wav', body: bytes }));
+  await page.route('https://f.no.mt/reference/voices/*.wav', (route) =>
+    route.fulfill({ contentType: 'audio/wav', body: bytes }),
+  );
+  for (const width of [1440, 1024, 390]) {
+    await page.setViewportSize({ width, height: 1000 });
+    await page.goto('/admin/voices');
+    await expect(page.getByLabel('Gemini · Charon 同文稿试听', { exact: true })).toBeVisible();
+    await expect(page.locator('.studio-voice-pair audio')).toHaveCount(6);
+    await expect(
+      page.locator('.studio-voice-pair').getByRole('button', { name: /生成 .* 示例/ }),
+    ).toHaveCount(0);
+    for (const pair of voiceComparisonPairs) {
+      const group = page.getByRole('region', { name: pair.label, exact: true });
+      const cards = group.locator('.studio-voice-card');
+      await expect(cards.nth(0)).toHaveAttribute('data-provider', 'gemini');
+      await expect(cards.nth(1)).toHaveAttribute('data-provider', 'elevenlabs');
+      await expect(cards.nth(0)).toContainText(pair.gemini.name);
+      await expect(cards.nth(1)).toContainText(pair.elevenlabs.name);
+      if (width > 767) {
+        for (const selector of ['.studio-provider-heading', '.studio-voice-media', '.studio-voice-actions']) {
+          const tops = await group
+            .locator(selector)
+            .evaluateAll((elements) => elements.map((element) => element.getBoundingClientRect().top));
+          expect(tops[0]).toBeCloseTo(tops[1], 0);
+        }
+      }
+    }
+  }
+  const pauses = await page.locator('.studio-voice-pair audio').evaluateAll((elements) => {
+    let count = 0;
+    const left = elements[0] as HTMLAudioElement;
+    left.pause = () => {
+      count++;
+    };
+    left.dispatchEvent(new Event('play'));
+    elements[1].dispatchEvent(new Event('play'));
+    return count;
+  });
+  expect(pauses).toBe(1);
+  const save = page.waitForRequest(
+    (request) => request.url().endsWith('/ai-settings') && request.method() === 'PUT',
+  );
+  await page.getByRole('button', { name: '使用 ElevenLabs · Sarah', exact: true }).click();
+  expect((await save).postDataJSON()).toMatchObject({
+    settings: {
+      defaultProvider: 'elevenlabs',
+      elevenlabs: { voice: 'EXAVITQu4vr4xnSDxMaL' },
+      speakingStyle: defaultSpeechSettings.speakingStyle,
+    },
+  });
+  await page.route('**/admin/api/production-settings/previews', (route) =>
+    route.fulfill({
+      json: { previews: previews.map((preview) => ({ ...preview, speakingStyle: 'Different style' })) },
+    }),
+  );
+  await page.goto('/admin/voices');
+  await expect(page.locator('.studio-voice-pair audio')).toHaveCount(3);
+  await expect(
+    page.getByRole('button', { name: '生成 ElevenLabs · George 示例', exact: true }),
+  ).toBeVisible();
+});
+
+test('missing comparison samples use the fixed benchmark style without changing studio defaults', async ({
+  page,
+}) => {
+  const state = await studio(page);
+  state.configureTts();
+  await page.routeWebSocket('**/admin/api/agent/live?protocol=1', () => {});
+  await page.goto('/admin/voices');
+  state.failPreview();
+  const generate = page.getByRole('button', { name: '生成 ElevenLabs · George 示例', exact: true });
+  await generate.click();
+  await expect(page.getByText('试听生成暂时失败，请重试', { exact: true })).toBeVisible();
+  await expect(page.getByLabel('Gemini · Charon 同文稿试听', { exact: true })).toBeVisible();
+  const request = page.waitForRequest(
+    (request) => request.url().endsWith('/production-settings/preview') && request.method() === 'POST',
+  );
+  await generate.click();
+  expect((await request).postDataJSON()).toEqual({
+    provider: 'elevenlabs',
+    voice: 'JBFqnCBsd6RMkjVDRZzb',
+    speakingStyle: voiceComparisonStyle,
+    text: voiceSampleTranscript,
+  });
+  await expect(page.getByLabel('ElevenLabs · George 同文稿试听', { exact: true })).toBeVisible();
+  await expect(generate).toHaveCount(0);
+  const settings = await page.evaluate(
+    async () =>
+      ((await (await fetch('/admin/api/production-settings')).json()) as { settings: ProductionSettings })
+        .settings,
+  );
+  expect(settings.speakingStyle).toBe('自然地讲述');
+  expect(settings.voice).toBe('Kore');
 });
 
 test('real local API persists a production through human review and cleans it up', async ({ page }) => {

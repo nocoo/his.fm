@@ -1,9 +1,16 @@
+import type { SpeechProvider } from '@his-fm/contracts';
 import { Button, LayerCard, toast } from '@nocoo/basalt';
 import { PageHeader } from '@nocoo/basalt/components/page-header';
+import { SectionRule } from '@nocoo/basalt/components/section-rule';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router';
 import type { AudioPreview, ProductionSettings } from '../../shared/production';
-import { elevenVoiceSamples, voiceSamples, voiceSampleTranscript } from '../../shared/voice-samples';
+import {
+  voiceComparisonPairs,
+  voiceComparisonStyle,
+  voiceSamples,
+  voiceSampleTranscript,
+} from '../../shared/voice-samples';
 import { errorMessage } from '../model';
 import { request } from '../service';
 import { Failure } from './controls';
@@ -36,6 +43,31 @@ export function VoiceReferences() {
       activeAudio.current?.pause();
     };
   }, [load]);
+  const play = (audio: HTMLAudioElement) => {
+    if (activeAudio.current && activeAudio.current !== audio) activeAudio.current.pause();
+    activeAudio.current = audio;
+  };
+  const select = async (provider: SpeechProvider, voice: string) => {
+    setPending(`${provider}:${voice}`);
+    setError('');
+    try {
+      const { config } = await productionService.ai();
+      await productionService.saveAi({
+        version: config.version,
+        settings: {
+          ...config.settings,
+          defaultProvider: provider,
+          [provider]: { ...config.settings[provider], voice },
+        },
+      });
+      setSettings((await productionService.settings()).settings);
+      toast.success('默认音色已更新');
+    } catch (cause) {
+      setError(errorMessage(cause));
+    } finally {
+      setPending(null);
+    }
+  };
   return (
     <div className="admin-page">
       <PageHeader
@@ -46,12 +78,16 @@ export function VoiceReferences() {
           </Button>
         }
       />
-      <p className="studio-notice">
-        两家服务使用完全相同的中文文稿，便于比较声音。生成示例会调用所选服务；相同参数复用已有音频，不改默认音色。
+      <p className="admin-muted">
+        按音色描述配对，左 Gemini、右
+        ElevenLabs；固定文稿与对比风格，实际听感请试听比较。生成只补缺失样片，不改默认音色。
       </p>
       <details>
-        <summary>查看共同播报文稿</summary>
+        <summary>共同文稿与固定对比风格</summary>
         <p className="studio-prose">{voiceSampleTranscript}</p>
+        <p className="admin-muted">
+          亲切的播客开场，自然交谈，轻快节奏，目标约 20 秒。时长自然生成，不做拉伸。
+        </p>
       </details>
       {!settings && !error && (
         <p role="status" className="admin-muted">
@@ -59,124 +95,184 @@ export function VoiceReferences() {
         </p>
       )}
       {error && <Failure error={error} retry={() => void load()} />}
-      <div className="studio-grid">
-        {[
-          { provider: 'gemini' as const, voice: 'Kore', name: 'Gemini · Kore', character: '沉稳坚定' },
-          ...elevenVoiceSamples.map((sample) => ({
-            ...sample,
-            provider: 'elevenlabs' as const,
-            name: `ElevenLabs · ${sample.name}`,
-          })),
-        ].map((sample) => {
-          const preview = previews.find(
-            (item) =>
-              item.provider === sample.provider &&
-              item.voice === sample.voice &&
-              item.speakingStyle === settings?.speakingStyle,
-          );
-          return (
-            <LayerCard
-              key={`${sample.provider}:${sample.voice}`}
-              className="studio-stack studio-provider-card"
-              data-provider={sample.provider}
-            >
-              <div className="studio-row">
-                <strong className="studio-provider-heading">
-                  <ProviderMark provider={sample.provider} />
-                  {sample.name}
-                </strong>
-                <span className="admin-muted">{sample.character}</span>
-              </div>
-              <p className="admin-muted">
-                {sample.provider === 'gemini' ? 'gemini-3.8-flash-tts' : 'eleven_v4'}
-              </p>
-              {preview ? (
-                <audio
-                  controls
-                  preload="none"
-                  src={preview.url}
-                  aria-label={`${sample.name} 同文稿试听`}
-                  onPlay={(event) => {
-                    if (activeAudio.current && activeAudio.current !== event.currentTarget)
-                      activeAudio.current.pause();
-                    activeAudio.current = event.currentTarget;
-                  }}
-                >
-                  <track kind="captions" />
-                </audio>
-              ) : (
-                <p className="admin-muted">尚未生成当前风格的示例</p>
-              )}
-              {preview && <p className="admin-muted">{preview.durationSeconds.toFixed(2)} 秒 · 同文稿</p>}
-              <Button
-                variant="outline"
-                size="sm"
-                loading={pending === sample.voice}
-                disabled={pending !== null || !settings?.providers[sample.provider]}
-                onClick={async () => {
-                  if (!settings) return;
-                  setPending(sample.voice);
-                  setError('');
-                  try {
-                    const result = await productionService.preview({
-                      provider: sample.provider,
-                      voice: sample.voice,
-                      speakingStyle: settings.speakingStyle,
-                      text: voiceSampleTranscript,
-                    });
-                    setPreviews((current) => [result.preview, ...current]);
-                  } catch (cause) {
-                    setError(errorMessage(cause));
-                  } finally {
-                    setPending(null);
+      {voiceComparisonPairs.map((pair) => (
+        <SectionRule key={pair.id} title={pair.label} aria-label={pair.label} className="studio-voice-pair">
+          <div className="studio-grid">
+            {(['gemini', 'elevenlabs'] as const).map((provider) => {
+              const sample = pair[provider];
+              const name = `${provider === 'gemini' ? 'Gemini' : 'ElevenLabs'} · ${sample.name}`;
+              const key = `${provider}:${sample.voice}`;
+              const reference =
+                provider === 'gemini' ? voiceSamples.find((item) => item.voice === sample.voice) : undefined;
+              const preview = reference
+                ? {
+                    provider,
+                    voice: sample.voice,
+                    speakingStyle: voiceComparisonStyle,
+                    text: voiceSampleTranscript,
+                    url: reference.url,
+                    durationSeconds: reference.durationSeconds,
+                    cached: true,
                   }
-                }}
-              >
-                {preview ? '复用同文稿试听' : `生成 ${sample.name} 示例`}
-              </Button>
-            </LayerCard>
-          );
-        })}
-      </div>
-      <p className="admin-muted">Gemini 现有音色样片</p>
-      <div className="studio-grid">
-        {voiceSamples.map(({ voice, ...sample }) => (
-          <VoiceSample
-            key={voice}
-            voice={voice}
-            {...sample}
-            selected={settings?.voice === voice}
-            pending={pending}
-            available={Boolean(settings)}
-            onPlay={(audio) => {
-              if (activeAudio.current && activeAudio.current !== audio) activeAudio.current.pause();
-              activeAudio.current = audio;
-            }}
-            onSelect={async () => {
-              setPending(voice);
-              setError('');
-              try {
-                const { config } = await productionService.ai();
-                await productionService.saveAi({
-                  version: config.version,
-                  settings: {
-                    ...config.settings,
-                    defaultProvider: 'gemini',
-                    gemini: { ...config.settings.gemini, voice },
-                  },
-                });
-                setSettings((await productionService.settings()).settings);
-                toast.success(`已将讲述声音设为 ${voice}`);
-              } catch (cause) {
-                setError(errorMessage(cause));
-              } finally {
-                setPending(null);
-              }
-            }}
-          />
-        ))}
-      </div>
+                : previews.find(
+                    (item) =>
+                      item.provider === provider &&
+                      item.voice === sample.voice &&
+                      item.text === voiceSampleTranscript &&
+                      item.speakingStyle === voiceComparisonStyle,
+                  );
+              return (
+                <ComparisonCard
+                  key={key}
+                  provider={provider}
+                  name={name}
+                  character={sample.character}
+                  preview={preview}
+                  selected={settings?.provider === provider && settings.voice === sample.voice}
+                  disabled={pending !== null || !settings}
+                  configured={Boolean(settings?.providers[provider])}
+                  pending={pending === key}
+                  onPlay={play}
+                  onSelect={() => select(provider, sample.voice)}
+                  onGenerate={async () => {
+                    if (!settings) return;
+                    setPending(key);
+                    setError('');
+                    try {
+                      const result = await productionService.preview({
+                        provider,
+                        voice: sample.voice,
+                        speakingStyle: voiceComparisonStyle,
+                        text: voiceSampleTranscript,
+                      });
+                      setPreviews((current) => [result.preview, ...current]);
+                    } catch (cause) {
+                      setError(errorMessage(cause));
+                    } finally {
+                      setPending(null);
+                    }
+                  }}
+                />
+              );
+            })}
+          </div>
+        </SectionRule>
+      ))}
+      <details className="studio-stack studio-voice-history">
+        <summary>历史 Gemini 样片 · 6 段，非本轮配对</summary>
+        <div className="studio-grid">
+          {voiceSamples.map(({ voice, ...sample }) => (
+            <VoiceSample
+              key={voice}
+              voice={voice}
+              {...sample}
+              selected={settings?.provider === 'gemini' && settings.voice === voice}
+              pending={pending}
+              available={Boolean(settings)}
+              onPlay={play}
+              onSelect={() => select('gemini', voice)}
+            />
+          ))}
+        </div>
+      </details>
     </div>
+  );
+}
+function ComparisonCard({
+  provider,
+  name,
+  character,
+  preview,
+  selected,
+  disabled,
+  configured,
+  pending,
+  onPlay,
+  onSelect,
+  onGenerate,
+}: {
+  provider: SpeechProvider;
+  name: string;
+  character: string;
+  preview: AudioPreview | undefined;
+  selected: boolean;
+  disabled: boolean;
+  configured: boolean;
+  pending: boolean;
+  onPlay: (audio: HTMLAudioElement) => void;
+  onSelect: () => Promise<void>;
+  onGenerate: () => Promise<void>;
+}) {
+  const audio = useRef<HTMLAudioElement>(null);
+  const [failed, setFailed] = useState(false);
+  return (
+    <LayerCard className="studio-stack studio-provider-card studio-voice-card" data-provider={provider}>
+      <div className="studio-row">
+        <strong className="studio-provider-heading">
+          <ProviderMark provider={provider} />
+          {name}
+        </strong>
+        <span className="admin-muted">{character}</span>
+      </div>
+      <p className="admin-muted">{provider === 'gemini' ? 'gemini-3.8-flash-tts' : 'eleven_v4'}</p>
+      <div className="studio-voice-media">
+        {preview ? (
+          <audio
+            ref={audio}
+            controls
+            preload="metadata"
+            src={preview.url}
+            aria-label={`${name} 同文稿试听`}
+            onPlay={(event) => {
+              setFailed(false);
+              onPlay(event.currentTarget);
+            }}
+            onError={() => setFailed(true)}
+          >
+            <track kind="captions" />
+          </audio>
+        ) : (
+          <p className="admin-muted">{pending ? '正在生成同文稿样片…' : '尚未生成当前风格的样片'}</p>
+        )}
+      </div>
+      <p className="admin-muted">
+        {preview ? `${preview.durationSeconds.toFixed(2)} 秒 · 同文稿` : '同文稿 · 待生成'}
+        {selected ? ' · 默认音色' : ''}
+      </p>
+      <div className="studio-voice-actions">
+        {!preview && (
+          <Button
+            variant="outline"
+            size="sm"
+            loading={pending}
+            disabled={disabled || !configured}
+            onClick={() => void onGenerate()}
+          >
+            生成 {name} 示例
+          </Button>
+        )}
+        {failed && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setFailed(false);
+              audio.current?.load();
+            }}
+          >
+            重试播放 {name}
+          </Button>
+        )}
+        <Button
+          variant={selected ? 'secondary' : 'outline'}
+          size="sm"
+          disabled={disabled || selected}
+          onClick={() => void onSelect()}
+        >
+          {selected ? '正在使用此音色' : `使用 ${name}`}
+        </Button>
+      </div>
+    </LayerCard>
   );
 }
 function VoiceSample({
@@ -243,7 +339,7 @@ function VoiceSample({
             variant={selected ? 'secondary' : 'outline'}
             size="sm"
             disabled={!available || selected || pending !== null}
-            loading={pending === voice}
+            loading={pending === `gemini:${voice}`}
             onClick={() => void onSelect()}
           >
             {selected ? '正在使用此音色' : `使用 ${voice} 音色`}

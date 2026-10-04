@@ -2,12 +2,30 @@ import type { ProductionSettings } from './production';
 
 export const voiceSampleTranscript =
   '大家好，欢迎来到 his.fm，面向开发者的 AI 分享频道，今天正式开播。这里会聊模型的新进展，分享编程工具和真实项目里的实践。哪些好用，哪些踩坑，我们一起试。欢迎关注 his.fm，让灵感从耳边出发，在代码里落地。';
+export const voiceComparisonStyle =
+  'Friendly podcast announcement, natural conversational delivery, brisk pace, approximately 20 seconds.';
 
-export const elevenVoiceSamples = [
-  { voice: 'JBFqnCBsd6RMkjVDRZzb', name: 'George', character: '温暖叙述' },
-  { voice: 'EXAVITQu4vr4xnSDxMaL', name: 'Sarah', character: '柔和清晰' },
-  { voice: 'TX3LPaxmHKxFdv7VOQHJ', name: 'Liam', character: '自然稳健' },
+export const voiceComparisonPairs = [
+  {
+    id: 'narrative',
+    label: '温暖叙述',
+    gemini: { voice: 'Charon', name: 'Charon', character: '叙述感' },
+    elevenlabs: { voice: 'JBFqnCBsd6RMkjVDRZzb', name: 'George', character: '温暖叙述' },
+  },
+  {
+    id: 'gentle',
+    label: '轻柔清晰',
+    gemini: { voice: 'Aoede', name: 'Aoede', character: '轻松' },
+    elevenlabs: { voice: 'EXAVITQu4vr4xnSDxMaL', name: 'Sarah', character: '柔和清晰' },
+  },
+  {
+    id: 'steady',
+    label: '沉稳自然',
+    gemini: { voice: 'Orus', name: 'Orus', character: '坚定' },
+    elevenlabs: { voice: 'TX3LPaxmHKxFdv7VOQHJ', name: 'Liam', character: '自然稳健' },
+  },
 ];
+export const elevenVoiceSamples = voiceComparisonPairs.map((pair) => pair.elevenlabs);
 
 export const voiceSamples: {
   voice: ProductionSettings['voice'];

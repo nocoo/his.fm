@@ -36,6 +36,28 @@ Local acceptance generated the same Chinese script with Gemini Kore (25.00 s) an
 
 The owner's supplied `kLhAstPcnnPxqzk6gS5i` voice remains configured. The current account rejected this library voice with `payment_required`; the three comparison voices were verified separately. Voice-list permission is also absent on this key. The UI never claims a present key guarantees every voice is callable. No account upgrade, production upload or deployment was performed.
 
+## Paired comparison benchmark
+
+The comparison page groups voices by their described delivery, not a claimed acoustic equivalence. Gemini stays in the left column and ElevenLabs in the right. Cards and their playback/action rows align through CSS grid stretch and subgrid; phones stack the two providers within the same group. The six original Gemini samples remain in a collapsed history section.
+
+The benchmark uses `voiceSampleTranscript` and the fixed `voiceComparisonStyle`, independent of editable studio defaults. The exact style is `Friendly podcast announcement, natural conversational delivery, brisk pace, approximately 20 seconds.` It matches the original Gemini generation request in `scripts/voice-comparison/generate.py` and the preserved local request metadata. Missing ElevenLabs samples are generated with that same text and style; samples from a different style are not substituted.
+
+Verified 2026-10-05: three new ElevenLabs jobs completed through dedicated native speech conversations and returned successful website receipts. Existing immutable Gemini WAVs were verified against the original generation metadata. No recording was truncated or time-stretched.
+
+| Group | Gemini | ElevenLabs |
+| --- | --- | --- |
+| Narrative | Charon, 16.76 s | George, 19.04 s |
+| Gentle | Aoede, 18.60 s | Sarah, 19.68 s |
+| Steady | Orus, 19.72 s | Liam, 19.60 s |
+
+Gemini baseline SHA-256:
+
+- Charon: `35251450da233126a3a6ec63c3c0356a0fc4002244d5d30d6888139f9daa184c`
+- Aoede: `84bbe2ee57e2b77a210fa59582e2b6d93317cda8aab75a0996d09b5e959e52a9`
+- Orus: `708cf839bf7d4cfde2caf848c3435442559f63c1e1d9d675b329a21104373fcf`
+
+Google API connectivity was unavailable during this run. Attempts to produce new Gemini references failed and were not reported as completed. Reusing the verified baseline with newly matching ElevenLabs samples preserved a valid comparison without changing system proxy settings or production data.
+
 ## References
 
 Retrieved 2026-10-04:

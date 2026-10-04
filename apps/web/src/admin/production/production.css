@@ -38,6 +38,26 @@
   gap: var(--admin-space-4);
   align-items: start;
 }
+.studio-grid > .studio-provider-card {
+  align-self: stretch;
+}
+.studio-voice-pair .studio-voice-card {
+  display: grid;
+  grid-template-rows: subgrid;
+  grid-row: span 5;
+}
+.studio-voice-media {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 54px;
+}
+.studio-voice-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: var(--admin-space-2);
+}
 .studio-provider-card[data-provider="gemini"] {
   --studio-provider-accent: var(--basalt-accent-1);
 }

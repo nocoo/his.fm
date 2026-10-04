@@ -67,7 +67,7 @@ Design review: start with the [Archify agent architecture map](docs/agent-archit
 
 The initial voice comparison is a single-speaker Mandarin launch announcement. It predates the editorial direction above and is retained as an audio test, not as the current channel description.
 
-Listen at `/admin/voices`: Gemini Kore and ElevenLabs George, Sarah and Liam share exactly the same Mandarin script. The original six Gemini samples remain available (16.76–19.72 seconds) under `reference/voices/`. Current native examples are real local preview jobs, not placeholder media. Choosing a voice updates the native user configuration while preserving the speaking direction.
+Listen at `/admin/voices`: Charon/George, Aoede/Sarah and Orus/Liam are grouped by delivery description, with Gemini left and ElevenLabs right. Each pair uses the same Mandarin script and fixed comparison style, independent of studio defaults. Verified Gemini references are paired with newly generated native ElevenLabs samples; the original six Gemini samples remain in a collapsed history section. Choosing a voice updates the native user configuration while preserving the speaking direction.
 
 Settings are separated into Brand Appearance, AI Settings, Connections, Narration and Bumpers. Gemini `gemini-3.8-flash-tts` and ElevenLabs `eleven_v4` run through a dedicated native speech conversation and local Node script. Provider keys remain in `~/.config/his.fm/config.json`; the website reads presence flags and safe parameters only. See [native audio](docs/audio.md).
 
