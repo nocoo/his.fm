@@ -4,10 +4,8 @@
 interface __BaseEnv_Env {
 	MEDIA: R2Bucket;
 	DB: D1Database;
-	BUILD_INFO: WorkerVersionMetadata;
 	ASSETS: Fetcher;
 	ENVIRONMENT: string;
-	MEDIA_BASE_URL: string;
 	GEMINI_API_KEY: string;
 	AUDIO_WORKFLOW: Workflow<Parameters<import("./worker/entry").AudioWorkflow['run']>[0]['payload']>;
 }
@@ -22,7 +20,7 @@ type StringifyValues<EnvType extends Record<string, unknown>> = {
 	[Binding in keyof EnvType]: EnvType[Binding] extends string ? EnvType[Binding] : string;
 };
 declare namespace NodeJS {
-	interface ProcessEnv extends StringifyValues<Pick<Cloudflare.Env, "ENVIRONMENT" | "MEDIA_BASE_URL" | "GEMINI_API_KEY">> {}
+	interface ProcessEnv extends StringifyValues<Pick<Cloudflare.Env, "ENVIRONMENT" | "GEMINI_API_KEY">> {}
 }
 
 // Begin runtime types

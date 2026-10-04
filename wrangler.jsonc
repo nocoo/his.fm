@@ -27,8 +27,7 @@
     ]
   },
   "vars": {
-    "ENVIRONMENT": "production",
-    "MEDIA_BASE_URL": "https://f.no.mt"
+    "ENVIRONMENT": "production"
   },
   "d1_databases": [
     {
@@ -54,9 +53,6 @@
       "class_name": "AudioWorkflow"
     }
   ],
-  "version_metadata": {
-    "binding": "BUILD_INFO"
-  },
   "secrets": {
     "required": [
       "GEMINI_API_KEY"

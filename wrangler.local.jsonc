@@ -20,8 +20,7 @@
     ]
   },
   "vars": {
-    "ENVIRONMENT": "local",
-    "MEDIA_BASE_URL": "/media"
+    "ENVIRONMENT": "local"
   },
   "d1_databases": [
     {
@@ -44,9 +43,6 @@
       "class_name": "AudioWorkflow"
     }
   ],
-  "version_metadata": {
-    "binding": "BUILD_INFO"
-  },
   "secrets": {
     "required": [
       "GEMINI_API_KEY"
