@@ -288,7 +288,7 @@ function Sidebar({ client }: { client: AgentClient }) {
                     if (text.trim() && state.connection !== 'blocked') send();
                   }
                 }}
-                rows={2}
+                rows={3}
                 maxLength={12000}
               />
               <Button

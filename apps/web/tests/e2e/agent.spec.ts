@@ -173,7 +173,6 @@ test('dock collapses to a fab without losing drafts, live messages, roles or the
   expect(new Set(tops).size).toBe(1);
   expect(await roster.evaluate((e) => e.getBoundingClientRect().height)).toBeLessThanOrEqual(78);
   expect(await sidebar.locator('.agent-header').evaluate((e) => e.clientHeight)).toBeLessThanOrEqual(48);
-  expect(await sidebar.locator('.agent-composer').evaluate((e) => e.clientHeight)).toBeLessThanOrEqual(80);
   const writer = roster.getByRole('button', { name: `写作 · 等待中 · ${task}` });
   await expect(writer.locator('.agent-role-task')).toHaveCSS('white-space', 'nowrap');
   await expect(writer.locator('.agent-role-task')).toHaveCSS('text-overflow', 'ellipsis');
@@ -587,6 +586,65 @@ test('chat follows initial history and new replies only while the reader stays a
   expect(await page.locator('.admin-shell').evaluate((element) => element.scrollTop)).toBe(shellScroll);
   expect(state.writes).toEqual([]);
 });
+
+for (const viewport of [
+  { width: 1440, height: 1000 },
+  { width: 390, height: 844 },
+]) {
+  test(`composer grows upward from three to five lines at ${viewport.width}px`, async ({ page }) => {
+    await page.setViewportSize(viewport);
+    const state = await studio(page);
+    await page.goto('/admin/productions/production-test?step=brief');
+    const composer = page.getByRole('textbox', { name: '给主控的消息' });
+    await expect(composer).toBeVisible();
+    const measure = () =>
+      composer.evaluate((element) => {
+        const bounds = element.getBoundingClientRect();
+        const style = getComputedStyle(element);
+        return {
+          top: bounds.top,
+          bottom: bounds.bottom,
+          height: bounds.height,
+          lineHeight: Number.parseFloat(style.lineHeight),
+          inset:
+            Number.parseFloat(style.paddingTop) +
+            Number.parseFloat(style.paddingBottom) +
+            Number.parseFloat(style.borderTopWidth) +
+            Number.parseFloat(style.borderBottomWidth),
+          overflow: element.scrollHeight - element.clientHeight,
+        };
+      });
+    const initial = await measure();
+    expect(initial.height).toBeCloseTo(3 * initial.lineHeight + initial.inset, 0);
+    for (const lines of [3, 4, 5, 6, 8]) {
+      await composer.fill(Array.from({ length: lines }, (_, index) => `Line ${index + 1}`).join('\n'));
+      const current = await measure();
+      expect(current.height).toBeCloseTo(Math.min(lines, 5) * initial.lineHeight + initial.inset, 0);
+      expect(current.bottom).toBeCloseTo(initial.bottom, 0);
+      expect(current.top).toBeCloseTo(initial.bottom - current.height, 0);
+      if (lines <= 5) expect(current.overflow).toBeLessThanOrEqual(1);
+      else expect(current.overflow).toBeGreaterThan(initial.lineHeight / 2);
+    }
+    await composer.evaluate((element) => {
+      element.scrollTop = 0;
+    });
+    await composer.hover();
+    await page.mouse.wheel(0, 160);
+    await expect.poll(() => composer.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
+    await expect(page.getByRole('button', { name: '发送', exact: true })).toBeInViewport();
+    expect(await page.locator('.admin-shell').evaluate((element) => element.scrollTop)).toBe(0);
+    await composer.fill('Short draft');
+    expect((await measure()).height).toBeCloseTo(initial.height, 0);
+    await composer.fill('A long wrapped draft without explicit newlines. '.repeat(20));
+    expect((await measure()).height).toBeCloseTo(5 * initial.lineHeight + initial.inset, 0);
+    expect((await measure()).overflow).toBeGreaterThan(0);
+    await composer.press('Enter');
+    await expect(composer).toHaveValue('');
+    expect((await measure()).height).toBeCloseTo(initial.height, 0);
+    await expect.poll(() => state.frames.filter((frame) => frame.type === 'command').length).toBe(1);
+    expect(state.writes).toEqual([]);
+  });
+}
 
 test('chat presents grouped messages, copies text, and sends only deliberate input', async ({
   page,

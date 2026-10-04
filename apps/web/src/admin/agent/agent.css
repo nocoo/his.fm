@@ -442,9 +442,12 @@
 }
 .agent-composer textarea {
   display: block;
-  min-height: 56px;
-  max-height: 140px;
+  field-sizing: content;
+  min-height: calc(3lh + var(--admin-space-4) + 2px);
+  max-height: calc(5lh + var(--admin-space-4) + 2px);
+  padding-block: var(--admin-space-2);
   padding-right: calc(var(--admin-space-8) + var(--admin-space-4));
+  overflow-y: auto;
   resize: none;
 }
 .agent-composer .agent-send {
@@ -481,9 +484,5 @@
   }
   .agent-roster .agent-role {
     padding-block: var(--admin-space-1);
-  }
-  .agent-composer textarea {
-    min-height: 48px;
-    max-height: 80px;
   }
 }
