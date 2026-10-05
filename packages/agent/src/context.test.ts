@@ -54,6 +54,24 @@ it('blocks the recorded 123908-token failure locally without a provider call', a
   expect(fake.state.callCount).toBe(0);
 });
 
+it.each([123908, 983616, 983617])(
+  'applies the configured 1M window to a %i-token context',
+  async (tokens) => {
+    const fake = fauxProvider({ models: [{ id: 'coordinator', contextWindow: 1_000_000, maxTokens: 8192 }] });
+    const models = createModels();
+    models.setProvider(fake.provider);
+    fake.setResponses([fauxAssistantMessage('Allowed')]);
+    const previous = fauxAssistantMessage('Previous turn');
+    previous.usage = { ...previous.usage, input: tokens, totalTokens: tokens };
+    const result = await contextModels(models)
+      .streamSimple(fake.getModel(), { messages: [previous] })
+      .result();
+    const allowed = tokens <= 1_000_000 - 16384;
+    expect(result.stopReason).toBe(allowed ? 'stop' : 'error');
+    expect(fake.state.callCount).toBe(allowed ? 1 : 0);
+  },
+);
+
 it.each([0, 128000])(
   'permits safe requests with a %i-token window and counts system context',
   async (window) => {

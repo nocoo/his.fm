@@ -6,6 +6,8 @@ his.fm uses a resident local Pi Durable coordinator. The website never starts a 
 
 The local runtime reads one private `~/.config/his.fm/config.json`. It contains model gateway settings, the local Jev gateway, speech provider settings/keys with a config revision, and separate `websites.local` / `websites.production` identities. Credentials never belong in prompts, source control, URLs or browser storage. The coordinator uses `gpt-6-astra` with high thinking; execution conversations use `gpt-6.1-sol` with Jev-selected thinking. Jev decisions are batched, limited to 16 KiB encoded requests and never shown in ordinary chat.
 
+Model context lengths are independently configured by `coordinator.contextWindow` and `executor.contextWindow` in that file, in tokens. Both are set to `1000000` (decimal 1M) under the owner's confirmed model capacity. `maxTokens` is the separate output ceiling and remains `8192`; increasing context length does not increase it or disable compaction. Model configuration is loaded at startup: restart an idle runtime to apply changes, without replaying terminal commands. Local and production runtimes share these model settings but retain separate website identities and conversation state.
+
 Run from the repository root:
 
 ```sh

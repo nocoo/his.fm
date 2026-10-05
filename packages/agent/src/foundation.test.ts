@@ -56,6 +56,19 @@ it('validates private configuration, exact models, supported high executor think
   }
 });
 
+it('passes configured one-million-token windows to both models without changing output limits', () => {
+  const config = testConfig();
+  config.coordinator.contextWindow = 1_000_000;
+  config.executor.contextWindow = 1_000_000;
+  const models = configuredModels(configSchema.parse(config));
+  for (const role of [config.coordinator, config.executor]) {
+    expect(models.getModel(role.provider, role.model)).toMatchObject({
+      contextWindow: 1_000_000,
+      maxTokens: 8192,
+    });
+  }
+});
+
 it('sends multiple bounded decision questions without raw transcripts or credentials', async () => {
   const config = testConfig();
   const request = vi.fn<DecisionRequest>(async () => ({
