@@ -23,3 +23,9 @@ Editorial order is **global channel prompt -> selected category prompt -> episod
 The coordinator reads the latest profiles for each creative assignment, and conversation reuse requires matching global and category identities/revisions. A category changed after an explicit read or delegation prevents canonical writes until the coordinator rereads and reviews it. Changing a production's selected category is a brief change and reopens the corresponding approvals; updating category style alone does not rewrite productions, media or approvals.
 
 Editorial prompts do not grant tools, permissions, human approvals or publication authority. Conflicts with the global prompt require owner resolution rather than silently changing factual claims or the intended subject.
+
+## Local acceptance
+
+On 2026-10-05, a temporary category required an exact opening and closing sentence. The real coordinator read global profile v47 and category v1, delegated a writer and preserved a 128-character Markdown artifact satisfying both sentences. The artifact was read back and hashed (`b76ce77722877a6222c3b5cccd147cd578b37af794fe6229e7295c4031622bc3`); the temporary production stayed at version 1 with no manuscript, approvals or publication changes.
+
+Full coordinator acceptance did not complete: repeated Pi Durable compaction attempts hit the summary token limit, and the root task eventually timed out. This establishes real category injection and writer output, not a successful end-to-end command. The temporary records were deleted after the command reached its failed state; task/artifact evidence remains locally preserved. Compaction recovery remains a separate runtime issue, not a reason to bypass the product agent or mark the failed command complete.
