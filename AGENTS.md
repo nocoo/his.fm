@@ -28,7 +28,8 @@
 - Preserve the internal editorial policy in README. Public content and episode materials are Chinese; code and technical documentation are English.
 
 - Global prompt is private owner-editable Markdown in D1 `channel_profile`, initialized once from `apps/web/worker/channel-default.md`. `/admin/channel` uses the shared CodeMirror 6 Markdown editor with Basalt controls and safe previews. Agents can only GET `/api/agent/channel`.
-- Editorial priority is global prompt, then episode intent, then sources; this never changes factual truth or grants permissions. Every production prompt reads the latest channel profile. Keep channel text out of public discovery and client bundles; profile updates do not implicitly rewrite productions or invalidate approvals.
+- Editorial priority is global prompt, then selected category prompt, then episode intent, then sources; this never changes factual truth or grants permissions. Every production prompt and native assignment reads the latest channel and category profiles. Keep prompt bodies out of public discovery and client bundles; profile updates do not implicitly rewrite productions or invalidate approvals.
+- `/admin/categories` manages stable-ID categories with names, a curated Lucide icon set, Basalt tag colors and private Markdown prompts. Episode selectors and public filters read category metadata from D1 rather than a hardcoded list. Only the owner may write categories, all updates/deletes use optimistic versions, and referenced categories cannot be deleted. Changing a production's selected category reopens its brief; changing the category prompt affects subsequent work without silently revoking existing approvals. Executor reuse is scoped by both global and category prompt revisions.
 
 ## Local development
 

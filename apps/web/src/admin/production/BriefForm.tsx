@@ -2,12 +2,12 @@ import { Button, Field, Input, LayerCard } from '@nocoo/basalt';
 import { Plus } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
-import { categories } from '../../shared/episode';
 import type { ProductionBrief } from '../../shared/production';
 import { useAgent, useAgentField, useDraft } from '../agent/AgentProvider';
 import { DraftConflicts } from '../agent/DraftConflicts';
+import { CategorySelect } from '../categories/CategorySelect';
 import { MarkdownEditor } from '../markdown/MarkdownEditor';
-import { Choice, Failure } from './controls';
+import { Failure } from './controls';
 import { readBrief } from './model';
 import { type SourceDraft, SourceEditor, SourceList } from './SourceEditor';
 
@@ -174,18 +174,15 @@ export function BriefForm({
                 </Field>
               </div>
               <div className="studio-grid">
-                <Field label="分类">
-                  <Choice
-                    name="category"
+                <Field label="栏目">
+                  <CategorySelect
                     onFocus={() => agent?.clearField()}
-                    label="分类"
                     value={category}
                     disabled={pending}
                     onChange={(next) => {
                       draft.change('category', next as ProductionBrief['category']);
                       onDirty(true);
                     }}
-                    options={categories.map(({ id, label }) => ({ value: id, label }))}
                   />
                 </Field>
                 <Field label="目标时长（分钟）" htmlFor="production-duration" required>

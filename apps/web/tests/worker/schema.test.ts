@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { categories, episodeInputSchema } from '../../src/shared/episode';
+import { episodeInputSchema } from '../../src/shared/episode';
 
 const draft = {
   slug: 'a-working-draft',
@@ -20,8 +20,8 @@ const draft = {
 
 describe('episode input boundaries', () => {
   it('supports all categories, valid HTTPS media and nested local keys', () => {
-    for (const category of categories) {
-      expect(episodeInputSchema.parse({ ...draft, category: category.id }).category).toBe(category.id);
+    for (const category of ['work', 'learning', 'life', 'conversations', 'new-category']) {
+      expect(episodeInputSchema.parse({ ...draft, category }).category).toBe(category);
     }
     for (const coverUrl of ['https://cdn.example.com/image.webp', '/media/covers/episode-01.webp']) {
       expect(episodeInputSchema.parse({ ...draft, coverUrl }).coverUrl).toBe(coverUrl);
@@ -63,7 +63,7 @@ describe('episode input boundaries', () => {
       { summary: '' },
       { transcript: 'a'.repeat(100001) },
       { showNotes: 'a'.repeat(20001) },
-      { category: 'unknown' },
+      { category: 'invalid/category' },
       { tags: Array.from({ length: 11 }, () => 'tag') },
       { status: 'archived' },
       { status: 'published', publishedAt: null },

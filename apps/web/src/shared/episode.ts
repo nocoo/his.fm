@@ -1,11 +1,5 @@
 import { z } from 'zod';
-
-export const categories = [
-  { id: 'work', label: '工作之间' },
-  { id: 'learning', label: '慢慢学会' },
-  { id: 'life', label: '生活留白' },
-  { id: 'conversations', label: '一起聊聊' },
-] as const;
+import { categoryIdSchema } from './category';
 
 const mediaUrl = z
   .string()
@@ -36,7 +30,7 @@ export const episodeInputSchema = z
     transcript: z.string().max(100000),
     showNotes: z.string().max(20000),
     coverUrl: mediaUrl,
-    category: z.enum(['work', 'learning', 'life', 'conversations']),
+    category: categoryIdSchema,
     tags: z.array(z.string().trim().min(1).max(30)).max(10),
     durationSeconds: z.number().int().min(0).max(43200),
     audioUrl: mediaUrl.nullable(),

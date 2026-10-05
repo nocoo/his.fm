@@ -1,0 +1,24 @@
+.category-list {
+  display: grid;
+  gap: var(--admin-space-3);
+}
+.category-badge,
+.category-page-title {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--admin-space-2);
+  min-width: 0;
+}
+.category-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(180px, 0.6fr);
+  gap: var(--admin-space-4);
+}
+.category-prompt {
+  overflow: visible;
+}
+@media (max-width: 767px) {
+  .category-fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

@@ -7,6 +7,7 @@ import {
   publicationSchema,
 } from '../src/shared/production';
 import { operationFence, operationReceipt } from './agent-runtime-operation';
+import { categoryFence, getCategory } from './categories';
 import { getChannel } from './channel';
 import { HttpError, json } from './http';
 import { readBytes, readJson } from './production-body';
@@ -202,6 +203,7 @@ export async function routeProductions(
     }
     if (request.method === 'POST') {
       const brief = await readJson(request, briefSchema);
+      await getCategory(env.DB, brief.category);
       const now = new Date().toISOString();
       const production = appendEvent(
         {
@@ -227,7 +229,12 @@ export async function routeProductions(
       const insert = env.DB.prepare(
         'INSERT INTO productions (id, version, stage, data, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
       ).bind(production.id, production.version, production.stage, JSON.stringify(production), now, now);
-      await env.DB.batch([...operationFence(env.DB), insert, ...operationReceipt(env.DB, production)]);
+      await env.DB.batch([
+        ...operationFence(env.DB),
+        categoryFence(env.DB, brief.category),
+        insert,
+        ...operationReceipt(env.DB, production),
+      ]);
       return json({ production }, 201);
     }
     throw new HttpError(405, '不支持这个请求方式');
@@ -264,10 +271,17 @@ export async function routeProductions(
       production: await publishProduction(env.DB, await getProduction(env.DB, id), input, actor),
     });
   }
-  if (operation === 'prompts' && request.method === 'GET')
-    return json(productionPrompts(await getProduction(env.DB, id), await getChannel(env.DB)));
+  if (operation === 'prompts' && request.method === 'GET') {
+    const production = await getProduction(env.DB, id);
+    return json(
+      productionPrompts(production, await getChannel(env.DB), await getCategory(env.DB, production.category)),
+    );
+  }
   if (operation) throw new HttpError(405, '不支持这个请求方式');
-  if (request.method === 'GET') return json({ production: await getProduction(env.DB, id) });
+  if (request.method === 'GET') {
+    const production = await getProduction(env.DB, id);
+    return json({ production, categoryProfile: await getCategory(env.DB, production.category) });
+  }
   if (request.method === 'PUT') {
     const patch = await readJson(request, productionPatchSchema);
     const { version, ...fields } = patch;

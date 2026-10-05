@@ -5,6 +5,12 @@ const channelSchema = z.object({
   channel: z.object({ version: z.number().int().positive(), content: z.string() }),
 });
 const productionSchema = z.object({
+  categoryProfile: z.object({
+    id: z.string(),
+    name: z.string(),
+    version: z.number().int().positive(),
+    prompt: z.string(),
+  }),
   production: z
     .object({
       id: z.string(),
@@ -19,7 +25,8 @@ const productionSchema = z.object({
     .passthrough(),
 });
 export type Channel = z.infer<typeof channelSchema>['channel'];
-export type Production = z.infer<typeof productionSchema>['production'];
+export type Production = z.infer<typeof productionSchema>['production'] &
+  Pick<z.infer<typeof productionSchema>, 'categoryProfile'>;
 
 export class WebsiteClient {
   readonly site: Config['websites']['local'];
@@ -46,7 +53,8 @@ export class WebsiteClient {
     return channelSchema.parse(await this.get('channel')).channel;
   }
   async production(id: string): Promise<Production> {
-    return productionSchema.parse(await this.get(`productions/${encodeURIComponent(id)}`)).production;
+    const result = productionSchema.parse(await this.get(`productions/${encodeURIComponent(id)}`));
+    return { ...result.production, categoryProfile: result.categoryProfile };
   }
   async productions() {
     return this.get('productions');

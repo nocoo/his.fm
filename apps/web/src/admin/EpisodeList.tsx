@@ -24,11 +24,13 @@ import { TagBadge } from '@nocoo/basalt/components/tag-badge';
 import { ArrowUpRight, FileText, Pencil, Plus, RefreshCw, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
-import { categories, type Episode } from '../shared/episode';
+import type { Episode } from '../shared/episode';
+import { useCategories } from './categories/useCategories';
 import { errorMessage } from './model';
 import { adminService } from './service';
 
 export function EpisodeList() {
+  const { categories } = useCategories();
   const [episodes, setEpisodes] = useState<Episode[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -102,7 +104,7 @@ export function EpisodeList() {
           <div>
             <Link to={`/admin/episodes/${episode.id}`}>{episode.title}</Link>
             <span>
-              {categories.find((category) => category.id === episode.category)?.label} ·{' '}
+              {categories.find((category) => category.id === episode.category)?.name} ·{' '}
               {Math.round(episode.durationSeconds / 60)} 分钟
               {episode.featured ? ' · 首页精选' : ''}
             </span>

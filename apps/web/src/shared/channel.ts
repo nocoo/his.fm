@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-export const editorialPriority = ['channel', 'intent', 'sources'] as const;
+export const editorialPriority = ['channel', 'category', 'intent', 'sources'] as const;
 export const channelUpdateSchema = z.strictObject({
   version: z.number().int().min(1),
   content: z.string().trim().min(1).max(30000),

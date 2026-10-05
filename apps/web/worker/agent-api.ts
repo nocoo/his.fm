@@ -8,6 +8,7 @@ import { agentOpenApi } from './agent-contract';
 import { connectRuntime, routeRuntimeReceipt } from './agent-runtime';
 import { authenticateAgent } from './agent-tokens';
 import { routeAudio } from './audio-routes';
+import { routeCategories } from './categories';
 import { routeChannel } from './channel';
 import { HttpError, json } from './http';
 import { routeNativeSpeech } from './native-speech';
@@ -104,7 +105,7 @@ export function routeDiscovery(request: Request): Response | null {
   } else {
     const text =
       path === '/llms.txt'
-        ? `# his.fm\n\n> Chinese solo podcast production studio.\n\n## Editorial priority\n\nGlobal prompt > episode intent > source material. Authenticated agents must read ${origin}/api/agent/channel before every creative task. Internal global prompt is private.\n\n## Agent API\n\n- [Service discovery](${origin}/api/agent): Read-only REST and typed WebSocket entrypoints.\n- [OpenAPI 3.1](${origin}/api/agent/openapi.json): Complete machine-readable contract.\n- [Native agent instructions](${origin}/api/agent/instructions): Authentication, enrollment, typed operations and review boundaries.\n\nDiscovery is public; all production data requires a studio-issued bearer token. This service does not expose MCP or A2A.\n`
+        ? `# his.fm\n\n> Chinese solo podcast production studio.\n\n## Editorial priority\n\nGlobal prompt > selected category prompt > episode intent > source material. Authenticated agents must read ${origin}/api/agent/channel before every creative task. Read the selected category through the private production categoryProfile or /api/agent/categories/:id. Global and category prompts are private.\n\n## Agent API\n\n- [Service discovery](${origin}/api/agent): Read-only REST and typed WebSocket entrypoints.\n- [OpenAPI 3.1](${origin}/api/agent/openapi.json): Complete machine-readable contract.\n- [Native agent instructions](${origin}/api/agent/instructions): Authentication, enrollment, typed operations and review boundaries.\n\nDiscovery is public; all production data requires a studio-issued bearer token. This service does not expose MCP or A2A.\n`
         : instructions.replaceAll('https://his.fm', origin);
     response = new Response(text, {
       headers: {
@@ -165,6 +166,8 @@ export async function routeAgent(request: Request, env: Env): Promise<Response> 
     if (path.startsWith('/runtime/speech/')) return routeNativeSpeech(request, env);
     if (path.startsWith('/runtime/receipts/')) return routeRuntimeReceipt(request, env);
     const actor = await authenticateAgent(request, env);
+    const category = /^\/categories(?:\/([a-z0-9-]+))?$/.exec(path);
+    if (category) return routeCategories(request, env, actor, category[1]);
     if (path === '/channel') {
       const response = await routeChannel(request, env, actor);
       response.headers.set('Link', headers.Link);

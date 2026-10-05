@@ -17,7 +17,7 @@ Discovery supports GET, HEAD and OPTIONS. Agent API responses carry `Link` heade
 
 ## Global prompt
 
-Global prompt is the highest editorial authority, followed by the episode's central intent and then sources. GET `/api/agent/channel` before every creative task; it returns the private Markdown profile, its independent version and the priority order. Agents cannot modify it. Read the complete [editorial authority contract](native-agent.md#domain-authority), including conflict handling, freshness and keeping internal principles out of published content. All four production prompts embed the current saved channel profile.
+Global prompt is the highest editorial authority, followed by the selected category prompt, the episode's central intent and then sources. GET `/api/agent/channel` and the selected `/api/agent/categories/:id` before every creative task; private production reads also include `categoryProfile`. Agents cannot modify either prompt. Read the complete [editorial authority contract](native-agent.md#domain-authority), including conflict handling, freshness and keeping internal principles out of published content. All four production prompts embed the current saved channel profile followed by the category profile. See [category management](categories.md).
 
 Owners edit `/admin/channel`; GET/PUT `/admin/api/channel` read/save the full Markdown document with optimistic versioning and the existing Access/same-origin protection. Initial content derives from the owner's README principles and is initialized once; later reads or deployments never overwrite saved edits. Changes do not automatically alter existing approvals or media.
 

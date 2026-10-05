@@ -1,4 +1,5 @@
 import { type Episode, type EpisodeInput, episodeInputSchema } from '../src/shared/episode';
+import { getCategory } from './categories';
 import { HttpError, json, requireSameOrigin } from './http';
 
 type EpisodeRow = Omit<
@@ -145,6 +146,7 @@ export async function mutateEpisode(request: Request, db: D1Database, id?: strin
     return new Response(null, { status: 204 });
   }
   const input = await readInput(request);
+  await getCategory(db, input.category);
   const now = new Date().toISOString();
   try {
     const statement = id

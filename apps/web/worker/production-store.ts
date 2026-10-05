@@ -1,5 +1,6 @@
 import type { Actor, Production } from '../src/shared/production';
 import { operationFence, operationReceipt } from './agent-runtime-operation';
+import { categoryFence, getCategory } from './categories';
 import { HttpError } from './http';
 
 export function mediaUrl(env: Pick<Env, 'ENVIRONMENT'>, key: string) {
@@ -48,14 +49,16 @@ export function updateStatement(db: D1Database, production: Production, expected
 }
 
 export async function saveProduction(db: D1Database, production: Production, expectedVersion: number) {
+  await getCategory(db, production.category);
   const next = nextVersion(production, expectedVersion);
   const fence = operationFence(db);
   const results = await db.batch([
     ...fence,
+    categoryFence(db, next.category),
     updateStatement(db, next, expectedVersion),
     ...operationReceipt(db, next),
   ]);
-  const result = results[fence.length];
+  const result = results[fence.length + 1];
   if (result.meta.changes !== 1) throw new HttpError(409, '内容已更新，请刷新后重试');
   return next;
 }

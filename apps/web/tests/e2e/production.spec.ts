@@ -48,6 +48,15 @@ async function studio(page: Page, initial = fixture()) {
         contentType: 'application/json',
         body: status === 204 ? '' : JSON.stringify(body),
       });
+    if (path.endsWith('/categories'))
+      return send({
+        categories: [
+          { id: 'work', name: '工作之间', icon: 'briefcase-business', color: 'blue' },
+          { id: 'learning', name: '慢慢学会', icon: 'book-open', color: 'teal' },
+          { id: 'life', name: '生活留白', icon: 'leaf', color: 'amber' },
+          { id: 'conversations', name: '一起聊聊', icon: 'messages-square', color: 'rose' },
+        ],
+      });
     if (path === '/session') return send({ mode: 'local', user: { email: 'editor@his.fm' } });
     if (path === '/ai-settings') {
       if (method === 'PUT') {

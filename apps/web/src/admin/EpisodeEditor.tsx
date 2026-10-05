@@ -11,7 +11,8 @@ import {
 import { ArrowLeft, ArrowUpRight, Save } from 'lucide-react';
 import { type FormEvent, useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
-import { categories, type Episode } from '../shared/episode';
+import type { Episode } from '../shared/episode';
+import { CategorySelect } from './categories/CategorySelect';
 import { MarkdownEditor } from './markdown/MarkdownEditor';
 import { emptyEpisode, errorMessage, readEpisodeForm, toLocalDateTime } from './model';
 import { useUnsavedChanges } from './production/useUnsavedChanges';
@@ -351,22 +352,7 @@ export function EpisodeEditor() {
                     />
                   </Field>
                   <Field label="栏目" htmlFor="category" required error={errors.category}>
-                    <Select
-                      name="category"
-                      defaultValue={value.category}
-                      onValueChange={() => setDirty(true)}
-                    >
-                      <SelectTrigger id="category">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {categories.map((category) => (
-                          <SelectItem key={category.id} value={category.id}>
-                            {category.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <CategorySelect id="category" defaultValue={value.category} disabled={pending} />
                   </Field>
                   <Field label="标签" htmlFor="tags" error={errors.tags} hint="使用逗号分隔，最多 10 个。">
                     <Input

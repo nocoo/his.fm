@@ -1,6 +1,7 @@
 import { agentFrameSchema, browserFrameSchema, serverFrameSchema } from '@his-fm/contracts';
 import { z } from 'zod';
 import { version } from '../../../package.json';
+import { categorySchema, publicCategorySchema } from '../src/shared/category';
 import { channelProfileSchema, editorialPriority } from '../src/shared/channel';
 import {
   agentActionSchema,
@@ -18,6 +19,7 @@ const prioritySchema = z.tuple([
   z.literal(editorialPriority[0]),
   z.literal(editorialPriority[1]),
   z.literal(editorialPriority[2]),
+  z.literal(editorialPriority[3]),
 ]);
 export const serviceManifestSchema = z.object({
   name: z.literal('his.fm'),
@@ -265,10 +267,27 @@ export function agentOpenApi(origin: string) {
       },
       '/productions/{id}': {
         parameters: [idParameter],
+        get: operation('getProduction', 'Read latest fields, version, feedback and audio status', {
+          ...wrappedProduction,
+          required: ['production', 'categoryProfile'],
+          properties: { ...wrappedProduction.properties, categoryProfile: schema(categorySchema) },
+        }),
+      },
+      '/categories': {
+        get: operation('listCategories', 'Read selectable editorial categories without prompt bodies', {
+          type: 'object',
+          required: ['categories'],
+          properties: { categories: { type: 'array', items: schema(publicCategorySchema) } },
+        }),
+      },
+      '/categories/{id}': {
+        parameters: [
+          { ...idParameter, description: 'Stable category identifier selected on the production' },
+        ],
         get: operation(
-          'getProduction',
-          'Read latest fields, version, feedback and audio status',
-          wrappedProduction,
+          'readCategory',
+          'Read the private category prompt after the global channel prompt; owner-only writes',
+          { type: 'object', required: ['category'], properties: { category: schema(categorySchema) } },
         ),
       },
       '/productions/{id}/capabilities': {

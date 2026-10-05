@@ -6,6 +6,7 @@ import {
   durationLabel,
   filterEpisodes,
   getAppearance,
+  getCategories,
   getEpisodes,
 } from '../src/public/model';
 import type { Episode } from '../src/shared/episode';
@@ -56,6 +57,16 @@ afterEach(() => {
 });
 
 describe('website appearance', () => {
+  it('loads public category metadata without private prompt fields', async () => {
+    const categories = [{ id: 'new-category', name: '新栏目', icon: 'mic', color: 'blue' }];
+    const request = vi.fn().mockResolvedValue(Response.json({ categories }));
+    vi.stubGlobal('fetch', request);
+    const signal = new AbortController().signal;
+    expect(await getCategories(signal)).toEqual(categories);
+    expect(request).toHaveBeenCalledWith('/api/categories', { signal });
+    request.mockResolvedValueOnce(new Response(null, { status: 503 }));
+    await expect(getCategories()).rejects.toThrow('栏目');
+  });
   it('loads the current theme without a browser cache and forwards cancellation', async () => {
     const controller = new AbortController();
     const request = vi.fn().mockResolvedValue(Response.json({ appearance: { theme: 'stillwood' } }));
@@ -103,7 +114,9 @@ describe('listening room', () => {
     expect(dateLabel(null)).toBe('即将发布');
     expect(durationLabel(601)).toBe('11 分钟');
     expect(durationLabel(0)).toBe('时长待定');
-    expect(categoryLabel('work')).toBe('工作之间');
+    expect(
+      categoryLabel('work', [{ id: 'work', name: '工作之间', icon: 'briefcase-business', color: 'blue' }]),
+    ).toBe('工作之间');
   });
   it('loads published episodes and forwards cancellation', async () => {
     const controller = new AbortController();

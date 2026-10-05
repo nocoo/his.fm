@@ -7,6 +7,7 @@ import { getAppearance, routeAppearance } from './appearance';
 import { routeAudio } from './audio-routes';
 import { accessLogin, authenticate, isLocal, localLogin, logout } from './auth';
 import { routeBumpers } from './bumpers';
+import { listCategories, routeCategories } from './categories';
 import { routeChannel } from './channel';
 import { getEpisode, listEpisodes, mutateEpisode } from './episodes';
 import { HttpError, json, requireSameOrigin } from './http';
@@ -44,6 +45,10 @@ async function route(request: Request, env: Env): Promise<Response> {
     if (request.method !== 'GET') throw new HttpError(405, '不支持这个请求方式');
     return json({ episodes: await listEpisodes(env.DB, true) });
   }
+  if (path === '/api/categories') {
+    if (request.method !== 'GET') throw new HttpError(405, '不支持这个请求方式');
+    return json({ categories: await listCategories(env.DB) });
+  }
   if (path === '/api/appearance') {
     if (request.method !== 'GET') throw new HttpError(405, '不支持这个请求方式');
     const { theme } = await getAppearance(env.DB);
@@ -76,6 +81,11 @@ async function route(request: Request, env: Env): Promise<Response> {
     if (path === '/admin/api/channel') {
       if (request.method !== 'GET') requireSameOrigin(request);
       return routeChannel(request, env, { kind: 'human', name: session.user.email });
+    }
+    const category = /^\/admin\/api\/categories(?:\/([a-z0-9-]+))?$/.exec(path);
+    if (category) {
+      if (request.method !== 'GET') requireSameOrigin(request);
+      return routeCategories(request, env, { kind: 'human', name: session.user.email }, category[1]);
     }
     if (path === '/admin/api/appearance') {
       if (request.method !== 'GET') requireSameOrigin(request);

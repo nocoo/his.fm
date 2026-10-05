@@ -134,6 +134,8 @@ export async function fixture(responses: FauxResponseStep[] = [], options: { per
     version: 1,
     stage: 'production',
     scriptVersion: 2,
+    category: 'work',
+    categoryProfile: { id: 'work', name: '工作之间', version: 1, prompt: 'Test category style.' },
     approvals: { script: { at: 'now', by: 'owner' }, brief: { at: 'now', by: 'owner' } },
   };
   const client = new WebsiteClient(
@@ -144,7 +146,7 @@ export async function fixture(responses: FauxResponseStep[] = [], options: { per
           ? { channel }
           : String(input).endsWith('/productions')
             ? { productions: [production] }
-            : { production },
+            : { production, categoryProfile: production.categoryProfile },
       ),
     ),
   );

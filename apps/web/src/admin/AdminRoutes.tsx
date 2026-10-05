@@ -21,6 +21,7 @@ import { ApiError, adminService, type Session } from './service';
 import './admin.css';
 import './production/production.css';
 
+const CategoryPage = lazy(() => import('./categories/CategoryPage'));
 const ChannelPage = lazy(() => import('./channel/ChannelPage'));
 const StoragePage = lazy(() => import('./storage/StoragePage'));
 const AppearancePage = lazy(() => import('./appearance/AppearancePage'));
@@ -125,6 +126,14 @@ function SessionGate() {
         <Route path="catalog" element={<EpisodeList />} />
         <Route path="productions/new" element={<NewProduction />} />
         <Route path="productions/:id" element={<ProductionEditor />} />
+        <Route
+          path="categories/:id?"
+          element={
+            <Suspense fallback={<LoadingScreen label="正在打开栏目管理" />}>
+              <CategoryPage />
+            </Suspense>
+          }
+        />
         <Route path="ai" element={<AiSettings />} />
         <Route path="connections" element={<ConnectionsPage />} />
         <Route path="narration" element={<AiSettings styleOnly />} />

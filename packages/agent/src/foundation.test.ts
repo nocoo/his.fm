@@ -195,6 +195,7 @@ it('authenticates read-only website requests, blocks redirects and hides upstrea
   });
   fetcher.mockResolvedValueOnce(
     Response.json({
+      categoryProfile: { id: 'work', name: 'Work', version: 1, prompt: 'Style' },
       production: {
         id: 'id/a',
         version: 2,

@@ -106,7 +106,12 @@ beforeAll(async () => {
     ],
   });
   env = await miniflare.getBindings<Env>();
-  for (const file of ['0001_episodes.sql', '0003_production.sql', '0005_channel.sql']) {
+  for (const file of [
+    '0001_episodes.sql',
+    '0003_production.sql',
+    '0005_channel.sql',
+    '0010_categories.sql',
+  ]) {
     const sql = readFileSync(new URL(`../../migrations/${file}`, import.meta.url), 'utf8');
     await env.DB.batch(
       sql
@@ -132,7 +137,10 @@ describe('production API and optimistic updates', () => {
     let production = await create();
     expect(production.events[0]).toMatchObject({ actor: agent, action: 'create' });
     expect(await (await call('/productions')).json()).toEqual({ productions: [production] });
-    expect(await (await call(`/productions/${production.id}`)).json()).toEqual({ production });
+    expect(await (await call(`/productions/${production.id}`)).json()).toMatchObject({
+      production,
+      categoryProfile: { id: production.category },
+    });
     const path = `/productions/${production.id}`;
     let response = await call(path, 'PUT', { version: production.version, intent: '从今晚的饭桌开始。' });
     production = ((await response.json()) as { production: Production }).production;

@@ -79,7 +79,7 @@ export function applyPatch(
   );
   if (!changed.length) return production;
   const briefChanged = changed.some((key) =>
-    ['title', 'episodeNumber', 'targetDurationSeconds', 'sources', 'intent'].includes(key),
+    ['title', 'episodeNumber', 'targetDurationSeconds', 'sources', 'intent', 'category'].includes(key),
   );
   const scriptChanged = changed.includes('transcript');
   let next = production;

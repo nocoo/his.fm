@@ -190,6 +190,7 @@ beforeAll(async () => {
     '0005_channel.sql',
     '0007_agent_runtime.sql',
     '0009_native_speech.sql',
+    '0010_categories.sql',
   ]) {
     const sql = readFileSync(new URL(`../../migrations/${filename}`, import.meta.url), 'utf8');
     await env.DB.batch(

@@ -32,7 +32,12 @@ it('answers an owner command with durable request ID and excludes thinking from 
 
 it('dispatches a real Pi execution conversation and routes its immutable Markdown result back to root', async () => {
   const test = await fixture([
-    call('delegate', { role: 'writer', instructions: 'Write a short script.', revision: 1 }),
+    call('delegate', {
+      role: 'writer',
+      instructions: 'Write a short script.',
+      revision: 1,
+      productionId: 'p',
+    }),
     (_context, _options, _state, model) =>
       model.id === 'gpt-6.1-sol'
         ? call('submit_result', successfulResult('# 初稿\n测试逐字稿。'))
@@ -52,6 +57,13 @@ it('dispatches a real Pi execution conversation and routes its immutable Markdow
     await expect.poll(() => test.store.command('command-1')?.status).toBe('complete');
     const assignment = Object.values((await test.runtime.work()).assignments)[0];
     expect(assignment?.result).toContain('测试逐字稿');
+    expect(JSON.parse(assignment?.input ?? '{}')).toMatchObject({
+      channel: test.channel,
+      category: test.production.categoryProfile,
+    });
+    expect((assignment?.input ?? '').indexOf('"channel":')).toBeLessThan(
+      (assignment?.input ?? '').indexOf('"category":'),
+    );
     expect(test.decide).toHaveBeenCalledWith(
       expect.objectContaining({
         role: 'writer',

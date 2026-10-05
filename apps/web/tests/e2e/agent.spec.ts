@@ -57,6 +57,15 @@ async function studio(
     const path = new URL(route.request().url()).pathname;
     const send = (value: unknown) =>
       route.fulfill({ contentType: 'application/json', body: JSON.stringify(value) });
+    if (path.endsWith('/categories'))
+      return send({
+        categories: [
+          { id: 'work', name: '工作之间', icon: 'briefcase-business', color: 'blue' },
+          { id: 'learning', name: '慢慢学会', icon: 'book-open', color: 'teal' },
+          { id: 'life', name: '生活留白', icon: 'leaf', color: 'amber' },
+          { id: 'conversations', name: '一起聊聊', icon: 'messages-square', color: 'rose' },
+        ],
+      });
     if (path.endsWith('/session')) return send({ mode: 'local', user: { email: 'editor@his.fm' } });
     if (path.endsWith('/productions/production-test')) {
       if (route.request().method() === 'PUT') {

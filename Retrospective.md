@@ -216,3 +216,7 @@ New Gemini requests failed because its public API was unreachable and the config
 ## 2026-10-05: Preserve explicit proxy settings in speech subprocesses
 
 Gemini retry tasks reached the dedicated product conversation but their Node subprocesses could not connect directly to the provider. A credential-free request succeeded through the machine's configured loopback proxy. The subprocess environment allowlist omitted both proxy variables and Node's proxy opt-in, so configuring the coordinator alone could not fix generation. Forward only explicit HTTP/HTTPS proxy settings, bypass rules and `NODE_USE_ENV_PROXY`; keep provider keys and `NODE_OPTIONS` excluded. Verify the repaired path by resubmitting the same authorized website jobs, not by generating artifacts outside the product agent.
+
+## 2026-10-05: Evolve category consumers with their stored identity
+
+Turning four hardcoded categories into managed editorial profiles required updating both UI choices and the episode CHECK constraint, public labels, machine contracts and native assignment inputs. Updating only the prompt endpoint would leave actual delegated writing on the global prompt alone. Keep stable IDs, separate public metadata from private prompt bodies, and exercise the real coordinator-to-writer assignment in addition to HTTP prompt tests. Browser verification also confirmed IconPicker exposes radio choices rather than options; tests must follow installed component semantics.

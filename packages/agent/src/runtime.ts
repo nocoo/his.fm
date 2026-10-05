@@ -67,6 +67,7 @@ type Resident = {
   id: ConversationId;
   role: 'writer' | 'reviewer' | 'speech';
   profileVersion: number;
+  categoryProfile: string;
   lifetime: 'resident' | 'task';
   retired: boolean;
   thinkingLevel: AssignmentPlan['thinkingLevel'];
@@ -392,9 +393,12 @@ export async function openRuntime(options: RuntimeOptions) {
       command();
       const channel = await client.channel();
       store.set(`profile:${current?.id}`, channel.version);
+      const production = args.productionId ? await client.production(args.productionId) : null;
+      if (production) store.set(`category:${command().id}:${production.id}`, production.categoryProfile);
       return textResult({
         channel,
-        production: args.productionId ? await client.production(args.productionId) : null,
+        category: production?.categoryProfile ?? null,
+        production,
         context: store.get<PageContext>('latestContext'),
         contextLive: transport.ready,
         commandContext: command().context,
@@ -479,12 +483,15 @@ export async function openRuntime(options: RuntimeOptions) {
         const channel = await client.channel();
         const productionId = args.productionId ?? active.context?.productionId ?? null;
         const production = productionId ? await client.production(productionId) : null;
+        const categoryProfile = digest(production?.categoryProfile ?? null);
+        if (production) store.set(`category:${active.id}:${production.id}`, production.categoryProfile);
         const compatible = Object.values(state.conversations).filter(
           (item) =>
             !item.retired &&
             !cancelling.has(item.commandId) &&
             item.role === args.role &&
             item.profileVersion === channel.version &&
+            item.categoryProfile === categoryProfile &&
             !Object.values(state.assignments).some(
               (assignment) => assignment.conversationId === item.id && assignment.status === 'working',
             ),
@@ -540,6 +547,7 @@ export async function openRuntime(options: RuntimeOptions) {
           requiredCount: args.requiredCount,
           revision: args.revision,
           channel,
+          category: production?.categoryProfile ?? null,
           production,
           context: active.context,
         });
@@ -573,6 +581,7 @@ export async function openRuntime(options: RuntimeOptions) {
             instructions: `${WORK_POLICY}\nCurrent ownerCommand: ${JSON.stringify(active)}`,
           });
           saved.conversations[conversationId] = {
+            categoryProfile,
             commandId: active.id,
             productionId,
             id: conversationId,
@@ -680,6 +689,9 @@ export async function openRuntime(options: RuntimeOptions) {
     const [channel, production] = await Promise.all([client.channel(), client.production(productionId)]);
     command();
     if (channel.version !== profileVersion) throw new Error('全局提示词已变化，请重新审阅。');
+    const previousCategory = store.get(`category:${active.id}:${productionId}`);
+    if (previousCategory && digest(previousCategory) !== digest(production.categoryProfile))
+      throw new Error('栏目或栏目提示词已变化，请重新读取并审阅。');
     if (production.version !== version) throw new Error('节目版本已变化，请重新读取。');
     return production;
   }
@@ -966,12 +978,17 @@ export async function openRuntime(options: RuntimeOptions) {
       let content = store.get<string>(`prepared:${input.id}`);
       if (!content) {
         const channel: Channel = await client.channel();
+        const active = store.command(input.commandId)?.command;
+        const production = active?.context?.productionId
+          ? await client.production(active.context.productionId)
+          : null;
         content = JSON.stringify({
           ownerCommand: store.command(input.commandId)?.command,
           executorCapabilities: EXECUTOR_CAPABILITIES,
           network: networkContext(),
           input: JSON.parse(input.content),
           latestChannel: channel,
+          latestCategory: production?.categoryProfile ?? null,
         });
         store.set(`prepared:${input.id}`, content);
       }

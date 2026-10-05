@@ -17,6 +17,7 @@
 - [播客生产流程](production.md)
 - [Agent API](agent-api.md)
 - [本机 Agent 接入](native-agent.md) — 本机运行、显式站点绑定、实时协议和权限边界。
+- [栏目管理](categories.md) — 栏目名称、图标、颜色、私有 Markdown 提示词与逐字稿注入顺序。
 - [音频生产](audio.md)
 - [Markdown 编辑](markdown-editing.md)
 - [外观与素材](appearance.md)

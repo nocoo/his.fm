@@ -253,6 +253,10 @@ it('rejects writes against dirty drafts, changed policy/version, wrong productio
     );
     await expect(invoke(test, 'patch_production', { ...args, version: 2 })).rejects.toThrow('节目版本');
     await expect(invoke(test, 'patch_production', { ...args, profileVersion: 2 })).rejects.toThrow('提示词');
+    await invoke(test, 'read_latest', { productionId: 'p' }, 9050);
+    test.production.categoryProfile.version = 2;
+    await expect(invoke(test, 'patch_production', args, 9051)).rejects.toThrow('栏目');
+    await invoke(test, 'read_latest', { productionId: 'p' }, 9052);
     test.transport.ready = false;
     await expect(invoke(test, 'patch_production', args)).rejects.toThrow('未执行');
     test.transport.ready = true;

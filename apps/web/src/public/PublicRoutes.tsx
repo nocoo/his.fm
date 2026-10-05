@@ -16,7 +16,7 @@ import { createContext, type ReactNode, useContext, useEffect, useState } from '
 import { Outlet, Route, Routes, useLocation, useParams } from 'react-router';
 import { BrandSymbol, Wordmark } from '../brand/Brand';
 import { themeMedia } from '../brand/themes';
-import { categories, type Episode } from '../shared/episode';
+import type { Episode } from '../shared/episode';
 import { PublicLink as Link, PublicNavLink as NavLink, SiteAppearance, useAppearance } from './Appearance';
 import { EpisodeCover } from './EpisodeCover';
 import { Hero, ThemeImage } from './Hero';
@@ -176,6 +176,7 @@ function LibraryState({ children }: { children: ReactNode }) {
 }
 
 function EpisodeCard({ episode }: { episode: Episode }) {
+  const { categories } = useLibrary();
   return (
     <article className="episode-card">
       <Link to={`/episodes/${episode.slug}`} className="episode-art" tabIndex={-1} aria-hidden="true">
@@ -185,7 +186,7 @@ function EpisodeCard({ episode }: { episode: Episode }) {
         </span>
       </Link>
       <div className="episode-meta">
-        <span>{categoryLabel(episode.category)}</span>
+        <span>{categoryLabel(episode.category, categories)}</span>
         <span>
           {durationLabel(episode.durationSeconds)}
           {!episode.audioUrl && ' · 文稿'}
@@ -283,7 +284,7 @@ function Home() {
 }
 
 function Catalogue() {
-  const { episodes } = useLibrary();
+  const { episodes, categories } = useLibrary();
   const [category, setCategory] = useState('all');
   const [query, setQuery] = useState('');
   const filtered = filterEpisodes(episodes, category, query);
@@ -320,7 +321,7 @@ function Catalogue() {
               className={category === item.id ? 'selected' : ''}
               onClick={() => setCategory(item.id)}
             >
-              {item.label}
+              {item.name}
             </button>
           ))}
         </fieldset>
@@ -394,7 +395,7 @@ function ReadableText({ text }: { text: string }) {
 
 function EpisodeDetail() {
   const { slug } = useParams();
-  const { episodes, loading, error } = useLibrary();
+  const { episodes, categories, loading, error } = useLibrary();
   const episode = episodes.find((item) => item.slug === slug);
   const [tab, setTab] = useState<'notes' | 'transcript'>('notes');
   const [copyState, setCopyState] = useState('');
@@ -429,7 +430,8 @@ function EpisodeDetail() {
               </Reveal>
               <Reveal className="detail-intro">
                 <p className="eyebrow">
-                  {categoryLabel(episode.category)} <span> / </span> {dateLabel(episode.publishedAt)}
+                  {categoryLabel(episode.category, categories)} <span> / </span>{' '}
+                  {dateLabel(episode.publishedAt)}
                 </p>
                 <h1>{episode.title}</h1>
                 <p className="detail-summary">{episode.summary}</p>

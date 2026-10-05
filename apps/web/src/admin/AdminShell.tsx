@@ -69,7 +69,8 @@ export function AdminShell({ session, children }: { session: Session; children: 
     '/admin/narration': '旁白风格',
     '/admin/bumpers': '贴片库',
   };
-  const settings = Boolean(settingsTitle[location.pathname]);
+  const categories = location.pathname.startsWith('/admin/categories');
+  const settings = Boolean(settingsTitle[location.pathname]) || categories;
   const channel = location.pathname === '/admin/channel';
   const appearance = location.pathname === '/admin/appearance';
   const storage = location.pathname === '/admin/storage';
@@ -93,7 +94,9 @@ export function AdminShell({ session, children }: { session: Session; children: 
             : voiceReference
               ? '音色参考'
               : settings
-                ? (settingsTitle[location.pathname] ?? '工作室')
+                ? categories
+                  ? '栏目管理'
+                  : (settingsTitle[location.pathname] ?? '工作室')
                 : catalog
                   ? location.pathname === '/admin/catalog'
                     ? '节目目录'
@@ -145,6 +148,7 @@ export function AdminShell({ session, children }: { session: Session; children: 
       label: '工作室',
       items: [
         { href: '/admin/channel', label: '全局提示词', icon: Compass, active: channel },
+        { href: '/admin/categories', label: '栏目管理', icon: Library, active: categories },
         { href: '/admin/appearance', label: '品牌外观', icon: Palette, active: appearance },
         ...Object.entries(settingsTitle).map(([href, label]) => ({
           href,

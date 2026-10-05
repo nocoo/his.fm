@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { categoryIdSchema } from './category';
 
 export { voices } from './voices';
 
@@ -40,7 +41,7 @@ export const briefSchema = z.strictObject({
     .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/)
     .max(120),
   episodeNumber: z.number().int().min(1).max(99999),
-  category: z.enum(['work', 'learning', 'life', 'conversations']).default('work'),
+  category: categoryIdSchema.default('work'),
   tags: z.array(z.string().trim().min(1).max(30)).max(10).default([]),
   targetDurationSeconds: z.number().int().min(60).max(1800).default(600),
   sources: z.array(sourceSchema).max(30).default([]),

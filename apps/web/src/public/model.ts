@@ -1,5 +1,6 @@
 import { publicAppearanceSchema, type ThemeId } from '../shared/appearance';
-import { categories, type Episode } from '../shared/episode';
+import type { PublicCategory } from '../shared/category';
+import type { Episode } from '../shared/episode';
 
 export function filterEpisodes(episodes: Episode[], category: string, query: string) {
   const search = query.trim().toLocaleLowerCase();
@@ -10,8 +11,13 @@ export function filterEpisodes(episodes: Episode[], category: string, query: str
   );
 }
 
-export function categoryLabel(category: Episode['category']) {
-  return categories.find((item) => item.id === category)?.label;
+export function categoryLabel(category: Episode['category'], categories: PublicCategory[]) {
+  return categories.find((item) => item.id === category)?.name;
+}
+export async function getCategories(signal?: AbortSignal): Promise<PublicCategory[]> {
+  const response = await fetch('/api/categories', { signal });
+  if (!response.ok) throw new Error('栏目暂时没有加载出来，请再试一次。');
+  return ((await response.json()) as { categories: PublicCategory[] }).categories;
 }
 
 export function durationLabel(seconds: number) {

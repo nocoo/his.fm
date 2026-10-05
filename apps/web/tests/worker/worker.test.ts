@@ -589,7 +589,7 @@ describe('agent discovery and real bearer routing', () => {
       );
     expect(await (await agentCall('/channel')).json()).toEqual({
       channel: initial,
-      priority: ['channel', 'intent', 'sources'],
+      priority: ['channel', 'category', 'intent', 'sources'],
     });
     for (const method of ['PUT', 'POST', 'DELETE'])
       expect(
@@ -658,7 +658,7 @@ describe('agent discovery and real bearer routing', () => {
       expect(await (await call(path)).text()).not.toContain('自定义定位');
     expect(await (await agentCall('/capabilities')).json()).toMatchObject({
       editorial: {
-        priority: ['channel', 'intent', 'sources'],
+        priority: ['channel', 'category', 'intent', 'sources'],
         channelUrl: `${origin}/api/agent/channel`,
         readBeforeEveryTask: true,
       },
@@ -739,7 +739,10 @@ describe('agent discovery and real bearer routing', () => {
     expect(created.status).toBe(201);
     const p = productionResponseSchema.parse(((await created.json()) as { production: unknown }).production);
     expect((await agentCall('/productions/')).status).toBe(200);
-    expect(await (await agentCall(`/productions/${p.id}`)).json()).toEqual({ production: p });
+    expect(await (await agentCall(`/productions/${p.id}`)).json()).toMatchObject({
+      production: p,
+      categoryProfile: { id: p.category },
+    });
     expect(await (await agentCall(`/productions/${p.id}/prompts`)).json()).toMatchObject({
       brief: expect.any(String),
       script: expect.any(String),

@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
+import type { PublicCategory } from '../shared/category';
 import type { Episode } from '../shared/episode';
-import { getEpisodes } from './model';
+import { getCategories, getEpisodes } from './model';
 
 export function useEpisodes() {
   const [episodes, setEpisodes] = useState<Episode[]>([]);
+  const [categories, setCategories] = useState<PublicCategory[]>([]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [attempt, setAttempt] = useState(0);
@@ -13,8 +15,11 @@ export function useEpisodes() {
     const controller = new AbortController();
     setLoading(true);
     setError('');
-    getEpisodes(controller.signal)
-      .then(setEpisodes)
+    Promise.all([getEpisodes(controller.signal), getCategories(controller.signal)])
+      .then(([episodes, categories]) => {
+        setEpisodes(episodes);
+        setCategories(categories);
+      })
       .catch((cause: unknown) => {
         if (!controller.signal.aborted)
           setError(cause instanceof Error ? cause.message : '暂时无法加载节目。');
@@ -24,5 +29,5 @@ export function useEpisodes() {
       });
     return () => controller.abort();
   }, [attempt]);
-  return { episodes, error, loading, retry };
+  return { episodes, categories, error, loading, retry };
 }
