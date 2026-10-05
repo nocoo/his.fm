@@ -83,6 +83,13 @@ Install through an allowed registry on this machine. Never retry blocked `regist
 
 See `docs/architecture.md` and `docs/operations.md` for contracts and operating steps.
 
+## Content execution policy
+
+- Proactively use the his.fm product agent for all editorial and content work: research, fact checking, briefs, scripts, revisions, summaries, translations, cover artwork, narration, voice previews/comparisons, bumpers and content artifacts. Submit the owner's outcome and acceptance criteria through the studio or its authenticated task API; the native coordinator delegates to the appropriate specialist conversations.
+- The development agent owns product implementation, diagnosis and acceptance, not an alternate content-production path. Do not bypass the product agent by directly calling generation providers, running content scripts or manually writing final content into the website. Repository code, tests and technical documentation remain development work.
+- Treat real content tasks as end-to-end product exercises. Observe task state, inspect artifacts and successful website receipts, and verify the delivered result. If a capability is missing or the pipeline fails, reproduce the problem, repair the product within scope, add a focused regression check and rerun through the product agent. Do not silently substitute manual generation or report a workaround as a repaired pipeline; report external blockers and request any additional authorization needed.
+- Preserve exact task inputs and environment, reuse completed artifacts and resume or explicitly retry failed work without duplicate paid generation. This execution policy does not grant new spending, production writes, credentials access, approval or publication privileges; existing owner authorization and human-only gates still apply.
+
 ## Native agent
 
 - Node 22.22+ Pi Durable 1.0 local runtime: `npm run agent -- start --environment local|production`. One process lock/storage namespace per website origin and station. Model/Jev/website credentials live in one private `~/.config/his.fm/config.json`; never print, stage or forward them to the browser.
