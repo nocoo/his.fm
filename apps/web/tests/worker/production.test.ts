@@ -111,6 +111,7 @@ beforeAll(async () => {
     '0003_production.sql',
     '0005_channel.sql',
     '0010_categories.sql',
+    '0011_prompts.sql',
   ]) {
     const sql = readFileSync(new URL(`../../migrations/${file}`, import.meta.url), 'utf8');
     await env.DB.batch(

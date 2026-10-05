@@ -238,3 +238,26 @@ Keep the SDK's durable summary selection, accounting and placement, but use low 
 The acceptance script initially omitted the required context argument to `Harness.close`; the summary had already been committed, but cleanup reported an error. Reopen the same copy without model calls and verify its checkpoint rather than repeating paid summarization. Use the installed declarations for transaction writes (`appendEntry`, not the read-only `entry`) and lifecycle calls.
 
 During adoption, two assertions caught incorrect SDK assumptions: summary content is a text-block array, and `configure({ extensions: { remove: [...] } })` replaces the selection rather than subtracting from a stored explicit list. Normalize the stored content and restore the exact original extension selection, not an assumed inverse change. The complete agent configuration was verified against the backup before restarting; the temporary extension never remained active in the running coordinator. Reuse a verified summary only after exact history comparison and cut-boundary checks, and retain a private backup before placing it.
+
+## 2026-10-06: Editable editorial policy did not cover runtime instructions
+
+The global prompt editor exposed channel positioning, but coordinator/executor,
+Jev, network and compaction instructions still came from English literals. Stage
+prompts also mixed hardcoded Chinese and English. Editing the global page could
+therefore not change those behaviors, making the configuration surface misleading.
+
+The correction introduces a private versioned Chinese prompt catalogue, connects
+actual runtime/production/summary consumers, and centralizes category and narration
+editing without copying their stores. Immutable assignments preserve the exact
+bundle while subsequent tasks refresh it; changed revisions fence executor reuse.
+Tests must verify model inputs and replay, not merely a successful settings save.
+Private defaults use a dedicated non-browser entrypoint, and permissions/protocols
+remain enforced by code rather than configurable prose.
+
+During local acceptance, the inventory also found the voice comparison style in a
+separate shared module. It now has a saved Chinese prompt while the old English
+string remains only as archived sample provenance; no paid samples were recreated.
+Local SQL inspection initially used an unsupported `cf d1 execute`/`query --local`
+path. Both failed without writes. Existing seed scripts establish `cf d1 raw
+--local --persist-to .cloudflare/state` as the supported path; inspect the repository
+commands before assuming another CLI's subcommands are available.

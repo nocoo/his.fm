@@ -1,6 +1,7 @@
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { defaultPrompts } from '@his-fm/contracts/prompt-defaults';
 import { afterEach, expect, it, vi } from 'vitest';
 import { WebsiteClient } from './client.ts';
 import { configSchema, configuredModels, loadConfig, website } from './config.ts';
@@ -81,10 +82,12 @@ it('sends multiple bounded decision questions without raw transcripts or credent
     await decisions(
       config,
       request,
-    )({ role: 'reviewer', revision: 2, inputBytes: 90000, availableResident: true }),
+    )({ prompts: defaultPrompts, role: 'reviewer', revision: 2, inputBytes: 90000, availableResident: true }),
   ).toEqual({ reuse: true, lifetime: 'resident', thinkingLevel: 'high' });
   const payload = request.mock.calls[0]?.[0];
   expect(requestBytes(payload)).toBeLessThan(16384);
+  expect(payload?.questions.plan?.instructions).toBe(defaultPrompts.decisionPlan);
+  expect(payload?.questions.thinking?.instructions).toBe(defaultPrompts.decisionThinking);
   expect(JSON.stringify(payload)).not.toContain('fake-');
   request.mockResolvedValue({
     answers: {
@@ -97,7 +100,7 @@ it('sends multiple bounded decision questions without raw transcripts or credent
       await decisions(
         config,
         request,
-      )({ role: 'writer', revision: 1, inputBytes: 10, availableResident: false })
+      )({ prompts: defaultPrompts, role: 'writer', revision: 1, inputBytes: 10, availableResident: false })
     ).thinkingLevel,
   ).toBe('low');
   request.mockResolvedValue({
@@ -111,14 +114,20 @@ it('sends multiple bounded decision questions without raw transcripts or credent
       await decisions(
         config,
         request,
-      )({ role: 'reviewer', revision: 1, inputBytes: 10, availableResident: false })
+      )({ prompts: defaultPrompts, role: 'reviewer', revision: 1, inputBytes: 10, availableResident: false })
     ).lifetime,
   ).toBe('resident');
 });
 
 it('rejects malformed distributions and enforces entire encoded request and question ceilings', async () => {
   const config = testConfig();
-  const input = { role: 'writer' as const, revision: 1, inputBytes: 10, availableResident: false };
+  const input = {
+    prompts: defaultPrompts,
+    role: 'writer' as const,
+    revision: 1,
+    inputBytes: 10,
+    availableResident: false,
+  };
   for (const malformed of [
     null,
     answer('invalid', ['create_task']),
@@ -162,7 +171,13 @@ it('uses the installed decision SDK and enforces the actual encoded HTTP body bu
   );
   vi.stubGlobal('fetch', fetcher);
   const choose = decisions(config);
-  await choose({ role: 'writer', revision: 1, inputBytes: 10, availableResident: false });
+  await choose({
+    prompts: defaultPrompts,
+    role: 'writer',
+    revision: 1,
+    inputBytes: 10,
+    availableResident: false,
+  });
   expect(fetcher).toHaveBeenCalledOnce();
   expect(String(fetcher.mock.calls[0]?.[0])).toContain('/v1/systemone');
 });
@@ -179,6 +194,7 @@ it('offers task reuse and sends bounded task type and complexity instead of raw 
       testConfig(),
       request,
     )({
+      prompts: { ...defaultPrompts, decisionPlan: '本次复用决策', decisionThinking: '本次思考强度' },
       role: 'writer',
       revision: 2,
       inputBytes: 40000,
@@ -189,6 +205,8 @@ it('offers task reuse and sends bounded task type and complexity instead of raw 
       scope: 'production',
     }),
   ).toEqual({ reuse: true, lifetime: 'task', thinkingLevel: 'medium' });
+  expect(request.mock.calls[0]?.[0].questions.plan?.instructions).toBe('本次复用决策');
+  expect(request.mock.calls[0]?.[0].questions.thinking?.instructions).toBe('本次思考强度');
   expect(request.mock.calls[0]?.[0].state).toMatchObject({
     taskType: 'revision',
     complexity: 'complex',
@@ -200,7 +218,9 @@ it('authenticates read-only website requests, blocks redirects and hides upstrea
   const site = testConfig().websites.local;
   const fetcher = vi.fn<typeof fetch>();
   const client = new WebsiteClient(site, fetcher);
-  fetcher.mockResolvedValueOnce(Response.json({ channel: { version: 1, content: 'Private' } }));
+  fetcher.mockResolvedValueOnce(
+    Response.json({ channel: { version: 1, content: 'Private', prompts: defaultPrompts } }),
+  );
   expect((await client.channel()).content).toBe('Private');
   expect(fetcher.mock.calls[0]?.[1]).toMatchObject({
     redirect: 'error',

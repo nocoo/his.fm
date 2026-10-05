@@ -247,4 +247,5 @@ export type BrowserFrame = z.infer<typeof browserFrameSchema>;
 export type AgentFrame = z.infer<typeof agentFrameSchema>;
 export type ServerFrame = z.infer<typeof serverFrameSchema>;
 
+export * from './prompts.ts';
 export * from './wav.ts';

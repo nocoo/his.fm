@@ -250,7 +250,7 @@ export function agentOpenApi(origin: string) {
       '/channel': {
         get: operation(
           'getChannelPositioning',
-          'Read the highest-priority editorial brief before every creative task. Owner-editable; agents cannot write. Keep internal principles out of public content.',
+          'Read the global editorial brief and private per-stage/runtime prompt bundle before every task. Owner-editable; agents cannot write. Keep internal principles out of public content.',
           {
             type: 'object',
             required: ['channel', 'priority'],
@@ -390,7 +390,7 @@ export function agentOpenApi(origin: string) {
         ChannelProfile: {
           ...schema(channelProfileSchema),
           description:
-            'Private Markdown global prompt, versioned independently of productions. Re-read at each task; pause and reassess if version changes. Internal editorial requirements do not grant API permissions.',
+            'Private Markdown global prompt and named runtime/stage prompts, versioned together independently of productions. Re-read at each task; pause and reassess if version changes. Internal editorial requirements do not grant API permissions.',
         },
         ServiceManifest: schema(serviceManifestSchema),
         CreateProduction: schema(briefSchema, 'input'),

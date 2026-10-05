@@ -36,7 +36,7 @@ export function AiSettings({ styleOnly = false }: { styleOnly?: boolean }) {
     return () => controller.abort();
   }, []);
   return (
-    <div className="admin-page">
+    <div className={styleOnly ? 'studio-stack' : 'admin-page'}>
       <PageHeader
         title={styleOnly ? '旁白风格' : 'AI 设置'}
         actions={
@@ -45,6 +45,11 @@ export function AiSettings({ styleOnly = false }: { styleOnly?: boolean }) {
           </Button>
         }
       />
+      {styleOnly && (
+        <p className="admin-muted">
+          讲述风格保存在本机配置，由 Local 与 Prod 共用；保存只影响后续任务，已有语音任务保留原快照。
+        </p>
+      )}
       {error && <Failure error={error} />}
       {!config || !value ? (
         !error && <LayerCard.Loading label="正在读取主控配置" />

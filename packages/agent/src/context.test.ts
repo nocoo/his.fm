@@ -6,24 +6,47 @@ import { fauxAssistantMessage, fauxProvider } from '@earendil-works/pi-ai/provid
 import { estimateContextTokens } from '@earendil-works/pi-ai/utils/estimate';
 import { AssistantEntry, UserEntry } from '@earendil-works/pi-durable';
 import { openNodeSqliteStorage } from '@earendil-works/pi-durable/storage/sqlite/node';
+import { defaultPrompts } from '@his-fm/contracts/prompt-defaults';
 import { expect, it, vi } from 'vitest';
 import { CONTEXT_BLOCKED, CONTEXT_FAILURE, contextModels } from './context.ts';
 import { openRuntime } from './runtime.ts';
 import { fixture, testCommand, testContext } from './testing/fixtures.ts';
 
-it('changes only summary reasoning and preserves model, budget, cancellation and provider binding', async () => {
+it('replaces summary instructions while preserving source, model, budget and cancellation', async () => {
   const fake = fauxProvider({ models: [{ id: 'coordinator' }] });
   const models = createModels();
   models.setProvider(fake.provider);
   const complete = vi.spyOn(models, 'completeSimple');
   const stream = vi.spyOn(models, 'streamSimple');
-  const guarded = contextModels(models);
+  const guarded = contextModels(models, async () => defaultPrompts.compaction);
   const model = fake.getModel();
-  const context = { messages: [] };
+  const context = {
+    messages: [
+      {
+        role: 'user' as const,
+        content:
+          '<conversation>\nHistory\n</conversation>\nSDK instructions\n\nAdditional focus: keep evidence',
+        timestamp: 1,
+      },
+    ],
+  };
   const options = { reasoning: 'high' as const, maxTokens: 8192, signal: new AbortController().signal };
   fake.setResponses([fauxAssistantMessage('Summary'), fauxAssistantMessage('Answer')]);
   expect((await guarded.completeSimple(model, context, options)).stopReason).toBe('stop');
-  expect(complete).toHaveBeenCalledWith(model, context, { ...options, reasoning: 'low' });
+  expect(complete).toHaveBeenCalledWith(
+    model,
+    {
+      messages: [
+        expect.objectContaining({ role: 'system', content: defaultPrompts.compaction }),
+        expect.objectContaining({
+          role: 'user',
+          content: '<conversation>\nHistory\n</conversation>\n\nAdditional focus: keep evidence',
+        }),
+      ],
+    },
+    { ...options, reasoning: 'low' },
+  );
+  await expect(guarded.completeSimple(model, { messages: [] })).rejects.toThrow('格式');
   expect((await guarded.streamSimple(model, context, options).result()).stopReason).toBe('stop');
   expect(stream).toHaveBeenLastCalledWith(model, context, options);
   expect(guarded.getModel(model.provider, model.id)).toEqual(model);
@@ -34,7 +57,7 @@ it('blocks the recorded 123908-token failure locally without a provider call', a
   const fake = fauxProvider({ models: [{ id: 'coordinator', contextWindow: 128000, maxTokens: 8192 }] });
   const models = createModels();
   models.setProvider(fake.provider);
-  const guarded = contextModels(models);
+  const guarded = contextModels(models, async () => defaultPrompts.compaction);
   const previous = fauxAssistantMessage('Read the production', { timestamp: 100 });
   previous.usage = { ...previous.usage, input: 122681, output: 42, totalTokens: 122723 };
   const context = {
@@ -63,7 +86,7 @@ it.each([123908, 983616, 983617])(
     fake.setResponses([fauxAssistantMessage('Allowed')]);
     const previous = fauxAssistantMessage('Previous turn');
     previous.usage = { ...previous.usage, input: tokens, totalTokens: tokens };
-    const result = await contextModels(models)
+    const result = await contextModels(models, async () => defaultPrompts.compaction)
       .streamSimple(fake.getModel(), { messages: [previous] })
       .result();
     const allowed = tokens <= 1_000_000 - 16384;
@@ -78,7 +101,7 @@ it.each([0, 128000])(
     const fake = fauxProvider({ models: [{ id: 'coordinator', contextWindow: window, maxTokens: 8192 }] });
     const models = createModels();
     models.setProvider(fake.provider);
-    const guarded = contextModels(models);
+    const guarded = contextModels(models, async () => defaultPrompts.compaction);
     fake.setResponses([fauxAssistantMessage('Allowed')]);
     expect((await guarded.streamSimple(fake.getModel(), { messages: [] }).result()).stopReason).toBe('stop');
     const oversized = { messages: [], systemPrompt: 'x'.repeat(128000 * 4) };
@@ -118,7 +141,9 @@ async function congest(test: Awaited<ReturnType<typeof fixture>>) {
 it('compacts and reopens a congested coordinator without deleting history or repeating summarization', async () => {
   const test = await fixture(
     [
-      (_context, options, _state, model) => {
+      (context, options, _state, model) => {
+        expect(JSON.stringify(context)).toContain('自定义压缩要求：保留待验收项');
+        expect(JSON.stringify(context)).not.toContain('Use this EXACT format');
         expect(options?.reasoning).toBe('low');
         expect(options?.maxTokens).toBe(8192);
         expect(model.id).toBe('gpt-6-astra');
@@ -134,6 +159,7 @@ it('compacts and reopens a congested coordinator without deleting history or rep
     ],
     { persistent: true },
   );
+  test.channel.prompts.compaction = '自定义压缩要求：保留待验收项';
   let runtime = test.runtime;
   try {
     const history = await congest(test);

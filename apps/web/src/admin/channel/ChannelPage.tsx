@@ -1,34 +1,91 @@
+import { type PromptKey, promptLabels, promptLimit } from '@his-fm/contracts';
 import { Button, LayerCard } from '@nocoo/basalt';
 import { PageHeader } from '@nocoo/basalt/components/page-header';
 import { Save } from 'lucide-react';
 import { useState } from 'react';
+import { useSearchParams } from 'react-router';
+import { CategoryEditor } from '../categories/CategoryPage';
+import { useCategories } from '../categories/useCategories';
 import { MarkdownEditor } from '../markdown/MarkdownEditor';
-import { Confirm, CopyButton, Failure } from '../production/controls';
+import { AiSettings } from '../production/AiSettings';
+import { Choice, Confirm, CopyButton, Failure } from '../production/controls';
 import { dateLabel } from '../production/model';
 import { ReadingText } from '../production/ReadingText';
 import { useChannel } from './useChannel';
 import './channel.css';
 
 export default function ChannelPage() {
-  const vm = useChannel();
-  const [confirmation, setConfirmation] = useState<'reload' | 'overwrite' | null>(null);
+  const [params, setParams] = useSearchParams();
+  const categories = useCategories();
+  const options = [
+    { value: 'content', label: '全局创作原则' },
+    ...Object.entries(promptLabels).map(([value, label]) => ({ value, label })),
+    ...categories.categories.map((category) => ({
+      value: `category:${category.id}`,
+      label: `栏目 · ${category.name}`,
+    })),
+    { value: 'narration', label: '旁白讲述风格' },
+  ];
+  const requested = params.get('prompt') ?? 'content';
+  const selected =
+    requested.startsWith('category:') || options.some((option) => option.value === requested)
+      ? requested
+      : 'content';
+  const [visited, setVisited] = useState<string[]>([]);
+  const panels = [...new Set([...visited, selected])];
   return (
     <div className="admin-page channel-page">
       <PageHeader
-        title="全局提示词"
+        title="提示词"
         actions={
-          <Button
-            loading={vm.pending}
-            disabled={!vm.dirty || !vm.content.trim() || vm.content.length > 30000 || Boolean(vm.conflict)}
-            onClick={() => void vm.save()}
-          >
-            <Save size={16} />
-            保存提示词
-          </Button>
+          <Choice
+            label="提示词环节"
+            value={selected}
+            options={options}
+            onChange={(value) => {
+              setVisited(panels);
+              setParams({ prompt: value });
+            }}
+          />
         }
       />
+      <p className="admin-muted">
+        私有提示词按环节管理，保存后用于后续工作；已派发任务保留快照。权限、工具协议与动态上下文由代码提供。
+      </p>
+      {categories.error && <Failure error={categories.error} retry={() => void categories.load()} />}
+      {panels.map((key) => (
+        <div key={key} hidden={key !== selected}>
+          {key === 'narration' ? (
+            <AiSettings styleOnly />
+          ) : key.startsWith('category:') ? (
+            <CategoryEditor id={key.slice(9)} promptOnly />
+          ) : (
+            <PromptEditor promptKey={key as 'content' | PromptKey} active={key === selected} />
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+function PromptEditor({ promptKey, active }: { promptKey: 'content' | PromptKey; active: boolean }) {
+  const vm = useChannel(promptKey, active);
+  const label = promptKey === 'content' ? '全局提示词正文' : promptLabels[promptKey];
+  const limit = promptLimit(promptKey);
+  const [confirmation, setConfirmation] = useState<'reload' | 'overwrite' | null>(null);
+  return (
+    <div className="studio-stack">
+      <div className="studio-actions">
+        <Button
+          loading={vm.pending}
+          disabled={!vm.dirty || !vm.content.trim() || vm.content.length > limit || Boolean(vm.conflict)}
+          onClick={() => void vm.save()}
+        >
+          <Save size={16} />
+          保存提示词
+        </Button>
+      </div>
       {vm.error && <Failure error={vm.error} retry={!vm.channel ? () => void vm.load() : undefined} />}
-      {!vm.channel && !vm.error && <LayerCard.Loading label="正在读取全局提示词" />}
+      {!vm.channel && !vm.error && <LayerCard.Loading label="正在读取提示词" />}
       {vm.channel && (
         <>
           {vm.conflict && (
@@ -37,7 +94,7 @@ export default function ChannelPage() {
               <p className="admin-muted">你的草稿完整保留。先对照已保存的内容，再决定采用哪一版。</p>
               <details>
                 <summary>对照最新版本</summary>
-                <ReadingText text={vm.conflict.content} />
+                <ReadingText text={vm.conflictContent} />
               </details>
               <div className="studio-actions">
                 <CopyButton label="复制我的草稿" read={() => vm.content} />
@@ -45,7 +102,7 @@ export default function ChannelPage() {
                   采用最新版本
                 </Button>
                 <Button
-                  disabled={vm.pending || !vm.content.trim() || vm.content.length > 30000}
+                  disabled={vm.pending || !vm.content.trim() || vm.content.length > limit}
                   onClick={() => setConfirmation('overwrite')}
                 >
                   用我的草稿更新
@@ -56,16 +113,18 @@ export default function ChannelPage() {
           <LayerCard padding="none" className="channel-sheet">
             <MarkdownEditor
               key={vm.resetKey}
-              id="global-prompt"
-              label="全局提示词正文"
+              id={promptKey === 'content' ? 'global-prompt' : `prompt-${promptKey}`}
+              label={label}
               value={vm.content}
-              maxLength={30000}
+              maxLength={limit}
               onChange={vm.setContent}
               disabled={vm.pending}
             />
           </LayerCard>
-          {vm.content.length > 30000 && (
-            <Failure error="提示词最多可保存 30,000 个字符，请精简后重试。草稿仍然保留。" />
+          {vm.content.length > limit && (
+            <Failure
+              error={`提示词最多可保存 ${limit.toLocaleString()} 个字符，请精简后重试。草稿仍然保留。`}
+            />
           )}
           <div className="studio-stage-footer">
             <span className="admin-muted" role="status">
@@ -78,9 +137,7 @@ export default function ChannelPage() {
                     ? '草稿保留在当前标签页，保存后才会用于创作。'
                     : `最近保存于 ${dateLabel(vm.channel.updatedAt)}`)}
               </p>
-              <p className="admin-muted">
-                主控每次创作先读取全局提示词。改动作用于后续任务，不会自动改写已有节目或撤销确认。
-              </p>
+              <p className="admin-muted">改动作用于后续任务，不会自动改写已有节目或撤销确认。</p>
             </div>
             <div className="studio-actions">
               <Button
@@ -93,11 +150,11 @@ export default function ChannelPage() {
               <Button
                 loading={vm.pending}
                 disabled={
-                  !vm.dirty || !vm.content.trim() || vm.content.length > 30000 || Boolean(vm.conflict)
+                  !vm.dirty || !vm.content.trim() || vm.content.length > limit || Boolean(vm.conflict)
                 }
                 onClick={() => void vm.save()}
               >
-                保存全部改动
+                保存当前提示词
               </Button>
             </div>
           </div>
@@ -108,11 +165,11 @@ export default function ChannelPage() {
       )}
       {confirmation && vm.channel && (
         <Confirm
-          title={confirmation === 'reload' ? '采用已保存的提示词' : '以当前草稿更新全局提示词'}
+          title={confirmation === 'reload' ? '采用已保存的提示词' : '以当前草稿更新提示词'}
           description={
             confirmation === 'reload'
               ? '当前未保存草稿将被替换。需要保留的内容请先复制。'
-              : '请确认已对照最新内容。本次会用你的完整草稿更新全局提示词，并供后续创作使用。'
+              : '请确认已对照最新内容。本次会用你的完整草稿更新当前提示词，并供后续创作使用。'
           }
           onClose={() => setConfirmation(null)}
           onConfirm={async () => {

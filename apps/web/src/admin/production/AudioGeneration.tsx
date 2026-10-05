@@ -71,7 +71,7 @@ export function AudioGeneration({
         <>
           <div className="studio-row">
             <strong>本次生成</strong>
-            <Link className="studio-link" to="/admin/narration">
+            <Link className="studio-link" to="/admin/channel?prompt=narration">
               声音设置
             </Link>
           </div>

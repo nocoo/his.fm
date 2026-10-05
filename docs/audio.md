@@ -24,7 +24,7 @@ Native assembly is bounded to 30 minutes and stores its result in the private sp
 - `/admin/appearance`: Brand Appearance, retaining the existing versioned website theme settings.
 - `/admin/ai`: provider model/voice parameters and write-only new keys. `GET /admin/api/ai-settings` returns an allowlisted status projection; `PUT` uses the current version. No endpoint returns an existing key, masked key or complete private config. Offline state is unavailable, not unconfigured.
 - `/admin/connections`: environment-specific machine tokens.
-- `/admin/narration`: provider-independent delivery style and optional short preview.
+- `/admin/channel?prompt=narration`: provider-independent delivery style and optional short preview.
 - `/admin/bumpers`: named intro/outro WAV library. Production selects each position independently, defaulting to none.
 - `/admin/voices`: same-script Gemini and ElevenLabs comparisons alongside the original six Gemini references.
 
@@ -44,7 +44,7 @@ The owner's supplied `kLhAstPcnnPxqzk6gS5i` voice remains configured. The curren
 
 The comparison page groups voices by their described delivery, not a claimed acoustic equivalence. Gemini stays in the left column and ElevenLabs in the right. Cards and their playback/action rows align through CSS grid stretch and subgrid; phones stack the two providers within the same group. The six original Gemini samples remain in a collapsed history section.
 
-The benchmark uses `voiceSampleTranscript` and the fixed `voiceComparisonStyle`, independent of editable studio defaults. The exact style is `Friendly podcast announcement, natural conversational delivery, brisk pace, approximately 20 seconds.` It matches the original Gemini generation request in `scripts/voice-comparison/generate.py` and the preserved local request metadata. Missing ElevenLabs samples are generated with that same text and style; samples from a different style are not substituted.
+New comparisons use `voiceSampleTranscript` and the private editable `channel.prompts.voiceComparison` style, independent of narration defaults. Edit it on `/admin/channel?prompt=voiceComparison`. Historical Gemini samples retain `archivedVoiceComparisonStyle` as immutable generation provenance. The exact style is `Friendly podcast announcement, natural conversational delivery, brisk pace, approximately 20 seconds.` It matches the original Gemini generation request in `scripts/voice-comparison/generate.py` and the preserved local request metadata. Missing samples use the current saved comparison style. Editing it does not automatically generate audio. Only exact-style cached previews count as current comparisons; historical Gemini recordings remain in the history section.
 
 Verified 2026-10-05: three new ElevenLabs jobs completed through dedicated native speech conversations and returned successful website receipts. Existing immutable Gemini WAVs were verified against the original generation metadata. No recording was truncated or time-stretched.
 

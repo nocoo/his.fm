@@ -55,7 +55,7 @@ it('delegates speech to a restricted conversation and requires a successful webs
       httpsProxy: 'http://127.0.0.1:7890',
       nodeEnvProxyEnabled: true,
     });
-    expect(JSON.parse(assignment.input).network.guidance).toContain('loopback');
+    expect(JSON.parse(assignment.input).network.guidance).toContain('回环');
     const conversation = await test.runtime.harness.conversation(
       assignment.conversationId,
       BACKGROUND_CONTEXT,

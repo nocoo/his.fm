@@ -970,3 +970,61 @@ it('matches server textual audio authorization and rejects negation, preview and
     await test.close();
   }
 });
+
+it('snapshots editable instructions and fences resident reuse when the prompt version changes', async () => {
+  const test = await activeFixture();
+  try {
+    test.channel.prompts.reviewer = '审校只按本次新增的证据标准验收。';
+    test.channel.prompts.network = '本次自定义网络说明。';
+    test.channel.prompts.script = '逐字稿必须包含可核实的实例。';
+    test.decide.mockResolvedValue({ reuse: false, lifetime: 'resident', thinkingLevel: 'high' });
+    test.fake.setResponses([
+      fauxAssistantMessage([fauxToolCall('submit_result', successfulResult('Reviewed'))], {
+        stopReason: 'toolUse',
+      }),
+    ]);
+    const first = JSON.parse(
+      plain(await invoke(test, 'delegate', { role: 'reviewer', instructions: 'Review', revision: 1 }, 2001)),
+    );
+    await expect
+      .poll(async () => (await test.runtime.work()).assignments[first.assignmentId]?.status)
+      .toBe('complete');
+    const assignment = (await test.runtime.work()).assignments[first.assignmentId];
+    assert(assignment);
+    const original = assignment.input;
+    expect(JSON.parse(original).channel.prompts.script).toContain('可核实的实例');
+    expect(JSON.parse(original).network.guidance).toBe('本次自定义网络说明。');
+    const conversation = await test.runtime.harness.conversation(
+      assignment.conversationId,
+      BACKGROUND_CONTEXT,
+    );
+    expect((await conversation?.agent(BACKGROUND_CONTEXT))?.instructions).toContain('新增的证据标准');
+    test.channel.version++;
+    test.channel.prompts.reviewer = '新的审校标准。';
+    test.fake.setResponses([
+      fauxAssistantMessage([fauxToolCall('submit_result', successfulResult('Reviewed again'))], {
+        stopReason: 'toolUse',
+      }),
+    ]);
+    const second = JSON.parse(
+      plain(
+        await invoke(test, 'delegate', { role: 'reviewer', instructions: 'Review again', revision: 2 }, 2002),
+      ),
+    );
+    await expect
+      .poll(async () => (await test.runtime.work()).assignments[second.assignmentId]?.status)
+      .toBe('complete');
+    expect(test.decide.mock.lastCall?.[0]).toMatchObject({
+      availableResident: false,
+      prompts: { reviewer: '新的审校标准。' },
+    });
+    const state = await test.runtime.work();
+    expect(state.assignments[first.assignmentId]?.input).toBe(original);
+    expect(state.assignments[second.assignmentId]?.conversationId).not.toBe(assignment.conversationId);
+    expect(JSON.parse(state.assignments[second.assignmentId]?.input ?? '{}').channel.prompts.reviewer).toBe(
+      '新的审校标准。',
+    );
+  } finally {
+    await test.close();
+  }
+});

@@ -6,8 +6,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router';
 import type { AudioPreview, ProductionSettings } from '../../shared/production';
 import {
+  archivedVoiceComparisonStyle,
   voiceComparisonPairs,
-  voiceComparisonStyle,
   voiceSamples,
   voiceSampleTranscript,
 } from '../../shared/voice-samples';
@@ -19,6 +19,7 @@ import { productionService } from './service';
 
 export function VoiceReferences() {
   const activeAudio = useRef<HTMLAudioElement | null>(null);
+  const [comparisonStyle, setComparisonStyle] = useState('');
   const [settings, setSettings] = useState<ProductionSettings | null>(null);
   const [pending, setPending] = useState<string | null>(null);
   const [error, setError] = useState('');
@@ -27,6 +28,7 @@ export function VoiceReferences() {
     try {
       const result = await productionService.settings(signal);
       setSettings(result.settings);
+      setComparisonStyle((await productionService.channel(signal)).channel.prompts.voiceComparison);
       setPreviews(
         (await request<{ previews: AudioPreview[] }>('/production-settings/previews', { signal })).previews,
       );
@@ -80,14 +82,15 @@ export function VoiceReferences() {
       />
       <p className="admin-muted">
         按音色描述配对，左 Gemini、右
-        ElevenLabs；固定文稿与对比风格，实际听感请试听比较。生成只补缺失样片，不改默认音色。
+        ElevenLabs；使用共同文稿与当前对比风格。旧样片保留在历史中，修改风格不会自动付费生成，也不改默认音色。
       </p>
       <details>
-        <summary>共同文稿与固定对比风格</summary>
+        <summary>共同文稿与当前对比风格</summary>
         <p className="studio-prose">{voiceSampleTranscript}</p>
-        <p className="admin-muted">
-          亲切的播客开场，自然交谈，轻快节奏，目标约 20 秒。时长自然生成，不做拉伸。
-        </p>
+        <p className="admin-muted">{comparisonStyle || '正在读取对比风格…'}</p>
+        <Link className="studio-link" to="/admin/channel?prompt=voiceComparison">
+          编辑音色对比风格
+        </Link>
       </details>
       {!settings && !error && (
         <p role="status" className="admin-muted">
@@ -103,12 +106,14 @@ export function VoiceReferences() {
               const name = `${provider === 'gemini' ? 'Gemini' : 'ElevenLabs'} · ${sample.name}`;
               const key = `${provider}:${sample.voice}`;
               const reference =
-                provider === 'gemini' ? voiceSamples.find((item) => item.voice === sample.voice) : undefined;
+                provider === 'gemini' && comparisonStyle === archivedVoiceComparisonStyle
+                  ? voiceSamples.find((item) => item.voice === sample.voice)
+                  : undefined;
               const preview = reference
                 ? {
                     provider,
                     voice: sample.voice,
-                    speakingStyle: voiceComparisonStyle,
+                    speakingStyle: archivedVoiceComparisonStyle,
                     text: voiceSampleTranscript,
                     url: reference.url,
                     durationSeconds: reference.durationSeconds,
@@ -119,7 +124,7 @@ export function VoiceReferences() {
                       item.provider === provider &&
                       item.voice === sample.voice &&
                       item.text === voiceSampleTranscript &&
-                      item.speakingStyle === voiceComparisonStyle,
+                      item.speakingStyle === comparisonStyle,
                   );
               return (
                 <ComparisonCard
@@ -129,7 +134,7 @@ export function VoiceReferences() {
                   character={sample.character}
                   preview={preview}
                   selected={settings?.provider === provider && settings.voice === sample.voice}
-                  disabled={pending !== null || !settings}
+                  disabled={pending !== null || !settings || !comparisonStyle}
                   configured={Boolean(settings?.providers[provider])}
                   pending={pending === key}
                   onPlay={play}
@@ -142,7 +147,7 @@ export function VoiceReferences() {
                       const result = await productionService.preview({
                         provider,
                         voice: sample.voice,
-                        speakingStyle: voiceComparisonStyle,
+                        speakingStyle: comparisonStyle,
                         text: voiceSampleTranscript,
                       });
                       setPreviews((current) => [result.preview, ...current]);

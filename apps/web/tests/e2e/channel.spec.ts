@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { mkdir } from 'node:fs/promises';
+import { defaultPrompts } from '@his-fm/contracts/prompt-defaults';
 import { expect, type Page, test } from '@playwright/test';
 import type { ChannelProfile } from '../../src/shared/channel';
 
@@ -11,11 +12,14 @@ async function mockChannel(page: Page) {
   let channel: ChannelProfile = {
     version: 1,
     content: initialContent,
+    prompts: { ...defaultPrompts },
     updatedAt: '2026-09-25T00:00:00Z',
     updatedBy: 'Owner',
   };
   let fail = false;
   const writes: unknown[] = [];
+  await page.routeWebSocket('**/admin/api/agent/live?protocol=1', () => {});
+  await page.route('**/admin/api/categories', (route) => route.fulfill({ json: { categories: [] } }));
   await page.route('**/admin/api/session', (route) =>
     route.fulfill({ json: { mode: 'local', user: { email: 'editor@his.fm' } } }),
   );
@@ -30,7 +34,7 @@ async function mockChannel(page: Page) {
     }
     if (body.version !== channel.version)
       return route.fulfill({ status: 409, json: { error: '全局提示词已在别处更新' } });
-    channel = { ...channel, content: body.content, version: channel.version + 1 };
+    channel = { ...channel, ...body, version: channel.version + 1 };
     return route.fulfill({ json: { channel } });
   });
   return {
@@ -185,7 +189,7 @@ test('channel editor supports a real local save, Chinese input, mobile layout an
     await page.screenshot({ path: '.local/channel-phone-dark.png' });
     await page.getByRole('button', { name: '打开导航', exact: true }).click();
     await expect(
-      page.getByRole('dialog', { name: '工作室导航' }).getByText('全局提示词', { exact: true }),
+      page.getByRole('dialog', { name: '工作室导航' }).getByText('提示词', { exact: true }),
     ).toBeVisible();
   } finally {
     const result = await page.evaluate(
@@ -208,4 +212,42 @@ test('channel editor supports a real local save, Chinese input, mobile layout an
     );
     expect(result).toBe(200);
   }
+});
+
+test('stage prompts keep independent drafts and undo, merge unrelated saves and persist Chinese edits', async ({
+  page,
+}) => {
+  const state = await mockChannel(page);
+  await page.goto('/admin/channel?prompt=coordinator');
+  const choose = async (name: string) => {
+    await page.getByRole('combobox', { name: '提示词环节' }).click();
+    await page.getByRole('option', { name, exact: true }).click();
+  };
+  const coordinator = page.getByRole('textbox', { name: '主控协调', exact: true });
+  await expect(coordinator).toContainText('你是 his.fm 唯一的主控');
+  await coordinator.fill('主控中文草稿');
+  await choose('上下文压缩');
+  const compact = page.getByRole('textbox', { name: '上下文压缩', exact: true });
+  await expect(compact).toContainText('关键决策');
+  await compact.fill('压缩中文草稿');
+  await choose('主控协调');
+  await expect(coordinator).toContainText('主控中文草稿');
+  await page.getByRole('button', { name: '撤销', exact: true }).click();
+  await expect(coordinator).toContainText('你是 his.fm 唯一的主控');
+  await page.getByRole('button', { name: '重做', exact: true }).click();
+  await page.getByRole('button', { name: '保存提示词', exact: true }).click();
+  await expect.poll(() => state.saved().prompts.coordinator).toBe('主控中文草稿');
+  await choose('上下文压缩');
+  await expect(compact).toContainText('压缩中文草稿');
+  await compact.focus();
+  await page.keyboard.press('ControlOrMeta+s');
+  await expect.poll(() => state.saved().prompts.compaction).toBe('压缩中文草稿');
+  expect(state.saved().prompts.coordinator).toBe('主控中文草稿');
+  expect(state.saved().content).toBe(initialContent);
+  expect(state.writes).toHaveLength(2);
+  await page.reload();
+  await expect(compact).toContainText('压缩中文草稿');
+  await choose('会话复用决策');
+  await page.getByRole('textbox', { name: '会话复用决策', exact: true }).fill('中'.repeat(1501));
+  await expect(page.getByRole('button', { name: '保存提示词', exact: true })).toBeDisabled();
 });

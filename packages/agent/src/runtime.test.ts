@@ -1,8 +1,9 @@
 import { createServer } from 'node:http';
 import { BACKGROUND_CONTEXT } from '@earendil-works/chord/context';
 import { fauxAssistantMessage, fauxThinking, fauxToolCall } from '@earendil-works/pi-ai/providers/faux';
+import { defaultPrompts } from '@his-fm/contracts/prompt-defaults';
 import { expect, it } from 'vitest';
-import { EXECUTOR_CAPABILITIES, ROOT_POLICY, WORK_POLICY } from './prompts.ts';
+import { executorTools, workPolicy } from './prompts.ts';
 import { fixture, testCommand } from './testing/fixtures.ts';
 import { acceptWork, successfulResult } from './testing/outcomes.ts';
 
@@ -282,18 +283,18 @@ console.log('Verified 2 rows, total 180 seconds');`;
       assert(assignment);
       expect(JSON.parse(assignment.input)).toMatchObject({
         ownerCommand: owner,
-        capabilities: EXECUTOR_CAPABILITIES,
+        capabilities: { tools: executorTools, guidance: defaultPrompts.capabilities },
       });
       expect(assignment.outcome).toMatchObject({ status: 'done', criteria: { required: 2, met: 2 } });
       const executor = await test.runtime.harness.conversation(assignment.conversationId, BACKGROUND_CONTEXT);
       assert(executor);
       const agent = await executor.agent(BACKGROUND_CONTEXT);
-      expect(agent.instructions).toBe(`${WORK_POLICY}\nCurrent ownerCommand: ${JSON.stringify(owner)}`);
-      expect(agent.tools.map((tool) => tool.name)).toEqual(
-        expect.arrayContaining(EXECUTOR_CAPABILITIES.tools),
+      expect(agent.instructions).toBe(
+        `${workPolicy(defaultPrompts, role)}\n当前所有者指令：${JSON.stringify(owner)}`,
       );
+      expect(agent.tools.map((tool) => tool.name)).toEqual(expect.arrayContaining(executorTools));
       expect((await test.runtime.root.agent(BACKGROUND_CONTEXT)).instructions).toBe(
-        `${ROOT_POLICY}\nCurrent ownerCommand: ${JSON.stringify(owner)}`,
+        `${defaultPrompts.coordinator}\n当前所有者指令：${JSON.stringify(owner)}`,
       );
     } finally {
       await test.close();
@@ -302,3 +303,21 @@ console.log('Verified 2 rows, total 180 seconds');`;
 );
 
 import assert from 'node:assert/strict';
+
+it('loads saved coordinator instructions for the next command without restarting', async () => {
+  const test = await fixture([fauxAssistantMessage('First'), fauxAssistantMessage('Second')]);
+  try {
+    test.channel.prompts.coordinator = '当前主控提示词甲。';
+    test.start();
+    test.send(testCommand('prompt-first'));
+    await expect.poll(() => test.store.command('prompt-first')?.status).toBe('complete');
+    expect((await test.runtime.root.agent(BACKGROUND_CONTEXT)).instructions).toContain('当前主控提示词甲。');
+    test.channel.version++;
+    test.channel.prompts.coordinator = '当前主控提示词乙。';
+    test.send(testCommand('prompt-second'));
+    await expect.poll(() => test.store.command('prompt-second')?.status).toBe('complete');
+    expect((await test.runtime.root.agent(BACKGROUND_CONTEXT)).instructions).toContain('当前主控提示词乙。');
+  } finally {
+    await test.close();
+  }
+});

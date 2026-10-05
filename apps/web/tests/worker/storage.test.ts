@@ -158,7 +158,9 @@ describe('owner R2 inventory and cleanup', () => {
     await env.DB.prepare('INSERT INTO production_settings VALUES (1, ?)')
       .bind(JSON.stringify({ intro: { key: 'bumper-current.wav' }, outro: null }))
       .run();
-    await env.DB.prepare("INSERT INTO channel_profile VALUES (1, 1, ?, 'now', 'owner')")
+    await env.DB.prepare(
+      "INSERT INTO channel_profile (id, version, content, updated_at, updated_by) VALUES (1, 1, ?, 'now', 'owner')",
+    )
       .bind('https://f.no.mt/channel.webp')
       .run();
     await env.DB.prepare(`INSERT INTO episodes (id, slug, episode_number, title, summary, transcript, show_notes, cover_url, category, status, created_at, updated_at)

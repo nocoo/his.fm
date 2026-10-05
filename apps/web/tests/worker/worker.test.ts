@@ -637,7 +637,7 @@ describe('agent discovery and real bearer routing', () => {
     ).json()) as Record<string, string>;
     for (const prompt of Object.values(prompts)) {
       expect(prompt).toContain('自定义定位');
-      expect(prompt).toContain('版本 2');
+      expect(prompt).toContain('"version": 2');
       expect(prompt).not.toContain('有温度，有柔情');
       expect(prompt.indexOf('自定义定位')).toBeLessThan(prompt.indexOf('"intent"'));
     }
@@ -663,6 +663,61 @@ describe('agent discovery and real bearer routing', () => {
         readBeforeEveryTask: true,
       },
     });
+    const edited = { ...profile.prompts, coordinator: '主控自定义私有标记', script: '逐字稿自定义私有标记' };
+    const updated = await call('/admin/api/channel', {
+      method: 'PUT',
+      ...body({ version: profile.version, prompts: edited }),
+    });
+    expect(updated.status).toBe(200);
+    const saved = channelProfileSchema.parse(((await updated.json()) as { channel: unknown }).channel);
+    expect(saved.content).toBe(profile.content);
+    expect(saved.prompts).toEqual(edited);
+    expect(saved.version).toBe(profile.version + 1);
+    expect(((await (await agentCall('/channel')).json()) as { channel: unknown }).channel).toEqual(saved);
+    expect(await (await agentCall(`/productions/${created.production.id}/prompts`)).text()).toContain(
+      '逐字稿自定义私有标记',
+    );
+    expect(((await (await call('/admin/api/channel')).json()) as { channel: unknown }).channel).toEqual(
+      saved,
+    );
+    expect(
+      (await agentCall('/channel', { method: 'PUT', ...body({ version: saved.version, prompts: edited }) }))
+        .status,
+    ).toBe(403);
+    for (const invalid of [
+      { version: saved.version },
+      { version: saved.version, prompts: {} },
+      { version: saved.version, prompts: { ...edited, speech: '' } },
+      { version: saved.version, prompts: { ...edited, decisionPlan: '中'.repeat(1501) } },
+    ]) {
+      expect((await call('/admin/api/channel', { method: 'PUT', ...body(invalid) })).status).toBe(400);
+    }
+    expect(
+      (
+        await call('/admin/api/channel', {
+          method: 'PUT',
+          ...body({ version: profile.version, prompts: edited }),
+        })
+      ).status,
+    ).toBe(409);
+    for (const path of [
+      '/api/agent',
+      '/api/agent/openapi.json',
+      '/llms.txt',
+      '/api/categories',
+      '/api/episodes',
+    ]) {
+      expect(await (await call(path)).text()).not.toContain('自定义私有标记');
+    }
+    await env.DB.prepare('UPDATE channel_profile SET prompts = NULL WHERE id = 1').run();
+    const initialized = channelProfileSchema.parse(
+      ((await (await call('/admin/api/channel')).json()) as { channel: unknown }).channel,
+    );
+    expect(initialized.content).toBe(saved.content);
+    expect(initialized.version).toBe(saved.version + 1);
+    expect(((await (await call('/admin/api/channel')).json()) as { channel: unknown }).channel).toEqual(
+      initialized,
+    );
     await env.DB.prepare('DELETE FROM channel_profile').run();
   });
   it('serves the advertised root, RFC catalog, OpenAPI and instructions without exposing private records', async () => {

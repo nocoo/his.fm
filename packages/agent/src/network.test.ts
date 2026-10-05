@@ -1,3 +1,4 @@
+import { defaultPrompts } from '@his-fm/contracts/prompt-defaults';
 import { expect, it } from 'vitest';
 import { executionEnvironment, networkContext } from './network.ts';
 
@@ -25,7 +26,7 @@ it('inherits only basic runtime and explicit proxy configuration', () => {
 });
 
 it('gives children credential-free endpoints and honest proxy state', () => {
-  const state = networkContext({
+  const state = networkContext(defaultPrompts.network, {
     HTTP_PROXY: 'http://127.0.0.1:7890',
     http_proxy: 'http://user:proxy-secret@127.0.0.1:7891/private?token=hidden',
     HTTPS_PROXY: 'http://127.0.0.1:7890',
@@ -38,13 +39,15 @@ it('gives children credential-free endpoints and honest proxy state', () => {
     nodeEnvProxyEnabled: true,
   });
   expect(state.inheritedVariables).toContain('NO_PROXY');
-  expect(state.guidance).toContain('Speech tools inherit');
+  expect(state.guidance).toContain('语音工具自动继承');
   expect(JSON.stringify(state)).not.toMatch(/proxy-secret|private|hidden|user:/);
-  expect(networkContext({})).toMatchObject({
+  expect(networkContext(defaultPrompts.network, {})).toMatchObject({
     httpProxy: null,
     httpsProxy: null,
     nodeEnvProxyEnabled: false,
     inheritedVariables: [],
   });
-  expect(networkContext({ https_proxy: 'invalid proxy' }).httpsProxy).toBe('Configured proxy URL is invalid');
+  expect(networkContext(defaultPrompts.network, { https_proxy: 'invalid proxy' }).httpsProxy).toBe(
+    'Configured proxy URL is invalid',
+  );
 });

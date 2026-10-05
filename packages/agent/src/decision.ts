@@ -1,3 +1,4 @@
+import type { PromptSet } from '@his-fm/contracts';
 import { type Questions, type SystemOneRequest, TypeSafeClient } from '@typesafe-ai/sdk';
 import { z } from 'zod';
 import type { Config } from './config.ts';
@@ -6,6 +7,7 @@ export type DecisionRequest = (
   request: SystemOneRequest<Questions>,
 ) => Promise<{ answers: Record<string, unknown> }>;
 export type DecisionInput = {
+  prompts: Pick<PromptSet, 'decisionPlan' | 'decisionThinking'>;
   role: 'writer' | 'reviewer';
   revision: number;
   inputBytes: number;
@@ -96,13 +98,12 @@ export function decisions(config: Config, request?: DecisionRequest) {
       questions: {
         plan: {
           type: 'choice',
-          instructions:
-            'Choose reuse/create and lifetime together. Reviewers can retain editorial expertise; writers are task-scoped.',
+          instructions: input.prompts.decisionPlan,
           criteria: Object.fromEntries(Object.keys(plans).map((key) => [key, key])),
         },
         thinking: {
           type: 'choice',
-          instructions: 'Select a supported thinking level for gpt-6.1-sol. High is allowed.',
+          instructions: input.prompts.decisionThinking,
           criteria: Object.fromEntries(levels.map((level) => [level, level])),
         },
       },

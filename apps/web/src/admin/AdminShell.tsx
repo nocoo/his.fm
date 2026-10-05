@@ -66,7 +66,6 @@ export function AdminShell({ session, children }: { session: Session; children: 
   const settingsTitle: Record<string, string> = {
     '/admin/ai': 'AI 设置',
     '/admin/connections': '连接管理',
-    '/admin/narration': '旁白风格',
     '/admin/bumpers': '贴片库',
   };
   const categories = location.pathname.startsWith('/admin/categories');
@@ -88,7 +87,7 @@ export function AdminShell({ session, children }: { session: Session; children: 
       : storage
         ? '资源管理'
         : channel
-          ? '全局提示词'
+          ? '提示词'
           : isList
             ? '制作中的节目'
             : voiceReference
@@ -147,7 +146,7 @@ export function AdminShell({ session, children }: { session: Session; children: 
     {
       label: '工作室',
       items: [
-        { href: '/admin/channel', label: '全局提示词', icon: Compass, active: channel },
+        { href: '/admin/channel', label: '提示词', icon: Compass, active: channel },
         { href: '/admin/categories', label: '栏目管理', icon: Library, active: categories },
         { href: '/admin/appearance', label: '品牌外观', icon: Palette, active: appearance },
         ...Object.entries(settingsTitle).map(([href, label]) => ({

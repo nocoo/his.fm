@@ -24,8 +24,7 @@ export const speechSettingsSchema = z.strictObject({
 export type SpeechSettings = z.infer<typeof speechSettingsSchema>;
 export const defaultSpeechSettings: SpeechSettings = {
   defaultProvider: 'gemini',
-  speakingStyle:
-    'Natural conversational Mandarin narration, calm warmth, clear articulation and gentle pauses.',
+  speakingStyle: '自然口语化的普通话旁白，平静温暖，咬字清晰，停顿舒缓。',
   gemini: { model: 'gemini-3.8-flash-tts', voice: 'Kore' },
   elevenlabs: { model: 'eleven_v4', voice: 'kLhAstPcnnPxqzk6gS5i', stability: 0.5, similarity: 0.75 },
 };

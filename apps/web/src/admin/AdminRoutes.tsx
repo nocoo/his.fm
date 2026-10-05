@@ -135,12 +135,11 @@ function SessionGate() {
         />
         <Route path="ai" element={<AiSettings />} />
         <Route path="connections" element={<ConnectionsPage />} />
-        <Route path="narration" element={<AiSettings styleOnly />} />
         <Route path="bumpers" element={<BumpersPage />} />
         <Route
           path="channel"
           element={
-            <Suspense fallback={<LoadingScreen label="正在打开全局提示词" />}>
+            <Suspense fallback={<LoadingScreen label="正在打开提示词" />}>
               <ChannelPage />
             </Suspense>
           }

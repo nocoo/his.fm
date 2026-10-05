@@ -8,10 +8,29 @@ export const CONTEXT_BLOCKED = 'hisfm_context_compaction_required';
 export const CONTEXT_FAILURE =
   '上下文压缩未完成，已暂停本次任务并保留完整历史；未继续请求模型，请修复压缩后再重试。';
 
-export function contextModels(models: Models): Models {
+export function contextModels(models: Models, summaryPrompt: () => Promise<string>): Models {
   // Pi Durable uses completeSimple for summaries and streamSimple for task generation.
-  const completeSimple: Models['completeSimple'] = (model, context, options) =>
-    models.completeSimple(model, context, { ...options, reasoning: 'low' });
+  const completeSimple: Models['completeSimple'] = async (model, context, options) => {
+    const source = context.messages.find((message) => message.role === 'user')?.content;
+    const text = typeof source === 'string' ? source : source?.find((part) => part.type === 'text')?.text;
+    const end = text?.lastIndexOf('\n</conversation>') ?? -1;
+    if (end < 0) throw new Error('压缩输入格式不匹配，已保留原始会话。');
+    const focus = text?.indexOf('\n\nAdditional focus:', end) ?? -1;
+    return models.completeSimple(
+      model,
+      {
+        messages: [
+          { role: 'system', content: await summaryPrompt(), timestamp: Date.now() },
+          {
+            role: 'user',
+            content: `${text?.slice(0, end + '\n</conversation>'.length)}${focus < 0 ? '' : text?.slice(focus)}`,
+            timestamp: Date.now(),
+          },
+        ],
+      },
+      { ...options, reasoning: 'low' },
+    );
+  };
   const streamSimple: Models['streamSimple'] = (model, context, options) => {
     const tokens = estimateContextTokens(normalizeContext(context)).tokens;
     const reserve = Math.max(DEFAULT_COMPACTION_POLICY.reserveTokens, model.maxTokens + 4096);

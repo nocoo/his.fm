@@ -81,8 +81,8 @@ function CategoryList() {
     </div>
   );
 }
-function CategoryEditor({ id }: { id: string }) {
-  const vm = useCategory(id);
+export function CategoryEditor({ id, promptOnly = false }: { id: string; promptOnly?: boolean }) {
+  const vm = useCategory(id, promptOnly);
   const navigate = useNavigate();
   const [replace, setReplace] = useState<Category | null>(null);
   const save = async (version?: number) => {
@@ -93,7 +93,7 @@ function CategoryEditor({ id }: { id: string }) {
     }
   };
   return (
-    <div className="admin-page category-editor">
+    <div className={promptOnly ? 'studio-stack category-editor' : 'admin-page category-editor'}>
       <PageHeader
         title={
           <span className="category-page-title">
@@ -125,44 +125,48 @@ function CategoryEditor({ id }: { id: string }) {
         <LayerCard.Loading label="正在读取栏目" />
       ) : (
         <>
-          <LayerCard className="studio-stack">
-            <div className="category-fields">
-              <Field label="栏目名称" htmlFor="category-name" required>
-                <Input
-                  id="category-name"
-                  value={vm.value.name}
-                  maxLength={80}
+          {!promptOnly && (
+            <LayerCard className="studio-stack">
+              <div className="category-fields">
+                <Field label="栏目名称" htmlFor="category-name" required>
+                  <Input
+                    id="category-name"
+                    value={vm.value.name}
+                    maxLength={80}
+                    disabled={vm.pending}
+                    onChange={(event) => vm.setValue({ ...vm.value, name: event.target.value })}
+                  />
+                </Field>
+                <Field label="Lucide 图标">
+                  <IconPicker
+                    label="栏目图标"
+                    value={vm.value.icon}
+                    onValueChange={(icon) => vm.setValue({ ...vm.value, icon: icon as typeof vm.value.icon })}
+                    disabled={vm.pending}
+                    searchPlaceholder="搜索图标"
+                    emptyLabel="没有匹配图标"
+                    options={categoryIcons.map((value) => {
+                      const Icon = categoryIconComponents[value];
+                      return { value, label: value, icon: <Icon size={16} strokeWidth={1.5} /> };
+                    })}
+                  />
+                </Field>
+              </div>
+              <Field label="栏目颜色">
+                <TagColorPicker
+                  label="栏目颜色"
+                  value={vm.value.color}
+                  colors={categoryColors}
+                  labels={{ slate: '灰', blue: '蓝', violet: '紫', teal: '青', amber: '琥珀', rose: '玫瑰' }}
+                  onValueChange={(color) =>
+                    vm.setValue({ ...vm.value, color: color as typeof vm.value.color })
+                  }
                   disabled={vm.pending}
-                  onChange={(event) => vm.setValue({ ...vm.value, name: event.target.value })}
                 />
               </Field>
-              <Field label="Lucide 图标">
-                <IconPicker
-                  label="栏目图标"
-                  value={vm.value.icon}
-                  onValueChange={(icon) => vm.setValue({ ...vm.value, icon: icon as typeof vm.value.icon })}
-                  disabled={vm.pending}
-                  searchPlaceholder="搜索图标"
-                  emptyLabel="没有匹配图标"
-                  options={categoryIcons.map((value) => {
-                    const Icon = categoryIconComponents[value];
-                    return { value, label: value, icon: <Icon size={16} strokeWidth={1.5} /> };
-                  })}
-                />
-              </Field>
-            </div>
-            <Field label="栏目颜色">
-              <TagColorPicker
-                label="栏目颜色"
-                value={vm.value.color}
-                colors={categoryColors}
-                labels={{ slate: '灰', blue: '蓝', violet: '紫', teal: '青', amber: '琥珀', rose: '玫瑰' }}
-                onValueChange={(color) => vm.setValue({ ...vm.value, color: color as typeof vm.value.color })}
-                disabled={vm.pending}
-              />
-            </Field>
-            <CategoryBadge category={{ id, ...vm.value, name: vm.value.name || '栏目预览' }} />
-          </LayerCard>
+              <CategoryBadge category={{ id, ...vm.value, name: vm.value.name || '栏目预览' }} />
+            </LayerCard>
+          )}
           {vm.conflict && (
             <LayerCard className="studio-stack">
               <strong>栏目已有新版本 · v{vm.conflict.version}</strong>
@@ -182,17 +186,23 @@ function CategoryEditor({ id }: { id: string }) {
               </div>
             </LayerCard>
           )}
-          <LayerCard padding="none" className="category-prompt">
-            <MarkdownEditor
-              key={vm.resetKey}
-              id="category-prompt"
-              label="栏目提示词"
-              value={vm.value.prompt}
-              maxLength={30000}
-              disabled={vm.pending}
-              onChange={(prompt) => vm.setValue({ ...vm.value, prompt })}
-            />
-          </LayerCard>
+          {promptOnly ? (
+            <LayerCard padding="none" className="category-prompt">
+              <MarkdownEditor
+                key={vm.resetKey}
+                id="category-prompt"
+                label="栏目提示词"
+                value={vm.value.prompt}
+                maxLength={30000}
+                disabled={vm.pending}
+                onChange={(prompt) => vm.setValue({ ...vm.value, prompt })}
+              />
+            </LayerCard>
+          ) : (
+            <Button asChild variant="outline" disabled={id === 'new'}>
+              <Link to={`/admin/channel?prompt=category:${id}`}>前往提示词编辑栏目风格</Link>
+            </Button>
+          )}
           {vm.value.prompt.length > 30000 && <Failure error="栏目提示词最多 30,000 字，超出的草稿仍保留。" />}
           <div className="studio-stage-footer">
             <span className="admin-muted" role="status">

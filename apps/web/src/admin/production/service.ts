@@ -21,8 +21,9 @@ export const productionService = {
   saveAi: (input: z.infer<typeof aiUpdateSchema>) =>
     request<{ config: AiStatus }>('/ai-settings', json('PUT', input)),
   channel: (signal?: AbortSignal) => request<{ channel: ChannelProfile }>('/channel', { signal }),
-  saveChannel: (input: Pick<ChannelProfile, 'version' | 'content'>) =>
-    request<{ channel: ChannelProfile }>('/channel', json('PUT', input)),
+  saveChannel: (
+    input: Pick<ChannelProfile, 'version'> & Partial<Pick<ChannelProfile, 'content' | 'prompts'>>,
+  ) => request<{ channel: ChannelProfile }>('/channel', json('PUT', input)),
   list: (signal?: AbortSignal) => request<{ productions: Production[] }>('/productions', { signal }),
   get: (id: string, signal?: AbortSignal) => request<Result>(path(id), { signal }),
   create: (brief: ProductionBrief) => request<Result>('/productions', json('POST', brief)),

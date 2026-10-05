@@ -17,7 +17,7 @@ Long reviews retain the studio's Chinese reading font. The source editor grows
 with the document and only the content island scrolls vertically. Formatting,
 find and keyboard navigation must not scroll the outer application shell.
 
-Global instructions are shown as “全局提示词”. Existing `/admin/channel`,
+Global and per-stage instructions are centralized under “提示词”; see `docs/prompts.md`. Existing `/admin/channel`,
 `/api/agent/channel`, the D1 table and optimistic-version contracts retain their
 technical names. Authority remains global prompt, episode intent, then source
 material. Owners alone can change global instructions; agents read them before

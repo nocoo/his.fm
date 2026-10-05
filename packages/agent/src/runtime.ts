@@ -29,7 +29,7 @@ import type { Config } from './config.ts';
 import { CONTEXT_BLOCKED, CONTEXT_FAILURE, contextModels } from './context.ts';
 import { type AssignmentPlan, type DecisionInput, decisions } from './decision.ts';
 import { executionEnvironment, networkContext } from './network.ts';
-import { EXECUTOR_CAPABILITIES, ROOT_POLICY, WORK_POLICY } from './prompts.ts';
+import { executorTools, workPolicy } from './prompts.ts';
 import { runSpeechJob } from './speech-job.ts';
 import type { InputRecord, RuntimeStore } from './store.ts';
 import type { RuntimeTransport } from './transport.ts';
@@ -133,7 +133,7 @@ export async function openRuntime(options: RuntimeOptions) {
   const harness = await Harness.open(
     options.storage,
     {
-      models: contextModels(options.models),
+      models: contextModels(options.models, async () => (await client.channel()).prompts.compaction),
       registry,
       settings: { extensions: [], toolExecution: 'sequential' },
       env: async (target) => {
@@ -256,12 +256,17 @@ export async function openRuntime(options: RuntimeOptions) {
     if (running.has(assignment.id) || stopped || commandStopped(assignment.commandId)) return;
     const execution = (async () => {
       const envelope = JSON.parse(assignment.input);
-      if (!envelope.ownerCommand || !envelope.capabilities || !assignment.requiredCriteria) {
+      if (
+        !envelope.ownerCommand ||
+        !envelope.capabilities ||
+        !envelope.channel?.prompts ||
+        !assignment.requiredCriteria
+      ) {
         await (await harness.conversation(assignment.conversationId, context))?.abort(context);
         visible(
           `attention:${assignment.id}`,
           assignment.commandId,
-          '旧任务缺少当前指令与执行能力记录，已停止恢复。请基于当前需求重新派发；已有成果仍保留。',
+          '旧任务缺少当前指令、执行能力或提示词快照，已停止恢复。请基于当前需求重新派发；已有成果仍保留。',
         );
         await finishAssignment(assignment.id, 'failed');
         return;
@@ -269,7 +274,9 @@ export async function openRuntime(options: RuntimeOptions) {
       const conversation = await harness.conversation(assignment.conversationId, context);
       if (!conversation) throw new Error('执行会话不存在。');
       await conversation.configure(
-        { instructions: `${WORK_POLICY}\nCurrent ownerCommand: ${JSON.stringify(envelope.ownerCommand)}` },
+        {
+          instructions: `${workPolicy(envelope.channel.prompts, assignment.role)}\n当前所有者指令：${JSON.stringify(envelope.ownerCommand)}`,
+        },
         context,
       );
       const remaining = assignment.createdAt + config.runtime.maxTaskMinutes * 60000 - Date.now();
@@ -308,7 +315,7 @@ export async function openRuntime(options: RuntimeOptions) {
   }
   const submitResult = defineTool({
     name: 'submit_result',
-    description: 'Save an immutable Markdown deliverable with its execution outcome and evidence.',
+    description: '保存不可变的 Markdown 交付物、执行结果与证据。',
     replay: 'safe',
     parameters: Type.Object({
       markdown,
@@ -358,7 +365,7 @@ export async function openRuntime(options: RuntimeOptions) {
   const generate = defineTool({
     name: 'generate_speech',
     description:
-      'Execute the assigned approved speech job through the native script. No keys or configuration paths are returned. Return its successful receipt as evidence; never fabricate audio.',
+      '通过本机脚本执行当前已授权语音任务；不返回密钥或配置路径。返回成功回执作为证据，不伪造音频。',
     replay: 'safe',
     parameters: Type.Object({ jobId: Type.String({ pattern: '^[a-zA-Z0-9-]+$' }) }),
     execute: async (args, api, executionContext) => {
@@ -387,7 +394,7 @@ export async function openRuntime(options: RuntimeOptions) {
   const executionExtension = defineExtension({ name: 'hisfm.execution', tools: [submitResult] });
   const read = defineTool({
     name: 'read_latest',
-    description: 'Read latest private channel policy and optionally production. No secrets returned.',
+    description: '读取最新私有提示词，可同时读取节目；不返回凭证。',
     replay: 'safe',
     parameters: Type.Object({ productionId: Type.Optional(Type.String({ maxLength: 160 })) }),
     execute: async (args) => {
@@ -408,7 +415,7 @@ export async function openRuntime(options: RuntimeOptions) {
   });
   const list = defineTool({
     name: 'list_productions',
-    description: 'List current productions.',
+    description: '列出当前节目制作任务。',
     replay: 'safe',
     parameters: Type.Object({}),
     execute: async () => {
@@ -418,7 +425,7 @@ export async function openRuntime(options: RuntimeOptions) {
   });
   const reply = defineTool({
     name: 'reply',
-    description: 'Send concise Chinese Markdown to the owner. No thinking or internal decision details.',
+    description: '向所有者发送简洁的中文 Markdown，不包含内部推理或决策细节。',
     replay: 'safe',
     parameters: Type.Object({ markdown }),
     execute: async (args, api) => {
@@ -430,8 +437,7 @@ export async function openRuntime(options: RuntimeOptions) {
   });
   const delegate = defineTool({
     name: 'delegate',
-    description:
-      'Delegate an outcome with context and acceptance criteria; executors choose tools and methods within the current owner scope and native capabilities. Results arrive asynchronously.',
+    description: '委派带上下文与验收标准的成果；执行者在当前授权范围和本机能力内自行选择方法，结果异步送达。',
     replay: 'safe',
     parameters: Type.Object({
       role: Type.Union([Type.Literal('writer'), Type.Literal('reviewer'), Type.Literal('speech')]),
@@ -505,6 +511,7 @@ export async function openRuntime(options: RuntimeOptions) {
             (productionId !== null || item.commandId === active.id),
         );
         const plan = await decide({
+          prompts: channel.prompts,
           role: args.role === 'speech' ? 'writer' : args.role,
           revision: args.revision,
           inputBytes: Buffer.byteLength(args.instructions),
@@ -533,15 +540,11 @@ export async function openRuntime(options: RuntimeOptions) {
         const input = JSON.stringify({
           assignmentId: id,
           ownerCommand: active,
-          network: networkContext(),
-          capabilities:
-            args.role === 'speech'
-              ? {
-                  tools: ['generate_speech', 'submit_result'],
-                  execution:
-                    'Execute the assigned native speech job; configuration and provider credentials remain inside the script.',
-                }
-              : EXECUTOR_CAPABILITIES,
+          network: networkContext(channel.prompts.network),
+          capabilities: {
+            tools: args.role === 'speech' ? ['generate_speech', 'submit_result'] : executorTools,
+            guidance: channel.prompts.capabilities,
+          },
           role: args.role,
           instructions: args.instructions,
           requiredCriteria: args.requiredCriteria ?? [args.instructions],
@@ -579,7 +582,7 @@ export async function openRuntime(options: RuntimeOptions) {
             model: { provider: config.executor.provider, modelId: config.executor.model },
             thinkingLevel: plan.thinkingLevel,
             extensions: args.role === 'speech' ? [speechExtension] : [CodingTools, executionExtension],
-            instructions: `${WORK_POLICY}\nCurrent ownerCommand: ${JSON.stringify(active)}`,
+            instructions: `${workPolicy(channel.prompts, args.role)}\n当前所有者指令：${JSON.stringify(active)}`,
           });
           saved.conversations[conversationId] = {
             categoryProfile,
@@ -614,7 +617,7 @@ export async function openRuntime(options: RuntimeOptions) {
   });
   const inspect = defineTool({
     name: 'inspect_work',
-    description: 'Read immutable assigned result or a saved operation receipt.',
+    description: '读取不可变的任务结果或已保存的操作回执。',
     replay: 'safe',
     parameters: Type.Object({ id: Type.String() }),
     execute: async (args) => {
@@ -639,7 +642,7 @@ export async function openRuntime(options: RuntimeOptions) {
   });
   const retire = defineTool({
     name: 'retire_conversation',
-    description: 'Retire an idle execution conversation while keeping its history.',
+    description: '退役空闲执行会话，保留其历史。',
     replay: 'safe',
     parameters: Type.Object({ id: Type.String() }),
     execute: async (args) => {
@@ -662,8 +665,7 @@ export async function openRuntime(options: RuntimeOptions) {
   });
   const proposal = defineTool({
     name: 'propose_draft',
-    description:
-      'Propose Markdown for the exact field/draft snapshot attached to the owner command; does not save canonical data.',
+    description: '向所有者指令冻结的字段与草稿快照提出 Markdown 修改，不保存网站正式数据。',
     replay: 'safe',
     parameters: Type.Object({ markdown, summary: Type.String({ maxLength: 1000 }) }),
     execute: async (args, api) => {
@@ -699,7 +701,7 @@ export async function openRuntime(options: RuntimeOptions) {
   const create = defineTool({
     name: 'create_production',
     description:
-      'Create a new episode draft only for a command with no existing production target. Read latest channel first. Brief JSON requires title, slug and episodeNumber; optional category, tags, targetDurationSeconds, sources and intent. Every source needs a unique stable id. Never creates approvals or publishes.',
+      '仅为未指定现有节目的指令创建草稿，先读取最新提示词。brief JSON 必须包含 title、slug、episodeNumber，可包含 category、tags、targetDurationSeconds、sources、intent；每项素材必须有唯一稳定 id。不审批或发布。',
     replay: 'safe',
     parameters: Type.Object({
       profileVersion: Type.Integer({ minimum: 1 }),
@@ -729,7 +731,7 @@ export async function openRuntime(options: RuntimeOptions) {
   const submit = defineTool({
     name: 'submit_for_review',
     description:
-      'Submit the current saved brief, script or final assets for HUMAN review. Allowed actions: submit_brief, submit_script, submit_final. Never approves, reopens or publishes. Read latest production and channel; no dirty drafts.',
+      '提交已保存内容供人工审核。允许 submit_brief、submit_script、submit_final；不审批、重开或发布。先读取最新节目和提示词，不能提交未保存草稿。',
     replay: 'safe',
     parameters: Type.Object({
       productionId: Type.String({ minLength: 1, maxLength: 160 }),
@@ -767,7 +769,7 @@ export async function openRuntime(options: RuntimeOptions) {
   const patch = defineTool({
     name: 'patch_production',
     description:
-      'Apply a versioned canonical production patch through the website. Must not overwrite a dirty command draft; use propose_draft instead. Every source requires a stable nonempty id. Preserve existing source IDs and assign a unique stable ID when adding each new source.',
+      '按版本更新网站节目，不覆盖指令中的未保存草稿；草稿修改用 propose_draft。保留既有素材 id，新素材分配唯一稳定的非空 id。',
     replay: 'safe',
     parameters: Type.Object({
       productionId: Type.String(),
@@ -800,7 +802,7 @@ export async function openRuntime(options: RuntimeOptions) {
   const audio = defineTool({
     name: 'request_audio',
     description:
-      'Request paid audio only for an approved script and an explicit textual owner request to generate audio or narration. Any negative, preview or audition instruction forbids generation. Never infer consent.',
+      '仅在逐字稿已确认且所有者文字明确要求生成音频时请求付费生成。否定、预览或试听指令不允许完整生成，不推定同意。',
     replay: 'safe',
     parameters: Type.Object({
       productionId: Type.String(),
@@ -910,7 +912,7 @@ export async function openRuntime(options: RuntimeOptions) {
   const finish = defineTool({
     name: 'finish_command',
     description:
-      'Accept the current command outcome and send its final answer. Done requires successful assignment evidence and website receipts; blocked and needs_input describe unfinished goals.',
+      '接受当前指令结果并交付最终答复。done 要求成功任务证据和网站回执；blocked、needs_input 表示目标尚未完成。',
     replay: 'safe',
     parameters: Type.Object({
       markdown,
@@ -949,7 +951,6 @@ export async function openRuntime(options: RuntimeOptions) {
       model: { provider: config.coordinator.provider, modelId: config.coordinator.model },
       thinkingLevel: 'high',
       extensions: [rootExtension],
-      instructions: ROOT_POLICY,
     },
     context,
   );
@@ -985,8 +986,8 @@ export async function openRuntime(options: RuntimeOptions) {
           : null;
         content = JSON.stringify({
           ownerCommand: store.command(input.commandId)?.command,
-          executorCapabilities: EXECUTOR_CAPABILITIES,
-          network: networkContext(),
+          executorCapabilities: { tools: executorTools, guidance: channel.prompts.capabilities },
+          network: networkContext(channel.prompts.network),
           input: JSON.parse(input.content),
           latestChannel: channel,
           latestCategory: production?.categoryProfile ?? null,
@@ -996,7 +997,7 @@ export async function openRuntime(options: RuntimeOptions) {
       if (commandStopped(input.commandId)) return;
       await root.configure(
         {
-          instructions: `${ROOT_POLICY}\nCurrent ownerCommand: ${JSON.stringify(command())}`,
+          instructions: `${JSON.parse(content).latestChannel.prompts.coordinator}\n当前所有者指令：${JSON.stringify(command())}`,
         },
         context,
       );

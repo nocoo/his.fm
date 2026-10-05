@@ -47,6 +47,8 @@ test('category editor preserves Markdown, icon/color selection, stale drafts and
   await page.getByRole('button', { name: '栏目图标', exact: true }).click();
   await page.getByRole('radio', { name: 'coffee', exact: true }).click();
   await page.getByRole('radio', { name: '琥珀', exact: true }).click();
+  await page.getByRole('button', { name: '保存栏目', exact: true }).click();
+  await page.getByRole('link', { name: '前往提示词编辑栏目风格' }).click();
   const editor = page.getByRole('textbox', { name: '栏目提示词', exact: true });
   await editor.fill('# 新风格\n每段先给一个结论。');
   await page.getByRole('radio', { name: '预览', exact: true }).click();
@@ -57,23 +59,23 @@ test('category editor preserves Markdown, icon/color selection, stale drafts and
   await page.getByRole('button', { name: '保存栏目', exact: true }).click();
   await expect(page.getByRole('alert')).toContainText('保存失败');
   await page.reload();
-  await expect(page.getByLabel('栏目名称', { exact: true })).toHaveValue('我的研究笔记');
+  await expect(page.getByRole('heading', { name: '返回栏目管理 我的研究笔记', exact: true })).toBeVisible();
   await expect(editor).toContainText('每段先给一个结论');
-  category = { ...category, name: '另一处修改', version: 2 };
+  category = { ...category, name: '另一处修改', version: 3 };
   await page.getByRole('button', { name: '保存栏目', exact: true }).click();
-  await expect(page.getByText('栏目已有新版本 · v2')).toBeVisible();
+  await expect(page.getByText('栏目已有新版本 · v3')).toBeVisible();
   await expect(editor).toContainText('每段先给一个结论');
   await page.getByRole('button', { name: '用我的草稿更新', exact: true }).click();
-  await expect(page.getByRole('status')).toContainText('已保存 · v3');
+  await expect(page.getByRole('status')).toContainText('已保存 · v4');
   expect(category).toMatchObject({
-    name: '我的研究笔记',
+    name: '另一处修改',
     icon: 'coffee',
     color: 'amber',
     prompt: '# 新风格\n每段先给一个结论。',
   });
   await page.getByRole('link', { name: '返回栏目管理', exact: true }).click();
-  await expect(page.getByRole('link', { name: '编辑 我的研究笔记' })).toBeVisible();
-  await page.getByRole('button', { name: '删除 我的研究笔记' }).click();
+  await expect(page.getByRole('link', { name: '编辑 另一处修改' })).toBeVisible();
+  await page.getByRole('button', { name: '删除 另一处修改' }).click();
   await page.getByRole('alertdialog').getByRole('button', { name: '删除栏目', exact: true }).click();
   await expect(page.getByText('还没有栏目', { exact: true })).toBeVisible();
 });
@@ -86,19 +88,22 @@ test('new categories persist through the real local API and appear in episode se
   try {
     await page.goto('/admin/categories/new');
     await page.getByLabel('栏目名称', { exact: true }).fill('栏目验收');
+    await page.getByRole('button', { name: '保存栏目', exact: true }).click();
+    await expect(page).toHaveURL(/\/admin\/categories\/[a-f0-9-]+$/);
+    id = new URL(page.url()).pathname.split('/').at(-1) ?? '';
+    await page.getByRole('link', { name: '前往提示词编辑栏目风格' }).click();
     await page
       .getByRole('textbox', { name: '栏目提示词', exact: true })
       .fill('Private category acceptance marker.');
     await page.getByRole('button', { name: '保存栏目', exact: true }).click();
-    await expect(page).toHaveURL(/\/admin\/categories\/[a-f0-9-]+$/);
-    id = new URL(page.url()).pathname.split('/').at(-1) ?? '';
+    await expect(page.getByRole('status').filter({ hasText: '已保存' })).toBeVisible();
     await page.goto('/admin/productions/new');
     await page.getByRole('combobox', { name: '栏目', exact: true }).click();
     await page.getByRole('option', { name: '栏目验收', exact: true }).click();
     await expect(page.getByRole('combobox', { name: '栏目', exact: true })).toContainText('栏目验收');
     const response = await page.request.get('/api/categories');
     expect(await response.text()).not.toContain('Private category acceptance marker');
-    await page.goto(`/admin/categories/${id}`);
+    await page.goto(`/admin/channel?prompt=category:${id}`);
     await page.setViewportSize({ width: 390, height: 844 });
     await page.evaluate(() => document.documentElement.classList.add('dark'));
     await expect(page.getByRole('textbox', { name: '栏目提示词', exact: true })).toBeVisible();

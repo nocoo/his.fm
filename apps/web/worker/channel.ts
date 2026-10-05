@@ -1,3 +1,5 @@
+import { promptSetSchema } from '@his-fm/contracts';
+import { defaultPrompts } from '@his-fm/contracts/prompt-defaults';
 import { type ChannelProfile, channelUpdateSchema, editorialPriority } from '../src/shared/channel';
 import type { Actor } from '../src/shared/production';
 import defaultContent from './channel-default.md?raw';
@@ -8,17 +10,21 @@ import { requireHuman } from './production-model';
 export async function getChannel(db: D1Database): Promise<ChannelProfile> {
   await db
     .prepare(
-      'INSERT INTO channel_profile (id, version, content, updated_at, updated_by) VALUES (1, 1, ?, ?, ?) ON CONFLICT DO NOTHING',
+      'INSERT INTO channel_profile (id, version, content, prompts, updated_at, updated_by) VALUES (1, 1, ?, ?, ?, ?) ON CONFLICT DO NOTHING',
     )
-    .bind(defaultContent.trim(), new Date().toISOString(), 'his.fm')
+    .bind(defaultContent.trim(), JSON.stringify(defaultPrompts), new Date().toISOString(), 'his.fm')
+    .run();
+  await db
+    .prepare('UPDATE channel_profile SET prompts = ?, version = version + 1 WHERE id = 1 AND prompts IS NULL')
+    .bind(JSON.stringify(defaultPrompts))
     .run();
   const channel = await db
     .prepare(
-      'SELECT version, content, updated_at AS updatedAt, updated_by AS updatedBy FROM channel_profile WHERE id = 1',
+      'SELECT version, content, prompts, updated_at AS updatedAt, updated_by AS updatedBy FROM channel_profile WHERE id = 1',
     )
-    .first<ChannelProfile>();
+    .first<Omit<ChannelProfile, 'prompts'> & { prompts: string }>();
   if (!channel) throw new HttpError(503, '全局提示词暂时无法读取，请重试');
-  return channel;
+  return { ...channel, prompts: promptSetSchema.parse(JSON.parse(channel.prompts)) };
 }
 
 export async function routeChannel(request: Request, env: Env, actor: Actor): Promise<Response> {
@@ -29,10 +35,19 @@ export async function routeChannel(request: Request, env: Env, actor: Actor): Pr
   const input = await readJson(request, channelUpdateSchema);
   await getChannel(env.DB);
   const channel = await env.DB.prepare(
-    'UPDATE channel_profile SET content = ?, version = version + 1, updated_at = ?, updated_by = ? WHERE id = 1 AND version = ? RETURNING version, content, updated_at AS updatedAt, updated_by AS updatedBy',
+    'UPDATE channel_profile SET content = COALESCE(?, content), prompts = COALESCE(?, prompts), version = version + 1, updated_at = ?, updated_by = ? WHERE id = 1 AND version = ? RETURNING version, content, prompts, updated_at AS updatedAt, updated_by AS updatedBy',
   )
-    .bind(input.content, new Date().toISOString(), actor.name, input.version)
-    .first<ChannelProfile>();
+    .bind(
+      input.content ?? null,
+      input.prompts ? JSON.stringify(input.prompts) : null,
+      new Date().toISOString(),
+      actor.name,
+      input.version,
+    )
+    .first<Omit<ChannelProfile, 'prompts'> & { prompts: string }>();
   if (!channel) throw new HttpError(409, '全局提示词已在别处更新。你的草稿已保留，请对照最新版本后保存。');
-  return json({ channel, priority: editorialPriority });
+  return json({
+    channel: { ...channel, prompts: promptSetSchema.parse(JSON.parse(channel.prompts)) },
+    priority: editorialPriority,
+  });
 }

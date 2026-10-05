@@ -6,6 +6,7 @@ import { createModels } from '@earendil-works/pi-ai/models';
 import { type FauxResponseStep, fauxProvider } from '@earendil-works/pi-ai/providers/faux';
 import { MemoryStorage } from '@earendil-works/pi-durable';
 import { type AgentCommand, defaultSpeechSettings, type PageContext } from '@his-fm/contracts';
+import { defaultPrompts } from '@his-fm/contracts/prompt-defaults';
 import { vi } from 'vitest';
 import type WebSocket from 'ws';
 import { WebsiteClient } from '../client.ts';
@@ -128,7 +129,7 @@ export async function fixture(responses: FauxResponseStep[] = [], options: { per
     () => socket as unknown as WebSocket,
     (text) => logs.push(text),
   );
-  const channel = { version: 1, content: 'Test editorial policy.' };
+  const channel = { version: 1, content: 'Test editorial policy.', prompts: { ...defaultPrompts } };
   const production = {
     id: 'p',
     version: 1,

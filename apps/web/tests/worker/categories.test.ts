@@ -1,4 +1,5 @@
 import { readdirSync, readFileSync } from 'node:fs';
+import { defaultPrompts } from '@his-fm/contracts/prompt-defaults';
 import { Miniflare } from 'miniflare';
 import { afterAll, beforeAll, beforeEach, expect, it, vi } from 'vitest';
 import { type Category, categoryInputSchema } from '../../src/shared/category';
@@ -159,7 +160,13 @@ it('accepts new categories in productions, prevents deleting referenced categori
   await expect(
     routeProductions(request('POST', { ...brief, category: 'missing' }), env, '/productions', human),
   ).rejects.toMatchObject({ status: 404 });
-  const channel = { version: 1, content: 'GLOBAL-PROMPT', updatedAt: 'now', updatedBy: 'owner' };
+  const channel = {
+    version: 1,
+    content: 'GLOBAL-PROMPT',
+    prompts: defaultPrompts,
+    updatedAt: 'now',
+    updatedBy: 'owner',
+  };
   const prompts = productionPrompts(production, channel, category);
   for (const prompt of Object.values(prompts)) {
     expect(prompt.indexOf('GLOBAL-PROMPT')).toBeLessThan(prompt.indexOf(input.prompt.split('\n')[0]));

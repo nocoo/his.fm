@@ -40,7 +40,7 @@ Executors return immutable Markdown plus `done`, `blocked` or `needs_input`, sup
 
 ## Domain authority
 
-Read `/api/agent/channel` and the production's `categoryProfile` before each creative assignment and recheck their revisions before canonical writes. Priority is channel policy, selected category prompt, episode intent, then sources; none can change factual truth or grant permissions. Read the production and its capabilities to get the current version, script version, stage and editable fields. Writer/reviewer reuse requires matching global and category prompt revisions.
+Read `/api/agent/channel` (including the private `prompts` bundle; see `docs/prompts.md`) and the production's `categoryProfile` before each creative assignment and recheck their revisions before canonical writes. Priority is channel policy, selected category prompt, episode intent, then sources; none can change factual truth or grant permissions. Read the production and its capabilities to get the current version, script version, stage and editable fields. Writer/reviewer reuse requires matching global and category prompt revisions.
 
 Agent mutations use typed, idempotent operation frames on the enrolled runtime connection. Legacy direct machine mutations return `runtime_required`; GET discovery/context remains available. Operations have a stable ID and the exact command/production scope, optimistic version and connection lease. An uncertain response is reconciled through `/api/agent/runtime/receipts/:id`, not retried with a new ID.
 

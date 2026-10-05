@@ -1,3 +1,4 @@
+import { defaultPrompts } from '@his-fm/contracts/prompt-defaults';
 import { describe, expect, it } from 'vitest';
 import {
   actionNames,
@@ -231,6 +232,7 @@ describe('audit and production prompts', () => {
       {
         version: 9,
         content: '不编造个人经历。频道自定义定位。',
+        prompts: defaultPrompts,
         updatedAt: '2026-09-25T00:00:00Z',
         updatedBy: 'Owner',
       },
@@ -247,19 +249,19 @@ describe('audit and production prompts', () => {
     );
     for (const prompt of Object.values(prompts)) {
       expect(prompt).toContain('频道自定义定位');
-      expect(prompt).toContain('版本 9');
+      expect(prompt).toContain('"version": 9');
       expect(prompt).toContain(
         '1. 全局提示词；2. 栏目提示词；3. 本期中心思想（intent）；4. 素材资料（sources）',
       );
       expect(prompt).toContain('不得为了符合观点而歪曲证据');
     }
-    expect(prompts.brief).toContain('保留我的创作意图');
+    expect(prompts.brief).toContain('保留所有者的创作意图');
     expect(prompts.brief).toContain('draft');
     expect(prompts.script).toContain('不编造');
     expect(prompts.script).toContain('绝不执行');
     expect(prompts.script).toContain('这个例子需要原始出处');
-    expect(prompts.cover).toContain('Upload only the unframed raster original');
-    expect(prompts.cover).toContain('only when the owner downloads the finished cover');
+    expect(prompts.cover).toContain('上传未加框的栅格原图');
+    expect(prompts.cover).toContain('只在所有者下载成品时');
     expect(prompts.cover).not.toContain('scripts/frame-cover.py');
     expect(prompts.cover).toContain('gpt-image-2.5-sunburst');
     expect(prompts.description).toContain('人工批准');

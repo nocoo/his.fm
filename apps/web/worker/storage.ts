@@ -46,7 +46,7 @@ async function references(db: D1Database): Promise<References> {
     db.prepare('SELECT title, cover_url, audio_url, transcript, show_notes, summary FROM episodes'),
     db.prepare('SELECT data FROM production_settings'),
     db.prepare("SELECT snapshot FROM audio_jobs WHERE status IN ('queued', 'running')"),
-    db.prepare('SELECT content FROM channel_profile'),
+    db.prepare('SELECT content, prompts FROM channel_profile'),
     db.prepare('SELECT name, data FROM bumpers'),
   ]);
   const refs: References = { keys: new Map(), prefixes: [] };

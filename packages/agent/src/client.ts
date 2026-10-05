@@ -1,8 +1,9 @@
+import { promptSetSchema } from '@his-fm/contracts';
 import { z } from 'zod';
 import type { Config } from './config.ts';
 
 const channelSchema = z.object({
-  channel: z.object({ version: z.number().int().positive(), content: z.string() }),
+  channel: z.object({ version: z.number().int().positive(), content: z.string(), prompts: promptSetSchema }),
 });
 const productionSchema = z.object({
   categoryProfile: z.object({

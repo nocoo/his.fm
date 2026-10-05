@@ -12,7 +12,7 @@ const draftSchema = z.object({
   value: categoryInputSchema.extend({ name: z.string(), prompt: z.string() }),
   version: z.number().int().positive().optional(),
 });
-export function useCategory(id: string) {
+export function useCategory(id: string, promptOnly = false) {
   const [saved, setSaved] = useState<Category | null>(null);
   const [value, setValue] = useState<CategoryInput>(empty);
   const [error, setError] = useState('');
@@ -21,7 +21,7 @@ export function useCategory(id: string) {
   const [conflict, setConflict] = useState<Category | null>(null);
   const [resetKey, setResetKey] = useState(0);
   const [version, setVersion] = useState<number | undefined>();
-  const storageKey = `hisfm-category-draft:${getEnvironment()}:${id}`;
+  const storageKey = `hisfm-category-draft:${getEnvironment()}:${id}${promptOnly ? ':prompt' : ''}`;
   const [ready, setReady] = useState(false);
   const dirty =
     JSON.stringify(value) !==
@@ -99,10 +99,16 @@ export function useCategory(id: string) {
     setPending(true);
     setError('');
     try {
-      const result = await categoryService.save(parsed.data, id === 'new' ? undefined : id, expectedVersion);
+      const latest = id === 'new' ? null : (await categoryService.get(id)).category;
+      const value = latest
+        ? promptOnly
+          ? { name: latest.name, icon: latest.icon, color: latest.color, prompt: parsed.data.prompt }
+          : { ...parsed.data, prompt: latest.prompt }
+        : parsed.data;
+      const result = await categoryService.save(value, id === 'new' ? undefined : id, expectedVersion);
       setSaved(result.category);
       setVersion(result.category.version);
-      setValue(parsed.data);
+      setValue(value);
       setConflict(null);
       try {
         sessionStorage.removeItem(storageKey);

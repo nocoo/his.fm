@@ -2,7 +2,7 @@ import type { ProductionSettings } from './production';
 
 export const voiceSampleTranscript =
   '大家好，欢迎来到 his.fm，面向开发者的 AI 分享频道，今天正式开播。这里会聊模型的新进展，分享编程工具和真实项目里的实践。哪些好用，哪些踩坑，我们一起试。欢迎关注 his.fm，让灵感从耳边出发，在代码里落地。';
-export const voiceComparisonStyle =
+export const archivedVoiceComparisonStyle =
   'Friendly podcast announcement, natural conversational delivery, brisk pace, approximately 20 seconds.';
 
 export const voiceComparisonPairs = [

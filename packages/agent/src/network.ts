@@ -16,7 +16,7 @@ export function executionEnvironment(source: NodeJS.ProcessEnv = process.env): N
   return environment;
 }
 
-export function networkContext(source: NodeJS.ProcessEnv = process.env) {
+export function networkContext(guidance: string, source: NodeJS.ProcessEnv = process.env) {
   const origin = (value: string | undefined) => {
     if (!value) return null;
     try {
@@ -30,7 +30,6 @@ export function networkContext(source: NodeJS.ProcessEnv = process.env) {
     httpsProxy: origin(source.https_proxy || source.HTTPS_PROXY),
     nodeEnvProxyEnabled: source.NODE_USE_ENV_PROXY === '1',
     inheritedVariables: proxyKeys.filter((key) => Boolean(source[key])),
-    guidance:
-      'Use the configured proxy for external requests and preserve NO_PROXY for loopback website/model/Jev traffic. Speech tools inherit these settings automatically. Native CLI executors must preserve them when spawning processes; Node fetch requires NODE_USE_ENV_PROXY=1 on a supporting runtime. A configured proxy is not proof of reachability: report connection failures rather than repeating paid requests. Never expose proxy credentials, change system networking or disable TLS verification.',
+    guidance,
   };
 }

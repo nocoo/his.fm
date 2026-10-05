@@ -1,11 +1,12 @@
 import { randomUUID } from 'node:crypto';
 import { mkdir, readFile } from 'node:fs/promises';
 import { defaultSpeechSettings, wavHeader } from '@his-fm/contracts';
+import { defaultPrompts } from '@his-fm/contracts/prompt-defaults';
 import { expect, type Page, test } from '@playwright/test';
 import type { AgentTokenRecord, ProductionAction, ProductionSettings } from '../../src/shared/production';
 import {
+  archivedVoiceComparisonStyle,
   voiceComparisonPairs,
-  voiceComparisonStyle,
   voiceSampleTranscript,
 } from '../../src/shared/voice-samples';
 import { applyAction, applyPatch } from '../../worker/production-model';
@@ -41,6 +42,16 @@ async function studio(page: Page, initial = fixture()) {
   await page.route('**/admin/api/**', async (route) => {
     const request = route.request();
     const path = new URL(request.url()).pathname.slice('/admin/api'.length);
+    if (path === '/channel')
+      return route.fulfill({
+        json: {
+          channel: {
+            version: 1,
+            content: 'Test policy',
+            prompts: { ...defaultPrompts, voiceComparison: archivedVoiceComparisonStyle },
+          },
+        },
+      });
     const method = request.method();
     const send = (body: unknown, status = 200) =>
       route.fulfill({
@@ -803,7 +814,7 @@ test('voice comparisons pair similar descriptions and align playback and actions
     (['gemini', 'elevenlabs'] as const).map((provider) => ({
       provider,
       voice: pair[provider].voice,
-      speakingStyle: voiceComparisonStyle,
+      speakingStyle: archivedVoiceComparisonStyle,
       text: voiceSampleTranscript,
       url: `/media/${provider}-${pair.id}.wav`,
       durationSeconds: 1,
@@ -896,7 +907,7 @@ test('missing comparison samples use the fixed benchmark style without changing 
   expect((await request).postDataJSON()).toEqual({
     provider: 'elevenlabs',
     voice: 'JBFqnCBsd6RMkjVDRZzb',
-    speakingStyle: voiceComparisonStyle,
+    speakingStyle: archivedVoiceComparisonStyle,
     text: voiceSampleTranscript,
   });
   await expect(page.getByLabel('ElevenLabs · George 同文稿试听', { exact: true })).toBeVisible();
@@ -1209,7 +1220,7 @@ test('voice settings and per-generation choices offer optional previews without 
     readyFixture({ stage: 'production', assets: { cover: null, audio: null }, audioJob: null }),
   );
   state.configureTts();
-  await page.goto('/admin/narration');
+  await page.goto('/admin/channel?prompt=narration');
   await page.getByRole('combobox', { name: '讲述声音', exact: true }).click();
   await expect(page.getByRole('option')).toHaveCount(30);
   await page.getByRole('option', { name: 'Sulafat · 温暖', exact: true }).click();
@@ -1243,7 +1254,7 @@ test('voice settings and per-generation choices offer optional previews without 
     outroId: null,
   });
   await expect(page.getByText('音频制作完成', { exact: true })).toBeVisible();
-  await page.goto('/admin/narration');
+  await page.goto('/admin/channel?prompt=narration');
   await expect(page.getByRole('combobox', { name: '讲述声音', exact: true })).toContainText('Sulafat');
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.screenshot({ path: '.local/audio-settings-mobile.png', fullPage: true });
@@ -1282,4 +1293,29 @@ test('publication copies WeChat formatting with the same cover and references as
   expect(clipboard.text).not.toContain('**');
   await page.getByRole('button', { name: '复制 Markdown', exact: true }).click();
   await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toBe(transcript);
+});
+
+test('voice comparisons use the saved Chinese prompt and never relabel archived samples', async ({
+  page,
+}) => {
+  const mock = await studio(page);
+  mock.configureTts();
+  await page.routeWebSocket('**/admin/api/agent/live?protocol=1', () => {});
+  await page.route('**/admin/api/channel', (route) =>
+    route.fulfill({
+      json: { channel: { prompts: { ...defaultPrompts, voiceComparison: '中文自定义对比风格' } } },
+    }),
+  );
+  await page.goto('/admin/voices');
+  await page.getByText('共同文稿与当前对比风格', { exact: true }).click();
+  await expect(page.getByText('中文自定义对比风格', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: '生成 Gemini · Charon 示例', exact: true })).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: '生成 ElevenLabs · George 示例', exact: true }),
+  ).toBeVisible();
+  const request = page.waitForRequest(
+    (request) => request.url().endsWith('/production-settings/preview') && request.method() === 'POST',
+  );
+  await page.getByRole('button', { name: '生成 ElevenLabs · George 示例', exact: true }).click();
+  expect((await request).postDataJSON()).toMatchObject({ speakingStyle: '中文自定义对比风格' });
 });
