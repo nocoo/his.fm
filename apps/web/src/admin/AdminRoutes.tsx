@@ -1,4 +1,3 @@
-import '@nocoo/basalt/styles/standalone';
 import { Button, LinkProvider, ThemeProvider, Toaster, TooltipProvider } from '@nocoo/basalt';
 import { LoadingScreen } from '@nocoo/basalt/components/loading-screen';
 import { AccentProvider } from '@nocoo/basalt/providers/accent';

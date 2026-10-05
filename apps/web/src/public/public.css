@@ -3,15 +3,13 @@
 
 :root {
   --public-paper: #f5f4ee;
-  background: var(--public-paper);
   font-family: "Space Grotesk", "Noto Sans SC", "PingFang SC", sans-serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
 }
-body {
-  margin: 0;
-}
+html:has(.appearance-gate),
+html:has(.appearance-gate) body,
 html:has(.public-site),
 html:has(.public-site) body {
   background: var(--public-paper);
@@ -30,7 +28,6 @@ html:has(.public-site) body {
   height: 28px;
   flex: none;
 }
-.app-loading,
 .appearance-gate {
   display: grid;
   place-content: center;

@@ -1,0 +1,20 @@
+@import "@nocoo/basalt/styles/standalone";
+
+html {
+  background: hsl(var(--basalt-background));
+  color: hsl(var(--basalt-foreground));
+  color-scheme: light;
+}
+html.dark {
+  color-scheme: dark;
+}
+body {
+  margin: 0;
+}
+.app-loading {
+  display: grid;
+  place-content: center;
+  min-height: 100dvh;
+  background: hsl(var(--basalt-background));
+  color: hsl(var(--basalt-foreground));
+}
