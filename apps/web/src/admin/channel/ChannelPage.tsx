@@ -3,6 +3,7 @@ import { Button, LayerCard } from '@nocoo/basalt';
 import { PageHeader } from '@nocoo/basalt/components/page-header';
 import { Save } from 'lucide-react';
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useSearchParams } from 'react-router';
 import { CategoryEditor } from '../categories/CategoryPage';
 import { useCategories } from '../categories/useCategories';
@@ -18,19 +19,29 @@ export default function ChannelPage() {
   const [params, setParams] = useSearchParams();
   const categories = useCategories();
   const options = [
-    { value: 'content', label: '全局创作原则' },
-    ...Object.entries(promptLabels).map(([value, label]) => ({ value, label })),
+    { value: 'content', label: '全局创作原则', group: '创作依据' },
+    ...Object.entries(promptLabels).map(([value, label]) => ({
+      value,
+      label,
+      group: ['editorial', 'boundary', 'brief', 'script', 'cover', 'description'].includes(value)
+        ? '内容制作'
+        : ['speech', 'voiceComparison'].includes(value)
+          ? '声音制作'
+          : '主控与运行',
+    })),
     ...categories.categories.map((category) => ({
       value: `category:${category.id}`,
       label: `栏目 · ${category.name}`,
+      group: '栏目风格',
     })),
-    { value: 'narration', label: '旁白讲述风格' },
+    { value: 'narration', label: '旁白讲述风格', group: '声音制作' },
   ];
   const requested = params.get('prompt') ?? 'content';
   const selected =
     requested.startsWith('category:') || options.some((option) => option.value === requested)
       ? requested
       : 'content';
+  const [actionsTarget, setActionsTarget] = useState<HTMLDivElement | null>(null);
   const [visited, setVisited] = useState<string[]>([]);
   const panels = [...new Set([...visited, selected])];
   return (
@@ -38,51 +49,78 @@ export default function ChannelPage() {
       <PageHeader
         title="提示词"
         actions={
-          <Choice
-            label="提示词环节"
-            value={selected}
-            options={options}
-            onChange={(value) => {
-              setVisited(panels);
-              setParams({ prompt: value });
-            }}
-          />
+          <div className="channel-header-actions">
+            <div className="channel-selector">
+              <Choice
+                label="提示词环节"
+                value={selected}
+                options={options}
+                onChange={(value) => {
+                  setVisited(panels);
+                  setParams({ prompt: value });
+                }}
+              />
+            </div>
+            <div ref={setActionsTarget} className="channel-save-action" />
+          </div>
         }
       />
-      <p className="admin-muted">
-        私有提示词按环节管理，保存后用于后续工作；已派发任务保留快照。权限、工具协议与动态上下文由代码提供。
-      </p>
+
       {categories.error && <Failure error={categories.error} retry={() => void categories.load()} />}
       {panels.map((key) => (
         <div key={key} hidden={key !== selected}>
           {key === 'narration' ? (
-            <AiSettings styleOnly />
+            <AiSettings styleOnly actionsTarget={key === selected ? actionsTarget : null} />
           ) : key.startsWith('category:') ? (
-            <CategoryEditor id={key.slice(9)} promptOnly />
+            <CategoryEditor
+              id={key.slice(9)}
+              promptOnly
+              actionsTarget={key === selected ? actionsTarget : null}
+            />
           ) : (
-            <PromptEditor promptKey={key as 'content' | PromptKey} active={key === selected} />
+            <PromptEditor
+              promptKey={key as 'content' | PromptKey}
+              active={key === selected}
+              actionsTarget={key === selected ? actionsTarget : null}
+            />
           )}
         </div>
       ))}
     </div>
   );
 }
-function PromptEditor({ promptKey, active }: { promptKey: 'content' | PromptKey; active: boolean }) {
+function PromptEditor({
+  promptKey,
+  active,
+  actionsTarget,
+}: {
+  promptKey: 'content' | PromptKey;
+  active: boolean;
+  actionsTarget: HTMLDivElement | null;
+}) {
   const vm = useChannel(promptKey, active);
   const label = promptKey === 'content' ? '全局提示词正文' : promptLabels[promptKey];
   const limit = promptLimit(promptKey);
   const [confirmation, setConfirmation] = useState<'reload' | 'overwrite' | null>(null);
   return (
     <div className="studio-stack">
-      <div className="studio-actions">
-        <Button
-          loading={vm.pending}
-          disabled={!vm.dirty || !vm.content.trim() || vm.content.length > limit || Boolean(vm.conflict)}
-          onClick={() => void vm.save()}
-        >
-          <Save size={16} />
-          保存提示词
-        </Button>
+      {actionsTarget &&
+        createPortal(
+          <Button
+            loading={vm.pending}
+            disabled={!vm.dirty || !vm.content.trim() || vm.content.length > limit || Boolean(vm.conflict)}
+            onClick={() => void vm.save()}
+          >
+            <Save size={16} />
+            保存提示词
+          </Button>,
+          actionsTarget,
+        )}
+      <div className="channel-meta">
+        <span role="status" className={vm.dirty ? 'channel-unsaved' : 'admin-muted'}>
+          {vm.channel ? (vm.dirty ? '有未保存改动' : `已保存 · v${vm.channel.version}`) : '正在读取'}
+        </span>
+        <span className="admin-muted">仅影响后续任务 · 不改写已有内容</span>
       </div>
       {vm.error && <Failure error={vm.error} retry={!vm.channel ? () => void vm.load() : undefined} />}
       {!vm.channel && !vm.error && <LayerCard.Loading label="正在读取提示词" />}
@@ -126,41 +164,28 @@ function PromptEditor({ promptKey, active }: { promptKey: 'content' | PromptKey;
               error={`提示词最多可保存 ${limit.toLocaleString()} 个字符，请精简后重试。草稿仍然保留。`}
             />
           )}
-          <div className="studio-stage-footer">
-            <span className="admin-muted" role="status">
-              {vm.dirty ? '有未保存改动' : `已保存 · v${vm.channel.version}`}
-            </span>
-            <div className="channel-save-detail">
-              <p>
-                {vm.draftNotice ||
-                  (vm.dirty
-                    ? '草稿保留在当前标签页，保存后才会用于创作。'
-                    : `最近保存于 ${dateLabel(vm.channel.updatedAt)}`)}
-              </p>
-              <p className="admin-muted">改动作用于后续任务，不会自动改写已有节目或撤销确认。</p>
-            </div>
-            <div className="studio-actions">
-              <Button
-                variant="outline"
-                disabled={!vm.dirty || vm.pending}
-                onClick={() => setConfirmation('reload')}
-              >
-                放弃草稿
-              </Button>
-              <Button
-                loading={vm.pending}
-                disabled={
-                  !vm.dirty || !vm.content.trim() || vm.content.length > limit || Boolean(vm.conflict)
-                }
-                onClick={() => void vm.save()}
-              >
-                保存当前提示词
-              </Button>
-            </div>
+          <div className="channel-footer">
+            <p className="admin-muted">
+              {vm.draftNotice ||
+                (vm.dirty
+                  ? '草稿保留在当前标签页，保存后生效。'
+                  : `最近保存于 ${dateLabel(vm.channel.updatedAt)}`)}
+            </p>
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={!vm.dirty || vm.pending}
+              onClick={() => setConfirmation('reload')}
+            >
+              放弃草稿
+            </Button>
           </div>
-          <p className="admin-muted">
-            全局提示词是内部的选题与表达标准，不直接进入节目文稿。中心思想与全局提示词冲突时先由你决定；任何观点都不能代替事实核查。
-          </p>
+          <details className="channel-help admin-muted">
+            <summary>提示词的生效范围</summary>
+            <p>
+              已派发任务保留原提示词快照。提示词是内部工作要求，不直接进入公开成品；权限、工具协议和人工审批仍由代码控制。
+            </p>
+          </details>
         </>
       )}
       {confirmation && vm.channel && (

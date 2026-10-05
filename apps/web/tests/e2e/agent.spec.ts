@@ -290,6 +290,43 @@ test('phone dock gives height back to the editor and bounds many roles to one ho
   expect(state.writes).toEqual([]);
 });
 
+test('tablet layout keeps editing space and preserves drafts and connection while resizing', async ({
+  page,
+}) => {
+  const state = await studio(page);
+  await page.goto('/admin/productions/production-test?step=brief');
+  const title = page.getByLabel('节目标题', { exact: true });
+  const composer = page.getByRole('textbox', { name: '给主控的消息' });
+  await title.fill('Unsaved tablet title');
+  await composer.fill('Unsent tablet question');
+  for (const width of [768, 1024, 1440]) {
+    await page.setViewportSize({ width, height: 1000 });
+    const menu = page.getByRole('button', { name: '打开导航', exact: true });
+    if (width < 1200) {
+      await menu.click();
+      const drawer = page.getByRole('dialog', { name: '工作室导航' });
+      await expect(drawer).toBeVisible();
+      await page.keyboard.press('Escape');
+      await expect(drawer).toBeHidden();
+      await expect(menu).toBeFocused();
+    } else {
+      await expect(menu).toHaveCount(0);
+    }
+    const island = await page.locator('.admin-content-island').boundingBox();
+    const dock = await page.getByRole('complementary', { name: '主控对话' }).boundingBox();
+    if (!island || !dock) throw new Error('Workspace panels must remain visible');
+    expect(island.width).toBeGreaterThan(width < 1024 ? 700 : 550);
+    if (width < 1024) expect(dock.y).toBeGreaterThanOrEqual(island.y + island.height);
+    else expect(dock.x).toBeGreaterThanOrEqual(island.x + island.width);
+    await expect(title).toHaveValue('Unsaved tablet title');
+    await expect(composer).toHaveValue('Unsent tablet question');
+    await expect(composer).toBeInViewport();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  }
+  expect(state.sockets).toHaveLength(1);
+  expect(state.writes).toEqual([]);
+});
+
 test('proposals mutate only the exact draft, retain undo, reject stale revisions and IME', async ({
   page,
 }) => {

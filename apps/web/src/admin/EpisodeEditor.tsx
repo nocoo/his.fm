@@ -266,10 +266,10 @@ export function EpisodeEditor() {
                 <LayerCard.Body className="admin-fields">
                   <Field label="发布状态" htmlFor="status" required error={errors.status}>
                     <Select name="status" defaultValue={value.status} onValueChange={() => setDirty(true)}>
-                      <SelectTrigger id="status">
+                      <SelectTrigger className="studio-select-trigger" id="status">
                         <SelectValue />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent className="studio-select-content" collisionPadding={12}>
                         <SelectItem value="draft">草稿 · 仅工作室可见</SelectItem>
                         <SelectItem value="published">发布 · 所有人可见</SelectItem>
                       </SelectContent>

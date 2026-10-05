@@ -34,10 +34,10 @@ export function CategorySelect({
         onValueChange={onChange}
         disabled={disabled || vm.loading || Boolean(vm.error)}
       >
-        <SelectTrigger id={id} aria-label="栏目" onFocus={onFocus}>
+        <SelectTrigger className="studio-select-trigger" id={id} aria-label="栏目" onFocus={onFocus}>
           <SelectValue placeholder={vm.loading ? '正在读取栏目' : '请选择栏目'} />
         </SelectTrigger>
-        <SelectContent>
+        <SelectContent className="studio-select-content" collisionPadding={12}>
           {vm.categories.map((category) => (
             <SelectItem key={category.id} value={category.id}>
               <CategoryBadge category={category} />

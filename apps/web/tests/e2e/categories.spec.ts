@@ -59,7 +59,7 @@ test('category editor preserves Markdown, icon/color selection, stale drafts and
   await page.getByRole('button', { name: '保存栏目', exact: true }).click();
   await expect(page.getByRole('alert')).toContainText('保存失败');
   await page.reload();
-  await expect(page.getByRole('heading', { name: '返回栏目管理 我的研究笔记', exact: true })).toBeVisible();
+  await expect(page.getByText('栏目风格 · 我的研究笔记', { exact: true })).toBeVisible();
   await expect(editor).toContainText('每段先给一个结论');
   category = { ...category, name: '另一处修改', version: 3 };
   await page.getByRole('button', { name: '保存栏目', exact: true }).click();

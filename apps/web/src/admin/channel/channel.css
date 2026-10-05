@@ -1,10 +1,56 @@
 .channel-sheet {
   overflow: visible;
 }
-.channel-save-detail {
-  flex: 1;
-  min-width: 220px;
+.channel-header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--admin-space-2);
+  min-width: 0;
 }
-.channel-save-detail p + p {
-  margin-top: var(--admin-space-1);
+.channel-selector {
+  width: 12rem;
+  min-width: 0;
+}
+.channel-save-action {
+  flex: none;
+}
+.channel-meta,
+.channel-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--admin-space-2) var(--admin-space-3);
+  flex-wrap: wrap;
+  font-size: 12px;
+}
+.channel-meta [role="status"] {
+  white-space: nowrap;
+}
+.channel-unsaved {
+  color: hsl(var(--basalt-primary));
+}
+.channel-help {
+  font-size: 12px;
+}
+.channel-help > summary {
+  cursor: pointer;
+  width: fit-content;
+}
+.channel-help > p {
+  padding-top: var(--admin-space-2);
+}
+@media (max-width: 767px) {
+  .channel-header-actions {
+    gap: var(--admin-space-1);
+  }
+  .channel-selector {
+    width: clamp(7rem, 30vw, 12rem);
+  }
+  .channel-save-action > button {
+    padding-inline: var(--admin-space-2);
+    gap: var(--admin-space-1);
+  }
+  .channel-meta {
+    font-size: 11px;
+  }
 }

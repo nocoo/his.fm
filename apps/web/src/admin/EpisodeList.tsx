@@ -216,10 +216,10 @@ export function EpisodeList() {
               onChange={(event) => filter('q', event.target.value)}
             />
             <Select value={status} onValueChange={(value) => filter('status', value)}>
-              <SelectTrigger aria-label="发布状态">
+              <SelectTrigger className="studio-select-trigger" aria-label="发布状态">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="studio-select-content" collisionPadding={12}>
                 <SelectItem value="all">全部状态</SelectItem>
                 <SelectItem value="draft">草稿</SelectItem>
                 <SelectItem value="published">已发布</SelectItem>

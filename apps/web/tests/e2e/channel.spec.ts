@@ -251,3 +251,72 @@ test('stage prompts keep independent drafts and undo, merge unrelated saves and 
   await page.getByRole('textbox', { name: '会话复用决策', exact: true }).fill('中'.repeat(1501));
   await expect(page.getByRole('button', { name: '保存提示词', exact: true })).toBeDisabled();
 });
+
+test('prompt controls stay compact and readable across viewport sizes and themes', async ({ page }) => {
+  await mockChannel(page);
+  const categoryName = '长期研究与开发者日常生活中的经验和证据'.repeat(4);
+  await page.route('**/admin/api/categories', (route) =>
+    route.fulfill({ json: { categories: [{ id: 'long', name: categoryName, icon: 'mic', color: 'blue' }] } }),
+  );
+  for (const theme of ['light', 'dark']) {
+    await page.addInitScript((value) => localStorage.setItem('hisfm-theme', value), theme);
+    for (const width of [320, 393, 768, 1024, 1440]) {
+      await page.setViewportSize({ width, height: 1000 });
+      await page.goto('/admin/channel?prompt=coordinator');
+      await expect(page.getByRole('textbox', { name: '主控协调', exact: true })).toBeVisible();
+      await expect(page.locator('html')).toHaveAttribute('data-mode', theme);
+      const trigger = page.getByRole('combobox', { name: '提示词环节' });
+      const save = page.getByRole('button', { name: '保存提示词', exact: true });
+      await expect(save).toHaveCount(1);
+      await expect(page.locator('.channel-page header')).toHaveCount(1);
+      const bounds = await page.locator('.channel-page').evaluate((element) => {
+        const header = element.querySelector('header')?.getBoundingClientRect();
+        const editor = element.querySelector('.markdown-editor')?.getBoundingClientRect();
+        return {
+          height: header?.height ?? 0,
+          gap: (editor?.top ?? 0) - (header?.bottom ?? 0),
+          overflow: document.documentElement.scrollWidth > innerWidth,
+        };
+      });
+      expect(bounds.height).toBeLessThanOrEqual(width === 320 ? 80 : 40);
+      expect(bounds.gap).toBeLessThan(64);
+      expect(bounds.overflow).toBe(false);
+      await trigger.click();
+      const menu = page.getByRole('listbox');
+      await expect(menu).toBeVisible();
+      await expect(page.getByRole('group', { name: '主控与运行', exact: true })).toBeVisible();
+      const normal = page.getByRole('option', { name: '上下文压缩', exact: true });
+      expect(await normal.evaluate((element) => element.getBoundingClientRect().height)).toBeLessThan(40);
+      const long = page.getByRole('option', { name: `栏目 · ${categoryName}`, exact: true });
+      await long.scrollIntoViewIfNeeded();
+      const geometry = await menu.evaluate((element) => {
+        const rect = element.getBoundingClientRect();
+        return {
+          left: rect.left,
+          right: rect.right,
+          width: rect.width,
+          overflow: element.scrollWidth > element.clientWidth,
+        };
+      });
+      expect(geometry.left).toBeGreaterThanOrEqual(8);
+      expect(geometry.right).toBeLessThanOrEqual(width - 8);
+      expect(geometry.width).toBeGreaterThan(160);
+      expect(geometry.overflow).toBe(false);
+      await page.screenshot({ path: `.local/prompts-menu-${theme}-${width}.png` });
+      await page.keyboard.press('Escape');
+      await expect(trigger).toBeFocused();
+      await expect(menu).toHaveCount(0);
+    }
+  }
+  await page.setViewportSize({ width: 393, height: 852 });
+  const trigger = page.getByRole('combobox', { name: '提示词环节' });
+  await trigger.focus();
+  await page.keyboard.press('ArrowDown');
+  await expect(page.getByRole('option', { name: '主控协调', exact: true })).toBeFocused();
+  await page.keyboard.press('ArrowDown');
+  await expect(page.getByRole('option', { name: '通用执行', exact: true })).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(trigger).toContainText('通用执行');
+  await expect(page.getByRole('textbox', { name: '通用执行', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: '保存提示词', exact: true })).toHaveCount(1);
+});

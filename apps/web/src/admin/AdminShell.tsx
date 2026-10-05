@@ -48,11 +48,11 @@ import { adminService, type Session } from './service';
 export function AdminShell({ session, children }: { session: Session; children: ReactNode }) {
   const navigate = useNavigate();
   const location = useLocation();
-  const [compact, setCompact] = useState(() => window.matchMedia('(max-width: 767px)').matches);
+  const [compact, setCompact] = useState(() => window.matchMedia('(max-width: 1199px)').matches);
   const [collapsed, setCollapsed] = useState(compact);
   const [loggingOut, setLoggingOut] = useState(false);
   useEffect(() => {
-    const media = window.matchMedia('(max-width: 767px)');
+    const media = window.matchMedia('(max-width: 1199px)');
     const update = () => {
       setCompact(media.matches);
       setCollapsed(media.matches);

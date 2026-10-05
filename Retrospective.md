@@ -261,3 +261,19 @@ Local SQL inspection initially used an unsupported `cf d1 execute`/`query --loca
 path. Both failed without writes. Existing seed scripts establish `cf d1 raw
 --local --persist-to .cloudflare/state` as the supported path; inspect the repository
 commands before assuming another CLI's subcommands are available.
+
+## 2026-10-06: Inspect open controls and intermediate viewport widths
+
+The prompt catalogue passed editing tests, but its narrow trigger also dictated
+the dropdown width. Ordinary Chinese labels wrapped into tall rows. The shell's
+phone-only breakpoint left three columns at 768px, squeezing the editor below
+200px. Closed controls and desktop/phone checks did not expose either problem.
+
+Size shared select menus by their content within viewport bounds, retain single-line
+triggers, and use Basalt groups for the prompt catalogue. Keep one header and one
+active save action without unmounting independent drafts. Use drawer navigation
+below 1200px and stack the coordinator below 1024px without replacing its session.
+Regression checks now open menus in both themes at 320, 393, 768, 1024 and 1440px,
+exercise long labels and keyboard focus, and resize live drafts across breakpoints.
+Keyboard tests must wait for the selected option to receive focus after opening
+the Radix portal before sending the next arrow key.

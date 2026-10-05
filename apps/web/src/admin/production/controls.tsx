@@ -14,7 +14,9 @@ import { InputArea } from '@nocoo/basalt/components/input-area';
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from '@nocoo/basalt/components/select';
@@ -33,21 +35,33 @@ export function Choice({
   label: string;
   value: string;
   onChange?: (value: string) => void;
-  options: { value: string; label: string }[];
+  options: { value: string; label: string; group?: string }[];
   name?: string;
   disabled?: boolean;
   onFocus?: () => void;
 }) {
   return (
     <Select name={name} value={value} onValueChange={onChange} disabled={disabled}>
-      <SelectTrigger aria-label={label} onFocus={onFocus}>
+      <SelectTrigger
+        className="studio-select-trigger"
+        aria-label={label}
+        onFocus={onFocus}
+        title={options.find((option) => option.value === value)?.label}
+      >
         <SelectValue />
       </SelectTrigger>
-      <SelectContent className="studio-choice-content">
-        {options.map((option) => (
-          <SelectItem key={option.value} value={option.value}>
-            {option.label}
-          </SelectItem>
+      <SelectContent className="studio-select-content" align="end" collisionPadding={12}>
+        {[...new Set(options.map((option) => option.group))].map((group) => (
+          <SelectGroup key={group ?? 'options'}>
+            {group && <SelectLabel>{group}</SelectLabel>}
+            {options
+              .filter((option) => option.group === group)
+              .map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+          </SelectGroup>
         ))}
       </SelectContent>
     </Select>

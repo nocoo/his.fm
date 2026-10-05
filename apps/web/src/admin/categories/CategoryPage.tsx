@@ -4,6 +4,7 @@ import { PageHeader } from '@nocoo/basalt/components/page-header';
 import { TagColorPicker } from '@nocoo/basalt/components/tag-color-picker';
 import { ArrowLeft, Pencil, Plus, Save, Trash2 } from 'lucide-react';
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Link, useNavigate, useParams } from 'react-router';
 import { type Category, categoryColors, categoryIcons, type PublicCategory } from '../../shared/category';
 import { MarkdownEditor } from '../markdown/MarkdownEditor';
@@ -81,7 +82,15 @@ function CategoryList() {
     </div>
   );
 }
-export function CategoryEditor({ id, promptOnly = false }: { id: string; promptOnly?: boolean }) {
+export function CategoryEditor({
+  id,
+  promptOnly = false,
+  actionsTarget = null,
+}: {
+  id: string;
+  promptOnly?: boolean;
+  actionsTarget?: HTMLDivElement | null;
+}) {
   const vm = useCategory(id, promptOnly);
   const navigate = useNavigate();
   const [replace, setReplace] = useState<Category | null>(null);
@@ -92,32 +101,43 @@ export function CategoryEditor({ id, promptOnly = false }: { id: string; promptO
       if (id === 'new') navigate(`/admin/categories/${result.id}`, { replace: true });
     }
   };
+  const saveButton = (
+    <Button
+      loading={vm.pending}
+      disabled={!vm.dirty || !vm.value.name.trim() || vm.value.prompt.length > 30000 || Boolean(vm.conflict)}
+      onClick={() => void save()}
+    >
+      <Save size={16} />
+      保存栏目
+    </Button>
+  );
   return (
     <div className={promptOnly ? 'studio-stack category-editor' : 'admin-page category-editor'}>
-      <PageHeader
-        title={
-          <span className="category-page-title">
-            <Button asChild variant="ghost" size="icon">
-              <Link to="/admin/categories" aria-label="返回栏目管理">
-                <ArrowLeft size={18} />
-              </Link>
-            </Button>
-            {id === 'new' ? '新建栏目' : (vm.saved?.name ?? '编辑栏目')}
-          </span>
-        }
-        actions={
-          <Button
-            loading={vm.pending}
-            disabled={
-              !vm.dirty || !vm.value.name.trim() || vm.value.prompt.length > 30000 || Boolean(vm.conflict)
-            }
-            onClick={() => void save()}
-          >
-            <Save size={16} />
-            保存栏目
-          </Button>
-        }
-      />
+      {promptOnly ? (
+        <>
+          {actionsTarget && createPortal(saveButton, actionsTarget)}
+          <div className="channel-meta">
+            <span className="admin-muted">栏目风格 · {vm.saved?.name ?? '正在读取'}</span>
+            <Link className="studio-link" to="/admin/categories" aria-label="返回栏目管理">
+              管理栏目
+            </Link>
+          </div>
+        </>
+      ) : (
+        <PageHeader
+          title={
+            <span className="category-page-title">
+              <Button asChild variant="ghost" size="icon">
+                <Link to="/admin/categories" aria-label="返回栏目管理">
+                  <ArrowLeft size={18} />
+                </Link>
+              </Button>
+              {id === 'new' ? '新建栏目' : (vm.saved?.name ?? '编辑栏目')}
+            </span>
+          }
+          actions={saveButton}
+        />
+      )}
       {vm.error && (
         <Failure error={vm.error} retry={!vm.saved && id !== 'new' ? () => void vm.load() : undefined} />
       )}

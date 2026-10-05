@@ -2,7 +2,8 @@ import type { AiStatus, SpeechSettings } from '@his-fm/contracts';
 import { Button, Field, Input, LayerCard, toast } from '@nocoo/basalt';
 import { PageHeader } from '@nocoo/basalt/components/page-header';
 import { TagBadge } from '@nocoo/basalt/components/tag-badge';
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Link } from 'react-router';
 import { errorMessage } from '../model';
 import { Choice, Failure } from './controls';
@@ -11,7 +12,14 @@ import { productionService } from './service';
 import { useUnsavedChanges } from './useUnsavedChanges';
 import { VoiceEditor } from './VoiceEditor';
 
-export function AiSettings({ styleOnly = false }: { styleOnly?: boolean }) {
+export function AiSettings({
+  styleOnly = false,
+  actionsTarget = null,
+}: {
+  styleOnly?: boolean;
+  actionsTarget?: HTMLDivElement | null;
+}) {
+  const formId = useId();
   const [config, setConfig] = useState<AiStatus | null>(null);
   const [value, setValue] = useState<SpeechSettings | null>(null);
   const [keys, setKeys] = useState({ gemini: '', elevenlabs: '' });
@@ -35,26 +43,40 @@ export function AiSettings({ styleOnly = false }: { styleOnly?: boolean }) {
       });
     return () => controller.abort();
   }, []);
+  const saveButton = (
+    <Button form={formId} type="submit" loading={pending} disabled={!value}>
+      保存{styleOnly ? '旁白风格' : 'AI 设置'}
+    </Button>
+  );
   return (
     <div className={styleOnly ? 'studio-stack' : 'admin-page'}>
-      <PageHeader
-        title={styleOnly ? '旁白风格' : 'AI 设置'}
-        actions={
-          <Button asChild variant="outline">
-            <Link to="/admin/voices">音色对比</Link>
-          </Button>
-        }
-      />
-      {styleOnly && (
-        <p className="admin-muted">
-          讲述风格保存在本机配置，由 Local 与 Prod 共用；保存只影响后续任务，已有语音任务保留原快照。
-        </p>
+      {styleOnly ? (
+        <>
+          {actionsTarget && createPortal(saveButton, actionsTarget)}
+          <div className="channel-meta">
+            <span className="admin-muted">本机风格 · Local / Prod 共用</span>
+            <Link className="studio-link" to="/admin/voices">
+              音色对比
+            </Link>
+          </div>
+        </>
+      ) : (
+        <PageHeader
+          title="AI 设置"
+          actions={
+            <Button asChild variant="outline">
+              <Link to="/admin/voices">音色对比</Link>
+            </Button>
+          }
+        />
       )}
+      {styleOnly && <p className="admin-muted">保存只影响后续任务，已有语音任务保留原快照。</p>}
       {error && <Failure error={error} />}
       {!config || !value ? (
         !error && <LayerCard.Loading label="正在读取主控配置" />
       ) : (
         <form
+          id={formId}
           className="studio-stack"
           onSubmit={async (event) => {
             event.preventDefault();
@@ -213,11 +235,7 @@ export function AiSettings({ styleOnly = false }: { styleOnly?: boolean }) {
               voices={{ gemini: value.gemini.voice, elevenlabs: value.elevenlabs.voice }}
             />
           )}
-          <div className="studio-actions">
-            <Button type="submit" loading={pending}>
-              保存{styleOnly ? '旁白风格' : 'AI 设置'}
-            </Button>
-          </div>
+          {!styleOnly && <div className="studio-actions">{saveButton}</div>}
         </form>
       )}
     </div>

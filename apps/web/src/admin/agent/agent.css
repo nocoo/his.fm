@@ -458,12 +458,12 @@
   height: var(--admin-space-8);
   border-radius: var(--basalt-radius);
 }
-@media (max-width: 1199px) and (min-width: 768px) {
+@media (max-width: 1199px) and (min-width: 1024px) {
   .admin-workspace {
     --agent-panel-width: clamp(300px, 33vw, 420px);
   }
 }
-@media (max-width: 767px) {
+@media (max-width: 1023px) {
   .admin-workspace {
     --agent-panel-width: 100%;
     flex-direction: column;
