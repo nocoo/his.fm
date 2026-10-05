@@ -13,6 +13,10 @@ The user-global `~/.config/his.fm/config.json` owns `speech`, `speechKeys` and a
 
 Both providers produce mono 24 kHz signed 16-bit PCM WAV. Sentence-aware chunks preserve the spoken script and are capped at 420 Unicode code points. Each provider call has a 180-second deadline and bounded response size. HTTP errors are sanitized. Native content-addressed chunks and completed audio survive retries; a lost provider response before local persistence can still incur a second charge. No exactly-once billing guarantee is claimed.
 
+When the machine requires an explicitly configured network proxy, start the coordinator with `HTTP_PROXY`, `HTTPS_PROXY`, `NO_PROXY` and `NODE_USE_ENV_PROXY=1` on a Node runtime supporting native environment proxies. Speech subprocesses retain only these proxy settings (including lowercase proxy variants) alongside the existing basic process environment. Provider keys and arbitrary `NODE_OPTIONS` are not inherited. Keep loopback origins in `NO_PROXY`; verify the proxy is reachable before using it. No proxy address or automatic direct/proxy fallback is hardcoded in the product.
+
+The same allowlist applies to native CodingTools executors. Both the coordinator input and each immutable child assignment include `network` metadata: credential-free proxy origins, inherited variable names, Node proxy opt-in and loopback/TLS guidance. Proxy credentials, paths and query strings never enter the assignment. The child receives this operational context explicitly instead of having to guess why direct provider access fails.
+
 Native assembly is bounded to 30 minutes and stores its result in the private speech cache. The website accepts binary uploads only from the enrolled active station generation and exact command/job scope. D1 checks the lease, command, approved script version and current job before committing. Job state and production attachment are transactional; completed audio cannot regress on replay.
 
 ## Pages and owner APIs

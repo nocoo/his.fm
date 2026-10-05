@@ -3,6 +3,8 @@ export const EXECUTOR_CAPABILITIES = {
   environment: 'Native Node execution environment with a task workspace and the host PATH.',
   execution:
     'Use native tools and installed CLI programs to inspect resources, retrieve public information, process files, write and run scripts, create artifacts, diagnose problems and verify results within the current task.',
+  network:
+    'Read the current assignment network context. Preserve inherited proxy and loopback bypass settings; do not assume direct internet access or disable TLS verification.',
   website:
     'The coordinator owns the authenticated website client and typed website operations. Return website changes as deliverables for coordinator application.',
   scope:

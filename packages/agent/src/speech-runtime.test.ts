@@ -8,8 +8,14 @@ const execute = vi.hoisted(() => vi.fn());
 vi.mock('./speech-job.ts', () => ({ runSpeechJob: execute }));
 const call = (name: string, args: Parameters<typeof fauxToolCall>[1]) =>
   fauxAssistantMessage([fauxToolCall(name, args)], { stopReason: 'toolUse' });
-afterEach(() => execute.mockReset());
+afterEach(() => {
+  execute.mockReset();
+  vi.unstubAllEnvs();
+});
 it('delegates speech to a restricted conversation and requires a successful website receipt', async () => {
+  vi.stubEnv('HTTPS_PROXY', 'http://127.0.0.1:7890');
+  vi.stubEnv('https_proxy', '');
+  vi.stubEnv('NODE_USE_ENV_PROXY', '1');
   const test = await fixture([]);
   const command = testCommand('speech:job:attempt', 'Execute speechJobId=job');
   command.context = null;
@@ -45,6 +51,11 @@ it('delegates speech to a restricted conversation and requires a successful webs
     expect(execute).toHaveBeenCalledTimes(1);
     const assignment = Object.values((await test.runtime.work()).assignments)[0];
     assert(assignment);
+    expect(JSON.parse(assignment.input).network).toMatchObject({
+      httpsProxy: 'http://127.0.0.1:7890',
+      nodeEnvProxyEnabled: true,
+    });
+    expect(JSON.parse(assignment.input).network.guidance).toContain('loopback');
     const conversation = await test.runtime.harness.conversation(
       assignment.conversationId,
       BACKGROUND_CONTEXT,

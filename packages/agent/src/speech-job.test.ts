@@ -24,6 +24,7 @@ const input: SpeechSnapshot = {
 };
 afterEach(() => {
   vi.restoreAllMocks();
+  vi.unstubAllEnvs();
   run.mockReset();
 });
 it('runs an immutable job in a bounded secret-free child and uploads only its generated file', async () => {
@@ -52,6 +53,18 @@ it('runs an immutable job in a bounded secret-free child and uploads only its ge
       .mockResolvedValueOnce(receipt);
     const audio = join(directory, 'generated.wav');
     await writeFile(audio, 'test-audio');
+    const proxy = {
+      HTTP_PROXY: 'http://127.0.0.1:7890',
+      HTTPS_PROXY: 'http://127.0.0.1:7890',
+      NO_PROXY: 'localhost,127.0.0.1',
+      http_proxy: 'http://127.0.0.1:7890',
+      https_proxy: 'http://127.0.0.1:7890',
+      no_proxy: 'localhost,127.0.0.1',
+      NODE_USE_ENV_PROXY: '1',
+    };
+    for (const [key, value] of Object.entries(proxy)) vi.stubEnv(key, value);
+    vi.stubEnv('GEMINI_API_KEY', 'must-not-be-inherited');
+    vi.stubEnv('NODE_OPTIONS', '--require=untrusted.js');
     run.mockResolvedValueOnce({ stdout: JSON.stringify({ path: audio }) });
     expect(
       await runSpeechJob(
@@ -74,6 +87,9 @@ it('runs an immutable job in a bounded secret-free child and uploads only its ge
     const options = run.mock.calls[0]?.[2];
     expect(options.timeout).toBe(1800000);
     expect(Object.keys(options.env)).toEqual(expect.arrayContaining(['PATH', 'HOME']));
+    expect(options.env).toMatchObject(proxy);
+    expect(options.env).not.toHaveProperty('GEMINI_API_KEY');
+    expect(options.env).not.toHaveProperty('NODE_OPTIONS');
     expect(JSON.stringify(options.env)).not.toContain('fake-site-key');
     speech.mockReset().mockResolvedValueOnce({ input }).mockResolvedValue({});
     run.mockRejectedValueOnce(new Error('private upstream detail'));

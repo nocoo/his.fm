@@ -27,6 +27,7 @@ import {
 import type { Channel, WebsiteClient } from './client.ts';
 import type { Config } from './config.ts';
 import { type AssignmentPlan, type DecisionInput, decisions } from './decision.ts';
+import { executionEnvironment, networkContext } from './network.ts';
 import { EXECUTOR_CAPABILITIES, ROOT_POLICY, WORK_POLICY } from './prompts.ts';
 import { runSpeechJob } from './speech-job.ts';
 import type { InputRecord, RuntimeStore } from './store.ts';
@@ -139,10 +140,7 @@ export async function openRuntime(options: RuntimeOptions) {
         if (!environment) {
           const directory = join(config.runtime.workspaceRoot, digest(target.conversationId));
           await mkdir(directory, { recursive: true, mode: 0o700 });
-          const shellEnv: NodeJS.ProcessEnv = {};
-          for (const key of ['PATH', 'HOME', 'TMPDIR', 'LANG', 'SHELL'])
-            if (process.env[key]) shellEnv[key] = process.env[key];
-          environment = new NodeExecutionEnv({ cwd: directory, shellEnv });
+          environment = new NodeExecutionEnv({ cwd: directory, shellEnv: executionEnvironment() });
           environments.set(target.conversationId, environment);
         }
         return environment;
@@ -527,6 +525,7 @@ export async function openRuntime(options: RuntimeOptions) {
         const input = JSON.stringify({
           assignmentId: id,
           ownerCommand: active,
+          network: networkContext(),
           capabilities:
             args.role === 'speech'
               ? {
@@ -970,6 +969,7 @@ export async function openRuntime(options: RuntimeOptions) {
         content = JSON.stringify({
           ownerCommand: store.command(input.commandId)?.command,
           executorCapabilities: EXECUTOR_CAPABILITIES,
+          network: networkContext(),
           input: JSON.parse(input.content),
           latestChannel: channel,
         });

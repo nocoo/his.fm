@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 import { speechSnapshotSchema } from '@his-fm/contracts';
 import type { WebsiteClient } from './client.ts';
+import { executionEnvironment } from './network.ts';
 
 export async function runSpeechJob(
   client: WebsiteClient,
@@ -21,16 +22,13 @@ export async function runSpeechJob(
   const path = join(directory, 'speech-request.json');
   await writeFile(path, JSON.stringify(input), { mode: 0o600 });
   await client.speech(id, commandId, generation(), 'POST');
-  const environment: NodeJS.ProcessEnv = {};
-  for (const key of ['PATH', 'HOME', 'TMPDIR', 'LANG'])
-    if (process.env[key]) environment[key] = process.env[key];
   let stdout: string;
   try {
     ({ stdout } = await promisify(execFile)(
       process.execPath,
       ['--experimental-strip-types', fileURLToPath(new URL('./speech-cli.ts', import.meta.url)), path],
       {
-        env: environment,
+        env: executionEnvironment(),
         signal,
         timeout: 30 * 60000,
         maxBuffer: 64 * 1024,
