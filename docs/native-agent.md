@@ -56,6 +56,12 @@ All textual results use Markdown. Executor conversations return results to the c
 
 The runtime stores conversation state and transport receipts locally. Browser closure does not stop it. Reconnects reconcile durable command IDs and operation receipts. Interrupted native commands are not blindly replayed. Model errors, incomplete work and unknown effects are reported as such.
 
+## Context compaction
+
+Pi Durable owns summary selection, task persistence, usage accounting and summary placement; older entries remain in SQLite. Its summarization calls use the same configured model with low reasoning and the existing output ceiling, independently of the coordinator's high reasoning for task execution. `context.ts` relies on the pinned Pi Durable 1.0 contract: `completeSimple` summarizes history and `streamSimple` runs tasks. Regression tests exercise both paths and reopening the resulting checkpoint.
+
+Before task generation, the runtime checks the SDK's context estimate against the configured window, reserving at least 16,384 tokens or the model output ceiling plus 4,096 tokens, whichever is larger. A failed or insufficient compaction cannot dispatch an over-budget request. The command fails with a specific context-compaction message, no provider request and no fabricated success. History, frozen command context, assignments, artifacts and website receipts remain intact; restarting does not automatically retry terminal commands. This guard does not claim that a provider's tokenizer and the SDK estimate always agree.
+
 ## Native speech
 
 Speech conversations receive only generate_speech and submit_result. The host launches a local bounded script against the immutable website job, then uploads PCM WAV under the active station generation and exact command. Provider credentials stay in the user-global config. Gemini and ElevenLabs eleven_v4 share the preview script and cache contract; see [audio](audio.md). Keep Falcon running for Jev assignment decisions.

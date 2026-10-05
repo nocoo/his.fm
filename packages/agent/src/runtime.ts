@@ -26,6 +26,7 @@ import {
 } from '@his-fm/contracts';
 import type { Channel, WebsiteClient } from './client.ts';
 import type { Config } from './config.ts';
+import { CONTEXT_BLOCKED, CONTEXT_FAILURE, contextModels } from './context.ts';
 import { type AssignmentPlan, type DecisionInput, decisions } from './decision.ts';
 import { executionEnvironment, networkContext } from './network.ts';
 import { EXECUTOR_CAPABILITIES, ROOT_POLICY, WORK_POLICY } from './prompts.ts';
@@ -132,7 +133,7 @@ export async function openRuntime(options: RuntimeOptions) {
   const harness = await Harness.open(
     options.storage,
     {
-      models: options.models,
+      models: contextModels(options.models),
       registry,
       settings: { extensions: [], toolExecution: 'sequential' },
       env: async (target) => {
@@ -1008,7 +1009,8 @@ export async function openRuntime(options: RuntimeOptions) {
       try {
         const settled = await submission.wait(context);
         if (stopped || commandStopped(input.commandId)) return;
-        if (settled.status !== 'done') throw new Error('主控任务未完成。');
+        if (settled.status !== 'done')
+          throw new Error(settled.detail === CONTEXT_BLOCKED ? CONTEXT_BLOCKED : '主控任务未完成。');
         if (settled.type === 'input' && settled.answer && !store.get(`replied:${input.id}`)) {
           const entry = await root.commit(
             (transaction) => transaction.entry(AssistantEntry, settled.answer),
@@ -1053,18 +1055,19 @@ export async function openRuntime(options: RuntimeOptions) {
       } finally {
         clearTimeout(timer);
       }
-    } catch {
+    } catch (error) {
       if (current && !stopped && !commandStopped(current.commandId)) {
+        const contextBlocked = error instanceof Error && error.message === CONTEXT_BLOCKED;
         store.state(
           current.commandId,
           'failed',
-          '任务未完成，已保留现场；请检查配置或重新发出指令。',
+          contextBlocked ? CONTEXT_FAILURE : '任务未完成，已保留现场；请检查配置或重新发出指令。',
           `failed:${current.id}`,
         );
         visible(
           `error:${current.id}`,
           current.commandId,
-          '这次任务未完成，现场已保留。请检查连接或重新发出指令。',
+          contextBlocked ? CONTEXT_FAILURE : '这次任务未完成，现场已保留。请检查连接或重新发出指令。',
         );
         await retireTasks(current.commandId);
       }
