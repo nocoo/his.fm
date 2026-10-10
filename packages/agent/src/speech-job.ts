@@ -34,9 +34,18 @@ export async function runSpeechJob(
         maxBuffer: 64 * 1024,
       },
     ));
-  } catch {
+  } catch (error) {
     if (!signal.aborted) await client.speech(id, commandId, generation(), 'DELETE');
-    throw new Error('本机语音脚本失败；已保留分段缓存，未确认网站成品。');
+    const stderr =
+      error instanceof Error && 'stderr' in error && typeof error.stderr === 'string' ? error.stderr : '';
+    const reason = stderr.match(/^hisfm-speech-error:\{"reason":"(network|provider|unknown)"\}$/m)?.[1];
+    const detail =
+      reason === 'network'
+        ? '请检查本机到语音服务的网络与进程代理。'
+        : reason === 'provider'
+          ? '语音服务拒绝请求或返回无效音频，请检查提供方配置与额度。'
+          : '';
+    throw new Error(`本机语音脚本失败；已保留分段缓存，未确认网站成品。${detail}`);
   }
   const generated: { path: string } = JSON.parse(stdout);
   signal.throwIfAborted();

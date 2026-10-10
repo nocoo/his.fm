@@ -1,7 +1,7 @@
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import type { SpeechSnapshot } from '@his-fm/contracts';
+import { AudioError, type SpeechSnapshot } from '@his-fm/contracts';
 import { afterEach, expect, it, vi } from 'vitest';
 import { WebsiteClient } from './client.ts';
 import { runSpeech, speechCli } from './speech-cli.ts';
@@ -167,4 +167,92 @@ it('binds native speech requests to station generation and command without revea
   await expect(client.speech('j', 'c', 'g', 'PUT', new Uint8Array([1]))).rejects.toThrow('403');
   request.mockRejectedValueOnce(new Error('private network'));
   await expect(client.speech('j', 'c', 'g')).rejects.toThrow('传输失败');
+});
+
+it.each([
+  ['network', '网络'],
+  ['provider', '服务'],
+  ['unknown', '脚本失败'],
+] as const)(
+  'shows the allowlisted %s child failure category without private diagnostics',
+  async (reason, label) => {
+    const directory = await mkdtemp(join(tmpdir(), 'hisfm-speech-diagnostic-'));
+    const client = new WebsiteClient(testConfig().websites.local);
+    const speech = vi.spyOn(client, 'speech').mockResolvedValueOnce({ input }).mockResolvedValue({});
+    run.mockRejectedValueOnce(
+      Object.assign(new Error('private-key from upstream'), {
+        stderr: `private-key provider output\nhisfm-speech-error:${JSON.stringify({ reason })}\n`,
+      }),
+    );
+    try {
+      const failure = await runSpeechJob(
+        client,
+        () => 'g',
+        'job',
+        'speech:job:one',
+        directory,
+        new AbortController().signal,
+      ).catch((error) => error);
+      expect(failure).toBeInstanceOf(Error);
+      expect(failure.message).toContain('脚本失败');
+      expect(failure.message).toContain(label);
+      expect(failure.message).toContain('保留');
+      expect(failure.message).not.toContain('private-key');
+      expect(failure.message).not.toContain('hisfm-speech-error');
+      expect(speech).toHaveBeenLastCalledWith('job', 'speech:job:one', 'g', 'DELETE');
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  },
+);
+
+it.each([
+  'hisfm-speech-error:{"reason":"private-key"}',
+  'hisfm-speech-error:not-json private-key',
+  'prefix hisfm-speech-error:{"reason":"network"} private-key',
+  'hisfm-speech-error:{"reason":{"private-key":true}}',
+  'hisfm-speech-error:null',
+  'private-key provider error',
+])('falls back safely for an untrusted child diagnostic %s', async (stderr) => {
+  const directory = await mkdtemp(join(tmpdir(), 'hisfm-speech-untrusted-'));
+  const client = new WebsiteClient(testConfig().websites.local);
+  vi.spyOn(client, 'speech').mockResolvedValueOnce({ input }).mockResolvedValue({});
+  run.mockRejectedValueOnce(Object.assign(new Error('private-key'), { stderr }));
+  try {
+    const failure = await runSpeechJob(
+      client,
+      () => 'g',
+      'job',
+      'speech:job:one',
+      directory,
+      new AbortController().signal,
+    ).catch((error) => error);
+    expect(failure).toBeInstanceOf(Error);
+    expect(failure.message).toContain('脚本失败');
+    expect(failure.message).not.toContain('private-key');
+    expect(failure.message).not.toContain('hisfm-speech-error');
+    expect(failure.message).not.toContain('网络');
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+it.each([
+  [new TypeError('fetch failed private-key', { cause: { code: 'ECONNREFUSED' } }), 'network'],
+  [new AudioError('private-key upstream audio'), 'provider'],
+  [new Error('private-key'), 'unknown'],
+] as const)('emits only a typed failure envelope from the speech CLI', async (failure, reason) => {
+  const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+  const host = { exitCode: 0 } as typeof process;
+  await speechCli(
+    ['job.json'],
+    async () => {
+      throw failure;
+    },
+    host,
+  );
+  expect(host.exitCode).toBe(1);
+  const lines = error.mock.calls.map((args) => args.join(' '));
+  expect(lines).toContain(`hisfm-speech-error:${JSON.stringify({ reason })}`);
+  expect(lines.join('\n')).not.toContain('private-key');
 });

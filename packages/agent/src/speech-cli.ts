@@ -2,7 +2,7 @@ import { readFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { speechSnapshotSchema } from '@his-fm/contracts';
+import { AudioError, speechSnapshotSchema } from '@his-fm/contracts';
 import { loadConfig } from './config.ts';
 import { generateSpeech } from './speech.ts';
 
@@ -18,7 +18,14 @@ export async function runSpeech(
 export async function speechCli(args: string[], run = runSpeech, host = process) {
   try {
     console.log(JSON.stringify(await run(args)));
-  } catch {
+  } catch (error) {
+    const reason =
+      error instanceof TypeError && error.cause
+        ? 'network'
+        : error instanceof AudioError
+          ? 'provider'
+          : 'unknown';
+    console.error(`hisfm-speech-error:${JSON.stringify({ reason })}`);
     console.error('语音生成失败，已保留分段缓存；请检查模型、音色、Key 权限和额度。');
     host.exitCode = 1;
   }
