@@ -54,9 +54,7 @@ export function Assets({
   const busy = audioBusy(production);
   return (
     <Tabs defaultValue="cover" className="studio-stack" onValueChange={() => agent?.clearField()}>
-      <p className="studio-location">
-        三个任务可并行：封面和文案在本地计算机完成；正文音频由 Cloudflare 云端生成
-      </p>
+      <p className="studio-location">封面、文案和音频由本机 Agent 分工处理，成品由网站保存</p>
       <TabsList aria-label="成品素材">
         <TabsTrigger value="cover">封面</TabsTrigger>
         <TabsTrigger value="copy">发布文案</TabsTrigger>
@@ -161,7 +159,7 @@ export function Assets({
       </TabsContent>
       <TabsContent value="audio" className="studio-stack">
         <p className="studio-location">
-          Cloudflare 云端 · Gemini 3.8 Flash TTS · 生成正文，可选添加片头片尾，完成后存入 R2
+          本机语音 Agent · 按所选服务生成正文，可选添加片头片尾，完成后上传至网站
         </p>
         <LayerCard>
           <div className="studio-stack">
@@ -226,7 +224,7 @@ function AudioPreview({ production }: { production: Production }) {
       </a>
     </>
   ) : (
-    <p className="admin-muted">尚未生成正文音频。云端会使用你确认过的逐字稿。</p>
+    <p className="admin-muted">尚未生成正文音频。本机语音 Agent 将使用你确认过的逐字稿。</p>
   );
 }
 export function FinalReview({ production }: { production: Production }) {

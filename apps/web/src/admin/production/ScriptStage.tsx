@@ -38,7 +38,7 @@ export function ScriptStage({
   return (
     <div className="studio-stack">
       <p className="studio-location">
-        本地计算机生成 · 在当前浏览器阅读、修改与确认 · 确认后云端才会生成声音
+        本机 Agent 生成 · 在当前浏览器阅读、修改与确认 · 确认后可交给语音 Agent 生成声音
       </p>
       <DraftConflicts fields={draft.conflicts} resolve={draft.resolve} />
       <Field
