@@ -100,6 +100,11 @@ export type RuntimeOptions = {
 
 export async function openRuntime(options: RuntimeOptions) {
   const { config, store, transport, client } = options;
+  const runtimeId =
+    store.get<string>('frogieRuntimeId') ?? digest(store.get<string>('identity') ?? randomUUID());
+  store.set('frogieRuntimeId', runtimeId);
+  const taskId = (prefix: string, id: number) => `${prefix}:${runtimeId}:${id}`;
+  const workspaceRoot = join(config.runtime.workspaceRoot, 'frogie', runtimeId);
   const log = options.log ?? console.log;
   const background = (task: Promise<unknown>) => {
     void task.catch(() => log('后台任务出现错误，持久现场已保留。'));
@@ -330,7 +335,7 @@ export async function openRuntime(options: RuntimeOptions) {
         () => transport.generation,
         args.jobId,
         assignment.commandId,
-        join(config.runtime.workspaceRoot, digest(api.conversationId)),
+        join(workspaceRoot, digest(api.conversationId)),
         api.signal,
       );
       store.set(`speech-receipt:${assignment.commandId}`, result);
@@ -375,7 +380,7 @@ export async function openRuntime(options: RuntimeOptions) {
     parameters: Type.Object({ markdown }),
     execute: async (args, api) => {
       const active = command();
-      visible(`reply:${api.taskId}`, active.id, args.markdown);
+      visible(taskId('reply', api.taskId), active.id, args.markdown);
       store.set(`replied:${current?.id}`, true);
       return textResult('回复已发送。');
     },
@@ -406,7 +411,7 @@ export async function openRuntime(options: RuntimeOptions) {
     }),
     execute: async (args, api) => {
       const active = command();
-      const id = `assignment:${api.taskId}`;
+      const id = taskId('assignment', api.taskId);
       let release = () => {};
       const previous = allocation;
       allocation = new Promise<void>((resolve) => {
@@ -623,7 +628,7 @@ export async function openRuntime(options: RuntimeOptions) {
       if (!active.context?.field || !active.context.draft)
         throw new Error('指令没有固定的编辑字段，请从目标字段重新发起。');
       const proposal = proposalSchema.parse({
-        id: `proposal:${api.taskId}`,
+        id: taskId('proposal', api.taskId),
         commandId: active.id,
         context: active.context,
         target: active.context.field,
@@ -659,7 +664,7 @@ export async function openRuntime(options: RuntimeOptions) {
     }),
     execute: async (args, api) => {
       const active = command();
-      const id = `operation:${api.taskId}`;
+      const id = taskId('operation', api.taskId);
       const receipt = store.result(id);
       if (receipt) return textResult(receipt);
       const existing = store.event(id);
@@ -695,7 +700,7 @@ export async function openRuntime(options: RuntimeOptions) {
     }),
     execute: async (args, api) => {
       const active = command();
-      const id = `operation:${api.taskId}`;
+      const id = taskId('operation', api.taskId);
       const receipt = store.result(id);
       if (receipt) return textResult(receipt);
       const existing = store.event(id);
@@ -729,7 +734,7 @@ export async function openRuntime(options: RuntimeOptions) {
     }),
     execute: async (args, api) => {
       const active = command();
-      const id = `operation:${api.taskId}`;
+      const id = taskId('operation', api.taskId);
       const receipt = store.result(id);
       if (receipt) return textResult(receipt);
       const existing = store.event(id);
@@ -761,7 +766,7 @@ export async function openRuntime(options: RuntimeOptions) {
     }),
     execute: async (args, api) => {
       const active = command();
-      const id = `operation:${api.taskId}`;
+      const id = taskId('operation', api.taskId);
       const receipt = store.result(id);
       if (receipt) return textResult(receipt);
       const existing = store.event(id);
@@ -883,15 +888,12 @@ export async function openRuntime(options: RuntimeOptions) {
       command();
       const finish = { ...args, markdown: safeText(args.markdown) };
       store.set(`finish:${active.id}`, finish);
-      visible(`finish:${api.taskId}`, active.id, finish.markdown);
+      visible(taskId('finish', api.taskId), active.id, finish.markdown);
       store.set(`replied:${current?.id}`, true);
       return { ...textResult({ outcome: args.outcome }), control: { terminate: true } };
     },
   });
   const definition = loadHisfmDefinition();
-  const runtimeId =
-    store.get<string>('frogieRuntimeId') ?? digest(store.get<string>('identity') ?? randomUUID());
-  store.set('frogieRuntimeId', runtimeId);
   host = await openAgentHost<WorkState>({
     ...(options.databasePath ? { databasePath: options.databasePath } : {}),
     definition,
@@ -932,7 +934,7 @@ export async function openRuntime(options: RuntimeOptions) {
       finish,
     ],
     state: { kind: 'hisfm.work', initial: () => ({ assignments: {}, conversations: {} }) },
-    execution: { directory: config.runtime.workspaceRoot, shellEnv: executionEnvironment() },
+    execution: { directory: workspaceRoot, shellEnv: executionEnvironment() },
     summaryPrompt: async () => (await client.channel()).prompts.compaction,
     onReport: () => log('会话出现内部错误，持久任务已保留。'),
   });

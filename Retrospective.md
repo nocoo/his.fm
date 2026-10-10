@@ -292,3 +292,9 @@ scheduling, so cancelled or expired native tools could otherwise resume first.
 Frogie's paused inspection and staged task cancellation now fence this boundary;
 regressions verify cancelled root inputs and expired executors without new model
 calls, alongside a normal recovery control.
+
+A new execution database restarts numeric task and conversation IDs. Keeping the
+transport database and workspace root while deriving IDs only from those numbers
+could reuse historical receipts or files. Scope external IDs and work directories
+by the persistent runtime identity; a regression seeds old success receipts and
+messages and verifies that new operations execute once without modifying them.

@@ -50,6 +50,14 @@ it('delegates speech to a restricted conversation and requires a successful webs
     expect(execute).toHaveBeenCalledTimes(1);
     const assignment = Object.values((await test.runtime.work()).assignments)[0];
     assert(assignment);
+    expect(execute.mock.calls[0]?.[4]).toBe(
+      join(
+        test.config.runtime.workspaceRoot,
+        'frogie',
+        test.store.get<string>('frogieRuntimeId') ?? '',
+        createHash('sha256').update(JSON.stringify(assignment.conversationId)).digest('hex'),
+      ),
+    );
     expect(JSON.parse(assignment.input).network).toMatchObject({
       httpsProxy: 'http://127.0.0.1:7890',
       nodeEnvProxyEnabled: true,
@@ -82,3 +90,5 @@ it('does not accept speech completion without a receipt', async () => {
 });
 
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
+import { join } from 'node:path';

@@ -4,6 +4,8 @@ import { fixture, testCommand, testContext } from './testing/fixtures.ts';
 import { acceptWork, successfulResult } from './testing/outcomes.ts';
 
 type Fixture = Awaited<ReturnType<typeof fixture>>;
+const taskId = (test: Fixture, prefix: string, id: number) =>
+  `${prefix}:${test.store.get<string>('frogieRuntimeId')}:${id}`;
 async function activeFixture() {
   let release = (_message: ReturnType<typeof assistantMessage>) => {};
   const block = new Promise<ReturnType<typeof assistantMessage>>((resolve) => {
@@ -28,12 +30,74 @@ function invoke(test: Fixture, name: string, args: unknown, id = 9001, conversat
 const plain = (result: Awaited<ReturnType<typeof invoke>>) =>
   result.content?.map((item) => (item.type === 'text' ? item.text : '')).join('') ?? '';
 
+it('isolates new task effects from preserved legacy receipt and message identifiers while keeping replay stable', async () => {
+  const test = await activeFixture();
+  const legacyReceipt = {
+    type: 'operation.result' as const,
+    id: 'operation:7401',
+    ok: true,
+    status: 201,
+    result: { production: { id: 'legacy-production' } },
+  };
+  test.store.receipt(legacyReceipt);
+  test.store.set('message:reply:7402', { text: 'Legacy reply', createdAt: '2026-01-01' });
+  test.store.set('message:finish:7403', { text: 'Legacy completion', createdAt: '2026-01-01' });
+  try {
+    test.store.database
+      .prepare('UPDATE commands SET payload=? WHERE id=?')
+      .run(JSON.stringify(testCommand()), 'command-1');
+    const operation = vi.spyOn(test.transport, 'operation').mockImplementation(async (frame) => {
+      const receipt = {
+        type: 'operation.result' as const,
+        id: frame.operation.id,
+        ok: true,
+        status: 201,
+        result: { production: { id: 'new-production' } },
+      };
+      test.store.receipt(receipt);
+      return receipt;
+    });
+    const args = {
+      profileVersion: 1,
+      brief: JSON.stringify({
+        title: 'New production',
+        slug: 'new-production',
+        episodeNumber: 9,
+        sources: [],
+      }),
+    };
+    const receipt = JSON.parse(plain(await invoke(test, 'create_production', args, 7401)));
+    expect(receipt.result.production.id).toBe('new-production');
+    expect(operation).toHaveBeenCalledOnce();
+    expect(operation.mock.calls[0]?.[0].operation.id).toBe(taskId(test, 'operation', 7401));
+    expect(operation.mock.calls[0]?.[0].operation.id).not.toBe('operation:7401');
+    expect(test.store.result('operation:7401')).toEqual(legacyReceipt);
+    expect(JSON.parse(plain(await invoke(test, 'create_production', args, 7401)))).toEqual(receipt);
+    expect(operation).toHaveBeenCalledOnce();
+    await invoke(test, 'reply', { markdown: 'Fresh reply' }, 7402);
+    await invoke(
+      test,
+      'finish_command',
+      { markdown: 'Fresh completion', outcome: 'done', acceptedAssignmentIds: [], checks: [] },
+      7403,
+    );
+    expect(test.store.get('message:reply:7402')).toMatchObject({ text: 'Legacy reply' });
+    expect(test.store.get('message:finish:7403')).toMatchObject({ text: 'Legacy completion' });
+    expect(test.store.get(`message:${taskId(test, 'reply', 7402)}`)).toMatchObject({ text: 'Fresh reply' });
+    expect(test.store.get(`message:${taskId(test, 'finish', 7403)}`)).toMatchObject({
+      text: 'Fresh completion',
+    });
+  } finally {
+    await test.close();
+  }
+});
+
 it('accepts inspected criteria and fixed counts, and requires the independent review requested by the owner', async () => {
   const test = await activeFixture();
   const finish = {
     markdown: '验收完成',
     outcome: 'done',
-    acceptedAssignmentIds: ['assignment:8001'],
+    acceptedAssignmentIds: [taskId(test, 'assignment', 8001)],
     checks: [] as { assignmentId: string; criterion: string; evidence: string[] }[],
   };
   try {
@@ -64,17 +128,25 @@ it('accepts inspected criteria and fixed counts, and requires the independent re
       8001,
     );
     await expect
-      .poll(async () => (await test.runtime.work()).assignments['assignment:8001']?.status)
+      .poll(async () => (await test.runtime.work()).assignments[taskId(test, 'assignment', 8001)]?.status)
       .toBe('complete');
     await expect(invoke(test, 'finish_command', finish)).rejects.toThrow('inspect_work');
-    await invoke(test, 'inspect_work', { id: 'assignment:8001' });
+    await invoke(test, 'inspect_work', { id: taskId(test, 'assignment', 8001) });
     await expect(invoke(test, 'finish_command', finish)).rejects.toThrow('验收标准');
     finish.checks = [
-      { assignmentId: 'assignment:8001', criterion: '21 pages', evidence: ['Invented evidence'] },
+      {
+        assignmentId: taskId(test, 'assignment', 8001),
+        criterion: '21 pages',
+        evidence: ['Invented evidence'],
+      },
     ];
     await expect(invoke(test, 'finish_command', finish)).rejects.toThrow('验收标准');
     finish.checks = [
-      { assignmentId: 'assignment:8001', criterion: '21 pages', evidence: ['Verified test deliverable'] },
+      {
+        assignmentId: taskId(test, 'assignment', 8001),
+        criterion: '21 pages',
+        evidence: ['Verified test deliverable'],
+      },
     ];
     await expect(invoke(test, 'finish_command', finish)).rejects.toThrow('独立审校');
     test.fake.setResponses([
@@ -84,12 +156,12 @@ it('accepts inspected criteria and fixed counts, and requires the independent re
     ]);
     await invoke(test, 'delegate', { role: 'reviewer', instructions: 'Review all facts', revision: 1 }, 8002);
     await expect
-      .poll(async () => (await test.runtime.work()).assignments['assignment:8002']?.status)
+      .poll(async () => (await test.runtime.work()).assignments[taskId(test, 'assignment', 8002)]?.status)
       .toBe('complete');
-    await invoke(test, 'inspect_work', { id: 'assignment:8002' });
-    finish.acceptedAssignmentIds.push('assignment:8002');
+    await invoke(test, 'inspect_work', { id: taskId(test, 'assignment', 8002) });
+    finish.acceptedAssignmentIds.push(taskId(test, 'assignment', 8002));
     finish.checks.push({
-      assignmentId: 'assignment:8002',
+      assignmentId: taskId(test, 'assignment', 8002),
       criterion: 'Review all facts',
       evidence: ['Verified test deliverable'],
     });
@@ -116,7 +188,7 @@ it('rejects unproven counts, altered outcomes and acceptance while work is still
       8101,
     );
     await expect.poll(() => test.fake.state.callCount).toBe(2);
-    const assignment = (await test.runtime.work()).assignments['assignment:8101'];
+    const assignment = (await test.runtime.work()).assignments[taskId(test, 'assignment', 8101)];
     assert(assignment);
     const submit = (args: unknown) => invoke(test, 'submit_result', args, 8102, assignment.conversationId);
     await expect(
@@ -144,7 +216,7 @@ it('rejects unproven counts, altered outcomes and acceptance while work is still
     await submit(result);
     await submit(result);
     await expect(submit({ ...result, outcome: 'needs_input' })).rejects.toThrow('固定');
-    expect((await test.runtime.work()).assignments['assignment:8101']).toMatchObject({
+    expect((await test.runtime.work()).assignments[taskId(test, 'assignment', 8101)]).toMatchObject({
       result: '[已隐藏] blocked',
       outcome: { status: 'blocked', evidence: ['[已隐藏]'] },
     });
@@ -163,14 +235,14 @@ it('checks every durable website receipt and distinguishes unfinished outcomes f
     ).rejects.toThrow('当前指令');
     await invoke(test, 'propose_draft', { markdown: 'changed', summary: 'edit' }, 8201);
     await expect(invoke(test, 'finish_command', finish)).rejects.toThrow('等待回执');
-    test.store.receipt({ type: 'proposal.ack', id: 'proposal:8201', status: 'stale' });
+    test.store.receipt({ type: 'proposal.ack', id: taskId(test, 'proposal', 8201), status: 'stale' });
     await expect(invoke(test, 'finish_command', finish)).rejects.toThrow('未确认');
-    test.store.database.prepare('DELETE FROM receipts WHERE id=?').run('proposal:8201');
-    test.store.receipt({ type: 'proposal.ack', id: 'proposal:8201', status: 'applied' });
+    test.store.database.prepare('DELETE FROM receipts WHERE id=?').run(taskId(test, 'proposal', 8201));
+    test.store.receipt({ type: 'proposal.ack', id: taskId(test, 'proposal', 8201), status: 'applied' });
     test.store.enqueue({
       type: 'operation',
       operation: {
-        id: 'operation:8202',
+        id: taskId(test, 'operation', 8202),
         commandId: 'command-1',
         kind: 'production.patch',
         productionId: 'p',
@@ -180,7 +252,7 @@ it('checks every durable website receipt and distinguishes unfinished outcomes f
     });
     test.store.receipt({
       type: 'operation.result',
-      id: 'operation:8202',
+      id: taskId(test, 'operation', 8202),
       ok: false,
       status: 409,
       result: { error: 'conflict' },
@@ -302,7 +374,7 @@ it('sends canonical patches and approved explicit audio only through idempotent 
     test.store.enqueue({
       type: 'operation',
       operation: {
-        id: 'operation:300',
+        id: taskId(test, 'operation', 300),
         commandId: 'command-1',
         kind: 'production.patch',
         productionId: 'p',
@@ -314,7 +386,7 @@ it('sends canonical patches and approved explicit audio only through idempotent 
     test.store.enqueue({
       type: 'operation',
       operation: {
-        id: 'operation:400',
+        id: taskId(test, 'operation', 400),
         commandId: 'command-1',
         kind: 'audio.request',
         productionId: 'p',
@@ -479,17 +551,17 @@ it('reuses idle task writers within one command and keeps production-scoped writ
     };
     await invoke(test, 'delegate', args, 501);
     await expect
-      .poll(async () => (await test.runtime.work()).assignments['assignment:501']?.status)
+      .poll(async () => (await test.runtime.work()).assignments[taskId(test, 'assignment', 501)]?.status)
       .toBe('complete');
-    const first = (await test.runtime.work()).assignments['assignment:501'];
+    const first = (await test.runtime.work()).assignments[taskId(test, 'assignment', 501)];
     assert(first);
     expect((await test.runtime.work()).conversations[first.conversationId]?.retired).toBe(false);
     test.decide.mockResolvedValueOnce({ reuse: true, lifetime: 'task', thinkingLevel: 'medium' });
     await invoke(test, 'delegate', { ...args, revision: 2, taskType: 'revision' }, 502);
     await expect
-      .poll(async () => (await test.runtime.work()).assignments['assignment:502']?.status)
+      .poll(async () => (await test.runtime.work()).assignments[taskId(test, 'assignment', 502)]?.status)
       .toBe('complete');
-    expect((await test.runtime.work()).assignments['assignment:502']?.conversationId).toBe(
+    expect((await test.runtime.work()).assignments[taskId(test, 'assignment', 502)]?.conversationId).toBe(
       first.conversationId,
     );
     expect(test.decide.mock.calls[1]?.[0]).toMatchObject({
@@ -500,9 +572,9 @@ it('reuses idle task writers within one command and keeps production-scoped writ
     });
     await invoke(test, 'delegate', { ...args, revision: 3 }, 503);
     await expect
-      .poll(async () => (await test.runtime.work()).assignments['assignment:503']?.status)
+      .poll(async () => (await test.runtime.work()).assignments[taskId(test, 'assignment', 503)]?.status)
       .toBe('complete');
-    expect((await test.runtime.work()).assignments['assignment:503']?.conversationId).not.toBe(
+    expect((await test.runtime.work()).assignments[taskId(test, 'assignment', 503)]?.conversationId).not.toBe(
       first.conversationId,
     );
     test.fake.setResponses(acceptWork(test));
@@ -523,10 +595,10 @@ it('keeps draft proposals waiting until website receipt and does not expose unre
     await invoke(test, 'propose_draft', { markdown: 'updated', summary: 'draft proposal' }, 602);
     test.release();
     await expect.poll(() => test.store.command('command-1')?.status).toBe('waiting');
-    test.socket.receive({ type: 'proposal.ack', id: 'proposal:602', status: 'applied' });
+    test.socket.receive({ type: 'proposal.ack', id: taskId(test, 'proposal', 602), status: 'applied' });
     await expect.poll(() => test.store.command('command-1')?.status).toBe('complete');
     expect(test.logs).toContain('草稿已应用。');
-    test.socket.receive({ type: 'proposal.ack', id: 'proposal:602', status: 'applied' });
+    test.socket.receive({ type: 'proposal.ack', id: taskId(test, 'proposal', 602), status: 'applied' });
     test.socket.receive({ type: 'operation.result', id: 'unknown', ok: true, status: 200, result: {} });
   } finally {
     await test.close();
@@ -571,9 +643,11 @@ it('uses actual native CLI tools in executor environments without website creden
     ]);
     await invoke(test, 'delegate', { role: 'writer', instructions: 'Run native CLI.', revision: 1 }, 701);
     await expect
-      .poll(async () => (await test.runtime.work()).assignments['assignment:701']?.status)
+      .poll(async () => (await test.runtime.work()).assignments[taskId(test, 'assignment', 701)]?.status)
       .toBe('complete');
-    expect((await test.runtime.work()).assignments['assignment:701']?.result).toContain('native-cli-ok');
+    expect((await test.runtime.work()).assignments[taskId(test, 'assignment', 701)]?.result).toContain(
+      'native-cli-ok',
+    );
   } finally {
     await test.close();
   }
@@ -594,7 +668,7 @@ it('cancels all live work when a reconnect snapshot makes the command terminal',
     release();
     test.release();
     await expect
-      .poll(async () => (await test.runtime.work()).assignments['assignment:801']?.status)
+      .poll(async () => (await test.runtime.work()).assignments[taskId(test, 'assignment', 801)]?.status)
       .toBe('cancelled');
     expect(test.store.command('command-1')?.status).toBe('complete');
     test.transport.emit('terminal', 'unknown');
@@ -611,12 +685,12 @@ it('passes actual task complexity and revision intent, expires overdue dispatch 
     test.config.runtime.maxTaskMinutes = 0;
     await invoke(test, 'delegate', { role: 'writer', instructions: 'x'.repeat(5000), revision: 2 }, 901);
     await expect
-      .poll(async () => (await test.runtime.work()).assignments['assignment:901']?.status)
+      .poll(async () => (await test.runtime.work()).assignments[taskId(test, 'assignment', 901)]?.status)
       .toBe('failed');
     expect(test.decide.mock.calls[0]?.[0]).toMatchObject({ complexity: 'complex', taskType: 'revision' });
     await invoke(test, 'delegate', { role: 'writer', instructions: 'x'.repeat(800), revision: 3 }, 902);
     await expect
-      .poll(async () => (await test.runtime.work()).assignments['assignment:902']?.status)
+      .poll(async () => (await test.runtime.work()).assignments[taskId(test, 'assignment', 902)]?.status)
       .toBe('failed');
     expect(test.decide.mock.calls[1]?.[0]).toMatchObject({ complexity: 'moderate' });
     const coordinator = await testHost(test.runtime.host).agent(test.runtime.rootId);
@@ -636,7 +710,7 @@ it('reports absent execution handles as failed durable tasks rather than leaking
     });
     await invoke(test, 'delegate', { role: 'writer', instructions: 'Write', revision: 1 }, 1001);
     await expect
-      .poll(async () => (await test.runtime.work()).assignments['assignment:1001']?.status)
+      .poll(async () => (await test.runtime.work()).assignments[taskId(test, 'assignment', 1001)]?.status)
       .toBe('failed');
   } finally {
     await test.close();
@@ -690,7 +764,7 @@ it('creates an unscoped production draft and reuses stored receipts and pending 
     test.store.enqueue({
       type: 'operation',
       operation: {
-        id: 'operation:1102',
+        id: taskId(test, 'operation', 1102),
         commandId: 'command-1',
         kind: 'production.create',
         brief: JSON.parse(args.brief),
@@ -749,7 +823,7 @@ it('allows only three human-review submission actions with strict target, versio
     test.store.enqueue({
       type: 'operation',
       operation: {
-        id: 'operation:1204',
+        id: taskId(test, 'operation', 1204),
         commandId: 'command-1',
         kind: 'production.action',
         productionId: 'p',

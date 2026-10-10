@@ -20,6 +20,8 @@ Writer and reviewer have trusted local CodingTools. Speech has only the dedicate
 
 The existing website-origin/station identity determines the runtime directory and exclusive process lock. New execution data uses `frogie.sqlite`; `transport.sqlite` retains command history and effect receipts. `pi.sqlite` remains untouched as historical data.
 
+Tool operation, proposal, assignment and visible-message IDs include the persisted Frogie runtime identity. Native work directories use `workspaceRoot/frogie/runtimeId/conversationHash`. A new execution database can therefore allocate fresh numeric Pi IDs without colliding with historical receipts, old files or a different website's runtime.
+
 When the old execution database exists and the Frogie database does not, startup rejects unfinished legacy commands or pending transport events. Resolve those explicitly before switching execution. Terminal commands remain terminal; they are not replayed into the new Host. New Frogie sessions reopen using the same runtime identity and bound definition.
 
 `npm run agent:debug` reads transport status and Frogie tool diagnostics without starting models or exposing prompt bodies. Routine unit tests use isolated state and `@frogie/core/testing` model fixtures.

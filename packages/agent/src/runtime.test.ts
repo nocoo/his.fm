@@ -1,4 +1,7 @@
+import { createHash } from 'node:crypto';
+import { readFile } from 'node:fs/promises';
 import { createServer } from 'node:http';
+import { join } from 'node:path';
 import { executorTools, workPolicy } from '@frogie/core/hisfm';
 import { defaultPrompts } from '@frogie/core/hisfm/prompts';
 import { assistantMessage, testHost, thinking, toolCall } from '@frogie/core/testing';
@@ -276,6 +279,16 @@ console.log('Verified 2 rows, total 180 seconds');`;
       await expect.poll(() => test.store.command(owner.id)?.status).toBe('complete');
       const assignment = Object.values((await test.runtime.work()).assignments)[0];
       assert(assignment);
+      const workspace = join(
+        test.config.runtime.workspaceRoot,
+        'frogie',
+        test.store.get<string>('frogieRuntimeId') ?? '',
+        createHash('sha256').update(JSON.stringify(assignment.conversationId)).digest('hex'),
+      );
+      expect(JSON.parse(await readFile(join(workspace, 'summary.json'), 'utf8'))).toEqual({
+        count: 2,
+        total: 180,
+      });
       expect(JSON.parse(assignment.input)).toMatchObject({
         ownerCommand: owner,
         capabilities: { tools: executorTools, guidance: defaultPrompts.capabilities },
