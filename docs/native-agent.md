@@ -1,6 +1,8 @@
 # his.fm native local agent
 
-his.fm uses a resident local Pi Durable coordinator. The website never starts a model or shell process in the browser. Read `/api/agent/openapi.json` for the current wire schemas and `/api/agent/capabilities` for domain permissions.
+his.fm uses a resident local Frogie coordinator, backed by Pi Durable inside `@frogie/core`. The website never starts a model or shell process in the browser. Read `/api/agent/openapi.json` for the current wire schemas and `/api/agent/capabilities` for domain permissions.
+
+Role sources, package updates and local database ownership are documented in [Frogie integration](frogie-integration.md).
 
 ## Setup
 
@@ -60,7 +62,7 @@ The runtime stores conversation state and transport receipts locally. Browser cl
 
 ## Context compaction
 
-Pi Durable owns summary selection, task persistence, usage accounting and summary placement; older entries remain in SQLite. Its summarization calls use the same configured model with low reasoning and the existing output ceiling, independently of the coordinator's high reasoning for task execution. `context.ts` relies on the pinned Pi Durable 1.0 contract: `completeSimple` summarizes history and `streamSimple` runs tasks. Regression tests exercise both paths and reopening the resulting checkpoint.
+Pi Durable owns summary selection, task persistence, usage accounting and summary placement; older entries remain in SQLite. Its summarization calls use the same configured model with low reasoning and the existing output ceiling, independently of the coordinator's high reasoning for task execution. Frogie owns the pinned Pi Durable 1.1 boundary: `completeSimple` summarizes history and `streamSimple` runs tasks. Regression tests exercise both paths and reopening the resulting checkpoint.
 
 Before task generation, the runtime checks the SDK's context estimate against the configured window, reserving at least 16,384 tokens or the model output ceiling plus 4,096 tokens, whichever is larger. A failed or insufficient compaction cannot dispatch an over-budget request. The command fails with a specific context-compaction message, no provider request and no fabricated success. History, frozen command context, assignments, artifacts and website receipts remain intact; restarting does not automatically retry terminal commands. This guard does not claim that a provider's tokenizer and the SDK estimate always agree.
 

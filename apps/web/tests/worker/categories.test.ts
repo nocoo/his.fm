@@ -1,5 +1,5 @@
 import { readdirSync, readFileSync } from 'node:fs';
-import { defaultPrompts } from '@his-fm/contracts/prompt-defaults';
+import { defaultPrompts } from '@frogie/core/hisfm/prompts';
 import { Miniflare } from 'miniflare';
 import { afterAll, beforeAll, beforeEach, expect, it, vi } from 'vitest';
 import { type Category, categoryInputSchema } from '../../src/shared/category';

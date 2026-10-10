@@ -1,8 +1,8 @@
 import { createHash } from 'node:crypto';
+import { existsSync } from 'node:fs';
 import { mkdir } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-import { openNodeSqliteStorage } from '@earendil-works/pi-durable/storage/sqlite/node';
 import { WebsiteClient } from './client.ts';
 import { configuredModels, environmentSchema, loadConfig, website } from './config.ts';
 import { openRuntime } from './runtime.ts';
@@ -18,7 +18,6 @@ export const dependencies = {
   RuntimeStore,
   RuntimeTransport,
   WebsiteClient,
-  openNodeSqliteStorage,
   openRuntime,
 };
 export function parseArguments(args: string[]) {
@@ -58,11 +57,20 @@ export async function main(
   };
   try {
     store = new services.RuntimeStore(join(path, 'transport.sqlite'), identity);
+    if (
+      existsSync(join(path, 'pi.sqlite')) &&
+      !existsSync(join(path, 'frogie.sqlite')) &&
+      (store.database
+        .prepare("SELECT 1 FROM commands WHERE status NOT IN ('complete','failed','cancelled') LIMIT 1")
+        .get() ||
+        store.pending().length)
+    )
+      throw new Error('Resolve pending legacy work before starting Frogie.');
     transport = new services.RuntimeTransport(store, site);
     runtime = await services.openRuntime({
       config,
       models: services.configuredModels(config),
-      storage: await services.openNodeSqliteStorage(join(path, 'pi.sqlite')),
+      databasePath: join(path, 'frogie.sqlite'),
       store,
       transport,
       client: new services.WebsiteClient(site),

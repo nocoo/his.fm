@@ -12,6 +12,8 @@
 ## 当前产品与工程
 
 - [Native agent implementation and local operation](agent-implementation.md) — executable status, local acceptance and explicit limits.
+- [Frogie integration](frogie-integration.md) — definition ownership, compiled package delivery, native Host adapter and execution-state boundaries.
+- [Local agent development and debugging](local-agent-debug.md) — shared startup, read-only SQLite diagnostics and loopback inspection.
 
 - [系统架构](architecture.md)
 - [播客生产流程](production.md)

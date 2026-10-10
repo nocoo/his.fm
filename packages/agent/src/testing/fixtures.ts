@@ -2,11 +2,9 @@ import { EventEmitter } from 'node:events';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { createModels } from '@earendil-works/pi-ai/models';
-import { type FauxResponseStep, fauxProvider } from '@earendil-works/pi-ai/providers/faux';
-import { MemoryStorage } from '@earendil-works/pi-durable';
+import { defaultPrompts } from '@frogie/core/hisfm/prompts';
+import { createModelFixture, type ModelResponse } from '@frogie/core/testing';
 import { type AgentCommand, defaultSpeechSettings, type PageContext } from '@his-fm/contracts';
-import { defaultPrompts } from '@his-fm/contracts/prompt-defaults';
 import { vi } from 'vitest';
 import type WebSocket from 'ws';
 import { WebsiteClient } from '../client.ts';
@@ -106,10 +104,10 @@ export const snapshot = {
   proposals: [],
   online: true,
 };
-export async function fixture(responses: FauxResponseStep[] = [], options: { persistent?: boolean } = {}) {
+export async function fixture(responses: ModelResponse[] = [], options: { persistent?: boolean } = {}) {
   const directory = await mkdtemp(join(tmpdir(), 'hisfm-runtime-'));
   const config = testConfig(directory);
-  const fake = fauxProvider({
+  const { fake, models } = createModelFixture({
     provider: 'raven',
     models: [
       { id: 'gpt-6-astra', reasoning: true },
@@ -118,8 +116,6 @@ export async function fixture(responses: FauxResponseStep[] = [], options: { per
     tokensPerSecond: 100000,
   });
   fake.setResponses(responses);
-  const models = createModels();
-  models.setProvider(fake.provider);
   const store = new RuntimeStore(join(directory, 'transport.sqlite'), 'test');
   const socket = new FakeSocket();
   const logs: string[] = [];
@@ -156,13 +152,8 @@ export async function fixture(responses: FauxResponseStep[] = [], options: { per
     lifetime: 'task',
     thinkingLevel: 'high',
   }));
-  const storage = options.persistent
-    ? await (await import('@earendil-works/pi-durable/storage/sqlite/node')).openNodeSqliteStorage(
-        join(directory, 'pi.sqlite'),
-      )
-    : new MemoryStorage();
   const runtime = await openRuntime({
-    storage,
+    ...(options.persistent ? { databasePath: join(directory, 'frogie.sqlite') } : {}),
     models,
     config,
     store,

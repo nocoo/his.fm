@@ -1,4 +1,4 @@
-import { defaultPrompts } from '@his-fm/contracts/prompt-defaults';
+import { defaultPrompts } from '@frogie/core/hisfm/prompts';
 import { describe, expect, it } from 'vitest';
 import {
   actionNames,

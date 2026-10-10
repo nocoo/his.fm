@@ -1,15 +1,12 @@
-import { BACKGROUND_CONTEXT } from '@earendil-works/chord/context';
-import { fauxAssistantMessage, fauxToolCall } from '@earendil-works/pi-ai/providers/faux';
-import type { ToolExecutionApi } from '@earendil-works/pi-durable';
-import { NodeExecutionEnv } from '@earendil-works/pi-durable/env/node';
+import { assistantMessage, testHost, toolCall } from '@frogie/core/testing';
 import { expect, it, vi } from 'vitest';
 import { fixture, testCommand, testContext } from './testing/fixtures.ts';
 import { acceptWork, successfulResult } from './testing/outcomes.ts';
 
 type Fixture = Awaited<ReturnType<typeof fixture>>;
 async function activeFixture() {
-  let release = (_message: ReturnType<typeof fauxAssistantMessage>) => {};
-  const block = new Promise<ReturnType<typeof fauxAssistantMessage>>((resolve) => {
+  let release = (_message: ReturnType<typeof assistantMessage>) => {};
+  const block = new Promise<ReturnType<typeof assistantMessage>>((resolve) => {
     release = resolve;
   });
   const test = await fixture([() => block]);
@@ -18,26 +15,15 @@ async function activeFixture() {
   await expect.poll(() => test.fake.state.callCount).toBe(1);
   return {
     ...test,
-    release: () => release(fauxAssistantMessage('完成')),
+    release: () => release(assistantMessage('完成')),
     close: async () => {
-      release(fauxAssistantMessage('完成'));
+      release(assistantMessage('完成'));
       await test.close();
     },
   };
 }
-function invoke(
-  test: Fixture,
-  name: string,
-  args: unknown,
-  id = 9001,
-  conversationId = test.runtime.root.id,
-) {
-  const tool = test.runtime.registry
-    .snapshot()
-    .tools()
-    .find((item) => item.tool.name === name)?.tool;
-  assert(tool);
-  return tool.execute(args as never, { taskId: id, conversationId } as ToolExecutionApi, BACKGROUND_CONTEXT);
+function invoke(test: Fixture, name: string, args: unknown, id = 9001, conversationId = test.runtime.rootId) {
+  return testHost(test.runtime.host).tool(name, args, { taskId: id, conversationId });
 }
 const plain = (result: Awaited<ReturnType<typeof invoke>>) =>
   result.content?.map((item) => (item.type === 'text' ? item.text : '')).join('') ?? '';
@@ -55,9 +41,9 @@ it('accepts inspected criteria and fixed counts, and requires the independent re
       .prepare('UPDATE commands SET payload=? WHERE id=?')
       .run(JSON.stringify(testCommand('command-1', '读取21页并独立审校')), 'command-1');
     test.fake.setResponses([
-      fauxAssistantMessage(
+      assistantMessage(
         [
-          fauxToolCall('submit_result', {
+          toolCall('submit_result', {
             ...successfulResult('21页摘要'),
             criteria: { required: 21, met: 21 },
           }),
@@ -92,7 +78,7 @@ it('accepts inspected criteria and fixed counts, and requires the independent re
     ];
     await expect(invoke(test, 'finish_command', finish)).rejects.toThrow('独立审校');
     test.fake.setResponses([
-      fauxAssistantMessage([fauxToolCall('submit_result', successfulResult('独立复核通过'))], {
+      assistantMessage([toolCall('submit_result', successfulResult('独立复核通过'))], {
         stopReason: 'toolUse',
       }),
     ]);
@@ -118,8 +104,8 @@ it('accepts inspected criteria and fixed counts, and requires the independent re
 it('rejects unproven counts, altered outcomes and acceptance while work is still running', async () => {
   const test = await activeFixture();
   let release = () => {};
-  const blocked = new Promise<ReturnType<typeof fauxAssistantMessage>>((resolve) => {
-    release = () => resolve(fauxAssistantMessage('paused'));
+  const blocked = new Promise<ReturnType<typeof assistantMessage>>((resolve) => {
+    release = () => resolve(assistantMessage('paused'));
   });
   try {
     test.fake.setResponses([() => blocked]);
@@ -379,7 +365,7 @@ it('freezes assignment plans, reuses only idle compatible residents and retires 
   const test = await activeFixture();
   try {
     test.fake.setResponses([
-      fauxAssistantMessage([fauxToolCall('submit_result', successfulResult('# 审校结果'))], {
+      assistantMessage([toolCall('submit_result', successfulResult('# 审校结果'))], {
         stopReason: 'toolUse',
       }),
     ]);
@@ -409,7 +395,7 @@ it('freezes assignment plans, reuses only idle compatible residents and retires 
     ).toContain('complete');
     test.decide.mockResolvedValue({ reuse: true, lifetime: 'resident', thinkingLevel: 'high' } as never);
     test.fake.setResponses([
-      fauxAssistantMessage([fauxToolCall('submit_result', successfulResult('# 复审结果'))], {
+      assistantMessage([toolCall('submit_result', successfulResult('# 复审结果'))], {
         stopReason: 'toolUse',
       }),
     ]);
@@ -439,8 +425,8 @@ it('freezes assignment plans, reuses only idle compatible residents and retires 
 it('limits concurrent work, rejects busy retirement and cancels the execution scope without erasing resident history', async () => {
   const test = await activeFixture();
   let release = () => {};
-  const wait = new Promise<ReturnType<typeof fauxAssistantMessage>>((resolve) => {
-    release = () => resolve(fauxAssistantMessage('late output'));
+  const wait = new Promise<ReturnType<typeof assistantMessage>>((resolve) => {
+    release = () => resolve(assistantMessage('late output'));
   });
   try {
     test.fake.setResponses([() => wait]);
@@ -478,7 +464,7 @@ it('limits concurrent work, rejects busy retirement and cancels the execution sc
 it('reuses idle task writers within one command and keeps production-scoped writers available after completion', async () => {
   const test = await activeFixture();
   const response = () =>
-    fauxAssistantMessage([fauxToolCall('submit_result', successfulResult('# 当前稿件'))], {
+    assistantMessage([toolCall('submit_result', successfulResult('# 当前稿件'))], {
       stopReason: 'toolUse',
     });
   try {
@@ -576,10 +562,10 @@ it('uses actual native CLI tools in executor environments without website creden
   const test = await activeFixture();
   try {
     test.fake.setResponses([
-      fauxAssistantMessage([fauxToolCall('bash', { command: 'printf "native-cli-ok"' })], {
+      assistantMessage([toolCall('bash', { command: 'printf "native-cli-ok"' })], {
         stopReason: 'toolUse',
       }),
-      fauxAssistantMessage([fauxToolCall('submit_result', successfulResult('# native-cli-ok'))], {
+      assistantMessage([toolCall('submit_result', successfulResult('# native-cli-ok'))], {
         stopReason: 'toolUse',
       }),
     ]);
@@ -596,8 +582,8 @@ it('uses actual native CLI tools in executor environments without website creden
 it('cancels all live work when a reconnect snapshot makes the command terminal', async () => {
   const test = await activeFixture();
   let release = () => {};
-  const waiting = new Promise<ReturnType<typeof fauxAssistantMessage>>((resolve) => {
-    release = () => resolve(fauxAssistantMessage('late'));
+  const waiting = new Promise<ReturnType<typeof assistantMessage>>((resolve) => {
+    release = () => resolve(assistantMessage('late'));
   });
   try {
     test.fake.setResponses([() => waiting]);
@@ -633,8 +619,8 @@ it('passes actual task complexity and revision intent, expires overdue dispatch 
       .poll(async () => (await test.runtime.work()).assignments['assignment:902']?.status)
       .toBe('failed');
     expect(test.decide.mock.calls[1]?.[0]).toMatchObject({ complexity: 'moderate' });
-    const family = test.runtime.registry.snapshot().extension('hisfm.coordinator');
-    expect(family).toBeDefined();
+    const coordinator = await testHost(test.runtime.host).agent(test.runtime.rootId);
+    expect(coordinator.tools.map((tool) => tool.name)).toContain('delegate');
   } finally {
     await test.close();
   }
@@ -643,10 +629,11 @@ it('passes actual task complexity and revision intent, expires overdue dispatch 
 it('reports absent execution handles as failed durable tasks rather than leaking exceptions', async () => {
   const test = await activeFixture();
   try {
-    const original = test.runtime.harness.conversation.bind(test.runtime.harness);
-    vi.spyOn(test.runtime.harness, 'conversation').mockImplementation(async (id, context) =>
-      id === test.runtime.root.id ? original(id, context) : undefined,
-    );
+    const original = test.runtime.host.run.bind(test.runtime.host);
+    vi.spyOn(test.runtime.host, 'run').mockImplementation(async (id, input) => {
+      if (id !== test.runtime.rootId) throw new Error('Missing conversation');
+      return original(id, input);
+    });
     await invoke(test, 'delegate', { role: 'writer', instructions: 'Write', revision: 1 }, 1001);
     await expect
       .poll(async () => (await test.runtime.work()).assignments['assignment:1001']?.status)
@@ -843,16 +830,14 @@ it('blocks only overlapping dirty fields and keeps unrelated source additions av
 it('does not acknowledge cancellation until root and child abort plus execution environment cleanup finish', async () => {
   const test = await activeFixture();
   let releaseWorker = () => {};
-  const worker = new Promise<ReturnType<typeof fauxAssistantMessage>>((resolve) => {
-    releaseWorker = () => resolve(fauxAssistantMessage('late worker'));
+  const worker = new Promise<ReturnType<typeof assistantMessage>>((resolve) => {
+    releaseWorker = () => resolve(assistantMessage('late worker'));
   });
   let releaseCleanup = () => {};
   const cleanupGate = new Promise<void>((resolve) => {
     releaseCleanup = resolve;
   });
-  const cleanup = vi
-    .spyOn(NodeExecutionEnv.prototype, 'cleanup')
-    .mockImplementationOnce(async () => cleanupGate);
+  const cleanup = vi.spyOn(test.runtime.host, 'cleanup').mockImplementationOnce(async () => cleanupGate);
   try {
     test.fake.setResponses([() => worker]);
     await invoke(test, 'delegate', { role: 'writer', instructions: 'Write', revision: 1 }, 1401);
@@ -888,7 +873,7 @@ it('retains pending cancellation on abort failure and recovers it without resubm
   const test = await activeFixture();
   try {
     const abort = vi
-      .spyOn(test.runtime.root, 'abort')
+      .spyOn(test.runtime.host, 'abort')
       .mockRejectedValueOnce(new Error('private abort error'));
     await expect(test.runtime.cancel('command-1')).rejects.toThrow('private abort error');
     expect(test.store.command('command-1')?.status).toBe('waiting');
@@ -979,7 +964,7 @@ it('snapshots editable instructions and fences resident reuse when the prompt ve
     test.channel.prompts.script = '逐字稿必须包含可核实的实例。';
     test.decide.mockResolvedValue({ reuse: false, lifetime: 'resident', thinkingLevel: 'high' });
     test.fake.setResponses([
-      fauxAssistantMessage([fauxToolCall('submit_result', successfulResult('Reviewed'))], {
+      assistantMessage([toolCall('submit_result', successfulResult('Reviewed'))], {
         stopReason: 'toolUse',
       }),
     ]);
@@ -994,15 +979,12 @@ it('snapshots editable instructions and fences resident reuse when the prompt ve
     const original = assignment.input;
     expect(JSON.parse(original).channel.prompts.script).toContain('可核实的实例');
     expect(JSON.parse(original).network.guidance).toBe('本次自定义网络说明。');
-    const conversation = await test.runtime.harness.conversation(
-      assignment.conversationId,
-      BACKGROUND_CONTEXT,
-    );
-    expect((await conversation?.agent(BACKGROUND_CONTEXT))?.instructions).toContain('新增的证据标准');
+    const agent = await testHost(test.runtime.host).agent(assignment.conversationId);
+    expect(agent.instructions).toContain('新增的证据标准');
     test.channel.version++;
     test.channel.prompts.reviewer = '新的审校标准。';
     test.fake.setResponses([
-      fauxAssistantMessage([fauxToolCall('submit_result', successfulResult('Reviewed again'))], {
+      assistantMessage([toolCall('submit_result', successfulResult('Reviewed again'))], {
         stopReason: 'toolUse',
       }),
     ]);

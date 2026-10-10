@@ -8,7 +8,7 @@ its controls now live at `?prompt=narration`. Category metadata remains in
 
 ## Inventory and consumers
 
-| Key | Previous source | Consumer |
+| Key | Original source | Consumer |
 | --- | --- | --- |
 | `content` | `worker/channel-default.md` | Global editorial guidance, unchanged owner content |
 | `coordinator` | Native `ROOT_POLICY` | Root system instructions for each durable input |
@@ -31,7 +31,7 @@ assigned deliverable, not to perform every stage. The production prompt API
 combines the saved stage, priority and boundary instructions with exact current
 production/category data. There is no duplicate browser default or native policy
 fallback. All named defaults reside in the **server/native-only**
-`@his-fm/contracts/prompt-defaults` entrypoint. The shared contracts root exports
+`@frogie/core/hisfm/prompts` entrypoint, built from Frogie’s `squads/hisfm/` Markdown files. The shared contracts root exports
 only keys, labels, limits and validation, not private prompt bodies.
 
 ## Storage, revision and privacy
@@ -58,7 +58,7 @@ fresh settings. Any channel revision change disqualifies old executor reuse;
 category revision fencing remains independent. Existing content, approvals,
 publication and terminal command states do not change when prompts are saved.
 
-Each compaction reads the current summary instruction. The pinned Pi Durable 1.0
+Each compaction reads the current summary instruction. The Frogie-owned Pi Durable 1.1
 boundary preserves its serialized conversation and optional additional focus,
 replacing only the English system/summary instruction. The SDK still owns cut
 selection, durable placement, usage and retry; history is never deleted. A format

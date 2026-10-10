@@ -1,5 +1,5 @@
+import { defaultPrompts } from '@frogie/core/hisfm/prompts';
 import { expect, it } from 'vitest';
-import { defaultPrompts } from './prompt-defaults.ts';
 import { promptKeys, promptLimit, promptSetSchema } from './prompts.ts';
 
 it('validates the complete Chinese prompt catalogue and rejects missing, unknown or oversized instructions', () => {

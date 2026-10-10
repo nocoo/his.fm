@@ -1,8 +1,7 @@
+import { channelDefault as defaultContent, defaultPrompts } from '@frogie/core/hisfm/prompts';
 import { promptSetSchema } from '@his-fm/contracts';
-import { defaultPrompts } from '@his-fm/contracts/prompt-defaults';
 import { type ChannelProfile, channelUpdateSchema, editorialPriority } from '../src/shared/channel';
 import type { Actor } from '../src/shared/production';
-import defaultContent from './channel-default.md?raw';
 import { HttpError, json } from './http';
 import { readJson } from './production-body';
 import { requireHuman } from './production-model';

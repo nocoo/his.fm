@@ -1,10 +1,7 @@
 import assert from 'node:assert/strict';
 import { join } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
-import { BACKGROUND_CONTEXT } from '@earendil-works/chord/context';
-import { fauxAssistantMessage, fauxToolCall } from '@earendil-works/pi-ai/providers/faux';
-import { defineDoc } from '@earendil-works/pi-durable';
-import { openNodeSqliteStorage } from '@earendil-works/pi-durable/storage/sqlite/node';
+import { assistantMessage, testHost, toolCall } from '@frogie/core/testing';
 import { afterEach, expect, it, vi } from 'vitest';
 import { openRuntime } from './runtime.ts';
 import { fixture, snapshot, testCommand, testContext } from './testing/fixtures.ts';
@@ -14,29 +11,22 @@ afterEach(() => vi.restoreAllMocks());
 
 it('preserves completed legacy history and stops unfinished assignments missing the current command envelope', async () => {
   let release = () => {};
-  const block = new Promise<ReturnType<typeof fauxAssistantMessage>>((resolve) => {
-    release = () => resolve(fauxAssistantMessage('interrupted'));
+  const block = new Promise<ReturnType<typeof assistantMessage>>((resolve) => {
+    release = () => resolve(assistantMessage('interrupted'));
   });
   const response = (_context: unknown, _options: unknown, _state: unknown, model: { id: string }) =>
-    model.id === 'gpt-6.1-sol' ? block : fauxAssistantMessage('等待任务');
+    model.id === 'gpt-6.1-sol' ? block : assistantMessage('等待任务');
   const test = await fixture(
     [
-      fauxAssistantMessage(
-        [fauxToolCall('delegate', { role: 'writer', instructions: 'Research', revision: 1 })],
-        { stopReason: 'toolUse' },
-      ),
+      assistantMessage([toolCall('delegate', { role: 'writer', instructions: 'Research', revision: 1 })], {
+        stopReason: 'toolUse',
+      }),
       response,
       response,
     ],
     { persistent: true },
   );
   let runtime = test.runtime;
-  const persistedWork = defineDoc<Awaited<ReturnType<typeof runtime.work>>>({
-    kind: 'hisfm.work',
-    version: 1,
-    scope: 'session',
-    initial: () => ({ assignments: {}, conversations: {} }),
-  });
   try {
     test.start();
     test.send();
@@ -55,23 +45,23 @@ it('preserves completed legacy history and stops unfinished assignments missing 
     };
     Reflect.deleteProperty(historical, 'outcome');
     Reflect.deleteProperty(historical, 'requiredCriteria');
-    await runtime.harness.commit(async (transaction) => {
-      const state = await transaction.doc(persistedWork);
+    await runtime.host.transact(async (transaction) => {
+      const state = await transaction.state();
       state.assignments.historical = historical;
       const pending = state.assignments[assignment.id];
       assert(pending);
       pending.input = '{"instructions":"Old restricted task"}';
       Reflect.deleteProperty(pending, 'outcome');
       Reflect.deleteProperty(pending, 'requiredCriteria');
-    }, BACKGROUND_CONTEXT);
+    });
     const closing = runtime.close();
     release();
     await closing;
     const calls = test.fake.state.callCount;
     test.fake.setResponses([
-      fauxAssistantMessage(
+      assistantMessage(
         [
-          fauxToolCall('finish_command', {
+          toolCall('finish_command', {
             markdown: '旧任务需要按当前指令重新派发。',
             outcome: 'blocked',
             acceptedAssignmentIds: [],
@@ -84,7 +74,7 @@ it('preserves completed legacy history and stops unfinished assignments missing 
     runtime = await openRuntime({
       config: test.config,
       models: test.models,
-      storage: await openNodeSqliteStorage(join(test.directory, 'pi.sqlite')),
+      databasePath: join(test.directory, 'frogie.sqlite'),
       store: test.store,
       transport: test.transport,
       client: test.client,
@@ -109,9 +99,9 @@ it('preserves completed legacy history and stops unfinished assignments missing 
 it('replays a durable finish and its outbox after reopening without another model call', async () => {
   const test = await fixture(
     [
-      fauxAssistantMessage(
+      assistantMessage(
         [
-          fauxToolCall('finish_command', {
+          toolCall('finish_command', {
             markdown: '结果已确认',
             outcome: 'done',
             acceptedAssignmentIds: [],
@@ -136,7 +126,7 @@ it('replays a durable finish and its outbox after reopening without another mode
     runtime = await openRuntime({
       config: test.config,
       models: test.models,
-      storage: await openNodeSqliteStorage(join(test.directory, 'pi.sqlite')),
+      databasePath: join(test.directory, 'frogie.sqlite'),
       store: test.store,
       transport: test.transport,
       client: test.client,
@@ -156,14 +146,14 @@ it('replays a durable finish and its outbox after reopening without another mode
 });
 
 it('reuses production writers across commands but isolates other productions and retired identities', async () => {
-  const tool = (name: string, args: Parameters<typeof fauxToolCall>[1]) =>
-    fauxAssistantMessage([fauxToolCall(name, args)], { stopReason: 'toolUse' });
+  const tool = (name: string, args: Parameters<typeof toolCall>[1]) =>
+    assistantMessage([toolCall(name, args)], { stopReason: 'toolUse' });
   const dispatch = () =>
     tool('delegate', { role: 'writer', instructions: 'Revise this script', revision: 1 });
   const result = (_context: unknown, _options: unknown, _state: unknown, model: { id: string }) =>
     model.id === 'gpt-6.1-sol'
       ? tool('submit_result', successfulResult('# 稿件'))
-      : fauxAssistantMessage('等待写作');
+      : assistantMessage('等待写作');
   const responses = () => [dispatch(), result, result];
   const test = await fixture(responses());
   test.fake.appendResponses(acceptWork(test));
@@ -187,7 +177,7 @@ it('reuses production writers across commands but isolates other productions and
     expect(Object.keys((await test.runtime.work()).conversations)).toHaveLength(2);
     test.fake.setResponses([
       tool('retire_conversation', { id: String(first?.id) }),
-      fauxAssistantMessage('已结束这期写作'),
+      assistantMessage('已结束这期写作'),
     ]);
     test.send(testCommand('retire', '结束这期写作', page('p')));
     await expect.poll(() => test.store.command('retire')?.status).toBe('complete');
@@ -212,15 +202,15 @@ it('reuses production writers across commands but isolates other productions and
 
 it('retires unscoped task writers at command completion instead of reusing unrelated general work', async () => {
   const dispatch = () =>
-    fauxAssistantMessage([fauxToolCall('delegate', { role: 'writer', instructions: 'Write', revision: 1 })], {
+    assistantMessage([toolCall('delegate', { role: 'writer', instructions: 'Write', revision: 1 })], {
       stopReason: 'toolUse',
     });
   const result = (_context: unknown, _options: unknown, _state: unknown, model: { id: string }) =>
     model.id === 'gpt-6.1-sol'
-      ? fauxAssistantMessage([fauxToolCall('submit_result', successfulResult('# 稿件'))], {
+      ? assistantMessage([toolCall('submit_result', successfulResult('# 稿件'))], {
           stopReason: 'toolUse',
         })
-      : fauxAssistantMessage('等待');
+      : assistantMessage('等待');
   const responses = () => [dispatch(), result, result];
   const test = await fixture(responses());
   test.fake.appendResponses(acceptWork(test));
@@ -260,7 +250,7 @@ it('persists snapshot cancellation before the command body and eventually confir
 });
 
 it('reopens real Pi SQLite and replays the same root request without another model turn', async () => {
-  const test = await fixture([fauxAssistantMessage('持久回复')], { persistent: true });
+  const test = await fixture([assistantMessage('持久回复')], { persistent: true });
   let runtime = test.runtime;
   try {
     test.start();
@@ -272,7 +262,7 @@ it('reopens real Pi SQLite and replays the same root request without another mod
     runtime = await openRuntime({
       config: test.config,
       models: test.models,
-      storage: await openNodeSqliteStorage(join(test.directory, 'pi.sqlite')),
+      databasePath: join(test.directory, 'frogie.sqlite'),
       store: test.store,
       transport: test.transport,
       client: test.client,
@@ -290,7 +280,7 @@ it('reopens real Pi SQLite and replays the same root request without another mod
 
 it('recovers queued commands without starting models offline, and redacts model or HTTP failures', async () => {
   const test = await fixture([
-    fauxAssistantMessage('unavailable', { stopReason: 'error', errorMessage: 'fake-model-key private' }),
+    assistantMessage('unavailable', { stopReason: 'error', errorMessage: 'fake-model-key private' }),
   ]);
   try {
     test.store.receive(testCommand());
@@ -309,14 +299,14 @@ it('recovers queued commands without starting models offline, and redacts model 
 });
 
 it('honors cancellation before command replay, live cancellation and safe cancel failures', async () => {
-  const test = await fixture([fauxAssistantMessage('unused')]);
+  const test = await fixture([assistantMessage('unused')]);
   try {
     test.start();
     test.socket.receive({ type: 'cancel', commandId: 'command-1' });
     test.send();
     await expect.poll(() => test.store.command('command-1')?.status).toBe('cancelled');
     expect(test.fake.state.callCount).toBe(0);
-    const snapshot = vi.spyOn(test.runtime.harness, 'snapshot').mockRejectedValueOnce(new Error('private'));
+    const snapshot = vi.spyOn(test.runtime.host, 'snapshot').mockRejectedValueOnce(new Error('private'));
     test.socket.receive({ type: 'cancel', commandId: 'missing' });
     await expect.poll(() => test.logs.join()).toContain('取消处理中');
     snapshot.mockRestore();
@@ -331,7 +321,7 @@ it('bounds root execution time and never marks an aborted run successful', async
   const test = await fixture([
     async () => {
       await delay(50);
-      return fauxAssistantMessage('late');
+      return assistantMessage('late');
     },
   ]);
   try {
@@ -347,18 +337,18 @@ it('bounds root execution time and never marks an aborted run successful', async
 
 it('times out child execution and reports missing result rather than fabricating Markdown', async () => {
   const test = await fixture([
-    fauxAssistantMessage([fauxToolCall('delegate', { role: 'writer', instructions: 'Write', revision: 1 })], {
+    assistantMessage([toolCall('delegate', { role: 'writer', instructions: 'Write', revision: 1 })], {
       stopReason: 'toolUse',
     }),
     async (_context, _options, _state, model) => {
       if (model.id === 'gpt-6.1-sol') await delay(50);
-      return fauxAssistantMessage('No result submitted');
+      return assistantMessage('No result submitted');
     },
     async (_context, _options, _state, model) => {
       if (model.id === 'gpt-6.1-sol') await delay(50);
-      return fauxAssistantMessage('No result submitted');
+      return assistantMessage('No result submitted');
     },
-    fauxAssistantMessage('执行没有返回有效成果。'),
+    assistantMessage('执行没有返回有效成果。'),
   ]);
   try {
     test.config.runtime.maxTaskMinutes = 0.0006;
@@ -375,13 +365,13 @@ it('times out child execution and reports missing result rather than fabricating
 });
 
 it('does not publish empty final text and catches status synchronization failures', async () => {
-  const test = await fixture([fauxAssistantMessage('')]);
+  const test = await fixture([assistantMessage('')]);
   try {
     test.start();
     test.send();
     await expect.poll(() => test.store.command('command-1')?.status).toBe('complete');
     expect(test.logs).not.toContain('');
-    vi.spyOn(test.runtime.harness, 'snapshot').mockRejectedValueOnce(new Error('private storage'));
+    vi.spyOn(test.runtime.host, 'snapshot').mockRejectedValueOnce(new Error('private storage'));
     await test.runtime.pump();
     expect(test.logs.join()).not.toContain('private storage');
     test.transport.emit('terminal', 'unknown');
@@ -397,7 +387,7 @@ it('reports terminal cleanup and status persistence failures without raw excepti
     test.start();
     await test.runtime.pump();
     const snapshot = vi
-      .spyOn(test.runtime.harness, 'snapshot')
+      .spyOn(test.runtime.host, 'snapshot')
       .mockRejectedValueOnce(new Error('secret exception'));
     test.transport.emit('terminal', 'unknown');
     await expect.poll(() => test.logs.join()).toContain('恢复终态任务');
@@ -414,8 +404,8 @@ it('reports terminal cleanup and status persistence failures without raw excepti
 
 it('leaves interrupted durable work recoverable on close without changing it to failed', async () => {
   let release = () => {};
-  const block = new Promise<ReturnType<typeof fauxAssistantMessage>>((resolve) => {
-    release = () => resolve(fauxAssistantMessage('after close'));
+  const block = new Promise<ReturnType<typeof assistantMessage>>((resolve) => {
+    release = () => resolve(assistantMessage('after close'));
   });
   const test = await fixture([() => block], { persistent: true });
   try {
@@ -434,17 +424,16 @@ it('leaves interrupted durable work recoverable on close without changing it to 
 
 it('resumes an existing nonterminal assignment after reopening without recreating conversation or input', async () => {
   let release = () => {};
-  const block = new Promise<ReturnType<typeof fauxAssistantMessage>>((resolve) => {
-    release = () => resolve(fauxAssistantMessage('interrupted'));
+  const block = new Promise<ReturnType<typeof assistantMessage>>((resolve) => {
+    release = () => resolve(assistantMessage('interrupted'));
   });
   const response = (_context: unknown, _options: unknown, _state: unknown, model: { id: string }) =>
-    model.id === 'gpt-6.1-sol' ? block : fauxAssistantMessage('等待成果');
+    model.id === 'gpt-6.1-sol' ? block : assistantMessage('等待成果');
   const test = await fixture(
     [
-      fauxAssistantMessage(
-        [fauxToolCall('delegate', { role: 'writer', instructions: 'Write', revision: 1 })],
-        { stopReason: 'toolUse' },
-      ),
+      assistantMessage([toolCall('delegate', { role: 'writer', instructions: 'Write', revision: 1 })], {
+        stopReason: 'toolUse',
+      }),
       response,
       response,
     ],
@@ -460,15 +449,15 @@ it('resumes an existing nonterminal assignment after reopening without recreatin
     release();
     await close;
     test.fake.setResponses([
-      fauxAssistantMessage([fauxToolCall('submit_result', successfulResult('# 恢复稿件'))], {
+      assistantMessage([toolCall('submit_result', successfulResult('# 恢复稿件'))], {
         stopReason: 'toolUse',
       }),
-      fauxAssistantMessage('恢复完成'),
+      assistantMessage('恢复完成'),
     ]);
     runtime = await openRuntime({
       config: test.config,
       models: test.models,
-      storage: await openNodeSqliteStorage(join(test.directory, 'pi.sqlite')),
+      databasePath: join(test.directory, 'frogie.sqlite'),
       store: test.store,
       transport: test.transport,
       client: test.client,
@@ -481,7 +470,7 @@ it('resumes an existing nonterminal assignment after reopening without recreatin
       .not.toBe('working');
     expect(Object.values((await runtime.work()).assignments)[0]?.conversationId).toBe(first?.conversationId);
     expect(test.decide).toHaveBeenCalledOnce();
-    expect(await runtime.root.agent(BACKGROUND_CONTEXT)).toMatchObject({ thinkingLevel: 'high' });
+    expect(await testHost(runtime.host).agent(runtime.rootId)).toMatchObject({ thinkingLevel: 'high' });
   } finally {
     release();
     await runtime.close();
@@ -491,16 +480,16 @@ it('resumes an existing nonterminal assignment after reopening without recreatin
 
 it('keeps a resident reviewer reusable across logical owner commands while task writers retire', async () => {
   const dispatch = () =>
-    fauxAssistantMessage(
-      [fauxToolCall('delegate', { role: 'reviewer', instructions: 'Review facts', revision: 1 })],
+    assistantMessage(
+      [toolCall('delegate', { role: 'reviewer', instructions: 'Review facts', revision: 1 })],
       { stopReason: 'toolUse' },
     );
   const result = (_context: unknown, _options: unknown, _state: unknown, model: { id: string }) =>
     model.id === 'gpt-6.1-sol'
-      ? fauxAssistantMessage([fauxToolCall('submit_result', successfulResult('# 审校通过'))], {
+      ? assistantMessage([toolCall('submit_result', successfulResult('# 审校通过'))], {
           stopReason: 'toolUse',
         })
-      : fauxAssistantMessage('正在审校。');
+      : assistantMessage('正在审校。');
   const responses = () => [dispatch(), result, result];
   const test = await fixture(responses());
   test.fake.appendResponses(acceptWork(test));

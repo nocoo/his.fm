@@ -58,7 +58,7 @@ Design review: start with the [Archify agent architecture map](docs/agent-archit
 ## Repository layout
 
 - `apps/web`: React website, Cloudflare Worker, migrations and tests (`@his-fm/web`).
-- `packages/agent`: resident Pi Durable coordinator, local model/Jev clients, conversations and durable transport.
+- `packages/agent`: resident coordinator using [Frogie's local Host](docs/frogie-integration.md), with local model/Jev configuration, business tools and durable transport.
 - `packages/contracts`: shared validated browser/agent/server protocol.
 - Root `package.json` and `package-lock.json`: one release version and one npm workspace dependency graph. Root commands delegate to the web workspace.
 - `artwork`, `episodes`, `docs` and repository-level `scripts` stay at root. Local Worker secrets live in `apps/web/.dev.vars`; persistent state lives in `apps/web/.cloudflare/state`.

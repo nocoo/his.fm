@@ -1,13 +1,8 @@
-import { readFileSync } from 'node:fs';
 import { mkdir } from 'node:fs/promises';
-import { defaultPrompts } from '@his-fm/contracts/prompt-defaults';
+import { defaultPrompts, channelDefault as initialContent } from '@frogie/core/hisfm/prompts';
 import { expect, type Page, test } from '@playwright/test';
 import type { ChannelProfile } from '../../src/shared/channel';
 
-const initialContent = readFileSync(
-  new URL('../../worker/channel-default.md', import.meta.url),
-  'utf8',
-).trim();
 async function mockChannel(page: Page) {
   let channel: ChannelProfile = {
     version: 1,

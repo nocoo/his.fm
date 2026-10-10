@@ -1,4 +1,4 @@
-import { fauxAssistantMessage, fauxToolCall } from '@earendil-works/pi-ai/providers/faux';
+import { assistantMessage, toolCall } from '@frogie/core/testing';
 import type { fixture } from './fixtures.ts';
 
 export const successfulResult = (markdown: string) => ({
@@ -13,10 +13,10 @@ export function acceptWork(test: Awaited<ReturnType<typeof fixture>>, markdown =
       const assignments = Object.values((await test.runtime.work()).assignments);
       const active = test.store.next()?.commandId;
       const accepted = assignments.filter((assignment) => assignment.commandId === active);
-      return fauxAssistantMessage(
+      return assistantMessage(
         accepted.length
-          ? accepted.map((assignment) => fauxToolCall('inspect_work', { id: assignment.id }))
-          : [fauxToolCall('read_latest', {})],
+          ? accepted.map((assignment) => toolCall('inspect_work', { id: assignment.id }))
+          : [toolCall('read_latest', {})],
         { stopReason: 'toolUse' },
       );
     },
@@ -24,9 +24,9 @@ export function acceptWork(test: Awaited<ReturnType<typeof fixture>>, markdown =
       const assignments = Object.values((await test.runtime.work()).assignments);
       const active = test.store.next()?.commandId;
       const accepted = assignments.filter((assignment) => assignment.commandId === active);
-      return fauxAssistantMessage(
+      return assistantMessage(
         [
-          fauxToolCall('finish_command', {
+          toolCall('finish_command', {
             markdown,
             outcome: 'done',
             acceptedAssignmentIds: accepted.map((assignment) => assignment.id),

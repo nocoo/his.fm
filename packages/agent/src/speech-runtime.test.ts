@@ -1,13 +1,12 @@
-import { BACKGROUND_CONTEXT } from '@earendil-works/chord/context';
-import { fauxAssistantMessage, fauxToolCall } from '@earendil-works/pi-ai/providers/faux';
+import { assistantMessage, testHost, toolCall } from '@frogie/core/testing';
 import { afterEach, expect, it, vi } from 'vitest';
 import { fixture, testCommand } from './testing/fixtures.ts';
 import { acceptWork, successfulResult } from './testing/outcomes.ts';
 
 const execute = vi.hoisted(() => vi.fn());
 vi.mock('./speech-job.ts', () => ({ runSpeechJob: execute }));
-const call = (name: string, args: Parameters<typeof fauxToolCall>[1]) =>
-  fauxAssistantMessage([fauxToolCall(name, args)], { stopReason: 'toolUse' });
+const call = (name: string, args: Parameters<typeof toolCall>[1]) =>
+  assistantMessage([toolCall(name, args)], { stopReason: 'toolUse' });
 afterEach(() => {
   execute.mockReset();
   vi.unstubAllEnvs();
@@ -39,9 +38,9 @@ it('delegates speech to a restricted conversation and requires a successful webs
           revision: 1,
         });
       const assignment = Object.values((await test.runtime.work()).assignments)[0];
-      if (assignment?.status !== 'complete') return fauxAssistantMessage('正在生成。');
+      if (assignment?.status !== 'complete') return assistantMessage('正在生成。');
       const response = acceptance.shift();
-      return response ? response() : fauxAssistantMessage('已完成');
+      return response ? response() : assistantMessage('已完成');
     }),
   );
   try {
@@ -56,15 +55,8 @@ it('delegates speech to a restricted conversation and requires a successful webs
       nodeEnvProxyEnabled: true,
     });
     expect(JSON.parse(assignment.input).network.guidance).toContain('回环');
-    const conversation = await test.runtime.harness.conversation(
-      assignment.conversationId,
-      BACKGROUND_CONTEXT,
-    );
-    assert(conversation);
-    expect((await conversation.agent(BACKGROUND_CONTEXT)).tools.map((tool) => tool.name)).toEqual([
-      'generate_speech',
-      'submit_result',
-    ]);
+    const agent = await testHost(test.runtime.host).agent(assignment.conversationId);
+    expect(agent.tools.map((tool) => tool.name)).toEqual(['generate_speech', 'submit_result']);
     expect(test.store.get(`speech-receipt:${command.id}`)).toMatchObject({ complete: true });
     expect(JSON.stringify(test.socket.frames)).not.toContain('speechKeys');
   } finally {
@@ -74,7 +66,7 @@ it('delegates speech to a restricted conversation and requires a successful webs
 it('does not accept speech completion without a receipt', async () => {
   const test = await fixture([
     call('finish_command', { outcome: 'done', markdown: 'Done', acceptedAssignmentIds: [], checks: [] }),
-    fauxAssistantMessage('无法确认完成。'),
+    assistantMessage('无法确认完成。'),
   ]);
   const command = testCommand('speech:missing:attempt', 'Execute speechJobId=missing');
   command.context = null;

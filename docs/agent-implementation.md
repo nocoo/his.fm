@@ -2,6 +2,8 @@
 
 The architecture diagrams in docs 01-03 are design references. This file distinguishes the executable local slice from remaining production/feature work; it is not a whole-system certification or a deployment claim.
 
+The local execution adapter and all role defaults are supplied by the compiled Frogie package. See [Frogie integration](frogie-integration.md) for ownership and package updates.
+
 ## Running locally
 
 1. Run `npm ci` through the approved registry, then `npm run dev` from the repository root.
@@ -17,11 +19,11 @@ The currently selected coordinator is `gpt-6-astra/high`; executors are `gpt-6.1
 - Strict shared WSS schemas, explicit owner enrollment, one station generation with D1 fencing, local/Access browser authentication and same-origin guards.
 - Durable commands, immutable command context, messages, statuses, pending draft proposals and operation receipts. Frames are acknowledged after persistence; snapshots and paginated history support browser recovery.
 - Hibernatable AgentHub, application heartbeats, timeout/auth expiry, single-agent connection, bounded browser delivery window and `delivery.ack`.
-- Pi Durable root coordinator, resident reviewers and task-scoped writers (same-production follow-up work can reuse a compatible writer through Jev; different productions cannot), explicit executor tool selection, native CLI/file tools, result documents, configured model gateways, instance lock and durable SQLite transport outbox.
-- Type-safe coordinator website operations using existing production state rules, CAS and transactionally attached receipts. Human approvals and real platform publication cannot be performed by the agent. Audio still uses the existing cloud Workflow and requires explicit generation intent plus approved script.
+- Frogie-hosted root coordinator, resident reviewers and task-scoped writers (same-production follow-up work can reuse a compatible writer through Jev; different productions cannot), explicit executor tool selection, native CLI/file tools, result documents, configured model gateways, instance lock and durable SQLite transport outbox.
+- Type-safe coordinator website operations using existing production state rules, CAS and transactionally attached receipts. Human approvals and real platform publication cannot be performed by the agent. Audio uses the native speech conversation and requires explicit generation intent plus approved script.
 - Ambient right sidebar; existing left editor and Save remain. Explicit page/field/draft/selection callbacks, no screenshot/DOM scraping or context-awareness controls. Exact proposals update draft without Save; dirty overlap remains explicit. Visited stages preserve text and undo; stable source IDs replace positional URLs.
 - Local development-only production WS proxy holds Access credentials in the process, never the browser. Its upgrade path is exclusively routed to avoid double handling by the Cloudflare Vite plugin.
-- Cancellation remains `cancelling` until local tasks have actually stopped. Audio dispatch responsibility survives a failed Workflow trigger through bounded AgentHub alarm retries of the original queued job.
+- Cancellation remains `cancelling` until local tasks have actually stopped. Audio dispatch responsibility survives a failed native dispatch through bounded AgentHub alarm retries of the original queued job.
 - Root L1 commands include web, contracts and runtime with four 95% coverage floors. The staged gate remaps workspace links into the index snapshot rather than testing live workspace files.
 
 ## Local acceptance evidence

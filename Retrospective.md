@@ -277,3 +277,18 @@ Regression checks now open menus in both themes at 320, 393, 768, 1024 and 1440p
 exercise long labels and keyboard focus, and resize live drafts across breakpoints.
 Keyboard tests must wait for the selected option to receive focus after opening
 the Radix portal before sending the next arrow key.
+
+## Compiled host adoption
+
+The first migration checks covered native agent tests but missed a contracts test
+that still imported the deleted prompt source. The complete workspace typecheck
+caught it. Run root workspace gates after moving shared assets, and validate the
+installed package rather than only its sibling source. New package exports also
+require refreshing the live Vite module graph before product acceptance; preserve
+durable commands instead of resubmitting when the local server reconnects.
+
+Recovery preflight must run before scheduling. Pi conversation abort itself starts
+scheduling, so cancelled or expired native tools could otherwise resume first.
+Frogie's paused inspection and staged task cancellation now fence this boundary;
+regressions verify cancelled root inputs and expired executors without new model
+calls, alongside a normal recovery control.

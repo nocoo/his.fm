@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { mkdir, readFile } from 'node:fs/promises';
+import { defaultPrompts } from '@frogie/core/hisfm/prompts';
 import { defaultSpeechSettings, wavHeader } from '@his-fm/contracts';
-import { defaultPrompts } from '@his-fm/contracts/prompt-defaults';
 import { expect, type Page, test } from '@playwright/test';
 import type { AgentTokenRecord, ProductionAction, ProductionSettings } from '../../src/shared/production';
 import {

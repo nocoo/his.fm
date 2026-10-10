@@ -1,118 +1,12 @@
 import assert from 'node:assert/strict';
 import { join } from 'node:path';
-import { BACKGROUND_CONTEXT } from '@earendil-works/chord/context';
-import { createModels } from '@earendil-works/pi-ai/models';
-import { fauxAssistantMessage, fauxProvider } from '@earendil-works/pi-ai/providers/faux';
-import { estimateContextTokens } from '@earendil-works/pi-ai/utils/estimate';
-import { AssistantEntry, UserEntry } from '@earendil-works/pi-durable';
-import { openNodeSqliteStorage } from '@earendil-works/pi-durable/storage/sqlite/node';
-import { defaultPrompts } from '@his-fm/contracts/prompt-defaults';
-import { expect, it, vi } from 'vitest';
-import { CONTEXT_BLOCKED, CONTEXT_FAILURE, contextModels } from './context.ts';
+import { assistantMessage, contextTokens, testHost } from '@frogie/core/testing';
+import { expect, it } from 'vitest';
 import { openRuntime } from './runtime.ts';
 import { fixture, testCommand, testContext } from './testing/fixtures.ts';
 
-it('replaces summary instructions while preserving source, model, budget and cancellation', async () => {
-  const fake = fauxProvider({ models: [{ id: 'coordinator' }] });
-  const models = createModels();
-  models.setProvider(fake.provider);
-  const complete = vi.spyOn(models, 'completeSimple');
-  const stream = vi.spyOn(models, 'streamSimple');
-  const guarded = contextModels(models, async () => defaultPrompts.compaction);
-  const model = fake.getModel();
-  const context = {
-    messages: [
-      {
-        role: 'user' as const,
-        content:
-          '<conversation>\nHistory\n</conversation>\nSDK instructions\n\nAdditional focus: keep evidence',
-        timestamp: 1,
-      },
-    ],
-  };
-  const options = { reasoning: 'high' as const, maxTokens: 8192, signal: new AbortController().signal };
-  fake.setResponses([fauxAssistantMessage('Summary'), fauxAssistantMessage('Answer')]);
-  expect((await guarded.completeSimple(model, context, options)).stopReason).toBe('stop');
-  expect(complete).toHaveBeenCalledWith(
-    model,
-    {
-      messages: [
-        expect.objectContaining({ role: 'system', content: defaultPrompts.compaction }),
-        expect.objectContaining({
-          role: 'user',
-          content: '<conversation>\nHistory\n</conversation>\n\nAdditional focus: keep evidence',
-        }),
-      ],
-    },
-    { ...options, reasoning: 'low' },
-  );
-  await expect(guarded.completeSimple(model, { messages: [] })).rejects.toThrow('格式');
-  expect((await guarded.streamSimple(model, context, options).result()).stopReason).toBe('stop');
-  expect(stream).toHaveBeenLastCalledWith(model, context, options);
-  expect(guarded.getModel(model.provider, model.id)).toEqual(model);
-  expect(Reflect.get(guarded, 'missing')).toBeUndefined();
-});
-
-it('blocks the recorded 123908-token failure locally without a provider call', async () => {
-  const fake = fauxProvider({ models: [{ id: 'coordinator', contextWindow: 128000, maxTokens: 8192 }] });
-  const models = createModels();
-  models.setProvider(fake.provider);
-  const guarded = contextModels(models, async () => defaultPrompts.compaction);
-  const previous = fauxAssistantMessage('Read the production', { timestamp: 100 });
-  previous.usage = { ...previous.usage, input: 122681, output: 42, totalTokens: 122723 };
-  const context = {
-    messages: [previous, { role: 'user' as const, content: 'x'.repeat(1185 * 4), timestamp: 101 }],
-  };
-  expect(estimateContextTokens(context.messages).tokens).toBe(123908);
-  const events = guarded.streamSimple(fake.getModel(), context);
-  const received = [];
-  for await (const event of events) received.push(event);
-  expect(received).toHaveLength(1);
-  expect(received[0]).toMatchObject({ type: 'error', reason: 'error' });
-  expect(await events.result()).toMatchObject({
-    stopReason: 'error',
-    errorMessage: CONTEXT_BLOCKED,
-    usage: { totalTokens: 0 },
-  });
-  expect(fake.state.callCount).toBe(0);
-});
-
-it.each([123908, 983616, 983617])(
-  'applies the configured 1M window to a %i-token context',
-  async (tokens) => {
-    const fake = fauxProvider({ models: [{ id: 'coordinator', contextWindow: 1_000_000, maxTokens: 8192 }] });
-    const models = createModels();
-    models.setProvider(fake.provider);
-    fake.setResponses([fauxAssistantMessage('Allowed')]);
-    const previous = fauxAssistantMessage('Previous turn');
-    previous.usage = { ...previous.usage, input: tokens, totalTokens: tokens };
-    const result = await contextModels(models, async () => defaultPrompts.compaction)
-      .streamSimple(fake.getModel(), { messages: [previous] })
-      .result();
-    const allowed = tokens <= 1_000_000 - 16384;
-    expect(result.stopReason).toBe(allowed ? 'stop' : 'error');
-    expect(fake.state.callCount).toBe(allowed ? 1 : 0);
-  },
-);
-
-it.each([0, 128000])(
-  'permits safe requests with a %i-token window and counts system context',
-  async (window) => {
-    const fake = fauxProvider({ models: [{ id: 'coordinator', contextWindow: window, maxTokens: 8192 }] });
-    const models = createModels();
-    models.setProvider(fake.provider);
-    const guarded = contextModels(models, async () => defaultPrompts.compaction);
-    fake.setResponses([fauxAssistantMessage('Allowed')]);
-    expect((await guarded.streamSimple(fake.getModel(), { messages: [] }).result()).stopReason).toBe('stop');
-    const oversized = { messages: [], systemPrompt: 'x'.repeat(128000 * 4) };
-    if (window) {
-      expect((await guarded.streamSimple(fake.getModel(), oversized).result()).errorMessage).toBe(
-        CONTEXT_BLOCKED,
-      );
-      expect(fake.state.callCount).toBe(1);
-    }
-  },
-);
+const CONTEXT_FAILURE =
+  '上下文压缩未完成，已暂停本次任务并保留完整历史；未继续请求模型，请修复压缩后再重试。';
 
 async function congest(test: Awaited<ReturnType<typeof fixture>>) {
   const model = test.fake.getModel('gpt-6-astra');
@@ -120,21 +14,14 @@ async function congest(test: Awaited<ReturnType<typeof fixture>>) {
   model.maxTokens = test.config.coordinator.maxTokens;
   const history = [];
   for (let index = 0; index < 18; index++) {
-    const entry = await test.runtime.root.commit(
-      (tx) =>
-        tx.appendEntry(UserEntry, test.runtime.root.id, {
-          model: [{ role: 'user', content: `History ${index}: ${'x'.repeat(8000)}`, timestamp: index + 1 }],
-        }),
-      BACKGROUND_CONTEXT,
-    );
-    history.push(entry.id);
+    const entries = await testHost(test.runtime.host).appendHistory(test.runtime.rootId, [
+      { role: 'user', content: `History ${index}: ${'x'.repeat(8000)}`, timestamp: index + 1 },
+    ]);
+    history.push(...entries);
   }
-  const previous = fauxAssistantMessage('Previous command completed', { timestamp: Date.now() - 1 });
+  const previous = assistantMessage('Previous command completed', { timestamp: Date.now() - 1 });
   previous.usage = { ...previous.usage, input: 122681, output: 42, totalTokens: 122723 };
-  await test.runtime.root.commit(
-    (tx) => tx.appendEntry(AssistantEntry, test.runtime.root.id, { model: [previous] }),
-    BACKGROUND_CONTEXT,
-  );
+  await testHost(test.runtime.host).appendHistory(test.runtime.rootId, [previous]);
   return history;
 }
 
@@ -147,14 +34,14 @@ it('compacts and reopens a congested coordinator without deleting history or rep
         expect(options?.reasoning).toBe('low');
         expect(options?.maxTokens).toBe(8192);
         expect(model.id).toBe('gpt-6-astra');
-        return fauxAssistantMessage('Verified context checkpoint; approvals remain owner-only.');
+        return assistantMessage('Verified context checkpoint; approvals remain owner-only.');
       },
       (context, options) => {
         expect(options?.reasoning).toBe('high');
         expect(JSON.stringify(context)).toContain('Verified context checkpoint');
         expect(JSON.stringify(context)).toContain('new owner command');
-        expect(estimateContextTokens(context).tokens).toBeLessThan(30000);
-        return fauxAssistantMessage('Context recovered.');
+        expect(contextTokens(context)).toBeLessThan(30000);
+        return assistantMessage('Context recovered.');
       },
     ],
     { persistent: true },
@@ -167,15 +54,15 @@ it('compacts and reopens a congested coordinator without deleting history or rep
     test.send(testCommand('recovered', 'new owner command', testContext));
     await expect.poll(() => test.store.command('recovered')?.status).toBe('complete');
     expect(test.fake.state.callCount).toBe(2);
-    const context = await test.runtime.root.context(BACKGROUND_CONTEXT);
+    const context = await testHost(test.runtime.host).context(test.runtime.rootId);
     expect(context.head?.kind).toBe('pi.compaction');
-    const entries = await test.runtime.root.entries({}, 100, undefined, BACKGROUND_CONTEXT);
+    const entries = await testHost(test.runtime.host).entries(test.runtime.rootId);
     expect(entries.items.map((entry) => entry.id)).toEqual(expect.arrayContaining(history));
     expect(test.store.command('recovered')?.command.context).toEqual(testContext);
     expect(test.store.effects('recovered')).toEqual([]);
     await runtime.close();
     runtime = await openRuntime({
-      storage: await openNodeSqliteStorage(join(test.directory, 'pi.sqlite')),
+      databasePath: join(test.directory, 'frogie.sqlite'),
       models: test.models,
       config: test.config,
       store: test.store,
@@ -184,8 +71,8 @@ it('compacts and reopens a congested coordinator without deleting history or rep
       decide: test.decide,
       log: (text) => test.logs.push(text),
     });
-    expect((await runtime.root.context(BACKGROUND_CONTEXT)).head?.id).toBe(context.head?.id);
-    test.fake.appendResponses([fauxAssistantMessage('Next command completed.')]);
+    expect((await testHost(runtime.host).context(runtime.rootId)).head?.id).toBe(context.head?.id);
+    test.fake.appendResponses([assistantMessage('Next command completed.')]);
     test.send(testCommand('next', 'Confirm retained context'));
     await expect.poll(() => test.store.command('next')?.status).toBe('complete');
     expect(test.fake.state.callCount).toBe(3);
@@ -199,7 +86,7 @@ it.each(['length', 'error', 'stop'] as const)(
   'stops after a %s/empty summary with a safe error and no doomed generation',
   async (stopReason) => {
     const test = await fixture([
-      fauxAssistantMessage('', { stopReason, errorMessage: 'Invalid request: fake-model-key' }),
+      assistantMessage('', { stopReason, errorMessage: 'Invalid request: fake-model-key' }),
     ]);
     try {
       const history = await congest(test);
@@ -210,11 +97,9 @@ it.each(['length', 'error', 'stop'] as const)(
       expect(test.logs).toContain(CONTEXT_FAILURE);
       expect(test.logs.join()).not.toContain('检查连接');
       expect(test.logs.join()).not.toContain('fake-model-key');
-      expect((await test.runtime.root.context(BACKGROUND_CONTEXT)).head).toBeUndefined();
+      expect((await testHost(test.runtime.host).context(test.runtime.rootId)).head).toBeUndefined();
       expect(
-        (await test.runtime.root.entries({}, 100, undefined, BACKGROUND_CONTEXT)).items.map(
-          (entry) => entry.id,
-        ),
+        (await testHost(test.runtime.host).entries(test.runtime.rootId)).items.map((entry) => entry.id),
       ).toEqual(expect.arrayContaining(history));
       expect(test.store.effects('command-1')).toEqual([]);
     } finally {

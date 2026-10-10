@@ -36,7 +36,7 @@ it('reads bounded operational summaries without opening a harness or exposing to
     const before = store.database.prepare('SELECT count(*) AS count FROM outbox').get();
     expect(readRuntimeDebug(directory, 'c').commands).toEqual([{ id: 'c', status: 'queued' }]);
     expect(() => readRuntimeDebug(directory, 'unknown')).toThrow('没有找到');
-    const pi = new DatabaseSync(join(directory, 'pi.sqlite'));
+    const pi = new DatabaseSync(join(directory, 'frogie.sqlite'));
     pi.exec('CREATE TABLE entries(id INTEGER PRIMARY KEY, conversation_id INTEGER, record TEXT)');
     const insert = pi.prepare('INSERT INTO entries VALUES (?,?,?)');
     insert.run(

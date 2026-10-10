@@ -4,6 +4,7 @@ import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { pathToFileURL } from 'node:url';
+import { inspectDatabase } from '@frogie/core/host';
 import { type Environment, environmentSchema, loadConfig } from './config.ts';
 
 export function debugArguments(args: string[]) {
@@ -55,39 +56,11 @@ export function readRuntimeDebug(directory: string, commandId?: string) {
       )
       .get()?.count;
     const tools: { conversationId: number; name: string; count: number; failures: number }[] = [];
-    const piFile = join(directory, 'pi.sqlite');
+    const piFile = join(directory, 'frogie.sqlite');
     if (existsSync(piFile)) {
-      const pi = new DatabaseSync(piFile, { readOnly: true });
-      try {
-        const groups = new Map<string, (typeof tools)[number]>();
-        const rows = pi
-          .prepare(
-            "SELECT conversation_id, record FROM entries WHERE json_extract(record,'$.kind')='pi.tool-result' ORDER BY id DESC LIMIT 1000",
-          )
-          .all();
-        for (const row of rows) {
-          const value = JSON.parse(String(row.record)) as {
-            model?: { toolName?: string; isError?: boolean }[];
-          };
-          for (const message of value.model ?? []) {
-            if (!message.toolName) continue;
-            const key = `${row.conversation_id}:${message.toolName}`;
-            const item = groups.get(key) ?? {
-              conversationId: Number(row.conversation_id),
-              name: message.toolName,
-              count: 0,
-              failures: 0,
-            };
-            item.count++;
-            item.failures += Number(message.isError === true);
-            groups.set(key, item);
-          }
-        }
-        tools.push(...groups.values());
-      } finally {
-        pi.close();
-      }
+      tools.push(...inspectDatabase(piFile));
     }
+
     return {
       state: 'recorded',
       commands,

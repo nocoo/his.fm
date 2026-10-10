@@ -1,18 +1,17 @@
 import { createServer } from 'node:http';
-import { BACKGROUND_CONTEXT } from '@earendil-works/chord/context';
-import { fauxAssistantMessage, fauxThinking, fauxToolCall } from '@earendil-works/pi-ai/providers/faux';
-import { defaultPrompts } from '@his-fm/contracts/prompt-defaults';
+import { executorTools, workPolicy } from '@frogie/core/hisfm';
+import { defaultPrompts } from '@frogie/core/hisfm/prompts';
+import { assistantMessage, testHost, thinking, toolCall } from '@frogie/core/testing';
 import { expect, it } from 'vitest';
-import { executorTools, workPolicy } from './prompts.ts';
 import { fixture, testCommand } from './testing/fixtures.ts';
 import { acceptWork, successfulResult } from './testing/outcomes.ts';
 
-const call = (name: string, args: Parameters<typeof fauxToolCall>[1]) =>
-  fauxAssistantMessage([fauxToolCall(name, args)], { stopReason: 'toolUse' });
+const call = (name: string, args: Parameters<typeof toolCall>[1]) =>
+  assistantMessage([toolCall(name, args)], { stopReason: 'toolUse' });
 
 it('answers an owner command with durable request ID and excludes thinking from visible messages', async () => {
   const test = await fixture([
-    fauxAssistantMessage([fauxThinking('private deliberation'), { type: 'text', text: '哥，收到。' }]),
+    assistantMessage([thinking('private deliberation'), { type: 'text', text: '哥，收到。' }]),
   ]);
   try {
     test.start();
@@ -23,7 +22,7 @@ it('answers an owner command with durable request ID and excludes thinking from 
     test.send();
     await test.runtime.pump();
     expect(test.fake.state.callCount).toBe(1);
-    const agent = await test.runtime.root.agent(BACKGROUND_CONTEXT);
+    const agent = await testHost(test.runtime.host).agent(test.runtime.rootId);
     expect(agent.tools.map((tool) => tool.name)).toContain('delegate');
     expect(agent.tools.map((tool) => tool.name)).not.toContain('bash');
   } finally {
@@ -42,11 +41,11 @@ it('dispatches a real Pi execution conversation and routes its immutable Markdow
     (_context, _options, _state, model) =>
       model.id === 'gpt-6.1-sol'
         ? call('submit_result', successfulResult('# 初稿\n测试逐字稿。'))
-        : fauxAssistantMessage('已安排，稍后给你结果。'),
+        : assistantMessage('已安排，稍后给你结果。'),
     (_context, _options, _state, model) =>
       model.id === 'gpt-6.1-sol'
         ? call('submit_result', successfulResult('# 初稿\n测试逐字稿。'))
-        : fauxAssistantMessage('已安排，稍后给你结果。'),
+        : assistantMessage('已安排，稍后给你结果。'),
   ]);
   test.fake.appendResponses(acceptWork(test, '稿件已完成并核对。'));
   try {
@@ -74,17 +73,11 @@ it('dispatches a real Pi execution conversation and routes its immutable Markdow
       }),
     );
     assert(assignment);
-    const conversation = await test.runtime.harness.conversation(
-      assignment.conversationId,
-      BACKGROUND_CONTEXT,
-    );
-    assert(conversation);
-    expect((await conversation.agent(BACKGROUND_CONTEXT)).tools.map((tool) => tool.name)).toEqual(
+    const agent = await testHost(test.runtime.host).agent(assignment.conversationId);
+    expect(agent.tools.map((tool) => tool.name)).toEqual(
       expect.arrayContaining(['bash', 'read', 'write', 'edit', 'submit_result']),
     );
-    expect((await conversation.agent(BACKGROUND_CONTEXT)).tools.map((tool) => tool.name)).not.toContain(
-      'patch_production',
-    );
+    expect(agent.tools.map((tool) => tool.name)).not.toContain('patch_production');
   } finally {
     await test.close();
   }
@@ -93,8 +86,8 @@ it('dispatches a real Pi execution conversation and routes its immutable Markdow
 it('sends explicit reply tools once and serially handles queued owner commands', async () => {
   const test = await fixture([
     call('reply', { markdown: '第一条回复' }),
-    fauxAssistantMessage('not duplicated'),
-    fauxAssistantMessage('第二条回复'),
+    assistantMessage('not duplicated'),
+    assistantMessage('第二条回复'),
   ]);
   try {
     test.start();
@@ -117,7 +110,7 @@ it('scopes a prior CLI prohibition to its smoke command and retrieves 21 sources
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
   const address = server.address();
   assert(address && typeof address === 'object');
-  const test = await fixture([fauxAssistantMessage('冒烟测试收到。')]);
+  const test = await fixture([assistantMessage('冒烟测试收到。')]);
   try {
     test.start();
     test.send(testCommand('smoke', '这次冒烟测试禁止本机命令和网络访问，只回复收到。'));
@@ -154,7 +147,7 @@ it('scopes a prior CLI prohibition to its smoke command and retrieves 21 sources
             taskType: 'research',
           });
         const assignments = Object.values((await test.runtime.work()).assignments);
-        if (assignments[0]?.status !== 'complete') return fauxAssistantMessage('正在读取来源。');
+        if (assignments[0]?.status !== 'complete') return assistantMessage('正在读取来源。');
         const response = acceptance.shift();
         assert(response);
         return response();
@@ -170,7 +163,9 @@ it('scopes a prior CLI prohibition to its smoke command and retrieves 21 sources
       capabilities: { tools: ['read', 'write', 'edit', 'bash', 'submit_result'] },
       requiredCount: 21,
     });
-    expect((await test.runtime.root.agent(BACKGROUND_CONTEXT)).instructions).not.toContain('禁止本机命令');
+    expect((await testHost(test.runtime.host).agent(test.runtime.rootId)).instructions).not.toContain(
+      '禁止本机命令',
+    );
     expect(assignment.outcome).toMatchObject({ status: 'done', criteria: { required: 21, met: 21 } });
   } finally {
     await test.close();
@@ -189,7 +184,7 @@ it.each(['blocked', 'needs_input'] as const)(
             evidence: [],
             criteria: { required: 21, met: 0 },
           })
-        : fauxAssistantMessage('等待调研结果。');
+        : assistantMessage('等待调研结果。');
     const test = await fixture([
       call('delegate', { role: 'writer', instructions: 'Retrieve 21 pages', requiredCount: 21, revision: 1 }),
       result,
@@ -269,7 +264,7 @@ console.log('Verified 2 rows, total 180 seconds');`;
           });
         }
         if (Object.values((await test.runtime.work()).assignments)[0]?.status !== 'complete')
-          return fauxAssistantMessage('正在整理和核验数据。');
+          return assistantMessage('正在整理和核验数据。');
         const response = acceptance.shift();
         assert(response);
         return response();
@@ -286,14 +281,12 @@ console.log('Verified 2 rows, total 180 seconds');`;
         capabilities: { tools: executorTools, guidance: defaultPrompts.capabilities },
       });
       expect(assignment.outcome).toMatchObject({ status: 'done', criteria: { required: 2, met: 2 } });
-      const executor = await test.runtime.harness.conversation(assignment.conversationId, BACKGROUND_CONTEXT);
-      assert(executor);
-      const agent = await executor.agent(BACKGROUND_CONTEXT);
+      const agent = await testHost(test.runtime.host).agent(assignment.conversationId);
       expect(agent.instructions).toBe(
         `${workPolicy(defaultPrompts, role)}\n当前所有者指令：${JSON.stringify(owner)}`,
       );
       expect(agent.tools.map((tool) => tool.name)).toEqual(expect.arrayContaining(executorTools));
-      expect((await test.runtime.root.agent(BACKGROUND_CONTEXT)).instructions).toBe(
+      expect((await testHost(test.runtime.host).agent(test.runtime.rootId)).instructions).toBe(
         `${defaultPrompts.coordinator}\n当前所有者指令：${JSON.stringify(owner)}`,
       );
     } finally {
@@ -305,18 +298,22 @@ console.log('Verified 2 rows, total 180 seconds');`;
 import assert from 'node:assert/strict';
 
 it('loads saved coordinator instructions for the next command without restarting', async () => {
-  const test = await fixture([fauxAssistantMessage('First'), fauxAssistantMessage('Second')]);
+  const test = await fixture([assistantMessage('First'), assistantMessage('Second')]);
   try {
     test.channel.prompts.coordinator = '当前主控提示词甲。';
     test.start();
     test.send(testCommand('prompt-first'));
     await expect.poll(() => test.store.command('prompt-first')?.status).toBe('complete');
-    expect((await test.runtime.root.agent(BACKGROUND_CONTEXT)).instructions).toContain('当前主控提示词甲。');
+    expect((await testHost(test.runtime.host).agent(test.runtime.rootId)).instructions).toContain(
+      '当前主控提示词甲。',
+    );
     test.channel.version++;
     test.channel.prompts.coordinator = '当前主控提示词乙。';
     test.send(testCommand('prompt-second'));
     await expect.poll(() => test.store.command('prompt-second')?.status).toBe('complete');
-    expect((await test.runtime.root.agent(BACKGROUND_CONTEXT)).instructions).toContain('当前主控提示词乙。');
+    expect((await testHost(test.runtime.host).agent(test.runtime.rootId)).instructions).toContain(
+      '当前主控提示词乙。',
+    );
   } finally {
     await test.close();
   }

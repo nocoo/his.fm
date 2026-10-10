@@ -1,9 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { isAbsolute, join } from 'node:path';
-import type { Model } from '@earendil-works/pi-ai';
-import { openAICompletionsApi } from '@earendil-works/pi-ai/api/openai-completions.lazy';
-import { createModels, createProvider } from '@earendil-works/pi-ai/models';
+import { configuredModels as createHostModels } from '@frogie/core/host';
 import { speechSettingsSchema } from '@his-fm/contracts';
 import { z } from 'zod';
 
@@ -93,28 +91,17 @@ export function website(config: Config, environment: Environment) {
 }
 
 export function configuredModels(config: Config) {
-  const models = createModels();
-  const provider = config.providers.raven;
-  const entries: Model<'openai-completions'>[] = [config.coordinator, config.executor].map((selection) => ({
-    id: selection.model,
-    name: selection.model,
-    provider: selection.provider,
-    api: provider.api,
-    baseUrl: provider.baseUrl,
-    reasoning: true,
-    input: ['text'],
-    contextWindow: selection.contextWindow,
-    maxTokens: selection.maxTokens,
-    cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-  }));
-  models.setProvider(
-    createProvider({
+  return createHostModels([
+    {
       id: 'raven',
-      baseUrl: provider.baseUrl,
-      models: entries,
-      api: openAICompletionsApi(),
-      auth: { apiKey: { name: 'raven', resolve: async () => ({ auth: { apiKey: provider.apiKey } }) } },
-    }),
-  );
-  return models;
+      baseUrl: config.providers.raven.baseUrl,
+      apiKey: config.providers.raven.apiKey,
+      models: [config.coordinator, config.executor].map((selection) => ({
+        id: selection.model,
+        contextWindow: selection.contextWindow,
+        maxTokens: selection.maxTokens,
+        reasoning: true,
+      })),
+    },
+  ]);
 }

@@ -2,6 +2,15 @@
 
 All notable changes to his.fm are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions use the owner’s patch-only deployment policy in `AGENTS.md`, with the authoritative version in `package.json`.
 
+## 2.2.1
+
+### Changed
+
+- Move role definitions, all sixteen prompt defaults, channel policy and narration style into Frogie Markdown. Preserve existing D1 edits, category settings and immutable task/job snapshots.
+- Run resident conversations through `@frogie/core/host`, which owns Pi Durable integration, context compaction and execution diagnostics. his.fm retains Jev scheduling, website tools, approvals, speech execution and transport receipts.
+- Install the compiled Frogie 0.5.0 package from the tracked `vendor/` artifact, independently of a neighboring checkout. Require Node 26 or newer.
+- Store new execution state in `frogie.sqlite`, preserving `pi.sqlite` and existing transport history. Initial adoption checks for unfinished legacy commands and pending events; read-only debugging reports the new Host's tool diagnostics.
+
 ## 2.2.0 - 2026-10-05
 
 The owner explicitly requested this minor release (Y+1).

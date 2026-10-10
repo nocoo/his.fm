@@ -1,21 +1,7 @@
-import { createHash } from 'node:crypto';
-import { mkdir } from 'node:fs/promises';
+import { createHash, randomUUID } from 'node:crypto';
 import { join } from 'node:path';
-import { BACKGROUND_CONTEXT } from '@earendil-works/chord/context';
-import { type Models, Type } from '@earendil-works/pi-ai';
-import {
-  AssistantEntry,
-  type ConversationId,
-  configure,
-  createRegistry,
-  defineDoc,
-  defineExtension,
-  defineTool,
-  Harness,
-  type Storage,
-} from '@earendil-works/pi-durable';
-import { NodeExecutionEnv } from '@earendil-works/pi-durable/env/node';
-import { CodingTools } from '@earendil-works/pi-durable/tools';
+import { executorTools, loadHisfmDefinition, workPolicy } from '@frogie/core/hisfm';
+import { CONTEXT_BLOCKED, defineHostTool, type HostModels, openAgentHost } from '@frogie/core/host';
 import {
   type AgentCommand,
   type ConversationStatus,
@@ -24,18 +10,23 @@ import {
   proposalSchema,
   type ServerFrame,
 } from '@his-fm/contracts';
+import { Type } from 'typebox';
 import type { Channel, WebsiteClient } from './client.ts';
 import type { Config } from './config.ts';
-import { CONTEXT_BLOCKED, CONTEXT_FAILURE, contextModels } from './context.ts';
+
+const CONTEXT_FAILURE =
+  '上下文压缩未完成，已暂停本次任务并保留完整历史；未继续请求模型，请修复压缩后再重试。';
+
 import { type AssignmentPlan, type DecisionInput, decisions } from './decision.ts';
 import { executionEnvironment, networkContext } from './network.ts';
-import { executorTools, workPolicy } from './prompts.ts';
 import { runSpeechJob } from './speech-job.ts';
 import type { InputRecord, RuntimeStore } from './store.ts';
 import type { RuntimeTransport } from './transport.ts';
 
-const context = BACKGROUND_CONTEXT;
+type ConversationId = number;
 const digest = (value: unknown) => createHash('sha256').update(JSON.stringify(value)).digest('hex');
+const invalidAssignmentMessage =
+  '旧任务缺少当前指令、执行能力或提示词快照，已停止恢复。请基于当前需求重新派发；已有成果仍保留。';
 type Assignment = {
   id: string;
   commandId: string;
@@ -76,12 +67,6 @@ type Resident = {
   productionId: string | null;
 };
 type WorkState = { assignments: Record<string, Assignment>; conversations: Record<string, Resident> };
-const Work = defineDoc<WorkState>({
-  kind: 'hisfm.work',
-  version: 1,
-  scope: 'session',
-  initial: () => ({ assignments: {}, conversations: {} }),
-});
 const textResult = (value: unknown) => ({
   content: [{ type: 'text' as const, text: typeof value === 'string' ? value : JSON.stringify(value) }],
 });
@@ -103,8 +88,8 @@ function overlapsDraft(page: PageContext | null, changes: Record<string, unknown
 }
 
 export type RuntimeOptions = {
-  storage: Storage;
-  models: Models;
+  databasePath?: string;
+  models: HostModels;
   config: Config;
   store: RuntimeStore;
   transport: RuntimeTransport;
@@ -120,39 +105,19 @@ export async function openRuntime(options: RuntimeOptions) {
     void task.catch(() => log('后台任务出现错误，持久现场已保留。'));
   };
   const decide = options.decide ?? decisions(config);
-  const registry = createRegistry();
-  const environments = new Map<ConversationId, NodeExecutionEnv>();
+
   const running = new Map<string, Promise<void>>();
   const cancelling = new Map<string, Promise<void>>();
   let current: InputRecord | null = null;
+  let restoringInput: InputRecord | null = null;
   let pumping = false;
   let pumpPromise: Promise<void> | undefined;
   let stopped = false;
   let interval: ReturnType<typeof setInterval> | undefined;
   let allocation = Promise.resolve();
-  const harness = await Harness.open(
-    options.storage,
-    {
-      models: contextModels(options.models, async () => (await client.channel()).prompts.compaction),
-      registry,
-      settings: { extensions: [], toolExecution: 'sequential' },
-      env: async (target) => {
-        if (target.conversationId === (await harness.root(context)).id) return undefined;
-        let environment = environments.get(target.conversationId);
-        if (!environment) {
-          const directory = join(config.runtime.workspaceRoot, digest(target.conversationId));
-          await mkdir(directory, { recursive: true, mode: 0o700 });
-          environment = new NodeExecutionEnv({ cwd: directory, shellEnv: executionEnvironment() });
-          environments.set(target.conversationId, environment);
-        }
-        return environment;
-      },
-      onReport: () => log('会话出现内部错误，持久任务已保留。'),
-    },
-    context,
-  );
-  const root = await harness.root(context);
-  const work = async () => (await harness.snapshot(Work, context)) ?? { assignments: {}, conversations: {} };
+  let host: Awaited<ReturnType<typeof openAgentHost<WorkState>>>;
+  let rootId: number;
+  const work = async () => host.snapshot();
   const secrets = [
     config.providers.raven.apiKey,
     config.decision.apiKey,
@@ -183,7 +148,7 @@ export async function openRuntime(options: RuntimeOptions) {
     const state = await work();
     const conversations: ConversationStatus[] = [
       {
-        id: String(root.id),
+        id: String(rootId),
         role: '主控',
         lifetime: 'coordinator',
         status: current ? 'working' : 'idle',
@@ -216,12 +181,12 @@ export async function openRuntime(options: RuntimeOptions) {
     transport.send({ type: 'status', id: `status:${sequence}`, conversations });
   }
   async function finishAssignment(id: string, status: Assignment['status']) {
-    await harness.commit(async (transaction) => {
-      const state = await transaction.doc(Work);
+    await host.transact(async (transaction) => {
+      const state = await transaction.state();
       const assignment = state.assignments[id];
       if (assignment?.status !== 'working') return;
       assignment.status = commandStopped(assignment.commandId) ? 'cancelled' : status;
-    }, context);
+    });
     const assignment = (await work()).assignments[id];
     if (!assignment || commandStopped(assignment.commandId)) return;
     store.input(
@@ -241,8 +206,8 @@ export async function openRuntime(options: RuntimeOptions) {
     background(pump());
   }
   async function retireTasks(commandId: string, cancelled = false) {
-    await harness.commit(async (transaction) => {
-      const state = await transaction.doc(Work);
+    await host.transact(async (transaction) => {
+      const state = await transaction.state();
       for (const conversation of Object.values(state.conversations))
         if (
           conversation.lifetime === 'task' &&
@@ -250,7 +215,7 @@ export async function openRuntime(options: RuntimeOptions) {
           (cancelled || conversation.productionId === null)
         )
           conversation.retired = true;
-    }, context);
+    });
   }
   function launch(assignment: Assignment) {
     if (running.has(assignment.id) || stopped || commandStopped(assignment.commandId)) return;
@@ -262,47 +227,29 @@ export async function openRuntime(options: RuntimeOptions) {
         !envelope.channel?.prompts ||
         !assignment.requiredCriteria
       ) {
-        await (await harness.conversation(assignment.conversationId, context))?.abort(context);
-        visible(
-          `attention:${assignment.id}`,
-          assignment.commandId,
-          '旧任务缺少当前指令、执行能力或提示词快照，已停止恢复。请基于当前需求重新派发；已有成果仍保留。',
-        );
+        await host.abort(assignment.conversationId);
+        visible(`attention:${assignment.id}`, assignment.commandId, invalidAssignmentMessage);
         await finishAssignment(assignment.id, 'failed');
         return;
       }
-      const conversation = await harness.conversation(assignment.conversationId, context);
-      if (!conversation) throw new Error('执行会话不存在。');
-      await conversation.configure(
-        {
-          instructions: `${workPolicy(envelope.channel.prompts, assignment.role)}\n当前所有者指令：${JSON.stringify(envelope.ownerCommand)}`,
-        },
-        context,
-      );
       const remaining = assignment.createdAt + config.runtime.maxTaskMinutes * 60000 - Date.now();
       if (remaining <= 0) {
-        await conversation.abort(context);
+        await host.abort(assignment.conversationId);
         await finishAssignment(assignment.id, 'failed');
         return;
       }
-      const timer = setTimeout(() => {
-        background(conversation.abort(context));
-      }, remaining);
-      try {
-        const submission = await conversation.submit(
-          { type: 'input', requestId: assignment.id, content: assignment.input },
-          context,
+      const settled = await host.run(assignment.conversationId, {
+        requestId: assignment.id,
+        content: assignment.input,
+        instructions: `${workPolicy(envelope.channel.prompts, assignment.role)}\n当前所有者指令：${JSON.stringify(envelope.ownerCommand)}`,
+        timeoutMs: remaining,
+      });
+      const saved = (await work()).assignments[assignment.id];
+      if (!stopped)
+        await finishAssignment(
+          assignment.id,
+          settled.status === 'done' && saved?.result ? 'complete' : 'failed',
         );
-        const settled = await submission.wait(context);
-        const saved = (await work()).assignments[assignment.id];
-        if (!stopped)
-          await finishAssignment(
-            assignment.id,
-            settled.status === 'done' && saved?.result ? 'complete' : 'failed',
-          );
-      } finally {
-        clearTimeout(timer);
-      }
     })()
       .catch(async () => {
         if (!stopped) await finishAssignment(assignment.id, 'failed');
@@ -313,7 +260,7 @@ export async function openRuntime(options: RuntimeOptions) {
     running.set(assignment.id, execution);
     background(execution);
   }
-  const submitResult = defineTool({
+  const submitResult = defineHostTool({
     name: 'submit_result',
     description: '保存不可变的 Markdown 交付物、执行结果与证据。',
     replay: 'safe',
@@ -337,8 +284,8 @@ export async function openRuntime(options: RuntimeOptions) {
         (!args.evidence.length || (args.criteria && args.criteria.met < args.criteria.required))
       )
         throw new Error('完成成果需要证据且满足全部验收数量。');
-      await harness.commit(async (transaction) => {
-        const state = await transaction.doc(Work);
+      await host.transact(async (transaction) => {
+        const state = await transaction.state();
         const assignment = Object.values(state.assignments).find(
           (item) => item.conversationId === api.conversationId && item.status === 'working',
         );
@@ -358,17 +305,17 @@ export async function openRuntime(options: RuntimeOptions) {
           throw new Error('结果已固定。');
         assignment.result = result;
         assignment.outcome = outcome;
-      }, context);
+      });
       return { ...textResult({ saved: true, outcome: args.outcome }), control: { terminate: true } };
     },
   });
-  const generate = defineTool({
+  const generate = defineHostTool({
     name: 'generate_speech',
     description:
       '通过本机脚本执行当前已授权语音任务；不返回密钥或配置路径。返回成功回执作为证据，不伪造音频。',
     replay: 'safe',
     parameters: Type.Object({ jobId: Type.String({ pattern: '^[a-zA-Z0-9-]+$' }) }),
-    execute: async (args, api, executionContext) => {
+    execute: async (args, api) => {
       const assignment = Object.values((await work()).assignments).find(
         (item) => item.conversationId === api.conversationId && item.status === 'working',
       );
@@ -384,15 +331,13 @@ export async function openRuntime(options: RuntimeOptions) {
         args.jobId,
         assignment.commandId,
         join(config.runtime.workspaceRoot, digest(api.conversationId)),
-        executionContext.abortSignal ?? new AbortController().signal,
+        api.signal,
       );
       store.set(`speech-receipt:${assignment.commandId}`, result);
       return textResult(result);
     },
   });
-  const speechExtension = defineExtension({ name: 'hisfm.speech', tools: [generate, submitResult] });
-  const executionExtension = defineExtension({ name: 'hisfm.execution', tools: [submitResult] });
-  const read = defineTool({
+  const read = defineHostTool({
     name: 'read_latest',
     description: '读取最新私有提示词，可同时读取节目；不返回凭证。',
     replay: 'safe',
@@ -413,7 +358,7 @@ export async function openRuntime(options: RuntimeOptions) {
       });
     },
   });
-  const list = defineTool({
+  const list = defineHostTool({
     name: 'list_productions',
     description: '列出当前节目制作任务。',
     replay: 'safe',
@@ -423,7 +368,7 @@ export async function openRuntime(options: RuntimeOptions) {
       return textResult(await client.productions());
     },
   });
-  const reply = defineTool({
+  const reply = defineHostTool({
     name: 'reply',
     description: '向所有者发送简洁的中文 Markdown，不包含内部推理或决策细节。',
     replay: 'safe',
@@ -435,7 +380,7 @@ export async function openRuntime(options: RuntimeOptions) {
       return textResult('回复已发送。');
     },
   });
-  const delegate = defineTool({
+  const delegate = defineHostTool({
     name: 'delegate',
     description: '委派带上下文与验收标准的成果；执行者在当前授权范围和本机能力内自行选择方法，结果异步送达。',
     replay: 'safe',
@@ -555,12 +500,17 @@ export async function openRuntime(options: RuntimeOptions) {
           production,
           context: active.context,
         });
-        const assignment = await harness.commit(async (transaction) => {
-          const saved = await transaction.doc(Work);
+        const assignment = await host.transact(async (transaction) => {
+          const saved = await transaction.state();
           const conversationId =
             plan.reuse && available
               ? available.id
-              : (await transaction.createConversation({ ownership: { kind: 'ownerless' } })).id;
+              : await transaction.create({
+                  roleId: args.role,
+                  model: { provider: config.executor.provider, modelId: config.executor.model },
+                  thinkingLevel: plan.thinkingLevel,
+                  instructions: `${workPolicy(channel.prompts, args.role)}\n当前所有者指令：${JSON.stringify(active)}`,
+                });
           const assignment: Assignment = {
             id,
             commandId: active.id,
@@ -578,10 +528,10 @@ export async function openRuntime(options: RuntimeOptions) {
             requiredCriteria: args.requiredCriteria ?? [args.instructions],
             ...(args.requiredCount ? { requiredCount: args.requiredCount } : {}),
           };
-          await configure(transaction, conversationId, {
+          await transaction.configure(conversationId, {
+            roleId: args.role,
             model: { provider: config.executor.provider, modelId: config.executor.model },
             thinkingLevel: plan.thinkingLevel,
-            extensions: args.role === 'speech' ? [speechExtension] : [CodingTools, executionExtension],
             instructions: `${workPolicy(channel.prompts, args.role)}\n当前所有者指令：${JSON.stringify(active)}`,
           });
           saved.conversations[conversationId] = {
@@ -597,7 +547,7 @@ export async function openRuntime(options: RuntimeOptions) {
           };
           saved.assignments[id] = assignment;
           return structuredClone(assignment);
-        }, context);
+        });
         visible(
           `dispatch:${id}`,
           active.id,
@@ -615,7 +565,7 @@ export async function openRuntime(options: RuntimeOptions) {
       }
     },
   });
-  const inspect = defineTool({
+  const inspect = defineHostTool({
     name: 'inspect_work',
     description: '读取不可变的任务结果或已保存的操作回执。',
     replay: 'safe',
@@ -640,15 +590,15 @@ export async function openRuntime(options: RuntimeOptions) {
       );
     },
   });
-  const retire = defineTool({
+  const retire = defineHostTool({
     name: 'retire_conversation',
     description: '退役空闲执行会话，保留其历史。',
     replay: 'safe',
     parameters: Type.Object({ id: Type.String() }),
     execute: async (args) => {
       command();
-      await harness.commit(async (transaction) => {
-        const state = await transaction.doc(Work);
+      await host.transact(async (transaction) => {
+        const state = await transaction.state();
         const conversation = state.conversations[args.id];
         if (
           !conversation ||
@@ -658,12 +608,12 @@ export async function openRuntime(options: RuntimeOptions) {
         )
           throw new Error('只能退休空闲执行会话。');
         conversation.retired = true;
-      }, context);
+      });
       await statuses();
       return textResult('会话已退休，历史保留。');
     },
   });
-  const proposal = defineTool({
+  const proposal = defineHostTool({
     name: 'propose_draft',
     description: '向所有者指令冻结的字段与草稿快照提出 Markdown 修改，不保存网站正式数据。',
     replay: 'safe',
@@ -698,7 +648,7 @@ export async function openRuntime(options: RuntimeOptions) {
     if (production.version !== version) throw new Error('节目版本已变化，请重新读取。');
     return production;
   }
-  const create = defineTool({
+  const create = defineHostTool({
     name: 'create_production',
     description:
       '仅为未指定现有节目的指令创建草稿，先读取最新提示词。brief JSON 必须包含 title、slug、episodeNumber，可包含 category、tags、targetDurationSeconds、sources、intent；每项素材必须有唯一稳定 id。不审批或发布。',
@@ -728,7 +678,7 @@ export async function openRuntime(options: RuntimeOptions) {
       return textResult(await transport.operation({ type: 'operation', operation }));
     },
   });
-  const submit = defineTool({
+  const submit = defineHostTool({
     name: 'submit_for_review',
     description:
       '提交已保存内容供人工审核。允许 submit_brief、submit_script、submit_final；不审批、重开或发布。先读取最新节目和提示词，不能提交未保存草稿。',
@@ -766,7 +716,7 @@ export async function openRuntime(options: RuntimeOptions) {
       return textResult(await transport.operation({ type: 'operation', operation }));
     },
   });
-  const patch = defineTool({
+  const patch = defineHostTool({
     name: 'patch_production',
     description:
       '按版本更新网站节目，不覆盖指令中的未保存草稿；草稿修改用 propose_draft。保留既有素材 id，新素材分配唯一稳定的非空 id。',
@@ -799,7 +749,7 @@ export async function openRuntime(options: RuntimeOptions) {
       return textResult(await transport.operation({ type: 'operation', operation }));
     },
   });
-  const audio = defineTool({
+  const audio = defineHostTool({
     name: 'request_audio',
     description:
       '仅在逐字稿已确认且所有者文字明确要求生成音频时请求付费生成。否定、预览或试听指令不允许完整生成，不推定同意。',
@@ -909,7 +859,7 @@ export async function openRuntime(options: RuntimeOptions) {
         throw new Error('网站回执未确认操作成功，请处理失败或报告受阻。');
     }
   }
-  const finish = defineTool({
+  const finish = defineHostTool({
     name: 'finish_command',
     description:
       '接受当前指令结果并交付最终答复。done 要求成功任务证据和网站回执；blocked、needs_input 表示目标尚未完成。',
@@ -938,22 +888,94 @@ export async function openRuntime(options: RuntimeOptions) {
       return { ...textResult({ outcome: args.outcome }), control: { terminate: true } };
     },
   });
-  const rootExtension = defineExtension({
-    name: 'hisfm.coordinator',
-    tools: [read, list, reply, delegate, inspect, retire, proposal, create, submit, patch, audio, finish],
-  });
-  registry.install(CodingTools);
-  registry.install(executionExtension);
-  registry.install(speechExtension);
-  registry.install(rootExtension);
-  await root.configure(
-    {
-      model: { provider: config.coordinator.provider, modelId: config.coordinator.model },
-      thinkingLevel: 'high',
-      extensions: [rootExtension],
+  const definition = loadHisfmDefinition();
+  const runtimeId =
+    store.get<string>('frogieRuntimeId') ?? digest(store.get<string>('identity') ?? randomUUID());
+  store.set('frogieRuntimeId', runtimeId);
+  host = await openAgentHost<WorkState>({
+    ...(options.databasePath ? { databasePath: options.databasePath } : {}),
+    definition,
+    runtimeId,
+    scope: { environmentId: 'native', squadId: definition.squadId, harnessId: runtimeId },
+    models: options.models,
+    roles: {
+      coordinator: {
+        provider: config.coordinator.provider,
+        modelId: config.coordinator.model,
+        thinkingLevel: 'high',
+      },
+      ...Object.fromEntries(
+        ['writer', 'reviewer', 'speech'].map((role) => [
+          role,
+          {
+            provider: config.executor.provider,
+            modelId: config.executor.model,
+            thinkingLevel: 'high' as const,
+          },
+        ]),
+      ),
     },
-    context,
-  );
+    tools: [
+      submitResult,
+      generate,
+      read,
+      list,
+      reply,
+      delegate,
+      inspect,
+      retire,
+      proposal,
+      create,
+      submit,
+      patch,
+      audio,
+      finish,
+    ],
+    state: { kind: 'hisfm.work', initial: () => ({ assignments: {}, conversations: {} }) },
+    execution: { directory: config.runtime.workspaceRoot, shellEnv: executionEnvironment() },
+    summaryPrompt: async () => (await client.channel()).prompts.compaction,
+    onReport: () => log('会话出现内部错误，持久任务已保留。'),
+  });
+  rootId = host.rootId;
+  try {
+    const state = await work();
+    const halted = new Set<number>();
+    for (const assignment of Object.values(state.assignments)) {
+      if (assignment.status !== 'working') continue;
+      const envelope = JSON.parse(assignment.input);
+      const invalid =
+        !envelope.ownerCommand ||
+        !envelope.capabilities ||
+        !envelope.channel?.prompts ||
+        !assignment.requiredCriteria;
+      if (invalid && !commandStopped(assignment.commandId))
+        visible(`attention:${assignment.id}`, assignment.commandId, invalidAssignmentMessage);
+      if (
+        commandStopped(assignment.commandId) ||
+        assignment.createdAt + config.runtime.maxTaskMinutes * 60000 <= Date.now() ||
+        invalid
+      )
+        halted.add(assignment.conversationId);
+    }
+    for (const pending of await host.pendingSubmissions()) {
+      if (pending.conversationId !== rootId) continue;
+      const input = store.database
+        .prepare('SELECT * FROM inputs WHERE id = ?')
+        .get(pending.requestId ?? '') as InputRecord | undefined;
+      if (!input || commandStopped(input.commandId)) halted.add(rootId);
+      else restoringInput = input;
+    }
+    await host.stageAbort([...halted]);
+    await host.transact(async (transaction) => {
+      const currentState = await transaction.state();
+      for (const assignment of Object.values(currentState.assignments))
+        if (assignment.status === 'working' && halted.has(assignment.conversationId))
+          assignment.status = commandStopped(assignment.commandId) ? 'cancelled' : 'failed';
+    });
+  } catch (error) {
+    await host.close();
+    throw error;
+  }
 
   function pump(): Promise<void> {
     if (pumping) return pumpPromise ?? Promise.resolve();
@@ -964,8 +986,11 @@ export async function openRuntime(options: RuntimeOptions) {
     if (pumping || stopped || !transport.ready) return;
     pumping = true;
     try {
+      current = restoringInput ?? store.next();
+      restoringInput = null;
+      await host.resume();
       for (const id of store.pendingCancellations()) await cancel(id);
-      current = store.next();
+      if (!current || commandStopped(current.commandId)) current = store.next();
       const state = await work();
       for (const assignment of Object.values(state.assignments)) {
         if (assignment.status === 'working' && !commandStopped(assignment.commandId)) launch(assignment);
@@ -974,7 +999,7 @@ export async function openRuntime(options: RuntimeOptions) {
           store.set(`notified:${assignment.id}`, true);
         }
       }
-      current = store.next();
+      if (!current || commandStopped(current.commandId)) current = store.next();
       if (!current) return;
       const input = current;
       let content = store.get<string>(`prepared:${input.id}`);
@@ -995,67 +1020,45 @@ export async function openRuntime(options: RuntimeOptions) {
         store.set(`prepared:${input.id}`, content);
       }
       if (commandStopped(input.commandId)) return;
-      await root.configure(
-        {
-          instructions: `${JSON.parse(content).latestChannel.prompts.coordinator}\n当前所有者指令：${JSON.stringify(command())}`,
-        },
-        context,
-      );
       store.state(input.commandId, 'working', '正在处理', `working:${input.id}`);
       await statuses();
-      const submission = await root.submit({ type: 'input', content, requestId: input.id }, context);
-      const timer = setTimeout(() => {
-        background(root.abort(context));
-      }, config.runtime.maxTaskMinutes * 60000);
-      try {
-        const settled = await submission.wait(context);
-        if (stopped || commandStopped(input.commandId)) return;
-        if (settled.status !== 'done')
-          throw new Error(settled.detail === CONTEXT_BLOCKED ? CONTEXT_BLOCKED : '主控任务未完成。');
-        if (settled.type === 'input' && settled.answer && !store.get(`replied:${input.id}`)) {
-          const entry = await root.commit(
-            (transaction) => transaction.entry(AssistantEntry, settled.answer),
-            context,
-          );
-          const answer = entry?.model?.[0];
-          if (answer?.role === 'assistant') {
-            const text = answer.content
-              .filter((part) => part.type === 'text')
-              .map((part) => part.text)
-              .join('\n')
-              .trim();
-            if (text) visible(`answer:${input.id}`, input.commandId, text);
-          }
-        }
-        const assignments = Object.values((await work()).assignments).filter(
-          (assignment) => assignment.commandId === input.commandId,
-        );
-        const pending = assignments.some((assignment) => assignment.status === 'working');
-        const finish = store.get<CommandFinish>(`finish:${input.commandId}`);
-        if (finish) await validateFinish(command(), finish);
-        store.finishInput(input.id);
-        const waiting =
-          pending || (!finish && store.hasInput(input.commandId)) || store.hasPendingEffect(input.commandId);
-        const requiresAcceptance =
-          input.commandId.startsWith('speech:') ||
-          assignments.length > 0 ||
-          store.effects(input.commandId).length > 0;
-        const status =
-          finish?.outcome === 'blocked'
-            ? 'failed'
-            : waiting || finish?.outcome === 'needs_input' || (requiresAcceptance && !finish)
-              ? 'waiting'
-              : 'complete';
-        store.state(
-          input.commandId,
-          status,
-          finish?.markdown.slice(0, 1000) ?? (status === 'waiting' ? '等待执行结果或主控验收' : '已完成'),
-          `settled:${input.id}`,
-        );
-        if (status === 'complete' || status === 'failed') await retireTasks(input.commandId);
-      } finally {
-        clearTimeout(timer);
-      }
+      const settled = await host.run(rootId, {
+        content,
+        requestId: input.id,
+        instructions: `${JSON.parse(content).latestChannel.prompts.coordinator}\n当前所有者指令：${JSON.stringify(command())}`,
+        timeoutMs: config.runtime.maxTaskMinutes * 60000,
+      });
+      if (stopped || commandStopped(input.commandId)) return;
+      if (settled.status !== 'done')
+        throw new Error(settled.detail === CONTEXT_BLOCKED ? CONTEXT_BLOCKED : '主控任务未完成。');
+      if (settled.text && !store.get(`replied:${input.id}`))
+        visible(`answer:${input.id}`, input.commandId, settled.text);
+      const assignments = Object.values((await work()).assignments).filter(
+        (assignment) => assignment.commandId === input.commandId,
+      );
+      const pending = assignments.some((assignment) => assignment.status === 'working');
+      const finish = store.get<CommandFinish>(`finish:${input.commandId}`);
+      if (finish) await validateFinish(command(), finish);
+      store.finishInput(input.id);
+      const waiting =
+        pending || (!finish && store.hasInput(input.commandId)) || store.hasPendingEffect(input.commandId);
+      const requiresAcceptance =
+        input.commandId.startsWith('speech:') ||
+        assignments.length > 0 ||
+        store.effects(input.commandId).length > 0;
+      const status =
+        finish?.outcome === 'blocked'
+          ? 'failed'
+          : waiting || finish?.outcome === 'needs_input' || (requiresAcceptance && !finish)
+            ? 'waiting'
+            : 'complete';
+      store.state(
+        input.commandId,
+        status,
+        finish?.markdown.slice(0, 1000) ?? (status === 'waiting' ? '等待执行结果或主控验收' : '已完成'),
+        `settled:${input.id}`,
+      );
+      if (status === 'complete' || status === 'failed') await retireTasks(input.commandId);
     } catch (error) {
       if (current && !stopped && !commandStopped(current.commandId)) {
         const contextBlocked = error instanceof Error && error.message === CONTEXT_BLOCKED;
@@ -1107,7 +1110,7 @@ export async function openRuntime(options: RuntimeOptions) {
       );
     transport.flush();
     await Promise.all([
-      ...(current?.commandId === commandId ? [root.abort(context)] : []),
+      ...(current?.commandId === commandId ? [host.abort(rootId)] : []),
       (async () => {
         await allocation;
         const state = await work();
@@ -1116,9 +1119,9 @@ export async function openRuntime(options: RuntimeOptions) {
         );
         await Promise.all(
           assignments.map(async (assignment) => {
-            await (await harness.conversation(assignment.conversationId, context))?.abort(context);
+            await host.abort(assignment.conversationId);
             await running.get(assignment.id);
-            await environments.get(assignment.conversationId)?.cleanup(context);
+            await host.cleanup(assignment.conversationId);
             await finishAssignment(assignment.id, 'cancelled');
           }),
         );
@@ -1158,10 +1161,10 @@ export async function openRuntime(options: RuntimeOptions) {
   };
   const onTerminal = (id: string) => {
     void (async () => {
-      if (current?.commandId === id) await root.abort(context);
+      if (current?.commandId === id) await host.abort(rootId);
       for (const assignment of Object.values((await work()).assignments))
         if (assignment.commandId === id && assignment.status === 'working') {
-          await (await harness.conversation(assignment.conversationId, context))?.abort(context);
+          await host.abort(assignment.conversationId);
           await finishAssignment(assignment.id, 'cancelled');
         }
       await retireTasks(id, true);
@@ -1176,9 +1179,8 @@ export async function openRuntime(options: RuntimeOptions) {
     background(pump());
   }, 250);
   return {
-    harness,
-    root,
-    registry,
+    host,
+    rootId,
     work,
     pump,
     cancel,
@@ -1190,11 +1192,10 @@ export async function openRuntime(options: RuntimeOptions) {
       transport.off('ready', onReady);
       transport.off('terminal', onTerminal);
       transport.off('receipt', onReceipt);
-      await harness.close(context);
+      await host.close();
       await pumpPromise;
       await Promise.all(running.values());
       await Promise.allSettled(cancelling.values());
-      await Promise.all([...environments.values()].map((environment) => environment.cleanup(context)));
     },
   };
 }

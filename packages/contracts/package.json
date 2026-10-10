@@ -3,20 +3,20 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.ts",
-    "./prompt-defaults": "./src/prompt-defaults.ts"
+    ".": "./src/index.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
+    "@frogie/core": "file:../../vendor/frogie-core-0.5.0.tgz",
     "zod": "4.6.5"
   },
   "devDependencies": {
-    "typescript": "7.0.2",
-    "vitest": "5.0.3",
+    "@types/node": "26.6.3",
     "@vitest/coverage-v8": "5.0.3",
-    "@types/node": "26.6.3"
+    "typescript": "7.0.2",
+    "vitest": "5.0.3"
   }
 }

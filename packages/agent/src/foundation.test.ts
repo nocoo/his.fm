@@ -1,7 +1,8 @@
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { defaultPrompts } from '@his-fm/contracts/prompt-defaults';
+import { defaultPrompts } from '@frogie/core/hisfm/prompts';
+import { inspectModels } from '@frogie/core/testing';
 import { afterEach, expect, it, vi } from 'vitest';
 import { WebsiteClient } from './client.ts';
 import { configSchema, configuredModels, loadConfig, website } from './config.ts';
@@ -49,9 +50,9 @@ it('validates private configuration, exact models, supported high executor think
           providers: { raven: { ...testConfig().providers.raven, baseUrl } },
         }).success,
       ).toBe(false);
-    const models = configuredModels(testConfig());
+    const models = inspectModels(configuredModels(testConfig()));
     expect(models.getModels().map((model) => model.id)).toEqual(['gpt-6-astra', 'gpt-6.1-sol']);
-    expect(await models.getAuth('raven')).toBeDefined();
+    expect(await models.hasAuth('raven')).toBe(true);
   } finally {
     await rm(directory, { recursive: true, force: true });
   }
@@ -61,7 +62,7 @@ it('passes configured one-million-token windows to both models without changing 
   const config = testConfig();
   config.coordinator.contextWindow = 1_000_000;
   config.executor.contextWindow = 1_000_000;
-  const models = configuredModels(configSchema.parse(config));
+  const models = inspectModels(configuredModels(configSchema.parse(config)));
   for (const role of [config.coordinator, config.executor]) {
     expect(models.getModel(role.provider, role.model)).toMatchObject({
       contextWindow: 1_000_000,
