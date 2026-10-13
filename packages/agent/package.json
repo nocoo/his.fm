@@ -18,7 +18,7 @@
     "@his-fm/contracts": "*",
     "@typesafe-ai/sdk": "0.6.0",
     "ws": "8.21.0",
-    "zod": "4.6.5"
+    "zod": "4.6.7"
   },
   "devDependencies": {
     "@types/node": "26.6.3",
