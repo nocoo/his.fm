@@ -1,7 +1,8 @@
 import { execFileSync, spawn } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, symlinkSync } from 'node:fs';
+import { existsSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 const timeoutMs = Number(process.env.HISFM_GATE_TIMEOUT_MS || 180000);
 const steps = ['test:coverage', 'lint', 'typecheck'];
@@ -85,23 +86,13 @@ try {
       stdio: 'inherit',
     });
     if (!existsSync(join(snapshot, 'package.json'))) fail('staged package.json is required');
-    const modules = join(snapshot, 'node_modules');
-    if (existsSync(modules)) fail('snapshot must not contain node_modules');
-    else {
-      mkdirSync(modules);
-      for (const entry of readdirSync(join(root, 'node_modules'))) {
-        if (entry !== '@his-fm') symlinkSync(join(root, 'node_modules', entry), join(modules, entry));
-      }
-      mkdirSync(join(modules, '@his-fm'));
-      for (const [name, directory] of [
-        ['web', 'apps/web'],
-        ['contracts', 'packages/contracts'],
-        ['agent', 'packages/agent'],
-      ]) {
-        if (existsSync(join(snapshot, directory, 'package.json'))) {
-          symlinkSync(join(snapshot, directory), join(modules, '@his-fm', name));
-        }
-      }
+    const stagedHelper = join(snapshot, 'scripts/l1-snapshot.mjs');
+    if (!existsSync(stagedHelper)) fail('staged scripts/l1-snapshot.mjs is required');
+    try {
+      const { linkSnapshotNodeModules } = await import(pathToFileURL(stagedHelper).href);
+      linkSnapshotNodeModules(root, snapshot);
+    } catch (error) {
+      fail(error instanceof Error ? error.message : 'snapshot link failed');
     }
   }
   if (!process.exitCode) {
