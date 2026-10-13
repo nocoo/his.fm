@@ -34,6 +34,7 @@
   },
   "overrides": {
     "source-map-js": "^1.2.2",
-    "sharp": "0.35.5"
+    "sharp": "0.35.5",
+    "@earendil-works/pi-ai": "1.1.0"
   }
 }
