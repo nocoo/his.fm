@@ -20,7 +20,7 @@ jobs:
     if: >-
       github.event_name == 'release' ||
       github.event_name == 'workflow_dispatch'
-    uses: nocoo/base-ci/.github/workflows/deploy-worker.yml@8816553dc9f4544d1e8486bacb5cce630a9f14cb # v2026.8
+    uses: nocoo/base-ci/.github/workflows/deploy-worker.yml@0394178ebcff0418c442d84a84119220f31f8987 # v2026.9
     with:
       expected-workflow-path: '.github/workflows/ci.yml'
       expected-workflow-name: 'CI'
