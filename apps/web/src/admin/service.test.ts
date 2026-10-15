@@ -147,15 +147,15 @@ describe('episode CRUD adapter', () => {
       expect.objectContaining({ method: 'POST', body: JSON.stringify(emptyEpisode) }),
     ]);
     respond({ episode: emptyEpisode });
-    await adminService.update('a/b', emptyEpisode);
+    await adminService.update('a/b', emptyEpisode, 3);
     expect(fetchMock.mock.calls[2]).toEqual([
       '/admin/api/episodes/a%2Fb',
-      expect.objectContaining({ method: 'PUT', body: JSON.stringify(emptyEpisode) }),
+      expect.objectContaining({ method: 'PUT', body: JSON.stringify({ ...emptyEpisode, version: 3 }) }),
     ]);
     fetchMock.mockResolvedValueOnce(new Response(null, { status: 204 }));
-    await adminService.remove('a/b');
+    await adminService.remove('a/b', 4);
     expect(fetchMock.mock.calls[3]).toEqual([
-      '/admin/api/episodes/a%2Fb',
+      '/admin/api/episodes/a%2Fb?version=4',
       expect.objectContaining({ method: 'DELETE' }),
     ]);
   });

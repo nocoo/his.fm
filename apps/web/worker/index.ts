@@ -1,18 +1,11 @@
 import { version } from '../../../package.json';
 import { discoveryLinks, routeAgent, routeDiscovery } from './agent-api';
-import { hub, notifyProductionChanged, routeRuntimeAdmin } from './agent-runtime';
-import { routeAgentTokens } from './agent-tokens';
-import { routeAiSettings } from './ai-settings';
-import { getAppearance, routeAppearance } from './appearance';
-import { routeAudio } from './audio-routes';
+import { getAppearance } from './appearance';
 import { accessLogin, authenticate, isLocal, localLogin, logout } from './auth';
-import { routeBumpers } from './bumpers';
-import { listCategories, routeCategories } from './categories';
-import { routeChannel } from './channel';
-import { getEpisode, listEpisodes, mutateEpisode } from './episodes';
+import { listCategories } from './categories';
+import { getEpisode, listEpisodes } from './episodes';
 import { HttpError, json, requireSameOrigin } from './http';
-import { routeProductions } from './production';
-import { routeStorage } from './storage';
+import { routeManagement } from './management';
 
 async function media(request: Request, env: Env) {
   if (request.method !== 'GET' && request.method !== 'HEAD') throw new HttpError(405, '不支持这个请求方式');
@@ -68,63 +61,16 @@ async function route(request: Request, env: Env): Promise<Response> {
       if (!isLocal(request, env)) return accessLogin();
       return env.ASSETS.fetch(request);
     }
-    if (path.startsWith('/admin/api/agent/'))
-      return routeRuntimeAdmin(request, env, { kind: 'human', name: session.user.email });
-    if (path === '/admin/api/ai-settings') {
-      if (request.method !== 'GET') requireSameOrigin(request);
-      return routeAiSettings(request, env);
-    }
-    if (path === '/admin/api/bumpers') {
-      if (request.method !== 'GET') requireSameOrigin(request);
-      return routeBumpers(request, env);
-    }
-    if (path === '/admin/api/channel') {
-      if (request.method !== 'GET') requireSameOrigin(request);
-      return routeChannel(request, env, { kind: 'human', name: session.user.email });
-    }
-    const category = /^\/admin\/api\/categories(?:\/([a-z0-9-]+))?$/.exec(path);
-    if (category) {
-      if (request.method !== 'GET') requireSameOrigin(request);
-      return routeCategories(request, env, { kind: 'human', name: session.user.email }, category[1]);
-    }
-    if (path === '/admin/api/appearance') {
-      if (request.method !== 'GET') requireSameOrigin(request);
-      return routeAppearance(request, env, session.user.email);
-    }
-    if (path === '/admin/api/storage' || path.startsWith('/admin/api/storage/')) {
+    if (api && path.startsWith('/admin/api/')) {
       if (!['GET', 'HEAD'].includes(request.method)) requireSameOrigin(request);
-      return routeStorage(request, env);
+      const response = await routeManagement(request, env, path.slice('/admin/api'.length), {
+        kind: 'human',
+        name: session.user.email,
+      });
+      if (response) return response;
     }
-    if (
-      api &&
-      (path.startsWith('/admin/api/productions') || path.startsWith('/admin/api/production-settings'))
-    ) {
-      if (!['GET', 'HEAD'].includes(request.method)) requireSameOrigin(request);
-      const actor = { kind: 'human' as const, name: session.user.email };
-      const suffix = path.slice('/admin/api'.length);
-      const response =
-        (await routeAudio(request, env, suffix, actor)) ??
-        (await routeProductions(request, env, suffix, actor));
-      if (response) {
-        if (response.status === 202) await hub(env).fetch('https://hub/speech-queued');
-        if (!['GET', 'HEAD', 'DELETE'].includes(request.method)) await notifyProductionChanged(env, response);
-        return response;
-      }
-    }
-    if (path.startsWith('/admin/api/agent-tokens')) return routeAgentTokens(request, env, path);
     if (path === '/admin/api/session' && request.method === 'GET') return json(session);
     if (path === '/admin/api/logout' && request.method === 'POST') return logout(request, env);
-    if (path === '/admin/api/episodes') {
-      if (request.method === 'GET') return json({ episodes: await listEpisodes(env.DB, false) });
-      if (request.method === 'POST') return mutateEpisode(request, env.DB);
-      throw new HttpError(405, '不支持这个请求方式');
-    }
-    if (/^\/admin\/api\/episodes\/[^/]+$/.test(path)) {
-      const id = path.slice('/admin/api/episodes/'.length);
-      if (request.method === 'GET') return json({ episode: await getEpisode(env.DB, id, false) });
-      if (request.method === 'PUT' || request.method === 'DELETE') return mutateEpisode(request, env.DB, id);
-      throw new HttpError(405, '不支持这个请求方式');
-    }
     if (api) throw new HttpError(404, '接口不存在');
     const asset = await env.ASSETS.fetch(request);
     const response = new Response(asset.body, asset);

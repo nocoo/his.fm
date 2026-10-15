@@ -1,6 +1,8 @@
 import { z } from 'zod';
+import { principalSchema } from './access.ts';
 import { runtimeRequestSchema } from './speech.ts';
 
+export * from './access.ts';
 export * from './speech.ts';
 
 export const protocolVersion = 1;
@@ -45,6 +47,7 @@ export const commandSchema = z.strictObject({
   text: z.string().trim().min(1).max(12000),
   context: pageContextSchema.nullable(),
   createdAt: z.string(),
+  principal: principalSchema.optional(),
 });
 export type AgentCommand = z.infer<typeof commandSchema>;
 export const agentMessageSchema = z.strictObject({

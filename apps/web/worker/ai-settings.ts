@@ -1,5 +1,13 @@
-import { type AiStatus, aiStatusSchema, aiUpdateSchema, type RuntimeRequest } from '@his-fm/contracts';
+import {
+  type AiStatus,
+  aiStatusSchema,
+  aiUpdateSchema,
+  hasScope,
+  type Principal,
+  type RuntimeRequest,
+} from '@his-fm/contracts';
 import { hub } from './agent-runtime';
+import { requireScope } from './authorization';
 import { HttpError, json } from './http';
 import { readJson } from './production-body';
 
@@ -20,9 +28,15 @@ export async function runtimeConfiguration(
   return result.data;
 }
 
-export async function routeAiSettings(request: Request, env: Env) {
-  if (request.method === 'GET') return json({ config: await runtimeConfiguration(env) });
+export async function routeAiSettings(request: Request, env: Env, actor: Principal) {
+  if (request.method === 'GET') {
+    requireScope(actor, 'settings:read');
+    return json({ config: await runtimeConfiguration(env) });
+  }
   if (request.method !== 'PUT') throw new HttpError(405, '不支持这个请求方式');
   const input = await readJson(request, aiUpdateSchema);
-  return json({ config: await runtimeConfiguration(env, { kind: 'settings.update', input }) });
+  if (input.settings) requireScope(actor, 'settings:write');
+  if (input.credentials) requireScope(actor, 'credentials:write');
+  const config = await runtimeConfiguration(env, { kind: 'settings.update', input });
+  return json(hasScope(actor, 'settings:read') ? { config } : { version: config.version });
 }

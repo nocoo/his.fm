@@ -1,7 +1,13 @@
+import { scopePresets } from '@his-fm/contracts';
 import type { Actor, Production } from '../../src/shared/production';
 
 export const human: Actor = { kind: 'human', name: 'editor@his.fm' };
-export const agent: Actor = { kind: 'agent', name: 'Hermes (test-token)' };
+export const agent: Actor = { kind: 'agent', name: 'Hermes (test-token)', scopes: scopePresets.coordinator };
+export const fullAgent: Actor = {
+  kind: 'agent',
+  name: 'Scoped owner (test-token)',
+  scopes: scopePresets.owner,
+};
 export const brief = {
   title: '下一条提示之前，先吃饭',
   slug: 'dinner-before-the-prompt',

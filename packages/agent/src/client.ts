@@ -36,11 +36,16 @@ export class WebsiteClient {
     this.site = site;
     this.request = request;
   }
-  private async get(path: string) {
+  private async get(path: string, commandId: string) {
+    if (!commandId?.trim()) throw new Error('网站读取缺少原始指令。');
     let response: Response;
     try {
       response = await this.request(new URL(`/api/agent/${path}`, this.site.baseUrl), {
-        headers: { Authorization: `Bearer ${this.site.token}`, 'X-Hisfm-Station': this.site.stationId },
+        headers: {
+          Authorization: `Bearer ${this.site.token}`,
+          'X-Hisfm-Station': this.site.stationId,
+          'X-Hisfm-Command': commandId,
+        },
         redirect: 'error',
         signal: AbortSignal.timeout(15000),
       });
@@ -50,15 +55,15 @@ export class WebsiteClient {
     if (!response.ok) throw new Error(`网站读取失败（${response.status}）。`);
     return response.json() as Promise<unknown>;
   }
-  async channel(): Promise<Channel> {
-    return channelSchema.parse(await this.get('channel')).channel;
+  async channel(commandId: string): Promise<Channel> {
+    return channelSchema.parse(await this.get('channel', commandId)).channel;
   }
-  async production(id: string): Promise<Production> {
-    const result = productionSchema.parse(await this.get(`productions/${encodeURIComponent(id)}`));
+  async production(id: string, commandId: string): Promise<Production> {
+    const result = productionSchema.parse(await this.get(`productions/${encodeURIComponent(id)}`, commandId));
     return { ...result.production, categoryProfile: result.categoryProfile };
   }
-  async productions() {
-    return this.get('productions');
+  async productions(commandId: string) {
+    return this.get('productions', commandId);
   }
   async speech(id: string, commandId: string, generation: string, method = 'GET', body?: Uint8Array) {
     let response: Response;

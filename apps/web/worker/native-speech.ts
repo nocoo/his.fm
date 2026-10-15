@@ -1,9 +1,15 @@
-import { type SpeechSnapshot, speechSnapshotSchema } from '@his-fm/contracts';
+import {
+  type Principal,
+  principalSchema,
+  type SpeechSnapshot,
+  speechSnapshotSchema,
+} from '@his-fm/contracts';
 import { requireRuntimeOrigin } from './agent-runtime';
 import { digest, requireCommand, station } from './agent-runtime-store';
 import { authenticateAgentIdentity } from './agent-tokens';
 import { AudioError, composeWav, readStoredWav, storeNativeWav } from './audio';
 import { checkActiveAudio, getAudioSnapshot, setAudioState } from './audio-store';
+import { commandOrigin, commandPrincipal, currentPrincipal, requireScope } from './authorization';
 import { HttpError, json } from './http';
 import { getProduction, mediaUrl } from './production-store';
 
@@ -13,7 +19,15 @@ export async function queueSpeech(
   kind: 'preview' | 'production',
   input: SpeechSnapshot,
   productionId: string | null,
+  principal: Principal,
 ) {
+  const parsed = principalSchema.safeParse(principal);
+  if (!parsed.success) throw new HttpError(403, 'Speech task has no authorized originator');
+  principal = await currentPrincipal(env.DB, parsed.data);
+  requireScope(principal, 'audio:generate');
+  requireScope(principal, 'tasks:manage');
+  requireScope(principal, 'prompts:read');
+  if (productionId) requireScope(principal, 'productions:read');
   const existing = await env.DB.prepare(
     'SELECT speech_jobs.status, agent_commands.status AS commandStatus FROM speech_jobs JOIN agent_commands ON agent_commands.id=speech_jobs.command_id WHERE speech_jobs.id = ?',
   )
@@ -33,6 +47,7 @@ export async function queueSpeech(
   const commandId = `speech:${id}:${crypto.randomUUID()}`;
   const production = productionId ? await getProduction(env.DB, productionId) : null;
   const commandInput = {
+    principal,
     id: commandId,
     text: `执行已确认的${kind === 'preview' ? '短试听' : '正文音频'}任务。使用专职语音 conversation，调用 generate_speech，核验任务回执后完成。speechJobId=${id}`,
     context: production
@@ -81,6 +96,7 @@ export async function speechResult(env: Env, id: string) {
 export async function routeNativeSpeech(request: Request, env: Env) {
   requireRuntimeOrigin(request, env, false);
   const auth = await authenticateAgentIdentity(request, env);
+  requireScope(auth.actor, 'runtime:connect');
   const current = await station(env.DB);
   const generation = request.headers.get('X-Hisfm-Generation');
   if (
@@ -108,20 +124,48 @@ export async function routeNativeSpeech(request: Request, env: Env) {
     }>();
   if (!job || job.commandId !== request.headers.get('X-Hisfm-Command'))
     throw new HttpError(403, '语音任务超出指令范围');
-  if (job.status === 'complete') return json({ complete: true, result: JSON.parse(job.result ?? '{}') });
+  if (job.status === 'complete') {
+    requireScope(auth.actor, 'audio:generate');
+    const principal = await commandOrigin(env.DB, job.commandId, false);
+    requireScope(principal, 'audio:generate');
+    requireScope(principal, 'tasks:manage');
+    requireScope(principal, 'prompts:read');
+    if (job.kind === 'production') requireScope(principal, 'productions:read');
+    return json({ complete: true, result: JSON.parse(job.result ?? '{}') });
+  }
   const command = await requireCommand(env.DB, job.commandId, true);
   if (command.status === 'cancelling') throw new HttpError(409, '指令正在取消');
+  requireScope(await commandPrincipal(env.DB, job.commandId, auth.actor), 'audio:generate');
   const input = speechSnapshotSchema.parse(JSON.parse(job.snapshot));
   const fence = () =>
     env.DB.prepare(`INSERT OR REPLACE INTO agent_write_fence (id, valid) VALUES (1, CASE WHEN EXISTS (
     SELECT 1 FROM agent_station JOIN agent_tokens ON agent_tokens.id=agent_station.token_id JOIN agent_commands ON agent_commands.id=?
     WHERE agent_station.id=1 AND token_id=? AND station_id=? AND generation=? AND lease_until>? AND revoked_at IS NULL AND expires_at>?
     AND agent_commands.status NOT IN ('complete','failed','cancelled','cancelling')
+    AND EXISTS (SELECT 1 FROM json_each(agent_tokens.scopes) WHERE value='audio:generate')
+    AND EXISTS (SELECT 1 FROM json_each(agent_tokens.scopes) WHERE value='runtime:connect')
+    AND (json_extract(agent_commands.data, '$.principal.kind')='human' OR (
+      json_extract(agent_commands.data, '$.principal.expiresAt') > ?
+      AND EXISTS (SELECT 1 FROM json_each(agent_commands.data, '$.principal.scopes') WHERE value='audio:generate')
+      AND EXISTS (SELECT 1 FROM json_each(agent_commands.data, '$.principal.scopes') WHERE value='tasks:manage')
+      AND EXISTS (SELECT 1 FROM json_each(agent_commands.data, '$.principal.scopes') WHERE value='prompts:read')
+      AND (json_extract(agent_commands.data, '$.context.productionId') IS NULL OR
+        EXISTS (SELECT 1 FROM json_each(agent_commands.data, '$.principal.scopes') WHERE value='productions:read'))
+      AND EXISTS (SELECT 1 FROM agent_tokens origin WHERE origin.id=json_extract(agent_commands.data, '$.principal.tokenId')
+        AND origin.revoked_at IS NULL AND origin.expires_at > ?
+        AND EXISTS (SELECT 1 FROM json_each(origin.scopes) WHERE value='audio:generate')
+        AND EXISTS (SELECT 1 FROM json_each(origin.scopes) WHERE value='tasks:manage')
+        AND EXISTS (SELECT 1 FROM json_each(origin.scopes) WHERE value='prompts:read')
+        AND (json_extract(agent_commands.data, '$.context.productionId') IS NULL OR
+          EXISTS (SELECT 1 FROM json_each(origin.scopes) WHERE value='productions:read')))
+    ))
   ) THEN 1 ELSE 0 END)`).bind(
       job.commandId,
       auth.tokenId,
       current.stationId,
       generation,
+      Date.now(),
+      new Date().toISOString(),
       Date.now(),
       new Date().toISOString(),
     );
@@ -165,6 +209,7 @@ export async function routeNativeSpeech(request: Request, env: Env) {
     if (active?.generation !== generation || active.leaseUntil <= Date.now())
       throw new HttpError(409, '主控租约已更新');
     await requireCommand(env.DB, job.commandId, true);
+    requireScope(await commandPrincipal(env.DB, job.commandId, auth.actor), 'audio:generate');
     if (audio) await checkActiveAudio(env, audio);
     const existing = await env.MEDIA.head(key);
     if (!existing) await composeWav(env.MEDIA, [upload], key);

@@ -1,18 +1,41 @@
-import { agentFrameSchema, browserFrameSchema, serverFrameSchema } from '@his-fm/contracts';
+import {
+  agentFrameSchema,
+  agentMessageSchema,
+  aiStatusSchema,
+  aiUpdateSchema,
+  browserFrameSchema,
+  commandSchema,
+  grantsSchema,
+  principalSchema,
+  type Scope,
+  serverFrameSchema,
+} from '@his-fm/contracts';
 import { z } from 'zod';
 import { version } from '../../../package.json';
-import { categorySchema, publicCategorySchema } from '../src/shared/category';
-import { channelProfileSchema, editorialPriority } from '../src/shared/channel';
+import { appearanceSchema, appearanceUpdateSchema } from '../src/shared/appearance';
+import { categoryInputSchema, categorySchema, categoryUpdateSchema } from '../src/shared/category';
+import { channelProfileSchema, channelUpdateSchema, editorialPriority } from '../src/shared/channel';
+import { episodeDisplaySchema, episodeInputSchema, episodeUpdateSchema } from '../src/shared/episode';
 import {
+  actionNames,
   agentActionSchema,
   agentActions,
   audioGenerationSchema,
+  audioPreviewSchema,
   briefSchema,
   type Production,
+  productionActionSchema,
   productionPatchSchema,
+  productionSettingsSchema,
   productionStages,
+  publicationSchema,
 } from '../src/shared/production';
+import { storageCleanupSchema, storageKinds } from '../src/shared/storage';
 import { voices } from '../src/shared/voices';
+import { enrollmentSchema } from './agent-runtime';
+import { tokenSchema } from './agent-tokens';
+import { bumperInputSchema, bumperUpdateSchema } from './bumpers';
+import { taskInputSchema } from './tasks';
 
 const stamp = z.string();
 const prioritySchema = z.tuple([
@@ -44,7 +67,7 @@ export const serviceManifestSchema = z.object({
     health: z.string(),
   }),
   workflow: z.string(),
-  humanReview: z.array(z.string()),
+  approvalScopes: z.tuple([z.literal('productions:approve'), z.literal('publications:write')]),
   editorialPriority: prioritySchema,
 });
 const approval = z.object({ at: stamp, by: z.string() }).nullable();
@@ -59,6 +82,7 @@ const asset = z
     durationSeconds: z.number().optional(),
     voice: z.string().optional(),
     includesBumpers: z.boolean().optional(),
+    source: z.literal('upload').optional(),
   })
   .nullable();
 export const productionResponseSchema = briefSchema.extend({
@@ -94,7 +118,7 @@ export const productionResponseSchema = briefSchema.extend({
     z.object({
       id: z.string(),
       at: stamp,
-      actor: z.object({ kind: z.enum(['agent', 'human']), name: z.string() }),
+      actor: principalSchema,
       action: z.string(),
       feedback: z.string(),
     }),
@@ -107,7 +131,7 @@ export const productionCapabilitiesSchema = z.object({
   version: z.number(),
   stage: z.enum(productionStages),
   editableFields: z.array(z.string()),
-  availableActions: z.array(z.enum(agentActions)),
+  availableActions: z.array(z.enum(actionNames)),
   blockedActions: z.record(z.string(), z.string()),
   canDelete: z.boolean(),
   canUploadCover: z.boolean(),
@@ -131,7 +155,7 @@ export const serviceCapabilitiesSchema = z.object({
   }),
   editableFields: z.record(z.string(), z.array(z.string())),
   agentActions: z.array(z.enum(agentActions)),
-  humanOnly: z.array(z.string()),
+  scopes: grantsSchema,
   limits: z.object({ jsonBytes: z.number(), coverBytes: z.number(), auditEvents: z.number() }),
   audio: z.object({
     execution: z.literal('native'),
@@ -142,14 +166,33 @@ export const serviceCapabilitiesSchema = z.object({
   }),
 });
 const ref = (name: string) => ({ $ref: `#/components/schemas/${name}` });
-const content = (schema: object) => ({ 'application/json': { schema } });
-const wrappedProduction = {
+const content = <T extends object>(schema: T) => ({ 'application/json': { schema } });
+const fullProduction = {
   type: 'object',
   required: ['production'],
   properties: { production: ref('Production') },
 };
+const wrappedProduction = {
+  description:
+    'Without productions:read returns only production.id and production.version. With read access, publication fields and events still require publications:read.',
+  anyOf: [
+    fullProduction,
+    {
+      type: 'object',
+      required: ['production'],
+      properties: {
+        production: {
+          type: 'object',
+          required: ['id', 'version'],
+          properties: { id: { type: 'string' }, version: { type: 'integer' } },
+          additionalProperties: false,
+        },
+      },
+    },
+  ],
+};
 const errors = Object.fromEntries(
-  [400, 401, 403, 404, 405, 409, 413, 415, 500, 503].map((status) => [
+  [400, 401, 403, 404, 405, 409, 413, 415, 500, 502, 503].map((status) => [
     String(status),
     {
       description: `HTTP ${status}; read error and documentation. Never blindly retry writes.`,
@@ -157,13 +200,20 @@ const errors = Object.fromEntries(
     },
   ]),
 );
-function operation(operationId: string, summary: string, schema: object) {
+function operation(
+  operationId: string,
+  summary: string,
+  schema: object,
+  requiredScopes: Scope[] = [],
+  status = 200,
+) {
   return {
     operationId,
     summary,
+    'x-required-scopes': requiredScopes,
     responses: {
       ...errors,
-      '200': { description: 'Success', content: content(schema) },
+      [status]: { description: 'Success', ...(status === 204 ? {} : { content: content(schema) }) },
     },
   };
 }
@@ -172,17 +222,106 @@ const idParameter = {
   in: 'path',
   required: true,
   schema: { type: 'string' },
-  description: 'Production ID returned by create/list; never the slug.',
+  description: 'Stable resource ID returned by create/list; never a display name or list position.',
 };
 export function agentOpenApi(origin: string) {
   const schema = (value: z.ZodType, io: 'input' | 'output' = 'output') => z.toJSONSchema(value, { io });
+  const body = (value: z.ZodType) => ({ required: true, content: content(schema(value, 'input')) });
+  const versionQuery = {
+    name: 'version',
+    in: 'query',
+    required: true,
+    schema: { type: 'integer', minimum: 1 },
+    description: 'Expected resource version from the latest read.',
+  };
+  const categoryProjection = categorySchema.partial({ prompt: true });
+  const tokenRecord = tokenSchema.omit({ expiresInDays: true }).extend({
+    id: z.string(),
+    prefix: z.string(),
+    createdAt: stamp,
+    expiresAt: stamp,
+    lastUsedAt: stamp.nullable(),
+    revokedAt: stamp.nullable(),
+  });
+  const tokenInput = schema(tokenSchema, 'input');
+  tokenInput.properties = {
+    ...tokenInput.properties,
+    scopes: { ...schema(tokenSchema.shape.scopes, 'input'), minItems: 1, uniqueItems: true },
+  };
+  const episode = episodeInputSchema.safeExtend({
+    publishedAt: episodeInputSchema.shape.publishedAt.unwrap().in.nullable(),
+    id: z.string(),
+    version: z.number().int().positive(),
+    sourceProductionId: z.string().nullable().optional(),
+    createdAt: stamp,
+    updatedAt: stamp,
+  });
+  const episodeMutation = schema(
+    z.union([
+      z.object({ episode }),
+      z.object({ episode: z.strictObject({ id: episode.shape.id, version: episode.shape.version }) }),
+    ]),
+  );
+  const storageObject = z.object({
+    key: z.string(),
+    version: z.string(),
+    size: z.number(),
+    uploaded: stamp,
+    contentType: z.string(),
+    kind: z.enum(storageKinds),
+    state: z.enum(['referenced', 'protected', 'recent', 'unused']),
+    reasons: z.array(z.string()),
+  });
+  const cleanupResult = z.object({
+    results: z.array(
+      z.object({
+        key: z.string(),
+        status: z.enum(['deleted', 'skipped', 'failed']),
+        reason: z.string(),
+        bytes: z.number(),
+      }),
+    ),
+  });
+  const task = commandSchema.extend({ status: z.string(), detail: z.string() });
+  const bumper = z.object({
+    id: z.string(),
+    name: z.string(),
+    position: z.enum(['intro', 'outro']),
+    version: z.number().int().positive(),
+    key: z.string(),
+    url: z.string(),
+    durationSeconds: z.number(),
+    size: z.number(),
+  });
+  const bumperMutation = schema(
+    z.union([
+      z.object({ bumper }),
+      z.object({ bumper: z.strictObject({ id: bumper.shape.id, version: bumper.shape.version }) }),
+    ]),
+  );
+  const previewResult = audioPreviewSchema.extend({
+    url: z.string(),
+    durationSeconds: z.number(),
+    cached: z.boolean(),
+  });
+  const station = z.object({
+    tokenId: z.string(),
+    stationId: z.string(),
+    version: z.number().int().positive(),
+  });
+  const binaryBody = (types: string[]) => ({
+    required: true,
+    content: Object.fromEntries(
+      types.map((type) => [type, { schema: { type: 'string', format: 'binary' } }]),
+    ),
+  });
   return {
     openapi: '3.1.0',
     info: {
-      title: 'his.fm Agent Production API',
+      title: 'his.fm Scoped Site API',
       version,
       description:
-        'Authenticated read-only REST plus enrolled coordinator WebSockets. Legacy REST production mutations return 409 runtime_required. All machine mutations use typed operation frames, stable operation IDs and exact optimistic versions; human approvals are never available. Before every task read GET /channel: global prompt, then episode intent, then sources. Editorial priority never changes facts or grants permission. The owner must explicitly bind the token and station in the authenticated admin API before connecting.',
+        'Scoped REST site management plus an explicitly enrolled native coordinator transport. Ordinary REST business writes do not require a station. Each operation declares x-required-scopes; all listed grants are required, with conditional grants documented separately. Write does not imply read, review or publication. Existing-record mutations require optimistic versions and retain the actual authenticated audit actor. Creative tasks and narration execute on the configured native station, not in a stationless server runtime. Editorial priority is global prompt, category prompt, intent, sources; it never changes facts or grants permission. Provider secrets are write-only; native settings are shared by Local and Prod. No infrastructure operations or external-platform publishing.',
     },
     servers: [{ url: `${origin}/api/agent` }],
     security: [{ AgentBearer: [] }],
@@ -228,17 +367,20 @@ export function agentOpenApi(origin: string) {
         },
       },
       '/me': {
-        get: operation('checkAgentToken', 'Verify token without changing a production', {
-          type: 'object',
-          required: ['actor'],
-          properties: {
-            actor: {
-              type: 'object',
-              required: ['kind', 'name'],
-              properties: { kind: { const: 'agent' }, name: { type: 'string' } },
-            },
-          },
-        }),
+        get: operation(
+          'checkAgentToken',
+          'Verify authenticated agent identity, token ID, grants and expiry in Unix milliseconds',
+          schema(
+            z.object({
+              actor: principalSchema.extend({
+                kind: z.literal('agent'),
+                tokenId: z.string(),
+                scopes: grantsSchema,
+                expiresAt: z.number().positive(),
+              }),
+            }),
+          ),
+        ),
       },
       '/capabilities': {
         get: operation(
@@ -250,35 +392,106 @@ export function agentOpenApi(origin: string) {
       '/channel': {
         get: operation(
           'getChannelPositioning',
-          'Read the global editorial brief and private per-stage/runtime prompt bundle before every task. Owner-editable; agents cannot write. Keep internal principles out of public content.',
+          'Read the private global editorial prompt and runtime/stage bundle before every creative task. Keep internal principles out of public content.',
           {
             type: 'object',
             required: ['channel', 'priority'],
             properties: { channel: ref('ChannelProfile'), priority: schema(prioritySchema) },
           },
+          ['prompts:read'],
         ),
+        put: {
+          ...operation(
+            'updateChannelPrompts',
+            'Update saved prompts with an optimistic version; does not rewrite productions or invalidate approvals. Without prompts:read returns only the new version.',
+            schema(
+              z.union([
+                z.object({ channel: channelProfileSchema, priority: prioritySchema }),
+                z.object({ version: z.number().int().positive() }),
+              ]),
+            ),
+            ['prompts:write'],
+          ),
+          requestBody: body(channelUpdateSchema),
+        },
       },
       '/productions': {
-        get: operation('listProductions', 'List all private productions; no pagination', {
-          type: 'object',
-          required: ['productions'],
-          properties: { productions: { type: 'array', items: ref('Production') } },
-        }),
+        get: operation(
+          'listProductions',
+          'List productions; publication details/events projected by publications:read; no pagination',
+          {
+            type: 'object',
+            required: ['productions'],
+            properties: { productions: { type: 'array', items: ref('Production') } },
+          },
+          ['productions:read'],
+        ),
+        post: {
+          ...operation(
+            'createProduction',
+            'Create a brief with server-owned identity, stage and audit history',
+            wrappedProduction,
+            ['productions:write'],
+            201,
+          ),
+          requestBody: body(briefSchema),
+        },
       },
       '/productions/{id}': {
         parameters: [idParameter],
-        get: operation('getProduction', 'Read latest fields, version, feedback and audio status', {
-          ...wrappedProduction,
-          required: ['production', 'categoryProfile'],
-          properties: { ...wrappedProduction.properties, categoryProfile: schema(categorySchema) },
-        }),
+        get: operation(
+          'getProduction',
+          'Read latest fields, version, feedback and audio status',
+          {
+            ...fullProduction,
+            required: ['production', 'categoryProfile'],
+            properties: { ...fullProduction.properties, categoryProfile: schema(categoryProjection) },
+            description:
+              'categoryProfile includes metadata; its private prompt is omitted without prompts:read. Publication details and publication events depend on publications:read. The same projection applies to mutation responses.',
+          },
+          ['productions:read'],
+        ),
+        put: {
+          ...operation(
+            'updateProduction',
+            'Edit stage-allowed business fields with an expected version; no raw approval, asset, receipt or publication writes',
+            wrappedProduction,
+            ['productions:write'],
+          ),
+          requestBody: body(productionPatchSchema),
+        },
+        delete: {
+          ...operation(
+            'deleteProduction',
+            'Delete an unpublished production only; publication references block deletion',
+            {},
+            ['productions:delete'],
+            204,
+          ),
+          parameters: [versionQuery],
+        },
       },
       '/categories': {
-        get: operation('listCategories', 'Read selectable editorial categories without prompt bodies', {
-          type: 'object',
-          required: ['categories'],
-          properties: { categories: { type: 'array', items: schema(publicCategorySchema) } },
-        }),
+        get: operation(
+          'listCategories',
+          'Read category metadata; prompt is omitted without prompts:read',
+          {
+            type: 'object',
+            required: ['categories'],
+            properties: { categories: { type: 'array', items: schema(categoryProjection) } },
+          },
+          ['categories:read'],
+        ),
+        post: {
+          ...operation(
+            'createCategory',
+            'Create a stable-ID category; setting a nonempty prompt additionally requires prompts:write; returned prompt needs prompts:read',
+            schema(z.object({ category: categoryProjection })),
+            ['categories:write'],
+            201,
+          ),
+          requestBody: body(categoryInputSchema.partial({ prompt: true })),
+        },
       },
       '/categories/{id}': {
         parameters: [
@@ -286,9 +499,31 @@ export function agentOpenApi(origin: string) {
         ],
         get: operation(
           'readCategory',
-          'Read the private category prompt after the global channel prompt; owner-only writes',
-          { type: 'object', required: ['category'], properties: { category: schema(categorySchema) } },
+          'Read category metadata; private prompt is omitted without prompts:read',
+          { type: 'object', required: ['category'], properties: { category: schema(categoryProjection) } },
+          ['categories:read'],
         ),
+        put: {
+          ...operation(
+            'updateCategory',
+            'Update category metadata by version; changing its prompt additionally requires prompts:write; returned prompt needs prompts:read',
+            schema(z.object({ category: categoryProjection })),
+            ['categories:write'],
+          ),
+          requestBody: body(
+            categoryUpdateSchema.partial({ name: true, icon: true, color: true, prompt: true }),
+          ),
+        },
+        delete: {
+          ...operation(
+            'deleteCategory',
+            'Delete an unreferenced category by version; existing production/episode references block deletion',
+            {},
+            ['categories:delete'],
+            204,
+          ),
+          parameters: [versionQuery],
+        },
       },
       '/productions/{id}/capabilities': {
         parameters: [idParameter],
@@ -296,6 +531,7 @@ export function agentOpenApi(origin: string) {
           'getProductionCapabilities',
           'Discover currently valid actions and blocking reasons; read-only',
           ref('ProductionCapabilities'),
+          ['productions:read'],
         ),
       },
       '/productions/{id}/prompts': {
@@ -304,13 +540,513 @@ export function agentOpenApi(origin: string) {
           'getProductionPrompts',
           'Read local research, script, cover and description tasks',
           ref('Prompts'),
+          ['productions:read', 'prompts:read'],
         ),
+      },
+      '/productions/{id}/actions': {
+        parameters: [idParameter],
+        post: {
+          ...operation(
+            'performProductionAction',
+            'Submit requires productions:submit; approve requires productions:approve; revise/reopen requires productions:reopen. Inline changes additionally require productions:write. Valid stage, feedback and assets remain mandatory; audit actor remains agent.',
+            wrappedProduction,
+          ),
+          'x-required-scopes-by-action': {
+            submit_brief: ['productions:submit'],
+            submit_script: ['productions:submit'],
+            submit_final: ['productions:submit'],
+            approve_brief: ['productions:approve'],
+            approve_script: ['productions:approve'],
+            approve_final: ['productions:approve'],
+            revise_brief: ['productions:reopen'],
+            revise_script: ['productions:reopen'],
+            revise_assets: ['productions:reopen'],
+            reopen_brief: ['productions:reopen'],
+            reopen_script: ['productions:reopen'],
+            reopen_assets: ['productions:reopen'],
+          },
+          requestBody: body(productionActionSchema),
+        },
+      },
+      '/productions/{id}/assets/cover': {
+        parameters: [idParameter, versionQuery],
+        put: {
+          ...operation(
+            'uploadProductionCover',
+            'Upload a clean unframed raster original, at most 8 MiB; immutable key and approved-script asset rules apply',
+            wrappedProduction,
+            ['productions:write', 'storage:write'],
+          ),
+          requestBody: binaryBody(['image/png', 'image/jpeg', 'image/webp']),
+        },
+        delete: operation(
+          'detachProductionCover',
+          'Detach the current cover by expected version; does not delete referenced media or rewrite publication snapshots',
+          wrappedProduction,
+          ['productions:write', 'storage:write'],
+        ),
+      },
+      '/productions/{id}/assets/audio': {
+        parameters: [idParameter, versionQuery],
+        put: {
+          ...operation(
+            'uploadProductionAudio',
+            'Attach complete mono 24 kHz PCM16 WAV after script approval; cannot race a queued/running audio job',
+            wrappedProduction,
+            ['productions:write', 'storage:write'],
+          ),
+          requestBody: binaryBody(['audio/wav']),
+        },
+        delete: operation(
+          'detachProductionAudio',
+          'Detach current audio and clear attached job; queued/running jobs block this change',
+          wrappedProduction,
+          ['productions:write', 'storage:write'],
+        ),
+      },
+      '/productions/{id}/audio': {
+        parameters: [idParameter],
+        post: {
+          ...operation(
+            'generateProductionAudio',
+            'Queue native narration for the approved script; may incur provider charges; no stationless execution. Bumpers are opt-in and options are immutable job snapshots.',
+            wrappedProduction,
+            ['audio:generate', 'tasks:manage', 'prompts:read', 'productions:read'],
+            202,
+          ),
+          requestBody: body(audioGenerationSchema),
+        },
+      },
+      '/productions/{id}/publications': {
+        parameters: [idParameter],
+        get: operation(
+          'listPublicationRecords',
+          'Read recorded publication facts, not remote platform status',
+          {
+            type: 'object',
+            required: ['publications'],
+            properties: { publications: { type: 'array', items: ref('Publication') } },
+          },
+          ['publications:read'],
+        ),
+        post: {
+          ...operation(
+            'recordPublication',
+            'Record an actual completed platform publication and atomically update the public snapshot; ready/current final approval/assets required. This never calls an external publishing API.',
+            wrappedProduction,
+            ['publications:write'],
+          ),
+          requestBody: body(publicationSchema),
+        },
+      },
+      '/productions/{id}/publications/{platform}': {
+        parameters: [
+          idParameter,
+          {
+            name: 'platform',
+            in: 'path',
+            required: true,
+            schema: { type: 'string', enum: ['wechat', 'xiaoyuzhou'] },
+          },
+        ],
+        patch: {
+          ...operation(
+            'correctPublication',
+            'Correct an existing publication record and snapshot atomically, preserving the previous audit value',
+            wrappedProduction,
+            ['publications:write'],
+          ),
+          requestBody: body(publicationSchema),
+        },
+        delete: {
+          ...operation(
+            'withdrawPublication',
+            'Withdraw an existing record by version; withdrawing the last record unpublishes the site snapshot, not the remote post',
+            wrappedProduction,
+            ['publications:delete'],
+          ),
+          parameters: [versionQuery],
+        },
+      },
+      '/episodes': {
+        get: operation(
+          'listEpisodes',
+          'Read the private episode catalogue including draft snapshots',
+          schema(z.object({ episodes: z.array(episode) })),
+          ['episodes:read'],
+        ),
+        post: {
+          ...operation(
+            'createEpisode',
+            'Create a manual catalogue episode; publishing additionally requires episodes:publish. Without episodes:read returns only id/version.',
+            episodeMutation,
+            ['episodes:write'],
+            201,
+          ),
+          requestBody: body(episodeInputSchema),
+        },
+      },
+      '/episodes/{id}': {
+        parameters: [idParameter],
+        get: operation(
+          'getEpisode',
+          'Read an exact catalogue episode and version',
+          schema(z.object({ episode })),
+          ['episodes:read'],
+        ),
+        put: {
+          ...operation(
+            'updateEpisode',
+            'Update a manual episode by version; visibility/publication changes additionally require episodes:publish. Production snapshots cannot be rewritten here. Without episodes:read returns only id/version.',
+            episodeMutation,
+            ['episodes:write'],
+          ),
+          requestBody: body(episodeUpdateSchema),
+        },
+        patch: {
+          ...operation(
+            'updateEpisodeDisplay',
+            'Change only the featured flag by version, including on a production snapshot. Without episodes:read returns only id/version.',
+            episodeMutation,
+            ['episodes:write'],
+          ),
+          requestBody: body(episodeDisplaySchema),
+        },
+        delete: {
+          ...operation(
+            'deleteEpisode',
+            'Delete an unowned manual episode by version; production snapshots use publication withdrawal',
+            {},
+            ['episodes:delete'],
+            204,
+          ),
+          parameters: [versionQuery],
+        },
+      },
+      '/appearance': {
+        get: operation(
+          'getAppearance',
+          'Read saved public appearance selection and optimistic version',
+          schema(z.object({ appearance: appearanceSchema })),
+          ['appearance:read'],
+        ),
+        put: {
+          ...operation(
+            'updateAppearance',
+            'Update the saved public theme by version',
+            schema(z.object({ appearance: appearanceSchema })),
+            ['appearance:write'],
+          ),
+          requestBody: body(appearanceUpdateSchema),
+        },
+      },
+      '/ai-settings': {
+        get: operation(
+          'getAiSettings',
+          'Read allowlisted native configuration and key presence only; shared across Local/Prod and requires an available native host',
+          schema(z.object({ config: aiStatusSchema })),
+          ['settings:read'],
+        ),
+        put: {
+          ...operation(
+            'updateAiSettings',
+            'Save shared Local/Prod native configuration by fingerprint. Supplied settings require settings:write; supplied credentials require credentials:write. Null clears a key. With settings:read returns config; otherwise only the new version. No existing keys are returned.',
+            schema(
+              z.union([z.object({ config: aiStatusSchema }), z.object({ version: z.string().length(64) })]),
+            ),
+          ),
+          'x-required-scopes-by-field': { settings: ['settings:write'], credentials: ['credentials:write'] },
+          requestBody: body(aiUpdateSchema),
+        },
+      },
+      '/production-settings': {
+        get: operation(
+          'getProductionSettings',
+          'Read shared native narration settings; bumper metadata is an empty array without bumpers:read. No provider secrets. Requires an available native host.',
+          schema(
+            z.object({
+              settings: productionSettingsSchema.extend({
+                version: z.string().length(64),
+                bumpers: z.array(bumper),
+                ttsConfigured: z.boolean(),
+                providers: z.object({ gemini: z.boolean(), elevenlabs: z.boolean() }),
+                voices: z.object({ gemini: z.string(), elevenlabs: z.string() }),
+              }),
+            }),
+          ),
+          ['settings:read'],
+        ),
+      },
+      '/production-settings/preview': {
+        post: {
+          ...operation(
+            'requestAudioPreview',
+            'Request at most 200 characters of native narration; reuses content-addressed audio when available, otherwise queues native execution. May incur provider charges.',
+            schema(z.object({ preview: previewResult })),
+            ['audio:generate', 'tasks:manage', 'prompts:read'],
+          ),
+          requestBody: body(audioPreviewSchema),
+          responses: {
+            ...errors,
+            '200': {
+              description: 'Cached preview',
+              content: content(schema(z.object({ preview: previewResult }))),
+            },
+            '202': {
+              description: 'Queued native preview, not completed media',
+              content: content(schema(z.object({ jobId: z.string() }))),
+            },
+          },
+        },
+      },
+      '/production-settings/preview/{id}': {
+        parameters: [{ ...idParameter, schema: { type: 'string', pattern: '^[a-f0-9]{64}$' } }],
+        get: {
+          ...operation(
+            'readAudioPreview',
+            'Read an exact native preview result or pending job state; failed generation returns 502',
+            schema(z.object({ preview: previewResult })),
+            ['settings:read'],
+          ),
+          responses: {
+            ...errors,
+            '200': {
+              description: 'Completed preview',
+              content: content(schema(z.object({ preview: previewResult }))),
+            },
+            '202': {
+              description: 'Pending native preview',
+              content: content(schema(z.object({ jobId: z.string(), status: z.string() }))),
+            },
+          },
+        },
+      },
+      '/production-settings/previews': {
+        get: operation(
+          'listAudioPreviews',
+          'Read up to 30 completed previews for the fixed voice-comparison script; no generation occurs',
+          schema(z.object({ previews: z.array(previewResult) })),
+          ['settings:read'],
+        ),
+      },
+      '/bumpers': {
+        get: operation(
+          'listBumpers',
+          'List saved immutable bumper audio and metadata',
+          schema(z.object({ bumpers: z.array(bumper) })),
+          ['bumpers:read'],
+        ),
+        post: {
+          ...operation(
+            'uploadBumper',
+            'Upload complete mono 24 kHz PCM16 WAV, at most 3 MiB and 30 seconds; metadata is required in query parameters. Without bumpers:read returns only bumper.id/version; otherwise full metadata.',
+            bumperMutation,
+            ['bumpers:write'],
+            201,
+          ),
+          parameters: Object.entries(schema(bumperInputSchema, 'input').properties ?? {}).map(
+            ([name, value]) => ({ name, in: 'query', required: true, schema: value }),
+          ),
+          requestBody: binaryBody(['audio/wav']),
+        },
+      },
+      '/bumpers/{id}': {
+        parameters: [idParameter],
+        get: operation(
+          'getBumper',
+          'Read a saved bumper and optimistic version',
+          schema(z.object({ bumper })),
+          ['bumpers:read'],
+        ),
+        put: {
+          ...operation(
+            'updateBumper',
+            'Rename or reposition a bumper by version; immutable media bytes are unchanged. Without bumpers:read returns only bumper.id/version; otherwise full metadata.',
+            bumperMutation,
+            ['bumpers:write'],
+          ),
+          requestBody: body(bumperUpdateSchema),
+        },
+        delete: {
+          ...operation(
+            'deleteBumper',
+            'Delete unreferenced bumper metadata by version; saved settings, productions and job snapshots block deletion; immutable media is retained',
+            {},
+            ['bumpers:delete'],
+            204,
+          ),
+          parameters: [versionQuery],
+        },
+      },
+      '/tasks': {
+        get: operation(
+          'listTasks',
+          'List at most 100 latest caller-owned tasks; tasks:manage additionally permits all-site administration',
+          schema(z.object({ tasks: z.array(task) })),
+          ['tasks:read'],
+        ),
+        post: {
+          ...operation(
+            'submitTask',
+            'Submit an idempotent product task using shared coordinator/executor history; tasks:manage authorizes this history, not token-isolated sessions. Production context additionally requires productions:read. Principal is server-owned; execution needs an enrolled native station and effects require originator/executor grants.',
+            schema(z.object({ command: commandSchema, inserted: z.boolean() })),
+            ['tasks:submit', 'tasks:manage', 'prompts:read'],
+          ),
+          requestBody: body(taskInputSchema),
+        },
+      },
+      '/tasks/{id}': {
+        parameters: [idParameter],
+        get: operation(
+          'getTask',
+          'Read a caller-owned task and up to 100 latest messages; tasks:manage additionally permits all-site administration',
+          schema(z.object({ task, messages: z.array(agentMessageSchema) })),
+          ['tasks:read'],
+        ),
+      },
+      '/tasks/{id}/cancel': {
+        parameters: [idParameter],
+        post: operation(
+          'cancelTask',
+          'Request cancellation of a caller-owned task, not disabling the coordinator; tasks:manage additionally permits all-site administration',
+          schema(z.object({ id: z.string(), cancelling: z.boolean() })),
+          ['tasks:cancel'],
+        ),
+      },
+      '/agent/station': {
+        get: operation(
+          'getRuntimeStation',
+          'Read the current website station binding and version; null means not enrolled',
+          schema(z.object({ station: station.nullable() })),
+          ['runtime:manage'],
+        ),
+        post: {
+          ...operation(
+            'enrollRuntimeStation',
+            'Explicitly enroll or replace a station using the current binding version (initial 0). Target token needs runtime:connect. Agent managers cannot bind grants or expiry beyond their own; replacement prunes existing leases.',
+            schema(z.object({ station })),
+            ['runtime:manage'],
+          ),
+          requestBody: body(enrollmentSchema),
+        },
+      },
+      '/agent-tokens': {
+        get: operation(
+          'listAgentTokens',
+          'Read token metadata and grants, never existing secrets',
+          schema(z.object({ tokens: z.array(tokenRecord) })),
+          ['tokens:read'],
+        ),
+        post: {
+          ...operation(
+            'issueAgentToken',
+            'Issue a one-time secret. Grants must be nonempty, unique and known; agent delegation must be a subset of issuer grants and cannot outlive issuer expiry. Reject excess rather than clamp.',
+            schema(z.object({ token: z.string(), record: tokenRecord })),
+            ['tokens:issue'],
+            201,
+          ),
+          requestBody: { required: true, content: content(tokenInput) },
+        },
+      },
+      '/agent-tokens/{id}': {
+        parameters: [idParameter],
+        delete: operation(
+          'revokeAgentToken',
+          'Revoke the target and descendants; agent target grants must be a subset of revoker grants; runtime leases are pruned',
+          {},
+          ['tokens:revoke'],
+          204,
+        ),
+      },
+      '/storage': {
+        get: {
+          ...operation(
+            'scanStorage',
+            'Scan all cursor pages before cleanup; current references, protected prefixes and 24-hour retention are reported',
+            schema(z.object({ objects: z.array(storageObject), cursor: z.string().nullable() })),
+            ['storage:read'],
+          ),
+          parameters: [{ name: 'cursor', in: 'query', schema: { type: 'string', maxLength: 4096 } }],
+        },
+        post: {
+          ...operation(
+            'uploadStorageObject',
+            'Upload validated raster or mono 24 kHz PCM16 WAV, at most 25 MiB. Server generates a new immutable key; caller paths/query parameters are rejected.',
+            schema(z.object({ object: storageObject, url: z.string() })),
+            ['storage:write'],
+            201,
+          ),
+          requestBody: binaryBody(['image/png', 'image/jpeg', 'image/webp', 'audio/wav']),
+        },
+      },
+      '/storage/object': {
+        parameters: [
+          {
+            name: 'key',
+            in: 'query',
+            required: true,
+            schema: { type: 'string', minLength: 1, maxLength: 1024 },
+          },
+        ],
+        get: {
+          operationId: 'downloadStorageObject',
+          summary:
+            'Download an exact private object with safe media type, range support and no-store headers',
+          'x-required-scopes': ['storage:read'],
+          parameters: [
+            { name: 'Range', in: 'header', schema: { type: 'string' } },
+            { name: 'If-Range', in: 'header', schema: { type: 'string' } },
+          ],
+          responses: {
+            ...errors,
+            '200': {
+              description: 'Object bytes',
+              content: { 'application/octet-stream': { schema: { type: 'string', format: 'binary' } } },
+            },
+            '206': { description: 'Requested byte range' },
+            '416': { description: 'Invalid byte range' },
+          },
+        },
+        head: {
+          operationId: 'inspectStorageObject',
+          summary: 'Read exact object headers without bytes',
+          'x-required-scopes': ['storage:read'],
+          responses: { ...errors, '200': { description: 'Object headers' } },
+        },
+        delete: {
+          ...operation(
+            'deleteStorageObject',
+            'Delete only an unused, unprotected object older than 24 hours, revalidating references and exact object version; inspect per-item result',
+            schema(cleanupResult),
+            ['storage:delete'],
+          ),
+          parameters: [
+            {
+              name: 'version',
+              in: 'query',
+              required: true,
+              schema: { type: 'string', minLength: 1, maxLength: 256 },
+            },
+          ],
+        },
+      },
+      '/storage/cleanup': {
+        post: {
+          ...operation(
+            'cleanupStorage',
+            'Revalidate and clean up at most 50 scanned items. Protected/referenced/recent/stale objects are skipped; partial success is reported per item. Never use a partial scan as cleanup authority.',
+            schema(cleanupResult),
+            ['storage:delete'],
+          ),
+          requestBody: body(storageCleanupSchema),
+        },
       },
       '/runtime/connect': {
         get: {
           operationId: 'connectCoordinator',
           summary:
             'Upgrade the explicitly enrolled coordinator; 10s ping, 35s idle timeout, at most 15 minute authorization lease',
+          'x-required-scopes': ['runtime:connect'],
           parameters: [
             { name: 'X-Hisfm-Station', in: 'header', required: true, schema: { type: 'string' } },
             { name: 'protocol', in: 'query', schema: { const: '1' } },
@@ -330,6 +1066,7 @@ export function agentOpenApi(origin: string) {
             'readOperationReceipt',
             'Read an exact durable operation receipt; 202 means still unknown, not success',
             { type: 'object' },
+            ['runtime:connect'],
           ),
           parameters: [
             { ...idParameter, description: 'Stable operation ID' },
@@ -347,19 +1084,26 @@ export function agentOpenApi(origin: string) {
             schema: { type: 'string' },
           })),
         ],
-        get: operation('readNativeSpeechJob', 'Read the exact authorized speech job or completed receipt', {
-          type: 'object',
-        }),
+        get: operation(
+          'readNativeSpeechJob',
+          'Read the exact authorized speech job or completed receipt',
+          {
+            type: 'object',
+          },
+          ['runtime:connect', 'audio:generate'],
+        ),
         post: operation(
           'startNativeSpeechJob',
           'Mark local speech execution under the active enrolled lease',
           { type: 'object' },
+          ['runtime:connect', 'audio:generate'],
         ),
         put: {
           ...operation(
             'completeNativeSpeechJob',
             'Upload mono 24 kHz PCM16 WAV and atomically attach a still-approved job',
             { type: 'object' },
+            ['runtime:connect', 'audio:generate'],
           ),
           requestBody: {
             required: true,
@@ -370,6 +1114,7 @@ export function agentOpenApi(origin: string) {
           'failNativeSpeechJob',
           'Record a failed native attempt without deleting completed audio',
           { type: 'object' },
+          ['runtime:connect', 'audio:generate'],
         ),
       },
     },
@@ -396,8 +1141,10 @@ export function agentOpenApi(origin: string) {
         CreateProduction: schema(briefSchema, 'input'),
         UpdateProduction: schema(productionPatchSchema, 'input'),
         AgentAction: schema(agentActionSchema, 'input'),
+        ProductionAction: schema(productionActionSchema, 'input'),
         GenerateAudio: schema(audioGenerationSchema, 'input'),
         Production: schema(productionResponseSchema),
+        Publication: schema(productionResponseSchema.shape.publications.element),
         ProductionCapabilities: schema(productionCapabilitiesSchema),
         ServiceCapabilities: schema(serviceCapabilitiesSchema),
         Prompts: schema(

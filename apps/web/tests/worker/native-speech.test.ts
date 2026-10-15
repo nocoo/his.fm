@@ -3,7 +3,7 @@ import { type AiStatus, defaultSpeechSettings, type SpeechSnapshot, wavHeader } 
 import { Miniflare } from 'miniflare';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Production } from '../../src/shared/production';
-import { routeAgentTokens } from '../../worker/agent-tokens';
+import { authenticateAgent, routeAgentTokens } from '../../worker/agent-tokens';
 import { routeAiSettings } from '../../worker/ai-settings';
 import * as audio from '../../worker/audio';
 import { routeAudio, triggerAudio } from '../../worker/audio-routes';
@@ -172,9 +172,10 @@ beforeEach(async () => {
     }),
   } as unknown as DurableObjectNamespace;
   const result = await routeAgentTokens(
-    request('/admin/api/agent-tokens', 'POST', { name: 'Speech', expiresInDays: 1 }),
+    request('/admin/api/agent-tokens', 'POST', { name: 'Speech', expiresInDays: 1, scopes: agent.scopes }),
     env,
     '/admin/api/agent-tokens',
+    human,
   );
   const created = (await result.json()) as { token: string; record: { id: string } };
   token = created.token;
@@ -199,16 +200,19 @@ describe('native speech jobs', () => {
     expect((await call('/production-settings', 'GET', undefined, agent))?.status).toBe(403);
     expect(await call('/unrelated')).toBeNull();
     expect((await call('/production-settings', 'PUT', {}))?.status).toBe(404);
-    expect((await routeAiSettings(request('/admin/api/ai-settings'), env)).status).toBe(200);
+    expect((await routeAiSettings(request('/admin/api/ai-settings'), env, human)).status).toBe(200);
     expect(
       (
         await routeAiSettings(
           request('/admin/api/ai-settings', 'PUT', { version: config.version, settings: config.settings }),
           env,
+          human,
         )
       ).status,
     ).toBe(200);
-    await expect(routeAiSettings(request('/admin/api/ai-settings', 'DELETE'), env)).rejects.toMatchObject({
+    await expect(
+      routeAiSettings(request('/admin/api/ai-settings', 'DELETE'), env, human),
+    ).rejects.toMatchObject({
       status: 405,
     });
     config.providers.gemini = false;
@@ -310,7 +314,7 @@ describe('native speech jobs', () => {
       )
       .run();
     await expect(native(id)).rejects.toMatchObject({ status: 409 });
-    await queueSpeech(env, 'preview-fail', 'preview', sample, null);
+    await queueSpeech(env, 'preview-fail', 'preview', sample, null, human);
     await native('preview-fail', 'DELETE');
     await expect(speechResult(env, 'preview-fail')).rejects.toMatchObject({ status: 502 });
   });
@@ -322,20 +326,23 @@ describe('native speech jobs', () => {
           body: bytes,
         }),
         env,
+        human,
       );
     const { bumper } = (await (await upload()).json()) as { bumper: { id: string; key: string } };
-    expect((await (await routeBumpers(request('/admin/api/bumpers'), env)).json()) as unknown).toMatchObject({
+    expect(
+      (await (await routeBumpers(request('/admin/api/bumpers'), env, human)).json()) as unknown,
+    ).toMatchObject({
       bumpers: [{ id: bumper.id, name: 'Opening', position: 'intro' }],
     });
     const p = await start({ introId: bumper.id });
     const snapshot = await getAudioSnapshot(env.DB, p.audioJob?.id ?? '');
     expect(snapshot.introKey).toBe(bumper.key);
     expect(snapshot.outroKey).toBeNull();
-    await expect(routeBumpers(request('/admin/api/bumpers', 'PUT'), env)).rejects.toMatchObject({
+    await expect(routeBumpers(request('/admin/api/bumpers', 'PUT'), env, human)).rejects.toMatchObject({
       status: 405,
     });
     await expect(
-      routeBumpers(new Request(`${origin}/admin/api/bumpers`, { method: 'POST', body: bytes }), env),
+      routeBumpers(new Request(`${origin}/admin/api/bumpers`, { method: 'POST', body: bytes }), env, human),
     ).rejects.toMatchObject({ status: 400 });
     await expect(
       routeBumpers(
@@ -344,6 +351,7 @@ describe('native speech jobs', () => {
           body: new Uint8Array(2),
         }),
         env,
+        human,
       ),
     ).rejects.toMatchObject({ status: 400 });
   });
@@ -403,9 +411,10 @@ describe('native speech jobs', () => {
       routeBumpers(
         new Request(`${origin}/admin/api/bumpers?name=Long&position=outro`, { method: 'POST', body: long }),
         env,
+        human,
       ),
     ).rejects.toMatchObject({ status: 400 });
-    await queueSpeech(env, 'oversize', 'preview', sample, null);
+    await queueSpeech(env, 'oversize', 'preview', sample, null, human);
     const oversized = new Uint8Array(121 * 48000 + 44);
     oversized.set(wavHeader(oversized.length - 44));
     await expect(native('oversize', 'PUT', oversized)).rejects.toMatchObject({ status: 400 });
@@ -414,12 +423,12 @@ describe('native speech jobs', () => {
     });
   });
   it('retains failed job identity while creating a new explicit attempt and handles lost production scope', async () => {
-    await queueSpeech(env, 'retry', 'preview', sample, null);
+    await queueSpeech(env, 'retry', 'preview', sample, null, human);
     const first = await env.DB.prepare("SELECT command_id FROM speech_jobs WHERE id='retry'").first(
       'command_id',
     );
     await env.DB.prepare("UPDATE agent_commands SET status='failed' WHERE id=?").bind(first).run();
-    await queueSpeech(env, 'retry', 'preview', sample, null);
+    await queueSpeech(env, 'retry', 'preview', sample, null, human);
     expect(
       await env.DB.prepare("SELECT command_id FROM speech_jobs WHERE id='retry'").first('command_id'),
     ).not.toBe(first);
@@ -495,7 +504,11 @@ describe('native speech jobs', () => {
 it('routes token APIs outside Access and blocks human cross-origin mutation', async () => {
   const login = await worker.fetch(request('/admin/api/dev-login', 'POST'), env);
   const cookie = login.headers.get('Set-Cookie')?.split(';')[0] ?? '';
-  const createToken = request('/admin/api/agent-tokens', 'POST', { name: 'Hermes', expiresInDays: 30 });
+  const createToken = request('/admin/api/agent-tokens', 'POST', {
+    name: 'Hermes',
+    expiresInDays: 30,
+    scopes: agent.scopes,
+  });
   createToken.headers.set('Cookie', cookie);
   const tokenResponse = await worker.fetch(createToken, env);
   const { token } = (await tokenResponse.json()) as { token: string };
@@ -525,6 +538,142 @@ it('routes token APIs outside Access and blocks human cross-origin mutation', as
   unsafe.headers.set('Cookie', cookie);
   unsafe.headers.set('Origin', 'https://evil.example');
   expect((await worker.fetch(unsafe, env)).status).toBe(403);
+});
+
+it('enforces independent settings, credential and generation grants without readback', async () => {
+  const writer = { ...agent, scopes: ['settings:write'] as const };
+  const actor = { ...writer, scopes: [...writer.scopes] };
+  const update = () =>
+    request('/admin/api/ai-settings', 'PUT', { version: config.version, settings: config.settings });
+  expect(await (await routeAiSettings(update(), env, actor)).json()).toEqual({ version: config.version });
+  await expect(routeAiSettings(request('/admin/api/ai-settings'), env, actor)).rejects.toMatchObject({
+    status: 403,
+  });
+  const credentials = () =>
+    request('/admin/api/ai-settings', 'PUT', { version: config.version, credentials: { gemini: null } });
+  await expect(routeAiSettings(credentials(), env, actor)).rejects.toMatchObject({ status: 403 });
+  expect(
+    await (await routeAiSettings(credentials(), env, { ...agent, scopes: ['credentials:write'] })).json(),
+  ).toEqual({ version: config.version });
+  await expect(
+    routeAiSettings(update(), env, { ...agent, scopes: ['credentials:write'] }),
+  ).rejects.toMatchObject({ status: 403 });
+  expect(
+    (await call('/productions/missing/audio', 'POST', { version: 1 }, { ...agent, scopes: [] }))?.status,
+  ).toBe(403);
+  expect((await call('/production-settings/preview', 'POST', {}, { ...agent, scopes: [] }))?.status).toBe(
+    403,
+  );
+  expect(
+    (await call('/production-settings', 'GET', undefined, { ...agent, scopes: ['settings:read'] }))?.status,
+  ).toBe(200);
+});
+
+it('persists speech origin authority and stops revoked queued work without changing media or production', async () => {
+  const issued = await routeAgentTokens(
+    request('/agent-tokens', 'POST', {
+      name: 'Audio origin',
+      expiresInDays: 1,
+      scopes: ['audio:generate', 'tasks:manage', 'prompts:read', 'productions:read'],
+    }),
+    env,
+    '/agent-tokens',
+    human,
+  );
+  const { token: originToken, record } = (await issued.json()) as { token: string; record: { id: string } };
+  const actor = await authenticateAgent(
+    new Request(origin, { headers: { Authorization: `Bearer ${originToken}` } }),
+    env,
+  );
+  const p = await insert();
+  const response = await call(`/productions/${p.id}/audio`, 'POST', { version: 1 }, actor);
+  expect(response?.status).toBe(202);
+  const production = await getProduction(env.DB, p.id);
+  const id = production.audioJob?.id ?? '';
+  expect((await getAudioSnapshot(env.DB, id)).principal.tokenId).toBe(record.id);
+  expect((await native(id)).status).toBe(200);
+  await env.DB.prepare('UPDATE agent_tokens SET revoked_at=? WHERE id=?')
+    .bind(new Date().toISOString(), record.id)
+    .run();
+  await expect(native(id)).rejects.toMatchObject({ status: 403 });
+  await expect(triggerAudio(env, id)).rejects.toMatchObject({ status: 403 });
+  expect(await getProduction(env.DB, p.id)).toEqual(production);
+  await env.DB.prepare(
+    "UPDATE agent_commands SET data=json_remove(data,'$.principal') WHERE id=(SELECT command_id FROM speech_jobs WHERE id=?)",
+  )
+    .bind(id)
+    .run();
+  await expect(native(id)).rejects.toMatchObject({ status: 403 });
+  await expect(
+    queueSpeech(
+      env,
+      'invalid-origin',
+      'preview',
+      {
+        provider: 'gemini',
+        model: 'gemini-3.8-flash-tts',
+        voice: 'Kore',
+        speakingStyle: 'calm',
+        text: 'test',
+        stability: 0.5,
+        similarity: 0.75,
+      },
+      null,
+      { kind: 'agent', name: 'No grants' },
+    ),
+  ).rejects.toMatchObject({ status: 403 });
+});
+
+it('revalidates origin content grants on completed speech receipts without reexecuting audio', async () => {
+  const scopes = ['audio:generate', 'tasks:manage', 'prompts:read', 'productions:read'];
+  const issued = await routeAgentTokens(
+    request('/agent-tokens', 'POST', { name: 'Receipt origin', expiresInDays: 1, scopes }),
+    env,
+    '/agent-tokens',
+    human,
+  );
+  const { token: originToken, record } = (await issued.json()) as { token: string; record: { id: string } };
+  const actor = await authenticateAgent(
+    new Request(origin, { headers: { Authorization: `Bearer ${originToken}` } }),
+    env,
+  );
+  const p = await insert();
+  expect((await call(`/productions/${p.id}/audio`, 'POST', { version: 1 }, actor))?.status).toBe(202);
+  const id = (await getProduction(env.DB, p.id)).audioJob?.id ?? '';
+  const completed = await (await native(id, 'PUT', bytes)).json();
+  await env.DB.prepare(
+    "UPDATE agent_commands SET status='complete' WHERE id=(SELECT command_id FROM speech_jobs WHERE id=?)",
+  )
+    .bind(id)
+    .run();
+  const saved = await getProduction(env.DB, p.id);
+  expect(await (await native(id)).json()).toEqual(completed);
+  for (const removed of scopes) {
+    await env.DB.prepare('UPDATE agent_tokens SET scopes=? WHERE id=?')
+      .bind(JSON.stringify(scopes.filter((scope) => scope !== removed)), record.id)
+      .run();
+    await expect(native(id)).rejects.toMatchObject({ status: 403 });
+    await expect(native(id, 'PUT', new Uint8Array(1))).rejects.toMatchObject({ status: 403 });
+  }
+  expect(await getProduction(env.DB, p.id)).toEqual(saved);
+  expect(await env.DB.prepare('SELECT status FROM speech_jobs WHERE id=?').bind(id).first('status')).toBe(
+    'complete',
+  );
+});
+
+it('never overwrites or deletes an existing immutable WAV on upload conflict', async () => {
+  const key = `audio/previews/${crypto.randomUUID()}.wav`;
+  await env.MEDIA.put(key, bytes);
+  const upload = new Request(origin, {
+    method: 'PUT',
+    headers: { 'Content-Length': String(bytes.length) },
+    body: bytes,
+  });
+  await expect(audio.storeNativeWav(upload, env.MEDIA, key, 120)).rejects.toThrow('already exists');
+  await expect(audio.composeWav(env.MEDIA, [key], key)).rejects.toThrow();
+  const retained = await env.MEDIA.get(key);
+  if (!retained) throw new Error('Immutable WAV was removed');
+  expect(new Uint8Array(await retained.arrayBuffer())).toEqual(bytes);
 });
 
 it('protects published workflow snapshots from legacy catalog mutations', async () => {

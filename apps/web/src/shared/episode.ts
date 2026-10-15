@@ -47,9 +47,15 @@ export const episodeInputSchema = z
   });
 
 export type EpisodeInput = z.infer<typeof episodeInputSchema>;
+export const episodeUpdateSchema = episodeInputSchema.safeExtend({ version: z.number().int().positive() });
+export const episodeDisplaySchema = z.strictObject({
+  version: z.number().int().positive(),
+  featured: z.boolean(),
+});
 
 export type Episode = EpisodeInput & {
   id: string;
+  version: number;
   sourceProductionId?: string | null;
   createdAt: string;
   updatedAt: string;

@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { defaultSpeechSettings, speechCacheContent, speechSnapshotSchema } from './speech.ts';
+import { aiUpdateSchema, defaultSpeechSettings, speechCacheContent, speechSnapshotSchema } from './speech.ts';
 
 it('validates provider/model identity and hashes the same fields independently of insertion order', () => {
   const input = {
@@ -24,4 +24,16 @@ it('validates provider/model identity and hashes the same fields independently o
       voice: 'voice123',
     }).success,
   ).toBe(true);
+});
+
+it('requires a real settings or credential mutation and permits explicit credential clearing', () => {
+  const version = '0'.repeat(64);
+  expect(aiUpdateSchema.safeParse({ version }).success).toBe(false);
+  expect(aiUpdateSchema.safeParse({ version, credentials: {} }).success).toBe(false);
+  expect(aiUpdateSchema.safeParse({ version, credentials: { gemini: '' } }).success).toBe(false);
+  expect(aiUpdateSchema.parse({ version, credentials: { gemini: null } })).toEqual({
+    version,
+    credentials: { gemini: null },
+  });
+  expect(aiUpdateSchema.safeParse({ version, settings: defaultSpeechSettings }).success).toBe(true);
 });

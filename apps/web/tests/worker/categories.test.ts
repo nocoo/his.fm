@@ -1,3 +1,4 @@
+import assert from 'node:assert/strict';
 import { readdirSync, readFileSync } from 'node:fs';
 import { defaultPrompts } from '@frogie/core/hisfm/prompts';
 import { Miniflare } from 'miniflare';
@@ -14,6 +15,10 @@ vi.setConfig({ testTimeout: 30000, hookTimeout: 30000 });
 let mf: Miniflare;
 let env: Env;
 const origin = 'https://hisfm.dev.hexly.ai';
+const reader = {
+  ...agent,
+  scopes: ['categories:read', 'productions:read', 'prompts:read'] as import('@his-fm/contracts').Scope[],
+};
 const input = {
   name: '研究笔记',
   icon: 'book-open' as const,
@@ -90,10 +95,12 @@ it('keeps original identities, returns public metadata without prompts, and vali
     { private: 'x' },
   ])
     expect(categoryInputSchema.safeParse({ ...input, ...patch }).success).toBe(false);
-  await expect(routeCategories(request('POST', input), env, agent)).rejects.toMatchObject({ status: 403 });
+  await expect(routeCategories(request('POST', input), env, { ...agent, scopes: [] })).rejects.toMatchObject({
+    status: 403,
+  });
   await expect(getCategory(env.DB, 'missing')).rejects.toMatchObject({ status: 404 });
-  expect((await routeCategories(request(), env, agent, category.id)).status).toBe(200);
-  expect((await routeCategories(request(), env, agent)).status).toBe(200);
+  expect((await routeCategories(request(), env, reader, category.id)).status).toBe(200);
+  expect((await routeCategories(request(), env, reader)).status).toBe(200);
   expect((await worker.fetch(new Request(`${origin}/api/categories`, { method: 'POST' }), env)).status).toBe(
     405,
   );
@@ -147,7 +154,7 @@ it('accepts new categories in productions, prevents deleting referenced categori
   );
   assert(response);
   const { production } = (await response.json()) as { production: ReturnType<typeof fixture> };
-  const read = await routeProductions(request(), env, `/productions/${production.id}`, agent);
+  const read = await routeProductions(request(), env, `/productions/${production.id}`, reader);
   expect(await read?.json()).toMatchObject({ categoryProfile: category });
   await expect(
     routeCategories(
@@ -188,5 +195,3 @@ it('protects owner category writes with authentication and same-origin checks', 
   unsafe.headers.set('Origin', 'https://evil.example');
   expect((await worker.fetch(unsafe, env)).status).toBe(403);
 });
-
-import assert from 'node:assert/strict';

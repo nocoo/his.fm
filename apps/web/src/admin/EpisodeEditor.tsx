@@ -51,16 +51,17 @@ export function EpisodeEditor() {
   }, [id, attempt]);
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (pending || episode?.sourceProductionId) return;
+    if (pending || episode?.sourceProductionId || (id && !episode)) return;
     const result = readEpisodeForm(new FormData(event.currentTarget));
     setErrors(result.errors ?? {});
     setError('');
     if (!result.data) return;
     setPending(true);
     try {
-      const { episode: saved } = id
-        ? await adminService.update(id, result.data)
-        : await adminService.create(result.data);
+      const { episode: saved } =
+        id && episode
+          ? await adminService.update(id, result.data, episode.version)
+          : await adminService.create(result.data);
       setEpisode(saved);
       setDirty(false);
       toast.success(saved.status === 'published' ? '节目已发布，网站内容已更新' : '草稿已保存');

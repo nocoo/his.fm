@@ -13,6 +13,7 @@ export type AudioSnapshot = {
   introKey: string | null;
   outroKey: string | null;
   speech: import('@his-fm/contracts').SpeechSnapshot;
+  principal: import('@his-fm/contracts').Principal;
 };
 export async function getSettings(env: Env): Promise<ProductionSettings> {
   const config = await runtimeConfiguration(env);

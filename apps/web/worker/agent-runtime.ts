@@ -1,3 +1,4 @@
+import { grantsSchema, hasScope } from '@his-fm/contracts';
 import { decodeJwt } from 'jose';
 import { z } from 'zod';
 import type { Actor } from '../src/shared/production';
@@ -5,6 +6,7 @@ import { readReceipt } from './agent-runtime-operation';
 import { station } from './agent-runtime-store';
 import { authenticateAgentIdentity } from './agent-tokens';
 import { isLocal } from './auth';
+import { requireScope } from './authorization';
 import { HttpError, json, requireSameOrigin } from './http';
 import { readJson } from './production-body';
 
@@ -21,7 +23,7 @@ export interface ConnectionIdentity {
   delivery?: { sent: number; acknowledged: number; pending: number[] };
 }
 
-const enrollmentSchema = z.strictObject({
+export const enrollmentSchema = z.strictObject({
   tokenId: z.string().min(1).max(160),
   stationId: z.string().regex(/^[a-zA-Z0-9._-]{1,160}$/),
   version: z.number().int().nonnegative().optional(),
@@ -74,6 +76,7 @@ async function browserLease(request: Request, env: Env) {
 }
 
 export async function connectRuntime(request: Request, env: Env, actor?: Actor) {
+  if (actor?.kind === 'agent') throw new HttpError(403, 'Browser connections require an owner session');
   if (request.method !== 'GET') throw new HttpError(405, '连接只支持 GET');
   requireRuntimeOrigin(request, env, Boolean(actor));
   if (request.headers.get('Upgrade')?.toLowerCase() !== 'websocket')
@@ -92,6 +95,7 @@ export async function connectRuntime(request: Request, env: Env, actor?: Actor) 
   if (actor) Object.assign(identity, await browserLease(request, env));
   else {
     const authentication = await authenticateAgentIdentity(request, env);
+    requireScope(authentication.actor, 'runtime:connect');
     const current = await station(env.DB);
     const stationId = request.headers.get('X-Hisfm-Station');
     if (!current || current.tokenId !== authentication.tokenId || current.stationId !== stationId)
@@ -112,7 +116,9 @@ export async function connectRuntime(request: Request, env: Env, actor?: Actor) 
 export async function routeRuntimeAdmin(request: Request, env: Env, actor: Actor): Promise<Response> {
   const path = new URL(request.url).pathname;
   if (path === '/admin/api/agent/live') return connectRuntime(request, env, actor);
+  requireScope(actor, 'runtime:manage');
   if (path === '/admin/api/agent/history') {
+    requireScope(actor, 'tasks:manage');
     const url = new URL(request.url);
     const cursor = url.searchParams.get('before');
     const kind = url.searchParams.get('kind') ?? 'messages';
@@ -124,7 +130,7 @@ export async function routeRuntimeAdmin(request: Request, env: Env, actor: Actor
     )
       throw new HttpError(400, '历史分页参数无效');
     url.search = '';
-    requireRuntimeOrigin(new Request(url, request), env, true);
+    requireRuntimeOrigin(new Request(url, request), env, actor.kind === 'human');
     const query =
       kind === 'messages'
         ? "SELECT rowid AS cursor, data FROM agent_events WHERE type = 'message' AND rowid < ? ORDER BY rowid DESC LIMIT 20"
@@ -137,9 +143,11 @@ export async function routeRuntimeAdmin(request: Request, env: Env, actor: Actor
       nextCursor: rows.results.length === 20 ? rows.results.at(-1)?.cursor : null,
     });
   }
-  requireRuntimeOrigin(request, env, true);
-  if (path === '/admin/api/agent/snapshot' && request.method === 'GET')
+  requireRuntimeOrigin(request, env, actor.kind === 'human');
+  if (path === '/admin/api/agent/snapshot' && request.method === 'GET') {
+    requireScope(actor, 'tasks:manage');
     return hub(env).fetch('https://hub/snapshot');
+  }
   if (path !== '/admin/api/agent/station') throw new HttpError(404, '接口不存在');
   if (request.method === 'GET') {
     const current = await station(env.DB);
@@ -152,11 +160,20 @@ export async function routeRuntimeAdmin(request: Request, env: Env, actor: Actor
   if (request.method !== 'POST') throw new HttpError(405, '不支持这个请求方式');
   const input = await readJson(request, enrollmentSchema);
   const token = await env.DB.prepare(
-    'SELECT id FROM agent_tokens WHERE id = ? AND revoked_at IS NULL AND expires_at > ?',
+    'SELECT scopes, expires_at AS expiresAt FROM agent_tokens WHERE id = ? AND revoked_at IS NULL AND expires_at > ?',
   )
     .bind(input.tokenId, new Date().toISOString())
-    .first();
+    .first<{ scopes: string; expiresAt: string }>();
   if (!token) throw new HttpError(400, '请选择有效的主控 Token');
+  const grants = grantsSchema.parse(JSON.parse(token.scopes));
+  if (!grants.includes('runtime:connect')) throw new HttpError(403, 'Station token requires runtime:connect');
+  if (
+    actor.kind === 'agent' &&
+    (!actor.expiresAt ||
+      Date.parse(token.expiresAt) > actor.expiresAt ||
+      grants.some((scope) => !hasScope(actor, scope)))
+  )
+    throw new HttpError(403, 'Station token must stay within manager grants and expiry');
   const expectedVersion = input.version ?? 0;
   const result = await env.DB.prepare(
     'INSERT INTO agent_station (id, token_id, station_id, version) SELECT 1, ?, ?, 1 WHERE ? = 0 OR EXISTS (SELECT 1 FROM agent_station WHERE id = 1 AND version = ?) ON CONFLICT(id) DO UPDATE SET token_id = excluded.token_id, station_id = excluded.station_id, version = version + 1, generation = NULL, lease_until = 0 WHERE version = ?',
@@ -174,6 +191,7 @@ export async function routeRuntimeReceipt(request: Request, env: Env) {
   if (request.method !== 'GET') throw new HttpError(405, '回执只支持 GET');
   requireRuntimeOrigin(request, env, false);
   const identity = await authenticateAgentIdentity(request, env);
+  requireScope(identity.actor, 'runtime:connect');
   const current = await station(env.DB);
   if (
     !current ||
@@ -184,6 +202,7 @@ export async function routeRuntimeReceipt(request: Request, env: Env) {
   const receipt = await readReceipt(
     env.DB,
     decodeURIComponent(new URL(request.url).pathname.slice('/api/agent/runtime/receipts/'.length)),
+    identity.actor,
   );
   return json({ receipt }, receipt ? 200 : 202);
 }

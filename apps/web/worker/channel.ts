@@ -1,10 +1,10 @@
 import { channelDefault as defaultContent, defaultPrompts } from '@frogie/core/hisfm/prompts';
-import { promptSetSchema } from '@his-fm/contracts';
+import { hasScope, promptSetSchema } from '@his-fm/contracts';
 import { type ChannelProfile, channelUpdateSchema, editorialPriority } from '../src/shared/channel';
 import type { Actor } from '../src/shared/production';
+import { requireScope } from './authorization';
 import { HttpError, json } from './http';
 import { readJson } from './production-body';
-import { requireHuman } from './production-model';
 
 export async function getChannel(db: D1Database): Promise<ChannelProfile> {
   await db
@@ -27,10 +27,12 @@ export async function getChannel(db: D1Database): Promise<ChannelProfile> {
 }
 
 export async function routeChannel(request: Request, env: Env, actor: Actor): Promise<Response> {
-  if (request.method === 'GET')
+  if (request.method === 'GET') {
+    requireScope(actor, 'prompts:read');
     return json({ channel: await getChannel(env.DB), priority: editorialPriority });
-  requireHuman(actor);
+  }
   if (request.method !== 'PUT') throw new HttpError(405, '全局提示词使用 GET 读取、PUT 更新');
+  requireScope(actor, 'prompts:write');
   const input = await readJson(request, channelUpdateSchema);
   await getChannel(env.DB);
   const channel = await env.DB.prepare(
@@ -45,8 +47,12 @@ export async function routeChannel(request: Request, env: Env, actor: Actor): Pr
     )
     .first<Omit<ChannelProfile, 'prompts'> & { prompts: string }>();
   if (!channel) throw new HttpError(409, '全局提示词已在别处更新。你的草稿已保留，请对照最新版本后保存。');
-  return json({
-    channel: { ...channel, prompts: promptSetSchema.parse(JSON.parse(channel.prompts)) },
-    priority: editorialPriority,
-  });
+  return json(
+    hasScope(actor, 'prompts:read')
+      ? {
+          channel: { ...channel, prompts: promptSetSchema.parse(JSON.parse(channel.prompts)) },
+          priority: editorialPriority,
+        }
+      : { version: channel.version },
+  );
 }

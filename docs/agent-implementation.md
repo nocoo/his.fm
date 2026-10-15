@@ -53,7 +53,7 @@ Evidence and deliverables remain ignored under `.local/autonomy-acceptance`. Rer
 - Production rollout is authorized for v2.1.0. The release deploys the matching runtime protocol; each production station must still be explicitly enrolled with a separate machine token. Production acceptance evidence is recorded after deployment, not inferred from local success.
 - Context payloads are bounded and can reject excessively large draft/value pairs. The separate content-addressed chunk API in the larger design is not implemented yet; there is no silent truncation or screen fallback.
 - Durable assignment results are local Pi documents; a separate private R2 artifact catalogue and deterministic Markdown-to-spoken-text approval UI from the full design are not part of this initial slice. Canonical manuscript writes must remain spoken prose-compatible Markdown until that renderer is implemented. Do not claim rich Markdown audio support or automatic binary-cover upload.
-- The agent has full local CLI ability without OS sandbox isolation, but no permission to use other local credentials to bypass website human-only rules. This remains a trusted-local-user execution model.
+- The agent has full local CLI ability without OS sandbox isolation, but no permission to use other local credentials to bypass website grant, version or workflow rules. This remains a trusted-local-user execution model.
 - Model text/CLI results are not factual verification. Review results and human approvals remain separate; reconnect/heartbeat never certify completion.
 
 ## Current verification

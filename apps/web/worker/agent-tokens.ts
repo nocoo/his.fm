@@ -1,14 +1,17 @@
+import { grantsSchema } from '@his-fm/contracts';
 import { z } from 'zod';
 import type { Actor, AgentTokenRecord } from '../src/shared/production';
-import { HttpError, json, requireSameOrigin } from './http';
+import { requireScope } from './authorization';
+import { HttpError, json } from './http';
 import { readJson } from './production-body';
 
-const tokenSchema = z.strictObject({
+export const tokenSchema = z.strictObject({
   name: z.string().trim().min(1).max(100),
   expiresInDays: z.number().int().min(1).max(365),
+  scopes: grantsSchema.min(1),
 });
 const publicFields =
-  'id, name, prefix, created_at AS createdAt, expires_at AS expiresAt, last_used_at AS lastUsedAt, revoked_at AS revokedAt';
+  'id, name, prefix, scopes, created_at AS createdAt, expires_at AS expiresAt, last_used_at AS lastUsedAt, revoked_at AS revokedAt';
 
 async function hashToken(token: string) {
   const hash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token));
@@ -20,13 +23,19 @@ export async function authenticateAgentIdentity(request: Request, env: Env) {
   if (!token) throw new HttpError(401, '需要有效的 Agent Token');
   const now = new Date().toISOString();
   const record = await env.DB.prepare(
-    'UPDATE agent_tokens SET last_used_at = ? WHERE token_hash = ? AND revoked_at IS NULL AND expires_at > ? RETURNING id, name, expires_at AS expiresAt',
+    'UPDATE agent_tokens SET last_used_at = ? WHERE token_hash = ? AND revoked_at IS NULL AND expires_at > ? AND json_array_length(scopes) > 0 RETURNING id, name, scopes, expires_at AS expiresAt',
   )
     .bind(now, await hashToken(token), now)
-    .first<{ id: string; name: string; expiresAt: string }>();
+    .first<{ id: string; name: string; scopes: string; expiresAt: string }>();
   if (!record) throw new HttpError(401, 'Agent Token 已失效或被撤销');
   return {
-    actor: { kind: 'agent' as const, name: `${record.name} (${record.id})` },
+    actor: {
+      kind: 'agent' as const,
+      name: `${record.name} (${record.id})`,
+      tokenId: record.id,
+      scopes: grantsSchema.parse(JSON.parse(record.scopes)),
+      expiresAt: Date.parse(record.expiresAt),
+    },
     tokenId: record.id,
     expiresAt: Date.parse(record.expiresAt),
   };
@@ -36,30 +45,61 @@ export async function authenticateAgent(request: Request, env: Env): Promise<Act
   return (await authenticateAgentIdentity(request, env)).actor;
 }
 
-export async function routeAgentTokens(request: Request, env: Env, path: string): Promise<Response> {
-  if (path === '/admin/api/agent-tokens') {
+export async function routeAgentTokens(
+  request: Request,
+  env: Env,
+  path: string,
+  actor: Actor,
+): Promise<Response> {
+  path = path.replace(/^\/admin\/api/, '');
+  if (path === '/agent-tokens') {
     if (request.method === 'GET') {
+      requireScope(actor, 'tokens:read');
       const { results } = await env.DB.prepare(
         `SELECT ${publicFields} FROM agent_tokens ORDER BY created_at DESC`,
-      ).all<AgentTokenRecord>();
-      return json({ tokens: results });
+      ).all<Omit<AgentTokenRecord, 'scopes'> & { scopes: string }>();
+      return json({
+        tokens: results.map((record) => ({
+          ...record,
+          scopes: grantsSchema.parse(JSON.parse(record.scopes)),
+        })),
+      });
     }
     if (request.method === 'POST') {
-      requireSameOrigin(request);
+      requireScope(actor, 'tokens:issue');
       const input = await readJson(request, tokenSchema);
-      const token = `hisfm_${Array.from(crypto.getRandomValues(new Uint8Array(32)), (byte) => byte.toString(16).padStart(2, '0')).join('')}`;
       const now = new Date();
+      const expiresAt = now.getTime() + input.expiresInDays * 86400000;
+      if (
+        actor.kind === 'agent' &&
+        (!actor.tokenId ||
+          !actor.expiresAt ||
+          expiresAt > actor.expiresAt ||
+          input.scopes.some((scope) => !actor.scopes?.includes(scope)))
+      )
+        throw new HttpError(403, 'Issued token must stay within issuer grants and expiry');
+      const token = `hisfm_${Array.from(crypto.getRandomValues(new Uint8Array(32)), (byte) => byte.toString(16).padStart(2, '0')).join('')}`;
       const record: AgentTokenRecord = {
         id: crypto.randomUUID(),
         name: input.name,
         prefix: token.slice(0, 14),
         createdAt: now.toISOString(),
-        expiresAt: new Date(now.getTime() + input.expiresInDays * 86400000).toISOString(),
+        expiresAt: new Date(expiresAt).toISOString(),
         lastUsedAt: null,
         revokedAt: null,
+        scopes: input.scopes,
       };
-      await env.DB.prepare(
-        'INSERT INTO agent_tokens (id, name, prefix, token_hash, created_at, expires_at) VALUES (?, ?, ?, ?, ?, ?)',
+      const issuerId = actor.kind === 'agent' ? actor.tokenId : null;
+      const inserted = await env.DB.prepare(
+        `INSERT INTO agent_tokens (id, name, prefix, token_hash, created_at, expires_at, scopes, parent_id)
+        SELECT ?, ?, ?, ?, ?, ?, ?, ? WHERE ? IS NULL OR EXISTS (
+          SELECT 1 FROM agent_tokens issuer WHERE issuer.id = ? AND issuer.revoked_at IS NULL
+          AND issuer.expires_at >= ?
+          AND EXISTS (SELECT 1 FROM json_each(issuer.scopes) WHERE value = 'tokens:issue')
+          AND NOT EXISTS (SELECT 1 FROM json_each(?) requested WHERE NOT EXISTS (
+            SELECT 1 FROM json_each(issuer.scopes) granted WHERE granted.value = requested.value
+          ))
+        ) RETURNING id`,
       )
         .bind(
           record.id,
@@ -68,21 +108,37 @@ export async function routeAgentTokens(request: Request, env: Env, path: string)
           await hashToken(token),
           record.createdAt,
           record.expiresAt,
+          JSON.stringify(record.scopes),
+          issuerId,
+          issuerId,
+          issuerId,
+          record.expiresAt,
+          JSON.stringify(record.scopes),
         )
-        .run();
+        .first();
+      if (!inserted) throw new HttpError(403, 'Issuer authority changed before token issuance');
       return json({ token, record }, 201);
     }
     throw new HttpError(405, '不支持这个请求方式');
   }
-  if (/^\/admin\/api\/agent-tokens\/[^/]+$/.test(path)) {
+  if (/^\/agent-tokens\/[^/]+$/.test(path)) {
     if (request.method !== 'DELETE') throw new HttpError(405, '不支持这个请求方式');
-    requireSameOrigin(request);
-    const record = await env.DB.prepare(
-      'UPDATE agent_tokens SET revoked_at = COALESCE(revoked_at, ?) WHERE id = ? RETURNING id',
-    )
-      .bind(new Date().toISOString(), path.slice('/admin/api/agent-tokens/'.length))
-      .first();
+    requireScope(actor, 'tokens:revoke');
+    const id = decodeURIComponent(path.slice('/agent-tokens/'.length));
+    const record = await env.DB.prepare('SELECT scopes FROM agent_tokens WHERE id = ?')
+      .bind(id)
+      .first<{ scopes: string }>();
     if (!record) throw new HttpError(404, 'Token 不存在');
+    if (
+      actor.kind === 'agent' &&
+      grantsSchema.parse(JSON.parse(record.scopes)).some((scope) => !actor.scopes?.includes(scope))
+    )
+      throw new HttpError(403, 'Cannot revoke a token outside your grants');
+    await env.DB.prepare(
+      'WITH RECURSIVE descendants(id) AS (SELECT id FROM agent_tokens WHERE id = ? UNION ALL SELECT child.id FROM agent_tokens child JOIN descendants parent ON child.parent_id = parent.id) UPDATE agent_tokens SET revoked_at = COALESCE(revoked_at, ?) WHERE id IN (SELECT id FROM descendants)',
+    )
+      .bind(id, new Date().toISOString())
+      .run();
     if (env.AGENT_HUB) {
       try {
         await env.AGENT_HUB.getByName(`his.fm:${env.ENVIRONMENT}`).fetch('https://hub/prune', {

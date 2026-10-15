@@ -1,16 +1,24 @@
-import { speechCacheContent, speechSnapshotSchema } from '@his-fm/contracts';
+import { hasScope, speechCacheContent, speechSnapshotSchema } from '@his-fm/contracts';
 import { type Actor, audioGenerationSchema, audioPreviewSchema } from '../src/shared/production';
 import { cleanText } from '../src/shared/publication-format';
 import { voiceSampleTranscript } from '../src/shared/voice-samples';
-import { operationFence, operationReceipt } from './agent-runtime-operation';
+import { operationFence, operationOrigin, operationReceipt } from './agent-runtime-operation';
 import { runtimeConfiguration } from './ai-settings';
 import { readStoredWav } from './audio';
 import { type AudioSnapshot, getSettings } from './audio-store';
+import { currentPrincipal, requireScope } from './authorization';
 import { HttpError, json } from './http';
 import { queueSpeech, speechResult } from './native-speech';
 import { readJson } from './production-body';
 import { editAssets } from './production-model';
-import { appendEvent, getProduction, mediaUrl, nextVersion, updateStatement } from './production-store';
+import {
+  appendEvent,
+  getProduction,
+  mediaUrl,
+  nextVersion,
+  projectProduction,
+  updateStatement,
+} from './production-store';
 
 export async function triggerAudio(env: Env, jobId: string) {
   const row = await env.DB.prepare('SELECT snapshot FROM audio_jobs WHERE id = ?')
@@ -18,22 +26,25 @@ export async function triggerAudio(env: Env, jobId: string) {
     .first<{ snapshot: string }>();
   if (!row) throw new HttpError(404, '音频任务不存在');
   const snapshot: AudioSnapshot = JSON.parse(row.snapshot);
-  await queueSpeech(env, jobId, 'production', snapshot.speech, snapshot.productionId);
+  await queueSpeech(env, jobId, 'production', snapshot.speech, snapshot.productionId, snapshot.principal);
 }
 
 async function startAudio(request: Request, env: Env, id: string, actor: Actor) {
+  requireScope(actor, 'audio:generate');
+  const origin = operationOrigin() ?? actor;
+  requireScope(origin, 'tasks:manage');
+  requireScope(origin, 'prompts:read');
+  requireScope(origin, 'productions:read');
   const { version, provider, voice, speakingStyle, introId, outroId } = await readJson(
     request,
     audioGenerationSchema,
   );
   const production = await getProduction(env.DB, id);
   if (production.version !== version) throw new HttpError(409, '内容已更新，请刷新后重试');
-  if (
-    (actor.kind === 'agent' && production.stage !== 'production') ||
-    !production.approvals.brief ||
-    !production.approvals.script
-  )
+  if (!production.approvals.brief || !production.approvals.script)
     throw new HttpError(409, '请先批准逐字稿再生成音频');
+  if (!hasScope(actor, 'productions:reopen') && production.stage !== 'production')
+    throw new HttpError(409, '当前阶段生成音频需要 productions:reopen 权限');
   if (production.audioJob && ['queued', 'running'].includes(production.audioJob.status)) {
     const fence = operationFence(env.DB);
     if (fence.length) {
@@ -48,7 +59,7 @@ async function startAudio(request: Request, env: Env, id: string, actor: Actor) 
       if (results[fence.length].meta.changes !== 1) throw new HttpError(409, '内容已更新，请刷新后重试');
     }
     if (production.audioJob.status === 'queued') await triggerAudio(env, production.audioJob.id);
-    return json({ production });
+    return json({ production: projectProduction(production, actor) });
   }
   const settings = await getSettings(env);
   const config = await runtimeConfiguration(env);
@@ -73,6 +84,7 @@ async function startAudio(request: Request, env: Env, id: string, actor: Actor) 
   const jobId = crypto.randomUUID();
   const now = new Date().toISOString();
   const snapshot: AudioSnapshot = {
+    principal: await currentPrincipal(env.DB, origin),
     jobId,
     productionId: id,
     scriptVersion: production.scriptVersion,
@@ -112,11 +124,14 @@ async function startAudio(request: Request, env: Env, id: string, actor: Actor) 
   ]);
   if (results[fence.length + 1].meta.changes !== 1) throw new HttpError(409, '内容已更新，请刷新后重试');
   await triggerAudio(env, jobId);
-  return json({ production: await getProduction(env.DB, id) }, 202);
+  return json({ production: projectProduction(await getProduction(env.DB, id), actor) }, 202);
 }
 
-async function previewAudio(request: Request, env: Env) {
+async function previewAudio(request: Request, env: Env, actor: Actor) {
   if (request.method !== 'POST') throw new HttpError(405, '不支持这个请求方式');
+  requireScope(actor, 'audio:generate');
+  requireScope(actor, 'tasks:manage');
+  requireScope(actor, 'prompts:read');
   const input = await readJson(request, audioPreviewSchema);
   const config = await runtimeConfiguration(env);
   if (!config.providers[input.provider]) throw new HttpError(409, '请先配置所选语音服务的 Key');
@@ -141,7 +156,7 @@ async function previewAudio(request: Request, env: Env) {
         cached: true,
       },
     });
-  await queueSpeech(env, hash, 'preview', snapshot, null);
+  await queueSpeech(env, hash, 'preview', snapshot, null, actor);
   return json({ jobId: hash }, 202);
 }
 
@@ -157,8 +172,8 @@ export async function routeAudio(
     return startAudio(request, env, match[1], actor);
   }
   if (!path.startsWith('/production-settings')) return null;
-  if (actor.kind !== 'human') throw new HttpError(403, '只有编辑可以管理语音设置');
-  if (path === '/production-settings/preview') return previewAudio(request, env);
+  if (path === '/production-settings/preview') return previewAudio(request, env, actor);
+  requireScope(actor, 'settings:read');
   if (path === '/production-settings/previews' && request.method === 'GET') {
     const rows = await env.DB.prepare(
       "SELECT result FROM speech_jobs WHERE kind = 'preview' AND status = 'complete' AND json_extract(snapshot, '$.text') = ? ORDER BY created_at DESC LIMIT 30",
@@ -169,7 +184,11 @@ export async function routeAudio(
   }
   const preview = /^\/production-settings\/preview\/([a-f0-9]{64})$/.exec(path);
   if (preview && request.method === 'GET') return speechResult(env, preview[1]);
-  if (path === '/production-settings' && request.method === 'GET')
-    return json({ settings: await getSettings(env) });
+  if (path === '/production-settings' && request.method === 'GET') {
+    const settings = await getSettings(env);
+    return json({
+      settings: { ...settings, bumpers: hasScope(actor, 'bumpers:read') ? settings.bumpers : [] },
+    });
+  }
   throw new HttpError(404, '接口不存在');
 }

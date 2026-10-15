@@ -121,7 +121,7 @@ describe('owner R2 inventory and cleanup', () => {
       (await call('/cleanup', { method: 'POST', headers: { Origin: 'https://other.test' } })).status,
     ).toBe(403);
     for (const [path, method, status] of [
-      ['', 'POST', 405],
+      ['', 'POST', 415],
       ['/cleanup', 'GET', 405],
       ['/object', 'PUT', 405],
       ['/missing', 'GET', 404],
@@ -212,6 +212,8 @@ describe('owner R2 inventory and cleanup', () => {
       'bumper-current.wav',
       'bumper-active.wav',
       'bumper-queued.wav',
+      'bumper-done.wav',
+      'bumper-failed.wav',
     ])
       expect(states[key]).toBe('referenced');
     for (const key of [
@@ -224,8 +226,6 @@ describe('owner R2 inventory and cleanup', () => {
     for (const key of [
       'unused.mp4',
       'not-ours.wav',
-      'bumper-done.wav',
-      'bumper-failed.wav',
       'audio/production-test/1/done/part-001.wav',
       'audio/production-test/1/failed/part-001.wav',
     ])

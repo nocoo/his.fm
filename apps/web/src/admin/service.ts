@@ -57,12 +57,13 @@ export const adminService = {
       method: 'POST',
       body: JSON.stringify(input),
     }),
-  update: (id: string, input: EpisodeInput) =>
+  update: (id: string, input: EpisodeInput, version: number) =>
     request<{ episode: Episode }>(`/episodes/${encodeURIComponent(id)}`, {
       method: 'PUT',
-      body: JSON.stringify(input),
+      body: JSON.stringify({ ...input, version }),
     }),
-  remove: (id: string) => request<void>(`/episodes/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+  remove: (id: string, version: number) =>
+    request<void>(`/episodes/${encodeURIComponent(id)}?version=${version}`, { method: 'DELETE' }),
 };
 
 export async function connectProduction(): Promise<void> {

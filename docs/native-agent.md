@@ -16,7 +16,7 @@ Run from the repository root:
 npm run agent -- start --environment local
 ```
 
-The agent connects outbound to `/api/agent/runtime/connect` using its Bearer token and `X-Hisfm-Station` header. The owner must explicitly bind that token and station through `POST /admin/api/agent/station`; first-connect does not acquire authority. Production requires a separate explicit token/binding and deployed runtime protocol. A Local/Prod browser switch never copies local credentials or local tasks into production.
+The agent connects outbound to `/api/agent/runtime/connect` using its Bearer token and `X-Hisfm-Station` header. The owner must explicitly bind that token and station through `POST /admin/api/agent/station`, or a suitably bounded `runtime:manage` token may use `POST /api/agent/agent/station`; the runtime token needs `runtime:connect`. First-connect does not acquire authority. Production requires a separate explicit token/binding and deployed runtime protocol. A Local/Prod browser switch never copies local credentials or local tasks into production.
 
 ## Local development and debugging
 
@@ -44,9 +44,26 @@ Executors return immutable Markdown plus `done`, `blocked` or `needs_input`, sup
 
 Read `/api/agent/channel` (including the private `prompts` bundle; see `docs/prompts.md`) and the production's `categoryProfile` before each creative assignment and recheck their revisions before canonical writes. Priority is channel policy, selected category prompt, episode intent, then sources; none can change factual truth or grant permissions. Read the production and its capabilities to get the current version, script version, stage and editable fields. Writer/reviewer reuse requires matching global and category prompt revisions.
 
-Agent mutations use typed, idempotent operation frames on the enrolled runtime connection. Legacy direct machine mutations return `runtime_required`; GET discovery/context remains available. Operations have a stable ID and the exact command/production scope, optimistic version and connection lease. An uncertain response is reconciled through `/api/agent/runtime/receipts/:id`, not retried with a new ID.
+The native coordinator uses typed, idempotent operation frames on the enrolled runtime connection. Independent clients use scoped REST business routes without a station; see [API onboarding](api-onboarding.md). Operations have a stable ID and the exact command/production scope, optimistic version and connection lease. An uncertain response is reconciled through `/api/agent/runtime/receipts/:id`, not retried with a new ID.
 
-Only the owner can approve, reopen, manage tokens/settings/channel policy, or confirm actual platform publication. The coordinator's editorial acceptance is not human approval. Audio generation additionally requires an explicitly requested task and an approved current transcript. Successful delivery never implies acoustic verification or platform publication.
+The default coordinator preset cannot approve, reopen, administer tokens/settings/channel policy or record publication. An owner may explicitly issue those scopes to an independent REST client, retaining the real agent identity in audit records. Editorial acceptance is not approval or evidence of actual platform publication. Audio generation requires `audio:generate` and an approved current transcript; a native typed request additionally requires an explicit originating task. Task principals are captured by the server, revalidated before reads/effects and intersected with executor authority. Revoked, expired and historical principal-less commands fail closed; receipt replay does not restart generation. Successful delivery never implies acoustic verification or platform publication.
+
+The coordinator and reusable executors retain shared task history, including prior
+owner work. They are not isolated by token. Agent-origin task submissions therefore
+require `tasks:submit`, `tasks:manage` and `prompts:read`; production context also
+requires `productions:read`. `tasks:manage` explicitly authorizes shared history.
+Audio/preview requests require `audio:generate` with the same history/read
+prerequisites. These are originator requirements, not extra grants for the station
+token. Restricted or missing principals fail before fresh execution, pending-task
+recovery and compaction. Independent REST CRUD does not enter these conversations
+and needs only its documented business scopes.
+
+All native task reads carry their exact `X-Hisfm-Command`. Cached preparation and
+executor reuse reauthorize current profiles before using retained snapshots.
+Compaction authorizes every contributing active/recovering command and rejects
+missing grants or differing channel revisions; it never falls back to a root token
+or an old prompt. This is a shared-history trust boundary, not low-grant conversation
+isolation.
 
 ## Ambient collaboration
 

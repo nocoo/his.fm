@@ -137,17 +137,24 @@ describe('production service contracts', () => {
       headers: { 'Content-Type': 'image/webp' },
     });
   });
-  it('creates and revokes expiring tokens', async () => {
+  it('creates tokens with exactly the selected grants and revokes them', async () => {
     response({ token: 'one-time-token', record: { id: 'one' } }, 201);
-    expect((await service.createToken('Hermes', 30)).token).toBe('one-time-token');
+    expect((await service.createToken('Hermes', 30, ['productions:read'])).token).toBe('one-time-token');
     expect(lastRequest()).toMatchObject({
       url: '/admin/api/agent-tokens',
       method: 'POST',
-      body: '{"name":"Hermes","expiresInDays":30}',
+      body: '{"name":"Hermes","expiresInDays":30,"scopes":["productions:read"]}',
     });
     response(null, 204);
     await service.revokeToken('a/b');
     expect(lastRequest()).toMatchObject({ url: '/admin/api/agent-tokens/a%2Fb', method: 'DELETE' });
+  });
+  it('does not add grants to a custom token', async () => {
+    response({ token: 'custom', record: { id: 'custom' } }, 201);
+    await service.createToken('Custom', 1, ['appearance:read', 'appearance:write']);
+    expect(lastRequest()).toMatchObject({
+      body: '{"name":"Custom","expiresInDays":1,"scopes":["appearance:read","appearance:write"]}',
+    });
   });
   it('preserves version conflicts, revoked sessions and upload errors for the viewmodel', async () => {
     for (const status of [401, 409, 413]) {

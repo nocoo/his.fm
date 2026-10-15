@@ -362,7 +362,7 @@ it('sends canonical patches and approved explicit audio only through idempotent 
       type: 'operation',
       operation: { kind: 'audio.request', options: {} },
     });
-    const production = await test.client.production('p');
+    const production = await test.client.production('p', 'command-1');
     for (const value of [
       { ...production, approvals: { ...production.approvals, script: null } },
       { ...production, approvals: { ...production.approvals, brief: null } },

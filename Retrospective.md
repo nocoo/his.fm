@@ -298,3 +298,36 @@ transport database and workspace root while deriving IDs only from those numbers
 could reuse historical receipts or files. Scope external IDs and work directories
 by the persistent runtime identity; a regression seeds old success receipts and
 messages and verifies that new operations execute once without modifying them.
+
+## 2026-10-15: Scope integration needs executable contracts
+
+The inherited Herdr environment named a different workspace from the active
+his.fm pane. A split briefly appeared in that other workspace and was closed
+immediately, without starting work there. Resolve the actual project pane from
+the agent inventory and use explicit workspace/pane IDs for every operation.
+
+Adding episode validators to OpenAPI initially failed at runtime because Zod
+output JSON Schema cannot represent date transforms. Generate request/input and
+response/output schemas deliberately, and invoke the complete OpenAPI generator
+in a regression test rather than relying on TypeScript alone.
+
+Scoped writes also require response projection: an audio-only or write-only token
+must not receive an existing transcript or catalog entry through a mutation
+response. Review success bodies, cached receipts and nested prompt/publication
+fields together with endpoint authorization, not only GET handlers.
+
+Read attenuation alone does not isolate a resident coordinator's retained history.
+Frogie's shared scheduler may drain work outside the caller's async-local context,
+and resume can schedule every restored conversation. Authorize explicit command IDs
+before reuse/recovery, stage denied work for cancellation while paused, and authorize
+all contributing commands before compaction. Until roots and resident histories are
+separated by immutable origin, require explicit shared-history authority rather than
+claiming low-scope task isolation.
+
+Independent review caught issuance checking only the authenticated issuer snapshot:
+a child inserted after an ancestor's cascade revocation could remain valid. Fence
+issuance in the INSERT itself using live grants, expiry and revocation state. It also
+caught approval implicitly reopening stages despite a separate reopen scope, and
+bumper mutation responses returning old media metadata to write-only callers. Test
+each grant alone, not just full-owner workflows, and test stale authentication
+against commit-time authority changes.

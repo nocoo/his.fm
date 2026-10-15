@@ -48,9 +48,12 @@ export function runtimeSettings(
         const input = aiUpdateSchema.parse(request.input);
         if (configurationStatus(config).version !== input.version)
           throw new Error('配置已更新，请刷新后重试。');
-        config.speech = input.settings;
+        if (input.settings) config.speech = input.settings;
         config.configRevision = randomBytes(32).toString('hex');
-        Object.assign(config.speechKeys, input.credentials);
+        for (const provider of ['gemini', 'elevenlabs'] as const) {
+          const key = input.credentials?.[provider];
+          if (key !== undefined) config.speechKeys[provider] = key ?? '';
+        }
         const temporary = `${path}.${randomUUID()}.tmp`;
         try {
           await writeFile(temporary, `${JSON.stringify(config, null, 2)}\n`, { mode: 0o600, flag: 'wx' });

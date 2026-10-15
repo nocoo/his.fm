@@ -1,3 +1,4 @@
+import { hasScope } from '@his-fm/contracts';
 import type { Actor, Production } from '../src/shared/production';
 import { operationFence, operationReceipt } from './agent-runtime-operation';
 import { categoryFence, getCategory } from './categories';
@@ -5,6 +6,19 @@ import { HttpError } from './http';
 
 export function mediaUrl(env: Pick<Env, 'ENVIRONMENT'>, key: string) {
   return `${env.ENVIRONMENT === 'local' ? '/media' : 'https://f.no.mt'}/${key}`;
+}
+
+export function projectProduction(
+  production: Production,
+  actor: Actor,
+): Production | Pick<Production, 'id' | 'version'> {
+  if (!hasScope(actor, 'productions:read')) return { id: production.id, version: production.version };
+  if (hasScope(actor, 'publications:read')) return production;
+  return {
+    ...production,
+    publications: [],
+    events: production.events.filter((event) => !event.action.includes('publication:')),
+  };
 }
 
 export async function getProduction(db: D1Database, id: string): Promise<Production> {

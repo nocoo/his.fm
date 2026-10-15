@@ -33,7 +33,7 @@ there is no wildcard granting future capabilities.
 | bumpers | read, write, delete |
 | storage | read, write, delete |
 | tokens | read, issue, revoke |
-| tasks | read, submit, cancel |
+| tasks | read, submit, cancel, manage |
 | runtime | connect, manage |
 
 All entrypoints reuse domain controllers. REST business writes do not require a
@@ -45,6 +45,14 @@ must not leak private prompts through production/category or mutation responses.
 Task submissions persist their originator and authorization ceiling. Effects are
 bounded by both execution credentials and the originator's current grants; revoked
 or expired originators cannot continue through a more privileged coordinator.
+
+The native coordinator and reusable executors share history across tasks. This
+iteration does not provide per-token conversation isolation. Agent-origin tasks
+require `tasks:submit`, `tasks:manage` and `prompts:read`; production context also
+requires `productions:read`. Audio/preview requests require `audio:generate` with
+the same shared-history/read prerequisites. `tasks:manage` explicitly authorizes
+shared coordinator history. The executor itself need not hold that grant. Ordinary
+REST business operations remain independently scoped without entering native history.
 
 ## Business boundaries
 
@@ -59,14 +67,14 @@ or expired originators cannot continue through a more privileged coordinator.
 
 ## Implementation sequence
 
-- [ ] Add shared scopes, principals and authorization helpers with focused tests.
-- [ ] Implement explicit token grants, bounded delegation and the owner scope UI.
-- [ ] Authorize shared controllers and expose scoped REST management operations.
-- [ ] Complete missing business CRUD and publication lifecycle operations.
-- [ ] Add scoped task submission/inspection/cancellation and delegation fencing.
-- [ ] Synchronize capability discovery, OpenAPI, onboarding and project rules.
-- [ ] Run unit coverage, strict lint/types, build and focused browser verification.
-- [ ] Review privilege boundaries and commit verified logical changes.
+- [x] Add shared scopes, principals and authorization helpers with focused tests.
+- [x] Implement explicit token grants, bounded delegation and the owner scope UI.
+- [x] Authorize shared controllers and expose scoped REST management operations.
+- [x] Complete missing business CRUD and publication lifecycle operations.
+- [x] Add scoped task submission/inspection/cancellation and delegation fencing.
+- [x] Synchronize capability discovery, OpenAPI, onboarding and project rules.
+- [x] Run unit coverage, strict lint/types, build and focused browser verification.
+- [x] Review privilege boundaries and commit verified logical changes.
 
 ## Verification
 

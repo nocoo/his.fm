@@ -1,10 +1,19 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
-import type { AgentCommand, AgentOperation, ServerFrame } from '@his-fm/contracts';
+import {
+  type AgentCommand,
+  type AgentOperation,
+  hasScope,
+  type Principal,
+  type ServerFrame,
+  scopes,
+} from '@his-fm/contracts';
 import type { Actor, Production } from '../src/shared/production';
 import { digest, requireCommand } from './agent-runtime-store';
-import { routeAudio, triggerAudio } from './audio-routes';
+import { routeAudio } from './audio-routes';
+import { commandOrigin, commandPrincipal, currentPrincipal, requireScope } from './authorization';
 import { HttpError } from './http';
 import { routeProductions } from './production';
+import { projectProduction } from './production-store';
 
 export interface OperationIdentity {
   tokenId: string;
@@ -14,9 +23,23 @@ export interface OperationIdentity {
 }
 interface OperationContext extends OperationIdentity {
   operation: AgentOperation;
+  actor: Principal;
+  origin: Principal;
+  principalSnapshot: string;
 }
 const operations = new AsyncLocalStorage<OperationContext>();
 type Receipt = Extract<ServerFrame, { type: 'operation.result' }>;
+
+export function operationOrigin(): Principal | undefined {
+  return operations.getStore()?.origin;
+}
+
+function projectReceipt(receipt: Receipt, actor: Principal): Receipt {
+  const result = receipt.result as { production?: Production | Pick<Production, 'id' | 'version'> } | null;
+  return result?.production && 'events' in result.production
+    ? { ...receipt, result: { ...result, production: projectProduction(result.production, actor) } }
+    : receipt;
+}
 
 export function operationFence(db: D1Database): D1PreparedStatement[] {
   const context = operations.getStore();
@@ -24,11 +47,35 @@ export function operationFence(db: D1Database): D1PreparedStatement[] {
   return [
     db
       .prepare(`INSERT OR REPLACE INTO agent_write_fence (id, valid) VALUES (1, CASE WHEN EXISTS (
-    SELECT 1 FROM agent_station JOIN agent_tokens ON agent_tokens.id = agent_station.token_id
-    JOIN agent_commands ON agent_commands.id = ?
+    SELECT 1 FROM agent_station JOIN agent_tokens executor ON executor.id = agent_station.token_id
+    JOIN agent_commands command ON command.id = ?
+    LEFT JOIN agent_tokens origin ON origin.id = json_extract(command.data, '$.principal.tokenId')
     WHERE agent_station.id = 1 AND agent_station.token_id = ? AND agent_station.version = ?
     AND generation = ? AND lease_until > ? AND ? > ?
-    AND revoked_at IS NULL AND expires_at > ? AND agent_commands.status NOT IN ('complete', 'failed', 'cancelled', 'cancelling')
+    AND executor.revoked_at IS NULL AND executor.expires_at > ?
+    AND EXISTS (SELECT 1 FROM json_each(executor.scopes) WHERE value = 'runtime:connect')
+    AND command.status NOT IN ('complete', 'failed', 'cancelled', 'cancelling')
+    AND json_extract(command.data, '$.principal') = ?
+    AND (json_extract(command.data, '$.principal.kind') = 'human' OR (
+      json_extract(command.data, '$.principal.kind') = 'agent' AND origin.revoked_at IS NULL
+      AND origin.expires_at > ? AND json_extract(command.data, '$.principal.expiresAt') > ?
+      AND EXISTS (SELECT 1 FROM json_each(origin.scopes) WHERE value = 'tasks:manage')
+      AND EXISTS (SELECT 1 FROM json_each(origin.scopes) WHERE value = 'prompts:read')
+      AND EXISTS (SELECT 1 FROM json_each(json_extract(command.data, '$.principal.scopes')) WHERE value = 'tasks:manage')
+      AND EXISTS (SELECT 1 FROM json_each(json_extract(command.data, '$.principal.scopes')) WHERE value = 'prompts:read')
+      AND (json_extract(command.data, '$.context.productionId') IS NULL OR (
+        EXISTS (SELECT 1 FROM json_each(origin.scopes) WHERE value = 'productions:read')
+        AND EXISTS (SELECT 1 FROM json_each(json_extract(command.data, '$.principal.scopes')) WHERE value = 'productions:read')
+      ))
+    ))
+    AND NOT EXISTS (
+      SELECT 1 FROM json_each(?) grant_scope WHERE
+      NOT EXISTS (SELECT 1 FROM json_each(executor.scopes) WHERE value = grant_scope.value)
+      OR (json_extract(command.data, '$.principal.kind') = 'agent' AND (
+        NOT EXISTS (SELECT 1 FROM json_each(origin.scopes) WHERE value = grant_scope.value)
+        OR NOT EXISTS (SELECT 1 FROM json_each(json_extract(command.data, '$.principal.scopes')) WHERE value = grant_scope.value)
+      ))
+    )
   ) THEN 1 ELSE 0 END)`)
       .bind(
         context.operation.commandId,
@@ -39,6 +86,10 @@ export function operationFence(db: D1Database): D1PreparedStatement[] {
         context.expiresAt,
         Date.now(),
         new Date().toISOString(),
+        context.principalSnapshot,
+        new Date().toISOString(),
+        Date.now(),
+        JSON.stringify(context.actor.scopes),
       ),
   ];
 }
@@ -62,7 +113,7 @@ export function operationReceipt(
     id: context.operation.id,
     ok: true,
     status,
-    result: { production },
+    result: { production: projectProduction(production, context.actor) },
   };
   return [
     db
@@ -71,13 +122,21 @@ export function operationReceipt(
   ];
 }
 
-export async function readReceipt(db: D1Database, id: string) {
+export async function readReceipt(db: D1Database, id: string, actor: Principal) {
+  actor = await currentPrincipal(db, actor);
+  requireScope(actor, 'runtime:connect');
   const saved = await db
-    .prepare('SELECT response FROM agent_receipts WHERE id = ?')
+    .prepare('SELECT response, command_id AS commandId FROM agent_receipts WHERE id = ?')
     .bind(id)
-    .first<{ response: string | null }>();
+    .first<{ response: string | null; commandId: string }>();
   if (!saved) throw new HttpError(404, '操作回执不存在');
-  return saved.response ? (JSON.parse(saved.response) as Receipt) : null;
+  const origin = await commandOrigin(db, saved.commandId, false);
+  const effective = {
+    ...actor,
+    kind: 'agent' as const,
+    scopes: scopes.filter((scope) => hasScope(actor, scope) && hasScope(origin, scope)),
+  };
+  return saved.response ? projectReceipt(JSON.parse(saved.response), effective) : null;
 }
 
 export async function persistOperationFailure(
@@ -108,24 +167,18 @@ export async function executeOperation(
   identity: OperationIdentity,
   operation: AgentOperation,
 ): Promise<Receipt> {
+  actor = await currentPrincipal(env.DB, actor);
+  requireScope(actor, 'runtime:connect');
+  if (actor.kind !== 'agent' || actor.tokenId !== identity.tokenId)
+    throw new HttpError(403, 'Runtime executor identity mismatch');
   const hash = await digest(operation);
   const previous = await env.DB.prepare('SELECT hash, response FROM agent_receipts WHERE id = ?')
     .bind(operation.id)
     .first<{ hash: string; response: string | null }>();
   if (previous && previous.hash !== hash) throw new HttpError(409, '操作 ID 已用于不同内容');
-  if (previous?.response) {
-    const receipt = JSON.parse(previous.response) as Receipt;
-    if (operation.kind === 'audio.request' && receipt.ok) {
-      const result = receipt.result as { production: Production };
-      if (result.production.audioJob) {
-        const job = await env.DB.prepare('SELECT status FROM audio_jobs WHERE id = ?')
-          .bind(result.production.audioJob.id)
-          .first<{ status: string }>();
-        if (job?.status === 'queued') await triggerAudio(env, result.production.audioJob.id);
-      }
-    }
-    return receipt;
-  }
+  if (previous?.response) return (await readReceipt(env.DB, operation.id, actor)) as Receipt;
+  const origin = await commandOrigin(env.DB, operation.commandId);
+  const effective = await commandPrincipal(env.DB, operation.commandId, actor);
   await requireCommand(env.DB, operation.commandId, true);
   const command = await env.DB.prepare('SELECT data FROM agent_commands WHERE id = ?')
     .bind(operation.commandId)
@@ -209,9 +262,16 @@ export async function executeOperation(
   let receipt: Receipt;
   try {
     const response = await operations.run(
-      { ...identity, operation },
+      {
+        ...identity,
+        operation,
+        actor: effective,
+        origin,
+        principalSnapshot: JSON.stringify(savedCommand.principal),
+      },
       async () =>
-        (await routeAudio(request, env, path, actor)) ?? (await routeProductions(request, env, path, actor)),
+        (await routeAudio(request, env, path, effective)) ??
+        (await routeProductions(request, env, path, effective)),
     );
     if (!response) throw new HttpError(404, '操作不存在');
     receipt = {
@@ -225,7 +285,7 @@ export async function executeOperation(
     if (error instanceof Error && error.message.includes('CHECK constraint failed: valid = 1'))
       throw new HttpError(409, '主控租约或指令已失效');
     if (!(error instanceof HttpError)) throw error;
-    const committed = await readReceipt(env.DB, operation.id);
+    const committed = await readReceipt(env.DB, operation.id, actor);
     if (committed) return committed;
     receipt = {
       type: 'operation.result',
@@ -238,5 +298,5 @@ export async function executeOperation(
   await env.DB.prepare('UPDATE agent_receipts SET response = ? WHERE id = ? AND response IS NULL')
     .bind(JSON.stringify(receipt), operation.id)
     .run();
-  return (await readReceipt(env.DB, operation.id)) as Receipt;
+  return (await readReceipt(env.DB, operation.id, actor)) as Receipt;
 }

@@ -5,6 +5,7 @@ import { CONTEXT_BLOCKED, defineHostTool, type HostModels, openAgentHost } from 
 import {
   type AgentCommand,
   type ConversationStatus,
+  hasScope,
   operationSchema,
   type PageContext,
   proposalSchema,
@@ -112,9 +113,11 @@ export async function openRuntime(options: RuntimeOptions) {
   const decide = options.decide ?? decisions(config);
 
   const running = new Map<string, Promise<void>>();
+  const recoveringCommands = new Map<string, { commandId: string; conversationId: number }>();
   const cancelling = new Map<string, Promise<void>>();
   let current: InputRecord | null = null;
   let restoringInput: InputRecord | null = null;
+  let recoveryChecked = false;
   let pumping = false;
   let pumpPromise: Promise<void> | undefined;
   let stopped = false;
@@ -134,11 +137,24 @@ export async function openRuntime(options: RuntimeOptions) {
   const commandStopped = (id: string) =>
     store.get<boolean>(`cancelled:${id}`) ||
     ['cancelled', 'failed', 'complete'].includes(store.command(id)?.status ?? '');
+  const canShareHistory = (id: string) => {
+    const principal = store.command(id)?.command.principal;
+    return Boolean(
+      principal && (principal.kind === 'human' || (principal.tokenId && hasScope(principal, 'tasks:manage'))),
+    );
+  };
   function command(): AgentCommand {
     if (!current) throw new Error('没有活动指令。');
     const record = store.command(current.commandId);
     if (!record || commandStopped(current.commandId)) throw new Error('指令已取消或结束。');
+    if (!canShareHistory(current.commandId)) throw new Error('原始指令未获授权访问共享主控历史。');
     return record.command;
+  }
+  async function abortConversation(conversationId: number) {
+    if (recoveryChecked) return host.abort(conversationId);
+    await host.stageAbort([conversationId]);
+    for (const [requestId, pending] of recoveringCommands)
+      if (pending.conversationId === conversationId) recoveringCommands.delete(requestId);
   }
   function visible(id: string, commandId: string, text: string) {
     const safe = safeText(text).slice(0, 70000);
@@ -225,6 +241,7 @@ export async function openRuntime(options: RuntimeOptions) {
   function launch(assignment: Assignment) {
     if (running.has(assignment.id) || stopped || commandStopped(assignment.commandId)) return;
     const execution = (async () => {
+      if (!canShareHistory(assignment.commandId)) throw new Error('原始指令未获授权访问共享主控历史。');
       const envelope = JSON.parse(assignment.input);
       if (
         !envelope.ownerCommand ||
@@ -232,17 +249,20 @@ export async function openRuntime(options: RuntimeOptions) {
         !envelope.channel?.prompts ||
         !assignment.requiredCriteria
       ) {
-        await host.abort(assignment.conversationId);
+        await abortConversation(assignment.conversationId);
         visible(`attention:${assignment.id}`, assignment.commandId, invalidAssignmentMessage);
         await finishAssignment(assignment.id, 'failed');
         return;
       }
       const remaining = assignment.createdAt + config.runtime.maxTaskMinutes * 60000 - Date.now();
       if (remaining <= 0) {
-        await host.abort(assignment.conversationId);
+        await abortConversation(assignment.conversationId);
         await finishAssignment(assignment.id, 'failed');
         return;
       }
+      await client.channel(assignment.commandId);
+      if (envelope.production?.id) await client.production(envelope.production.id, assignment.commandId);
+      if (commandStopped(assignment.commandId)) return;
       const settled = await host.run(assignment.conversationId, {
         requestId: assignment.id,
         content: assignment.input,
@@ -261,6 +281,7 @@ export async function openRuntime(options: RuntimeOptions) {
       })
       .finally(() => {
         running.delete(assignment.id);
+        recoveringCommands.delete(assignment.id);
       });
     running.set(assignment.id, execution);
     background(execution);
@@ -348,10 +369,10 @@ export async function openRuntime(options: RuntimeOptions) {
     replay: 'safe',
     parameters: Type.Object({ productionId: Type.Optional(Type.String({ maxLength: 160 })) }),
     execute: async (args) => {
-      command();
-      const channel = await client.channel();
+      const active = command();
+      const channel = await client.channel(active.id);
       store.set(`profile:${current?.id}`, channel.version);
-      const production = args.productionId ? await client.production(args.productionId) : null;
+      const production = args.productionId ? await client.production(args.productionId, active.id) : null;
       if (production) store.set(`category:${command().id}:${production.id}`, production.categoryProfile);
       return textResult({
         channel,
@@ -369,8 +390,8 @@ export async function openRuntime(options: RuntimeOptions) {
     replay: 'safe',
     parameters: Type.Object({}),
     execute: async () => {
-      command();
-      return textResult(await client.productions());
+      const active = command();
+      return textResult(await client.productions(active.id));
     },
   });
   const reply = defineHostTool({
@@ -437,9 +458,9 @@ export async function openRuntime(options: RuntimeOptions) {
           config.runtime.maxConcurrentAssignments
         )
           throw new Error('并发任务已满，请等待已派发任务。');
-        const channel = await client.channel();
+        const channel = await client.channel(active.id);
         const productionId = args.productionId ?? active.context?.productionId ?? null;
-        const production = productionId ? await client.production(productionId) : null;
+        const production = productionId ? await client.production(productionId, active.id) : null;
         const categoryProfile = digest(production?.categoryProfile ?? null);
         if (production) store.set(`category:${active.id}:${production.id}`, production.categoryProfile);
         const compatible = Object.values(state.conversations).filter(
@@ -644,7 +665,10 @@ export async function openRuntime(options: RuntimeOptions) {
     if (!transport.ready) throw new Error('连接尚未恢复，未执行网站写入。');
     if (active.context?.productionId && active.context.productionId !== productionId)
       throw new Error('目标节目与指令不一致。');
-    const [channel, production] = await Promise.all([client.channel(), client.production(productionId)]);
+    const [channel, production] = await Promise.all([
+      client.channel(active.id),
+      client.production(productionId, active.id),
+    ]);
     command();
     if (channel.version !== profileVersion) throw new Error('全局提示词已变化，请重新审阅。');
     const previousCategory = store.get(`category:${active.id}:${productionId}`);
@@ -671,7 +695,7 @@ export async function openRuntime(options: RuntimeOptions) {
       if (existing?.type === 'operation') return textResult(await transport.operation(existing));
       if (active.context?.productionId) throw new Error('当前指令已有节目目标，不能创建其他节目。');
       if (!transport.ready) throw new Error('连接尚未恢复，未执行网站写入。');
-      const channel = await client.channel();
+      const channel = await client.channel(active.id);
       command();
       if (channel.version !== args.profileVersion) throw new Error('全局提示词已变化，请重新审阅。');
       const operation = operationSchema.parse({
@@ -935,7 +959,28 @@ export async function openRuntime(options: RuntimeOptions) {
     ],
     state: { kind: 'hisfm.work', initial: () => ({ assignments: {}, conversations: {} }) },
     execution: { directory: workspaceRoot, shellEnv: executionEnvironment() },
-    summaryPrompt: async () => (await client.channel()).prompts.compaction,
+    summaryPrompt: async () => {
+      // Frogie's shared scheduler cannot identify the conversation requesting compaction.
+      const ids = new Set([
+        ...[...recoveringCommands.values()].map((pending) => pending.commandId),
+        ...(current ? [current.commandId] : []),
+        ...(restoringInput ? [restoringInput.commandId] : []),
+        ...Object.values((await work()).assignments)
+          .filter((assignment) => assignment.status === 'working')
+          .map((assignment) => assignment.commandId),
+      ]);
+      if (!ids.size || [...ids].some((id) => !canShareHistory(id) || commandStopped(id)))
+        throw new Error('上下文压缩缺少有效的原始指令。');
+      const channels = await Promise.all([...ids].map((id) => client.channel(id)));
+      const channel = channels[0];
+      if (
+        !channel ||
+        channels.some((value) => value.version !== channel.version) ||
+        [...ids].some(commandStopped)
+      )
+        throw new Error('上下文压缩权限或提示词版本已变化。');
+      return channel.prompts.compaction;
+    },
     onReport: () => log('会话出现内部错误，持久任务已保留。'),
   });
   rootId = host.rootId;
@@ -954,18 +999,37 @@ export async function openRuntime(options: RuntimeOptions) {
         visible(`attention:${assignment.id}`, assignment.commandId, invalidAssignmentMessage);
       if (
         commandStopped(assignment.commandId) ||
+        !canShareHistory(assignment.commandId) ||
         assignment.createdAt + config.runtime.maxTaskMinutes * 60000 <= Date.now() ||
         invalid
       )
         halted.add(assignment.conversationId);
     }
     for (const pending of await host.pendingSubmissions()) {
-      if (pending.conversationId !== rootId) continue;
+      if (pending.conversationId !== rootId) {
+        const assignment = state.assignments[pending.requestId ?? ''];
+        if (
+          !assignment ||
+          assignment.conversationId !== pending.conversationId ||
+          assignment.status !== 'working' ||
+          halted.has(pending.conversationId)
+        )
+          halted.add(pending.conversationId);
+        else
+          recoveringCommands.set(assignment.id, {
+            commandId: assignment.commandId,
+            conversationId: assignment.conversationId,
+          });
+        continue;
+      }
       const input = store.database
         .prepare('SELECT * FROM inputs WHERE id = ?')
         .get(pending.requestId ?? '') as InputRecord | undefined;
-      if (!input || commandStopped(input.commandId)) halted.add(rootId);
-      else restoringInput = input;
+      if (!input || commandStopped(input.commandId) || !canShareHistory(input.commandId)) halted.add(rootId);
+      else {
+        restoringInput = input;
+        recoveringCommands.set(input.id, { commandId: input.commandId, conversationId: rootId });
+      }
     }
     await host.stageAbort([...halted]);
     await host.transact(async (transaction) => {
@@ -990,6 +1054,39 @@ export async function openRuntime(options: RuntimeOptions) {
     try {
       current = restoringInput ?? store.next();
       restoringInput = null;
+      if (!recoveryChecked) {
+        const state = await work();
+        for (const pending of await host.pendingSubmissions()) {
+          const requestId = pending.requestId ?? '';
+          const commandId = recoveringCommands.get(requestId)?.commandId;
+          if (!commandId) continue;
+          const assignment = state.assignments[requestId];
+          const productionId = assignment
+            ? JSON.parse(assignment.input).production?.id
+            : store.command(commandId)?.command.context?.productionId;
+          try {
+            if (!canShareHistory(commandId)) throw new Error('原始指令未获授权访问共享主控历史。');
+            await client.channel(commandId);
+            if (productionId) await client.production(productionId, commandId);
+          } catch {
+            await host.stageAbort([pending.conversationId]);
+            recoveringCommands.delete(requestId);
+            if (pending.conversationId === rootId)
+              store.state(
+                commandId,
+                'failed',
+                '指令读取权限验证失败，未恢复旧任务。',
+                `recovery-denied:${requestId}`,
+              );
+            else
+              await host.transact(async (transaction) => {
+                const saved = (await transaction.state()).assignments[requestId];
+                if (saved?.status === 'working') saved.status = 'failed';
+              });
+          }
+        }
+        recoveryChecked = true;
+      }
       await host.resume();
       for (const id of store.pendingCancellations()) await cancel(id);
       if (!current || commandStopped(current.commandId)) current = store.next();
@@ -1004,13 +1101,13 @@ export async function openRuntime(options: RuntimeOptions) {
       if (!current || commandStopped(current.commandId)) current = store.next();
       if (!current) return;
       const input = current;
+      const active = command();
+      const channel: Channel = await client.channel(input.commandId);
+      const production = active?.context?.productionId
+        ? await client.production(active.context.productionId, input.commandId)
+        : null;
       let content = store.get<string>(`prepared:${input.id}`);
       if (!content) {
-        const channel: Channel = await client.channel();
-        const active = store.command(input.commandId)?.command;
-        const production = active?.context?.productionId
-          ? await client.production(active.context.productionId)
-          : null;
         content = JSON.stringify({
           ownerCommand: store.command(input.commandId)?.command,
           executorCapabilities: { tools: executorTools, guidance: channel.prompts.capabilities },
@@ -1078,6 +1175,7 @@ export async function openRuntime(options: RuntimeOptions) {
         await retireTasks(current.commandId);
       }
     } finally {
+      if (current) recoveringCommands.delete(current.id);
       current = null;
       pumping = false;
       if (!stopped) {
@@ -1112,7 +1210,7 @@ export async function openRuntime(options: RuntimeOptions) {
       );
     transport.flush();
     await Promise.all([
-      ...(current?.commandId === commandId ? [host.abort(rootId)] : []),
+      ...((current ?? restoringInput)?.commandId === commandId ? [abortConversation(rootId)] : []),
       (async () => {
         await allocation;
         const state = await work();
@@ -1121,7 +1219,7 @@ export async function openRuntime(options: RuntimeOptions) {
         );
         await Promise.all(
           assignments.map(async (assignment) => {
-            await host.abort(assignment.conversationId);
+            await abortConversation(assignment.conversationId);
             await running.get(assignment.id);
             await host.cleanup(assignment.conversationId);
             await finishAssignment(assignment.id, 'cancelled');
@@ -1163,10 +1261,10 @@ export async function openRuntime(options: RuntimeOptions) {
   };
   const onTerminal = (id: string) => {
     void (async () => {
-      if (current?.commandId === id) await host.abort(rootId);
+      if ((current ?? restoringInput)?.commandId === id) await abortConversation(rootId);
       for (const assignment of Object.values((await work()).assignments))
         if (assignment.commandId === id && assignment.status === 'working') {
-          await host.abort(assignment.conversationId);
+          await abortConversation(assignment.conversationId);
           await finishAssignment(assignment.id, 'cancelled');
         }
       await retireTasks(id, true);

@@ -1,6 +1,7 @@
 import { defaultPrompts } from '@frogie/core/hisfm/prompts';
 import { describe, expect, it } from 'vitest';
 import {
+  type Actor,
   actionNames,
   productionPatchSchema,
   publicationSchema,
@@ -9,7 +10,7 @@ import {
 import { applyAction, applyPatch, editAssets, requireFinalAssets } from '../../worker/production-model';
 import { productionPrompts } from '../../worker/production-prompts';
 import { appendEvent, mediaUrl, nextVersion } from '../../worker/production-store';
-import { agent, fixture, human, readyFixture } from './production-fixture';
+import { agent, fixture, fullAgent, human, readyFixture } from './production-fixture';
 
 describe('production approvals and revision state machine', () => {
   it('advances only through the required reviews', () => {
@@ -39,12 +40,99 @@ describe('production approvals and revision state machine', () => {
     expect(production.approvals.final?.by).toBe(human.name);
   });
 
-  it('never allows an agent to approve or reopen a stage', () => {
+  it('requires an explicit approval or reopening grant regardless of agent identity', () => {
     for (const action of actionNames.filter((name) => !name.startsWith('submit_'))) {
       expect(() => applyAction(readyFixture(), { version: 1, action, feedback: '请修改' }, agent)).toThrow(
-        '人工确认',
+        'Missing scope:',
       );
     }
+  });
+
+  it.each([
+    ['brief_review', 'approve_brief', 'scripting'],
+    ['script_review', 'approve_script', 'production'],
+    ['final_review', 'approve_final', 'ready'],
+  ] as const)('requires approval rather than reopening authority for %s', (stage, action, expected) => {
+    const production = readyFixture({ stage });
+    const approver: Actor = { ...agent, scopes: ['productions:approve'] };
+    const reopener: Actor = { ...agent, scopes: ['productions:reopen'] };
+    expect(applyAction(production, { version: 1, action }, approver).stage).toBe(expected);
+    expect(() => applyAction(production, { version: 1, action }, reopener)).toThrow('productions:approve');
+  });
+
+  it.each([
+    ['brief_review', 'revise_brief', 'draft'],
+    ['script_review', 'revise_script', 'scripting'],
+    ['final_review', 'revise_assets', 'production'],
+    ['ready', 'reopen_brief', 'draft'],
+    ['ready', 'reopen_script', 'scripting'],
+    ['ready', 'reopen_assets', 'production'],
+  ] as const)('requires reopening rather than approval authority for %s / %s', (stage, action, expected) => {
+    const production = readyFixture({ stage });
+    const approver: Actor = { ...agent, scopes: ['productions:approve'] };
+    const reopener: Actor = { ...agent, scopes: ['productions:reopen'] };
+    const input = { version: 1, action, feedback: 'Please revise' };
+    expect(() => applyAction(production, input, approver)).toThrow('productions:reopen');
+    expect(applyAction(production, input, reopener).stage).toBe(expected);
+  });
+
+  it('requires reopening authority to edit approved content or invalidate final assets', () => {
+    const approver: Actor = { ...agent, scopes: ['productions:write', 'productions:approve'] };
+    const reopener: Actor = { ...agent, scopes: ['productions:write', 'productions:reopen'] };
+    const ready = readyFixture();
+    const copy = structuredClone(ready);
+    for (const fields of [{ category: 'work' }, { transcript: 'Revised script' }, { summary: 'New summary' }])
+      expect(() => applyPatch(ready, fields, approver)).toThrow('阶段');
+    expect(() => applyPatch({ ...ready, stage: 'production' }, { category: 'work' }, approver)).toThrow(
+      'productions:reopen',
+    );
+    expect(() => applyPatch({ ...ready, stage: 'production' }, { transcript: 'Changed' }, approver)).toThrow(
+      'productions:reopen',
+    );
+    expect(() => editAssets(ready, approver)).toThrow('阶段');
+    expect(ready).toEqual(copy);
+    expect(applyPatch(ready, { category: 'work' }, reopener)).toMatchObject({
+      stage: 'draft',
+      scriptVersion: 2,
+      approvals: { brief: null, script: null, final: null },
+    });
+    expect(applyPatch(ready, { transcript: 'Revised script' }, reopener)).toMatchObject({
+      stage: 'scripting',
+      scriptVersion: 2,
+      approvals: { brief: ready.approvals.brief, script: null, final: null },
+    });
+    expect(applyPatch(ready, { summary: 'New summary' }, reopener)).toMatchObject({
+      stage: 'production',
+      scriptVersion: 1,
+      approvals: { brief: ready.approvals.brief, script: ready.approvals.script, final: null },
+    });
+    expect(editAssets(ready, reopener).approvals.final).toBeNull();
+    expect(() =>
+      applyPatch(ready, { summary: 'No write grant' }, { ...reopener, scopes: ['productions:reopen'] }),
+    ).toThrow('productions:write');
+  });
+
+  it('allows fully granted agents to approve, edit and reopen without impersonating a human', () => {
+    let production = applyAction(fixture(), { version: 1, action: 'approve_brief' }, fullAgent);
+    expect(production.approvals.brief?.by).toBe(fullAgent.name);
+    production = applyPatch(production, { transcript: 'Approved script' }, fullAgent);
+    production = applyAction(production, { version: 1, action: 'approve_script' }, fullAgent);
+    expect(production.approvals.script?.by).toBe(fullAgent.name);
+    const revised = applyPatch(readyFixture(), { category: 'work' }, fullAgent);
+    expect(revised.stage).toBe('draft');
+    expect(revised.approvals).toEqual({ brief: null, script: null, final: null });
+    expect(applyAction(readyFixture(), { version: 1, action: 'reopen_assets' }, fullAgent).stage).toBe(
+      'production',
+    );
+    expect(() => applyPatch(readyFixture({ stage: 'production' }), { category: 'work' }, agent)).toThrow(
+      'productions:reopen',
+    );
+    expect(() => applyPatch(fixture(), { intent: 'No grant' }, { ...agent, scopes: [] })).toThrow(
+      'productions:write',
+    );
+    expect(() =>
+      applyAction(fixture(), { version: 1, action: 'submit_brief' }, { ...agent, scopes: [] }),
+    ).toThrow('productions:submit');
   });
 
   it('requires material and rejects invalid transitions and empty feedback', () => {
@@ -179,7 +267,7 @@ describe('production approvals and revision state machine', () => {
     expect(editAssets(readyFixture({ stage: 'production' }), agent).stage).toBe('production');
     expect(() => editAssets(ready, agent)).toThrow('阶段');
     expect(() => applyPatch(ready, { intent: 'Agent rewrite' }, agent)).toThrow('阶段');
-    expect(() => applyPatch(fixture(), { transcript: 'Agent early script' }, agent)).toThrow('本人');
+    expect(() => applyPatch(fixture(), { transcript: 'Agent early script' }, agent)).toThrow('权限');
   });
 
   it('requires current complete artifacts and all prior approvals for final review', () => {
@@ -208,6 +296,17 @@ describe('production approvals and revision state machine', () => {
       { ...ready, assets: { ...ready.assets, audio: { ...audio, durationSeconds: 0 } } },
     ])
       expect(() => requireFinalAssets(invalid)).toThrow();
+    requireFinalAssets({
+      ...ready,
+      assets: { ...ready.assets, audio: { ...audio, source: 'upload' } },
+      audioJob: null,
+    });
+    expect(() =>
+      requireFinalAssets({
+        ...ready,
+        assets: { ...ready.assets, audio: { ...audio, source: 'upload' } },
+      }),
+    ).toThrow('制作完成');
   });
 });
 

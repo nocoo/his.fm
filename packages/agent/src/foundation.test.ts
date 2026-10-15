@@ -222,10 +222,14 @@ it('authenticates read-only website requests, blocks redirects and hides upstrea
   fetcher.mockResolvedValueOnce(
     Response.json({ channel: { version: 1, content: 'Private', prompts: defaultPrompts } }),
   );
-  expect((await client.channel()).content).toBe('Private');
+  expect((await client.channel('command-1')).content).toBe('Private');
   expect(fetcher.mock.calls[0]?.[1]).toMatchObject({
     redirect: 'error',
-    headers: { Authorization: 'Bearer fake-site-key' },
+    headers: {
+      Authorization: 'Bearer fake-site-key',
+      'X-Hisfm-Station': site.stationId,
+      'X-Hisfm-Command': 'command-1',
+    },
   });
   fetcher.mockResolvedValueOnce(
     Response.json({
@@ -240,16 +244,47 @@ it('authenticates read-only website requests, blocks redirects and hides upstrea
       },
     }),
   );
-  expect((await client.production('id/a')).transcript).toBe('Markdown');
+  expect((await client.production('id/a', 'command-1')).transcript).toBe('Markdown');
   expect(String(fetcher.mock.calls[1]?.[0])).toContain('id%2Fa');
   fetcher.mockResolvedValueOnce(Response.json({ productions: [] }));
-  expect(await client.productions()).toEqual({ productions: [] });
+  expect(await client.productions('command-1')).toEqual({ productions: [] });
   fetcher.mockResolvedValueOnce(new Response('private upstream text', { status: 401 }));
-  await expect(client.channel()).rejects.toThrow('401');
+  await expect(client.channel('command-1')).rejects.toThrow('401');
   fetcher.mockRejectedValueOnce(new Error('secret key'));
-  await expect(client.channel()).rejects.not.toThrow('secret key');
+  await expect(client.channel('command-1')).rejects.not.toThrow('secret key');
   fetcher.mockResolvedValueOnce(Response.json({ channel: null }));
-  await expect(client.channel()).rejects.toThrow();
+  await expect(client.channel('command-1')).rejects.toThrow();
+});
+
+it('isolates concurrent command read headers and never retries a denied or missing command as the runtime', async () => {
+  const fetcher = vi.fn<typeof fetch>(async (_input, init) => {
+    const id = new Headers(init?.headers).get('X-Hisfm-Command');
+    await Promise.resolve();
+    return id === 'denied'
+      ? new Response('private denial', { status: 403 })
+      : Response.json({ channel: { version: 1, content: id, prompts: defaultPrompts } });
+  });
+  const client = new WebsiteClient(testConfig().websites.local, fetcher);
+  const results = await Promise.allSettled([
+    client.channel('allowed'),
+    client.channel('denied'),
+    client.channel('other'),
+  ]);
+  expect(results[0]).toMatchObject({ status: 'fulfilled', value: { content: 'allowed' } });
+  expect(results[1]).toMatchObject({
+    status: 'rejected',
+    reason: expect.objectContaining({ message: expect.stringContaining('403') }),
+  });
+  expect(results[2]).toMatchObject({ status: 'fulfilled', value: { content: 'other' } });
+  expect(fetcher.mock.calls.map(([, init]) => new Headers(init?.headers).get('X-Hisfm-Command'))).toEqual([
+    'allowed',
+    'denied',
+    'other',
+  ]);
+  await expect(client.channel('')).rejects.toThrow('原始指令');
+  await expect(client.production('p', '')).rejects.toThrow('原始指令');
+  await expect(client.productions('')).rejects.toThrow('原始指令');
+  expect(fetcher).toHaveBeenCalledTimes(3);
 });
 
 it('locks one instance, persists inbox/outbox/receipts and refuses identity or ID mutation', async () => {

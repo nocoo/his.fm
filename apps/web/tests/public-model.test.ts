@@ -14,6 +14,7 @@ import type { Episode } from '../src/shared/episode';
 const episodes: Episode[] = [
   {
     id: '1',
+    version: 1,
     slug: 'after-work',
     episodeNumber: 1,
     title: '下班后的 AI',
@@ -33,6 +34,7 @@ const episodes: Episode[] = [
   },
   {
     id: '2',
+    version: 1,
     slug: 'walking',
     episodeNumber: 2,
     title: '去散步',

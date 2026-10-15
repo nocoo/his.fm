@@ -68,7 +68,7 @@ export function EpisodeList() {
     setPending(true);
     setDeleteError('');
     try {
-      await adminService.remove(deleting.id);
+      await adminService.remove(deleting.id, deleting.version);
       setEpisodes((current) => current.filter((episode) => episode.id !== deleting.id));
       setDeleting(null);
       toast.success('节目已删除');

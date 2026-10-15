@@ -21,7 +21,17 @@ export async function storeNativeWav(
   const fixed = new FixedLengthStream(size);
   const controller = new AbortController();
   const piping = request.body.pipeTo(fixed.writable, { signal: controller.signal });
-  const putting = bucket.put(key, fixed.readable, { httpMetadata: { contentType: 'audio/wav' } });
+  let stored: R2Object | null = null;
+  const putting = bucket
+    .put(key, fixed.readable, {
+      httpMetadata: { contentType: 'audio/wav', cacheControl: 'public, max-age=31536000, immutable' },
+      onlyIf: { etagDoesNotMatch: '*' },
+    })
+    .then((object) => {
+      stored = object;
+      if (!object) throw new AudioError('Audio object already exists');
+      return object;
+    });
   try {
     await Promise.all([piping, putting]);
     const info = await readStoredWav(bucket, key);
@@ -32,7 +42,7 @@ export async function storeNativeWav(
     controller.abort();
     if (!fixed.readable.locked) await fixed.readable.cancel(error);
     await Promise.allSettled([piping, putting]);
-    await bucket.delete(key);
+    if (stored) await bucket.delete(key);
     throw error;
   }
 }
@@ -104,6 +114,7 @@ export async function composeWav(bucket: R2Bucket, keys: string[], outputKey: st
   const piping = body.pipeTo(fixed.writable, { signal: controller.signal });
   const putting = bucket.put(outputKey, fixed.readable, {
     httpMetadata: { contentType: 'audio/wav', cacheControl: 'public, max-age=31536000, immutable' },
+    onlyIf: { etagDoesNotMatch: '*' },
   });
   try {
     const [, object] = await Promise.all([piping, putting]);

@@ -1,4 +1,13 @@
-import type { AgentCommand, AgentFrame, DraftProposal, PageContext, ServerFrame } from '@his-fm/contracts';
+import {
+  type AgentCommand,
+  type AgentFrame,
+  type DraftProposal,
+  type PageContext,
+  type Principal,
+  principalSchema,
+  type ServerFrame,
+} from '@his-fm/contracts';
+import { currentPrincipal, requireScope } from './authorization';
 import { HttpError } from './http';
 import { getProduction } from './production-store';
 
@@ -71,8 +80,19 @@ export async function saveContext(db: D1Database, context: PageContext) {
   return true;
 }
 
-export async function enqueue(db: D1Database, input: Omit<AgentCommand, 'createdAt'>) {
-  const hash = await digest(input);
+export async function enqueue(
+  db: D1Database,
+  input: Omit<AgentCommand, 'createdAt' | 'principal'>,
+  principal: Principal,
+) {
+  const parsed = principalSchema.safeParse(principal);
+  if (!parsed.success) throw new HttpError(403, 'Task has no authorized originator');
+  principal = await currentPrincipal(db, parsed.data);
+  requireScope(principal, 'tasks:submit');
+  requireScope(principal, 'tasks:manage');
+  requireScope(principal, 'prompts:read');
+  if (input.context?.productionId) requireScope(principal, 'productions:read');
+  const hash = await digest({ ...input, principal });
   if (input.context) requireContextReference(input.context);
   const existing = await db.prepare('SELECT hash FROM agent_commands WHERE id = ?').bind(input.id).first();
   if (!existing && input.context?.productionId) {
@@ -80,7 +100,7 @@ export async function enqueue(db: D1Database, input: Omit<AgentCommand, 'created
     if (input.context.sourceId && !production.sources.some((source) => source.id === input.context?.sourceId))
       throw new HttpError(400, '指令来源不存在');
   }
-  const command = { ...input, createdAt: new Date().toISOString() };
+  const command = { ...input, principal, createdAt: new Date().toISOString() };
   const result = await db
     .prepare(
       'INSERT INTO agent_commands (id, hash, data, created_at) VALUES (?, ?, ?, ?) ON CONFLICT(id) DO NOTHING',

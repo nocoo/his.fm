@@ -62,16 +62,21 @@ export const aiStatusSchema = z.strictObject({
   decision: z.strictObject({ model: z.string(), maxInputBytes: z.number(), maxBatchQuestions: z.number() }),
 });
 export type AiStatus = z.infer<typeof aiStatusSchema>;
-export const aiUpdateSchema = z.strictObject({
-  version: z.string().length(64),
-  settings: speechSettingsSchema,
-  credentials: z
-    .strictObject({
-      gemini: z.string().trim().min(1).max(500).optional(),
-      elevenlabs: z.string().trim().min(1).max(500).optional(),
-    })
-    .optional(),
-});
+export const aiUpdateSchema = z
+  .strictObject({
+    version: z.string().length(64),
+    settings: speechSettingsSchema.optional(),
+    credentials: z
+      .strictObject({
+        gemini: z.string().trim().min(1).max(500).nullable().optional(),
+        elevenlabs: z.string().trim().min(1).max(500).nullable().optional(),
+      })
+      .optional(),
+  })
+  .refine(
+    (input) => input.settings !== undefined || Object.keys(input.credentials ?? {}).length > 0,
+    'Provide settings or credentials',
+  );
 export const runtimeRequestSchema = z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal('settings.read') }),
   z.strictObject({ kind: z.literal('settings.update'), input: aiUpdateSchema }),

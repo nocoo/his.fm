@@ -1,4 +1,5 @@
 import { readdirSync, readFileSync } from 'node:fs';
+import { scopePresets } from '@his-fm/contracts';
 import { exportJWK, generateKeyPair, SignJWT } from 'jose';
 import { Miniflare, Response as MiniflareResponse } from 'miniflare';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -291,6 +292,7 @@ describe('editor CRUD', () => {
       method: 'PUT',
       ...body({
         ...input,
+        version: episode.version,
         title: '今晚先到这里',
         status: 'draft',
         publishedAt: null,
@@ -307,7 +309,13 @@ describe('editor CRUD', () => {
       createdAt: episode.createdAt,
     });
     expect(await (await call('/api/episodes')).json()).toEqual({ episodes: [] });
-    expect((await call(`/admin/api/episodes/${episode.id}`, { method: 'DELETE' })).status).toBe(204);
+    expect(
+      (
+        await call(`/admin/api/episodes/${episode.id}?version=${result.episode.version}`, {
+          method: 'DELETE',
+        })
+      ).status,
+    ).toBe(204);
     expect((await call(`/admin/api/episodes/${episode.id}`)).status).toBe(404);
   });
 
@@ -317,9 +325,14 @@ describe('editor CRUD', () => {
     const duplicate = await call('/admin/api/episodes', { method: 'POST', ...body(input) });
     expect(duplicate.status).toBe(409);
     expect(await duplicate.json()).toEqual({ error: '这个链接名称已被另一集使用' });
-    expect((await call(`/admin/api/episodes/${other.id}`, { method: 'PUT', ...body(input) })).status).toBe(
-      409,
-    );
+    expect(
+      (
+        await call(`/admin/api/episodes/${other.id}`, {
+          method: 'PUT',
+          ...body({ ...input, version: other.version }),
+        })
+      ).status,
+    ).toBe(409);
     expect(
       ((await (await call(`/admin/api/episodes/${original.id}`)).json()) as { episode: Episode }).episode,
     ).toEqual(original);
@@ -576,7 +589,11 @@ describe('agent discovery and real bearer routing', () => {
     const secret = (await (
       await call('/admin/api/agent-tokens', {
         method: 'POST',
-        ...body({ name: 'Channel reader', expiresInDays: 1 }),
+        ...body({
+          name: 'Channel reader',
+          expiresInDays: 1,
+          scopes: ['productions:read', 'categories:read', 'prompts:read'],
+        }),
       })
     ).json()) as { token: string };
     const agentCall = (path: string, options: RequestInit = {}) =>
@@ -591,10 +608,12 @@ describe('agent discovery and real bearer routing', () => {
       channel: initial,
       priority: ['channel', 'category', 'intent', 'sources'],
     });
-    for (const method of ['PUT', 'POST', 'DELETE'])
-      expect(
-        (await agentCall('/channel', { method, ...body({ version: 1, content: 'Injected change' }) })).status,
-      ).toBe(403);
+    expect(
+      (await agentCall('/channel', { method: 'PUT', ...body({ version: 1, content: 'Injected change' }) }))
+        .status,
+    ).toBe(403);
+    for (const method of ['POST', 'DELETE'])
+      expect((await agentCall('/channel', { method })).status).toBe(405);
     const changed = await call('/admin/api/channel', {
       method: 'PUT',
       ...body({ version: initial.version, content: '## 新的全局提示词\n\n自定义定位：从下班后的生活切入。' }),
@@ -767,10 +786,14 @@ describe('agent discovery and real bearer routing', () => {
     }
   });
 
-  it('discovers and reads productions while rejecting legacy machine mutations', async () => {
+  it('manages scoped productions over REST without requiring a resident station', async () => {
     const tokenResponse = await call('/admin/api/agent-tokens', {
       method: 'POST',
-      ...body({ name: 'Hermes integration', expiresInDays: 1 }),
+      ...body({
+        name: 'Hermes integration',
+        expiresInDays: 1,
+        scopes: [...scopePresets.coordinator, 'productions:delete', 'storage:write'],
+      }),
     });
     const secret = (await tokenResponse.json()) as { token: string; record: { id: string } };
     const agentCall = (path: string, options: RequestInit = {}, bindings = env) => {
@@ -786,11 +809,8 @@ describe('agent discovery and real bearer routing', () => {
     expect(capabilities.audio.voices.filter((voice) => voice.previewUrl)).toHaveLength(6);
     expect((await agentCall('/me', { method: 'POST' })).status).toBe(405);
     expect((await agentCall('/me', { method: 'POST' })).headers.get('Allow')).toBe('GET');
-    expect((await agentCall('/productions', { method: 'PATCH' })).status).toBe(409);
-    expect(await (await agentCall('/productions', { method: 'POST', ...body(brief) })).json()).toMatchObject({
-      code: 'runtime_required',
-    });
-    const created = await call('/admin/api/productions', { method: 'POST', ...body(brief) });
+    expect((await agentCall('/productions', { method: 'PATCH' })).status).toBe(405);
+    const created = await agentCall('/productions', { method: 'POST', ...body(brief) });
     expect(created.status).toBe(201);
     const p = productionResponseSchema.parse(((await created.json()) as { production: unknown }).production);
     expect((await agentCall('/productions/')).status).toBe(200);
@@ -817,22 +837,47 @@ describe('agent discovery and real bearer routing', () => {
         })
       ).status,
     ).toBe(409);
-    for (const [suffix, method] of [
-      ['', 'PUT'],
-      ['/actions', 'POST'],
-      ['/assets/cover', 'PUT'],
-      ['/audio', 'POST'],
-    ] as const) {
-      const response = await agentCall(`/productions/${p.id}${suffix}`, {
-        method,
-        ...body({ version: p.version }),
-      });
-      expect(response.status).toBe(409);
-      expect(await response.json()).toMatchObject({ code: 'runtime_required' });
-    }
+    const changed = await agentCall(`/productions/${p.id}`, {
+      method: 'PUT',
+      ...body({ version: p.version, intent: 'Scoped REST edit' }),
+    });
+    expect(changed.status).toBe(200);
+    const edited = ((await changed.json()) as { production: Production }).production;
+    expect(edited.events.at(-1)?.actor).toMatchObject({ kind: 'agent', tokenId: secret.record.id });
+    const submitted = await agentCall(`/productions/${p.id}/actions`, {
+      method: 'POST',
+      ...body({ version: edited.version, action: 'submit_brief' }),
+    });
+    expect(submitted.status).toBe(200);
+    const review = ((await submitted.json()) as { production: Production }).production;
+    expect(review.stage).toBe('brief_review');
+    expect(
+      (
+        await agentCall(`/productions/${p.id}/actions`, {
+          method: 'POST',
+          ...body({ version: review.version, action: 'approve_brief' }),
+        })
+      ).status,
+    ).toBe(403);
+    expect(
+      (
+        await agentCall(`/productions/${p.id}/assets/cover?version=${review.version}`, {
+          method: 'PUT',
+          ...body({}),
+        })
+      ).status,
+    ).toBe(409);
+    expect(
+      (
+        await agentCall(`/productions/${p.id}/audio`, {
+          method: 'POST',
+          ...body({ version: review.version }),
+        })
+      ).status,
+    ).toBe(403);
     expect(
       (await agentCall(`/productions/${p.id}/publications`, { method: 'POST', ...body({}) })).status,
-    ).toBe(409);
+    ).toBe(403);
     expect((await agentCall('/production-settings')).status).toBe(403);
     expect((await agentCall('/unknown')).status).toBe(404);
     expect((await agentCall('/productions/missing/capabilities')).status).toBe(404);
@@ -851,10 +896,10 @@ describe('agent discovery and real bearer routing', () => {
       await env.DB.prepare('ALTER TABLE productions_backup RENAME TO productions').run();
       log.mockRestore();
     }
-    expect((await agentCall(`/productions/${p.id}?version=${p.version}`, { method: 'DELETE' })).status).toBe(
-      409,
-    );
-    expect((await agentCall(`/productions/${p.id}`)).status).toBe(200);
+    expect(
+      (await agentCall(`/productions/${p.id}?version=${review.version}`, { method: 'DELETE' })).status,
+    ).toBe(204);
+    expect((await agentCall(`/productions/${p.id}`)).status).toBe(404);
     await call(`/admin/api/agent-tokens/${secret.record.id}`, { method: 'DELETE' });
     expect((await agentCall('/me')).status).toBe(401);
   });
@@ -864,7 +909,7 @@ describe('agent discovery and real bearer routing', () => {
     const copy = structuredClone(ready);
     expect(productionCapabilities(ready, agent, origin)).toMatchObject({
       availableActions: ['submit_final'],
-      canGenerateAudio: true,
+      canGenerateAudio: false,
     });
     expect(ready).toEqual(copy);
     expect(productionCapabilities(fixture(), agent, origin).blockedActions.submit_brief).toBeUndefined();

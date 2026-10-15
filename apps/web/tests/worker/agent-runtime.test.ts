@@ -3,7 +3,10 @@ import {
   type AgentOperation,
   defaultSpeechSettings,
   type PageContext,
+  type Principal,
+  type Scope,
   type ServerFrame,
+  scopePresets,
   serverFrameSchema,
 } from '@his-fm/contracts';
 import { Miniflare } from 'miniflare';
@@ -17,7 +20,14 @@ import {
   routeRuntimeAdmin,
   routeRuntimeReceipt,
 } from '../../worker/agent-runtime';
-import { executeOperation, persistOperationFailure, readReceipt } from '../../worker/agent-runtime-operation';
+import {
+  executeOperation,
+  operationFence,
+  operationOrigin,
+  operationReceipt,
+  persistOperationFailure,
+  readReceipt,
+} from '../../worker/agent-runtime-operation';
 import {
   digest,
   enqueue,
@@ -27,10 +37,12 @@ import {
   saveContext,
   station,
 } from '../../worker/agent-runtime-store';
-import { routeAgentTokens } from '../../worker/agent-tokens';
+import { authenticateAgent, routeAgentTokens } from '../../worker/agent-tokens';
+import * as audioRoutes from '../../worker/audio-routes';
 import { localLogin } from '../../worker/auth';
 import { HttpError } from '../../worker/http';
 import { queueSpeech } from '../../worker/native-speech';
+import * as productionRoutes from '../../worker/production';
 import { getProduction } from '../../worker/production-store';
 import { agent, brief, fixture, human, readyFixture } from './production-fixture';
 
@@ -132,7 +144,7 @@ async function frame(socket: FakeSocket, data: unknown) {
 }
 async function start(scope: PageContext | null = null, text = command.text) {
   await enroll();
-  await enqueue(env.DB, { ...command, text, context: scope });
+  await enqueue(env.DB, { ...command, text, context: scope }, human);
   return connect();
 }
 function identity(socket: FakeSocket) {
@@ -143,6 +155,9 @@ function identity(socket: FakeSocket) {
     generation: value.connectionId,
     expiresAt: value.expiresAt,
   };
+}
+function executor(socket: FakeSocket) {
+  return (socket.attachment as ConnectionIdentity).actor;
 }
 async function insertProduction(production = fixture()) {
   await env.DB.prepare(
@@ -158,6 +173,20 @@ async function insertProduction(production = fixture()) {
     )
     .run();
   return production;
+}
+
+async function issuePrincipal(scopes: Scope[] = scopePresets.owner) {
+  const response = await routeAgentTokens(
+    request('/admin/api/agent-tokens', 'POST', { name: 'Originator', expiresInDays: 1, scopes }),
+    env,
+    '/admin/api/agent-tokens',
+    human,
+  );
+  const issued = (await response.json()) as { token: string };
+  return authenticateAgent(
+    new Request(origin, { headers: { Authorization: `Bearer ${issued.token}` } }),
+    env,
+  );
 }
 
 beforeAll(async () => {
@@ -192,6 +221,7 @@ beforeAll(async () => {
     '0009_native_speech.sql',
     '0010_categories.sql',
     '0011_prompts.sql',
+    '0012_token_scopes.sql',
   ]) {
     const sql = readFileSync(new URL(`../../migrations/${filename}`, import.meta.url), 'utf8');
     await env.DB.batch(
@@ -253,9 +283,14 @@ beforeEach(async () => {
     }),
   } as unknown as Env['AGENT_HUB'];
   const minted = await routeAgentTokens(
-    request('/admin/api/agent-tokens', 'POST', { name: 'Runtime test', expiresInDays: 1 }),
+    request('/admin/api/agent-tokens', 'POST', {
+      name: 'Runtime test',
+      expiresInDays: 1,
+      scopes: agent.scopes,
+    }),
     env,
     '/admin/api/agent-tokens',
+    human,
   );
   const secret = (await minted.json()) as { token: string; record: { id: string } };
   token = secret.token;
@@ -272,7 +307,7 @@ afterAll(async () => {
 describe('durable runtime stores', () => {
   it('persists frozen command context independently of a newer page pointer and sends stale proposals for browser reconciliation', async () => {
     await saveContext(env.DB, { ...context, seq: 10 });
-    const saved = await enqueue(env.DB, command);
+    const saved = await enqueue(env.DB, command, human);
     expect(saved.command.context).toEqual(context);
     expect(
       await env.DB.prepare('SELECT seq FROM agent_contexts WHERE tab_id = ?')
@@ -292,30 +327,38 @@ describe('durable runtime stores', () => {
       inserted: true,
     });
     await expect(
-      enqueue(env.DB, {
-        ...command,
-        id: 'bad-production',
-        context: { ...context, productionId: 'missing', field: null },
-      }),
+      enqueue(
+        env.DB,
+        {
+          ...command,
+          id: 'bad-production',
+          context: { ...context, productionId: 'missing', field: null },
+        },
+        human,
+      ),
     ).rejects.toThrow('不存在');
     await expect(
-      enqueue(env.DB, {
-        ...command,
-        id: 'bad-source',
-        context: { ...context, sourceId: 'missing', field: null },
-      }),
+      enqueue(
+        env.DB,
+        {
+          ...command,
+          id: 'bad-source',
+          context: { ...context, sourceId: 'missing', field: null },
+        },
+        human,
+      ),
     ).rejects.toThrow('来源');
   });
   it('hashes canonical objects and deduplicates commands without losing their creation time', async () => {
     expect(await digest({ b: [2, 1], a: null })).toBe(await digest({ a: null, b: [2, 1] }));
-    const first = await enqueue(env.DB, command);
+    const first = await enqueue(env.DB, command, human);
     expect(first.inserted).toBe(true);
-    expect(await enqueue(env.DB, command)).toEqual({ ...first, inserted: false });
-    await expect(enqueue(env.DB, { ...command, text: 'Different' })).rejects.toThrow('ID');
+    expect(await enqueue(env.DB, command, human)).toEqual({ ...first, inserted: false });
+    await expect(enqueue(env.DB, { ...command, text: 'Different' }, human)).rejects.toThrow('ID');
     await expect(requireCommand(env.DB, 'missing')).rejects.toThrow('不存在');
     await expect(requireCommand(env.DB, command.id, true)).resolves.toEqual({ status: 'queued' });
     const longest = { ...command, id: 'x'.repeat(160), context: null };
-    await enqueue(env.DB, longest);
+    await enqueue(env.DB, longest, human);
     expect(serverFrameSchema.safeParse(await runtimeSnapshot(env.DB, false)).success).toBe(true);
     await expect(
       persistEvent(env.DB, {
@@ -340,7 +383,7 @@ describe('durable runtime stores', () => {
     await saveContext(env.DB, { ...context, tabId: 'tab2' });
   });
   it('persists agent messages, status, proposals and terminal states before reconstructing snapshots', async () => {
-    await enqueue(env.DB, command);
+    await enqueue(env.DB, command, human);
     await saveContext(env.DB, context);
     const message = {
       type: 'message' as const,
@@ -646,7 +689,7 @@ describe('operation fencing and exact durable receipts', () => {
       brief,
     };
     await frame(socket, { type: 'operation', operation });
-    const receipt = await readReceipt(env.DB, operation.id);
+    const receipt = await readReceipt(env.DB, operation.id, human);
     expect(receipt).toMatchObject({ ok: true, status: 201 });
     if (!receipt) throw new Error('Missing committed receipt');
     const production = (receipt.result as { production: ReturnType<typeof fixture> }).production;
@@ -656,15 +699,18 @@ describe('operation fencing and exact durable receipts', () => {
       productionId: production.id,
       version: 1,
     });
-    expect(await executeOperation(env, agent, identity(socket), operation)).toEqual(receipt);
+    expect(await executeOperation(env, executor(socket), identity(socket), operation)).toEqual(receipt);
     expect(await env.DB.prepare('SELECT count(*) AS count FROM productions').first('count')).toBe(2);
     await expect(
-      executeOperation(env, agent, identity(socket), { ...operation, brief: { ...brief, title: 'other' } }),
+      executeOperation(env, executor(socket), identity(socket), {
+        ...operation,
+        brief: { ...brief, title: 'other' },
+      }),
     ).rejects.toThrow('ID');
     expect(
       await (await routeRuntimeReceipt(machine(`/api/agent/runtime/receipts/${operation.id}`), env)).json(),
     ).toEqual({ receipt });
-    await expect(readReceipt(env.DB, 'missing')).rejects.toThrow('不存在');
+    await expect(readReceipt(env.DB, 'missing', human)).rejects.toThrow('不存在');
     await env.DB.prepare('INSERT INTO agent_receipts (id, hash, command_id) VALUES (?, ?, ?)')
       .bind('pending', 'hash', command.id)
       .run();
@@ -693,15 +739,15 @@ describe('operation fencing and exact durable receipts', () => {
       version: 1,
       changes: { title: 'Changed', version: 500 },
     };
-    expect(await executeOperation(env, agent, identity(socket), operation)).toMatchObject({
+    expect(await executeOperation(env, executor(socket), identity(socket), operation)).toMatchObject({
       ok: true,
       result: { production: { title: 'Changed', version: 2 } },
     });
-    expect(await executeOperation(env, agent, identity(socket), { ...operation, id: 'stale' })).toMatchObject(
-      { ok: false, status: 409 },
-    );
     expect(
-      await executeOperation(env, agent, identity(socket), {
+      await executeOperation(env, executor(socket), identity(socket), { ...operation, id: 'stale' }),
+    ).toMatchObject({ ok: false, status: 409 });
+    expect(
+      await executeOperation(env, executor(socket), identity(socket), {
         kind: 'production.action',
         id: 'submit',
         commandId: command.id,
@@ -726,7 +772,7 @@ describe('operation fencing and exact durable receipts', () => {
   });
   it('authorizes an unscoped command only for productions created by its own committed create receipt', async () => {
     const socket = await start();
-    const created = await executeOperation(env, agent, identity(socket), {
+    const created = await executeOperation(env, executor(socket), identity(socket), {
       kind: 'production.create',
       id: 'create-owned',
       commandId: command.id,
@@ -741,12 +787,12 @@ describe('operation fencing and exact durable receipts', () => {
       version: 1,
       changes: { intent: 'Same-command continuation' },
     };
-    expect(await executeOperation(env, agent, identity(socket), patch)).toMatchObject({
+    expect(await executeOperation(env, executor(socket), identity(socket), patch)).toMatchObject({
       ok: true,
       result: { production: { version: 2 } },
     });
     expect(
-      await executeOperation(env, agent, identity(socket), {
+      await executeOperation(env, executor(socket), identity(socket), {
         kind: 'production.action',
         id: 'submit-owned',
         commandId: command.id,
@@ -756,24 +802,24 @@ describe('operation fencing and exact durable receipts', () => {
       }),
     ).toMatchObject({ ok: true, result: { production: { stage: 'brief_review' } } });
     await expect(
-      executeOperation(env, agent, identity(socket), {
+      executeOperation(env, executor(socket), identity(socket), {
         ...patch,
         id: 'arbitrary-production',
         productionId: 'p1',
       }),
     ).rejects.toThrow('范围');
-    await enqueue(env.DB, { ...command, id: 'other-command', context: null });
+    await enqueue(env.DB, { ...command, id: 'other-command', context: null }, human);
     await expect(
-      executeOperation(env, agent, identity(socket), {
+      executeOperation(env, executor(socket), identity(socket), {
         ...patch,
         id: 'other-command-write',
         commandId: 'other-command',
         version: 3,
       }),
     ).rejects.toThrow('范围');
-    await enqueue(env.DB, { ...command, id: 'page-command', context: { ...context, field: null } });
+    await enqueue(env.DB, { ...command, id: 'page-command', context: { ...context, field: null } }, human);
     await expect(
-      executeOperation(env, agent, identity(socket), {
+      executeOperation(env, executor(socket), identity(socket), {
         ...patch,
         id: 'wrong-page-write',
         commandId: 'page-command',
@@ -782,13 +828,21 @@ describe('operation fencing and exact durable receipts', () => {
     ).rejects.toThrow('范围');
     await env.DB.prepare('UPDATE agent_receipts SET response = NULL WHERE id = ?').bind('create-owned').run();
     await expect(
-      executeOperation(env, agent, identity(socket), { ...patch, id: 'pending-create', version: 3 }),
+      executeOperation(env, executor(socket), identity(socket), {
+        ...patch,
+        id: 'pending-create',
+        version: 3,
+      }),
     ).rejects.toThrow('范围');
     await env.DB.prepare('UPDATE agent_receipts SET response = ? WHERE id = ?')
       .bind(JSON.stringify({ ...created, ok: false }), 'create-owned')
       .run();
     await expect(
-      executeOperation(env, agent, identity(socket), { ...patch, id: 'failed-create', version: 3 }),
+      executeOperation(env, executor(socket), identity(socket), {
+        ...patch,
+        id: 'failed-create',
+        version: 3,
+      }),
     ).rejects.toThrow('范围');
   });
   it('rolls back mutation and receipt when a station generation is fenced', async () => {
@@ -803,8 +857,10 @@ describe('operation fencing and exact durable receipts', () => {
       changes: { title: 'Forbidden' },
     };
     await env.DB.prepare("UPDATE agent_station SET generation = 'new-generation'").run();
-    await expect(executeOperation(env, agent, identity(socket), operation)).rejects.toThrow('租约');
-    expect(await readReceipt(env.DB, operation.id)).toBeNull();
+    await expect(executeOperation(env, executor(socket), identity(socket), operation)).rejects.toThrow(
+      '租约',
+    );
+    expect(await readReceipt(env.DB, operation.id, human)).toBeNull();
     expect((await getProduction(env.DB, production.id)).version).toBe(1);
     await frame(socket, { type: 'operation', operation });
     expect(socket.close).toHaveBeenCalled();
@@ -831,10 +887,10 @@ describe('operation fencing and exact durable receipts', () => {
       version: 1,
       changes: { title: 'Must not commit' },
     };
-    expect(await executeOperation({ ...env, DB: racedDb }, agent, identity(socket), operation)).toMatchObject(
-      { ok: false, status: 409 },
-    );
-    expect(await readReceipt(env.DB, operation.id)).toMatchObject({ ok: false, status: 409 });
+    expect(
+      await executeOperation({ ...env, DB: racedDb }, executor(socket), identity(socket), operation),
+    ).toMatchObject({ ok: false, status: 409 });
+    expect(await readReceipt(env.DB, operation.id, human)).toMatchObject({ ok: false, status: 409 });
     expect((await getProduction(env.DB, production.id)).title).toBe(production.title);
   });
   it('notifies human mutation versions and skips unsuccessful or nonproduction responses', async () => {
@@ -931,7 +987,7 @@ describe('bounded delivery and context-scoped mutation', () => {
       stability: 0.5,
       similarity: 0.75,
     };
-    await queueSpeech(env, 'preview', 'preview', input, null);
+    await queueSpeech(env, 'preview', 'preview', input, null, human);
     await hub.fetch(new Request('https://hub/speech-queued'));
     expect(socket.frames).toContainEqual(
       expect.objectContaining({
@@ -946,7 +1002,7 @@ describe('bounded delivery and context-scoped mutation', () => {
     expect(await env.DB.prepare("SELECT status FROM speech_jobs WHERE id='preview'").first('status')).toBe(
       'failed',
     );
-    await queueSpeech(env, 'preview', 'preview', input, null);
+    await queueSpeech(env, 'preview', 'preview', input, null, human);
     await hub.alarm();
     expect(await env.DB.prepare("SELECT status FROM speech_jobs WHERE id='preview'").first('status')).toBe(
       'queued',
@@ -1038,19 +1094,21 @@ describe('bounded delivery and context-scoped mutation', () => {
       version: 1,
       changes: { title: 'Title' },
     };
-    await expect(executeOperation(env, agent, identity(socket), operation)).rejects.toThrow('范围');
+    await expect(executeOperation(env, executor(socket), identity(socket), operation)).rejects.toThrow(
+      '范围',
+    );
     const scope = {
       ...context,
       productionId: production.id,
       field: { productionId: production.id, field: 'title' as const },
     };
-    await enqueue(env.DB, { ...command, id: 'dirty', context: scope });
+    await enqueue(env.DB, { ...command, id: 'dirty', context: scope }, human);
     await expect(
-      executeOperation(env, agent, identity(socket), { ...operation, commandId: 'dirty' }),
+      executeOperation(env, executor(socket), identity(socket), { ...operation, commandId: 'dirty' }),
     ).rejects.toThrow('人工保存');
-    await enqueue(env.DB, { ...command, id: 'field', context: { ...scope, seq: 2, draft: null } });
+    await enqueue(env.DB, { ...command, id: 'field', context: { ...scope, seq: 2, draft: null } }, human);
     expect(
-      await executeOperation(env, agent, identity(socket), {
+      await executeOperation(env, executor(socket), identity(socket), {
         ...operation,
         commandId: 'dirty',
         id: 'other-field',
@@ -1058,7 +1116,7 @@ describe('bounded delivery and context-scoped mutation', () => {
       }),
     ).toMatchObject({ ok: true });
     await expect(
-      executeOperation(env, agent, identity(socket), {
+      executeOperation(env, executor(socket), identity(socket), {
         kind: 'production.create',
         id: 'other-production',
         commandId: 'field',
@@ -1066,27 +1124,35 @@ describe('bounded delivery and context-scoped mutation', () => {
       }),
     ).rejects.toThrow('其他制作');
     expect(
-      await executeOperation(env, agent, identity(socket), { ...operation, commandId: 'field', version: 2 }),
+      await executeOperation(env, executor(socket), identity(socket), {
+        ...operation,
+        commandId: 'field',
+        version: 2,
+      }),
     ).toMatchObject({ ok: true });
     const source = production.sources[0];
-    await enqueue(env.DB, {
-      ...command,
-      id: 'source',
-      context: {
-        ...scope,
-        seq: 3,
-        draft: { revision: 1, value: 'Unsaved source', baseValue: source.content },
-        sourceId: source.id,
-        field: { productionId: production.id, field: 'source.content', sourceId: source.id },
+    await enqueue(
+      env.DB,
+      {
+        ...command,
+        id: 'source',
+        context: {
+          ...scope,
+          seq: 3,
+          draft: { revision: 1, value: 'Unsaved source', baseValue: source.content },
+          sourceId: source.id,
+          field: { productionId: production.id, field: 'source.content', sourceId: source.id },
+        },
       },
-    });
+      human,
+    );
     const sourceOperation = { ...operation, id: 'source-op', commandId: 'source', version: 3 };
     for (const changes of [{ sources: [] }, { sources: [{ ...source, content: 'Replaced dirty content' }] }])
       await expect(
-        executeOperation(env, agent, identity(socket), { ...sourceOperation, changes }),
+        executeOperation(env, executor(socket), identity(socket), { ...sourceOperation, changes }),
       ).rejects.toThrow('人工保存');
     expect(
-      await executeOperation(env, agent, identity(socket), {
+      await executeOperation(env, executor(socket), identity(socket), {
         ...sourceOperation,
         changes: {
           sources: [
@@ -1097,7 +1163,7 @@ describe('bounded delivery and context-scoped mutation', () => {
       }),
     ).toMatchObject({ ok: true });
     expect(
-      await executeOperation(env, agent, identity(socket), {
+      await executeOperation(env, executor(socket), identity(socket), {
         kind: 'production.action',
         id: 'submit-focused',
         commandId: 'field',
@@ -1145,9 +1211,9 @@ describe('bounded delivery and context-scoped mutation', () => {
       "Don't generate audio",
     ].entries()) {
       const id = `no-audio-${index}`;
-      await enqueue(env.DB, { ...command, id, text, context: focused });
+      await enqueue(env.DB, { ...command, id, text, context: focused }, human);
       await expect(
-        executeOperation(audioEnv, agent, identity(socket), {
+        executeOperation(audioEnv, executor(socket), identity(socket), {
           kind: 'audio.request',
           id,
           commandId: id,
@@ -1157,9 +1223,9 @@ describe('bounded delivery and context-scoped mutation', () => {
         }),
       ).rejects.toThrow('明确');
     }
-    await enqueue(env.DB, { ...command, id: 'explicit-audio', text: '请生成音频', context: focused });
+    await enqueue(env.DB, { ...command, id: 'explicit-audio', text: '请生成音频', context: focused }, human);
     expect(
-      await executeOperation(audioEnv, agent, identity(socket), {
+      await executeOperation(audioEnv, executor(socket), identity(socket), {
         kind: 'audio.request',
         id: 'explicit-audio',
         commandId: 'explicit-audio',
@@ -1222,7 +1288,9 @@ describe('bounded delivery and context-scoped mutation', () => {
       version: 1,
       changes: { title: 'Late edit' },
     };
-    await expect(executeOperation(env, agent, identity(socket), operation)).rejects.toThrow('租约');
+    await expect(executeOperation(env, executor(socket), identity(socket), operation)).rejects.toThrow(
+      'not active',
+    );
     expect((await getProduction(env.DB, production.id)).version).toBe(1);
   });
 
@@ -1243,7 +1311,7 @@ describe('bounded delivery and context-scoped mutation', () => {
       ok: false,
       status: 403,
     });
-    expect(await readReceipt(env.DB, operation.id)).toEqual(socket.frames.at(-1));
+    expect(await readReceipt(env.DB, operation.id, human)).toEqual(socket.frames.at(-1));
     await frame(socket, { type: 'operation', operation });
     expect(socket.frames.at(-1)).toMatchObject({
       type: 'operation.result',
@@ -1258,7 +1326,7 @@ describe('bounded delivery and context-scoped mutation', () => {
         new HttpError(404, 'Not found'),
       ),
     ).toMatchObject({ ok: false, status: 404 });
-    await expect(readReceipt(env.DB, 'unknown-command')).rejects.toThrow('不存在');
+    await expect(readReceipt(env.DB, 'unknown-command', human)).rejects.toThrow('不存在');
   });
 
   it('keeps heartbeat expiry retryable and denies duplicate D1 lease or expired handshake', async () => {
@@ -1331,5 +1399,667 @@ describe('bounded delivery and context-scoped mutation', () => {
     expect(() =>
       requireRuntimeOrigin(new Request(`${origin}/admin/api/agent/snapshot`), env, true),
     ).not.toThrow();
+  });
+});
+
+describe('scoped runtime delegation', () => {
+  it('keeps direct controller calls unfenced and rejects mismatched authenticated executors', async () => {
+    expect(operationFence(env.DB)).toEqual([]);
+    expect(operationReceipt(env.DB, fixture())).toEqual([]);
+    const socket = await start();
+    const other = await issuePrincipal();
+    const operation: AgentOperation = {
+      kind: 'production.create',
+      id: 'wrong-executor',
+      commandId: command.id,
+      brief,
+    };
+    await expect(executeOperation(env, other, identity(socket), operation)).rejects.toThrow(
+      'identity mismatch',
+    );
+    await expect(executeOperation(env, human, identity(socket), operation)).rejects.toThrow(
+      'identity mismatch',
+    );
+    socket.serializeAttachment({
+      ...(socket.attachment as ConnectionIdentity),
+      actor: { ...executor(socket), scopes: [] },
+    });
+    await hub.alarm();
+    expect(socket.close).toHaveBeenCalledWith(4001, expect.any(String));
+  });
+
+  it('preserves committed receipts after a controller delivery failure and reports genuine routing failures', async () => {
+    const socket = await start();
+    const operation: AgentOperation = {
+      kind: 'production.create',
+      id: 'lost-response',
+      commandId: command.id,
+      brief,
+    };
+    const original = productionRoutes.routeProductions;
+    const route = vi.spyOn(productionRoutes, 'routeProductions').mockImplementationOnce(async (...args) => {
+      await original(...args);
+      throw new HttpError(503, 'Delivery failed after commit');
+    });
+    expect(await executeOperation(env, executor(socket), identity(socket), operation)).toMatchObject({
+      ok: true,
+      status: 201,
+    });
+    route.mockImplementationOnce(async () => {
+      throw new Error('Database unavailable');
+    });
+    await expect(
+      executeOperation(env, executor(socket), identity(socket), { ...operation, id: 'storage-failure' }),
+    ).rejects.toThrow('Database unavailable');
+    route.mockResolvedValueOnce(null);
+    expect(
+      await executeOperation(env, executor(socket), identity(socket), { ...operation, id: 'route-missing' }),
+    ).toMatchObject({ ok: false, status: 404 });
+    route.mockRestore();
+  });
+
+  it('skips legacy commands on reconnect and does not let dirty source restrictions block unrelated edits', async () => {
+    await enqueue(env.DB, { ...command, id: 'legacy-command', context: null }, human);
+    await env.DB.prepare(
+      "UPDATE agent_commands SET data = json_remove(data, '$.principal') WHERE id = 'legacy-command'",
+    ).run();
+    const production = await getProduction(env.DB, 'p1');
+    const source = production.sources[0];
+    const sourceContext: PageContext = {
+      ...context,
+      sourceId: source.id,
+      field: { productionId: 'p1', field: 'source.content', sourceId: source.id },
+      draft: { revision: 1, value: 'Unsaved', baseValue: source.content },
+    };
+    const socket = await start(sourceContext);
+    expect(socket.frames).not.toContainEqual(
+      expect.objectContaining({
+        type: 'command',
+        command: expect.objectContaining({ id: 'legacy-command' }),
+      }),
+    );
+    const operation: AgentOperation = {
+      kind: 'production.patch',
+      id: 'source-unrelated',
+      commandId: command.id,
+      productionId: 'p1',
+      version: 1,
+      changes: { intent: 'An unrelated edit' },
+    };
+    expect(await executeOperation(env, executor(socket), identity(socket), operation)).toMatchObject({
+      ok: true,
+    });
+    await expect(
+      executeOperation(env, executor(socket), identity(socket), {
+        ...operation,
+        id: 'invalid-sources',
+        version: 2,
+        changes: { sources: 'invalid' },
+      }),
+    ).rejects.toThrow('人工保存');
+    await persistEvent(env.DB, {
+      type: 'message',
+      message: {
+        id: 'ambient-reply',
+        role: 'assistant',
+        text: 'Coordinator ready',
+        commandId: null,
+        createdAt: new Date().toISOString(),
+      },
+    });
+    await env.DB.prepare("UPDATE agent_commands SET status = 'cancelling' WHERE id = ?")
+      .bind(command.id)
+      .run();
+    await expect(
+      persistEvent(env.DB, {
+        type: 'proposal',
+        proposal: {
+          id: 'late-proposal',
+          commandId: command.id,
+          context: sourceContext,
+          target: sourceContext.field as NonNullable<PageContext['field']>,
+          value: 'Too late',
+          summary: 'Late',
+        },
+      }),
+    ).rejects.toThrow('正在取消');
+  });
+
+  it('bounds proposal-only snapshots and marks production speech failures without disturbing other work', async () => {
+    const proposal = {
+      id: 'proposal',
+      commandId: 'proposal-command',
+      context,
+      target: context.field,
+      value: 'x'.repeat(30000),
+      summary: 'Draft',
+    };
+    await env.DB.batch(
+      Array.from({ length: 12 }, (_, index) =>
+        env.DB.prepare('INSERT INTO agent_proposals (id, data) VALUES (?, ?)').bind(
+          `proposal-${index}`,
+          JSON.stringify({ ...proposal, id: `proposal-${index}` }),
+        ),
+      ),
+    );
+    const snapshot = await runtimeSnapshot(env.DB, false);
+    expect(snapshot.messages).toEqual([]);
+    expect(snapshot.proposals.length).toBeLessThan(12);
+    const input = {
+      provider: 'gemini' as const,
+      model: 'gemini-3.8-flash-tts',
+      voice: 'Kore',
+      speakingStyle: 'calm',
+      text: '你好',
+      stability: 0.5,
+      similarity: 0.75,
+    };
+    for (const [id, terminal] of [
+      ['invalid-production', false],
+      ['ended-production', true],
+    ] as const) {
+      const base = readyFixture({ stage: 'production' });
+      await insertProduction({
+        ...base,
+        id,
+        audioJob: { id, status: 'queued', scriptVersion: 1, createdAt: '', error: null },
+      });
+      await env.DB.prepare(
+        "INSERT INTO audio_jobs (id, production_id, snapshot, status, created_at, updated_at) VALUES (?, ?, ?, 'running', '', '')",
+      )
+        .bind(
+          id,
+          id,
+          JSON.stringify({ jobId: id, productionId: id, scriptVersion: 1, speech: input, principal: human }),
+        )
+        .run();
+      await queueSpeech(env, id, 'production', input, id, human);
+      await env.DB.prepare(
+        terminal
+          ? "UPDATE agent_commands SET status = 'failed' WHERE id IN (SELECT command_id FROM speech_jobs WHERE id = ?)"
+          : "UPDATE agent_commands SET data = json_remove(data, '$.principal') WHERE id IN (SELECT command_id FROM speech_jobs WHERE id = ?)",
+      )
+        .bind(id)
+        .run();
+    }
+    await hub.alarm();
+    for (const id of ['invalid-production', 'ended-production']) {
+      expect(
+        await env.DB.prepare('SELECT status FROM speech_jobs WHERE id = ?').bind(id).first('status'),
+      ).toBe('failed');
+      expect((await getProduction(env.DB, id)).audioJob?.status).toBe('failed');
+    }
+  });
+
+  it('requires explicit runtime grants, limits global history and never accepts an agent as a browser', async () => {
+    const actor = await issuePrincipal(['runtime:manage']);
+    await expect(connectRuntime(request('/admin/api/agent/live'), env, actor)).rejects.toMatchObject({
+      status: 403,
+    });
+    for (const path of ['/admin/api/agent/history', '/admin/api/agent/snapshot'])
+      await expect(routeRuntimeAdmin(new Request(`${origin}${path}`), env, actor)).rejects.toThrow(
+        'tasks:manage',
+      );
+    await expect(routeRuntimeAdmin(request('/admin/api/agent/station'), env, agent)).rejects.toThrow(
+      'runtime:manage',
+    );
+    await enroll();
+    await env.DB.prepare('UPDATE agent_tokens SET scopes = ? WHERE id = ?')
+      .bind(JSON.stringify(['productions:read']), tokenId)
+      .run();
+    await expect(connectRuntime(machine(), env)).rejects.toThrow('runtime:connect');
+    await expect(routeRuntimeReceipt(machine('/api/agent/runtime/receipts/none'), env)).rejects.toThrow(
+      'runtime:connect',
+    );
+    await expect(enroll(1)).rejects.toThrow('runtime:connect');
+    const browser = await connect('browser');
+    const forged = { ...(browser.attachment as ConnectionIdentity), actor };
+    expect(
+      (
+        await hub.fetch(
+          new Request('https://hub/connect', { headers: { 'X-Hisfm-Identity': JSON.stringify(forged) } }),
+        )
+      ).status,
+    ).toBe(403);
+    browser.serializeAttachment(forged);
+    await hub.alarm();
+    expect(browser.close).toHaveBeenCalledWith(4001, expect.any(String));
+  });
+
+  it('bounds station binding by target scope and expiry, and prunes removed runtime grants', async () => {
+    const weak = await issuePrincipal(['runtime:manage', 'runtime:connect']);
+    const binding = () =>
+      new Request(`${origin}/admin/api/agent/station`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tokenId, stationId: 'station1' }),
+      });
+    await expect(routeRuntimeAdmin(binding(), env, weak)).rejects.toThrow('manager grants');
+    const strong = await issuePrincipal();
+    await expect(
+      routeRuntimeAdmin(binding(), env, { ...strong, expiresAt: Date.now() + 1000 }),
+    ).rejects.toThrow('expiry');
+    expect((await routeRuntimeAdmin(binding(), env, strong)).status).toBe(200);
+    const socket = await connect();
+    await env.DB.prepare('UPDATE agent_tokens SET scopes = ? WHERE id = ?')
+      .bind(JSON.stringify(['productions:read']), tokenId)
+      .run();
+    await hub.alarm();
+    expect(socket.close).toHaveBeenCalledWith(4001, expect.any(String));
+    expect((await station(env.DB))?.generation).toBeNull();
+  });
+
+  it('persists only trusted task principals from REST and browser submissions and cancels through the shared handler', async () => {
+    const actor = await issuePrincipal(['tasks:submit', 'tasks:manage', 'prompts:read', 'productions:read']);
+    const internal = (path: string, body: unknown, method = 'POST') =>
+      new Request(`https://hub${path}`, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        ...(method === 'GET' ? {} : { body: JSON.stringify(body) }),
+      });
+    const input = { ...command, id: 'rest-task' };
+    const first = await hub.fetch(internal('/task', { input, principal: actor }));
+    expect(first.status).toBe(201);
+    expect(await first.json()).toMatchObject({ inserted: true, command: { principal: actor } });
+    expect((await hub.fetch(internal('/task', { input, principal: actor }))).status).toBe(200);
+    await expect(
+      hub.fetch(internal('/task', { input: { ...input, principal: human }, principal: actor })),
+    ).rejects.toMatchObject({ status: 400 });
+    await expect(hub.fetch(internal('/task', { input }))).rejects.toMatchObject({ status: 400 });
+    await expect(hub.fetch(internal('/task', {}, 'GET'))).rejects.toMatchObject({ status: 405 });
+    await expect(hub.fetch(internal('/task-cancel', {}, 'GET'))).rejects.toMatchObject({ status: 405 });
+    await expect(
+      enqueue(env.DB, { ...input, id: 'missing-origin' }, undefined as unknown as Principal),
+    ).rejects.toThrow('originator');
+    const noSubmit = await issuePrincipal(['productions:read']);
+    await expect(enqueue(env.DB, input, noSubmit)).rejects.toThrow('tasks:submit');
+    const submitOnly = await issuePrincipal(['tasks:submit']);
+    await expect(enqueue(env.DB, { ...input, id: 'submit-only', context: null }, submitOnly)).rejects.toThrow(
+      'tasks:manage',
+    );
+    const noPrompts = await issuePrincipal(['tasks:submit', 'tasks:manage']);
+    await expect(enqueue(env.DB, { ...input, id: 'no-prompts', context: null }, noPrompts)).rejects.toThrow(
+      'prompts:read',
+    );
+    expect(
+      await env.DB.prepare("SELECT id FROM agent_commands WHERE id IN ('submit-only', 'no-prompts')").all(),
+    ).toMatchObject({ results: [] });
+    const noRead = await issuePrincipal(['tasks:submit', 'tasks:manage', 'prompts:read']);
+    await expect(enqueue(env.DB, input, noRead)).rejects.toThrow('productions:read');
+    expect(await (await hub.fetch(internal('/task-cancel', { id: input.id }))).json()).toMatchObject({
+      cancelling: true,
+    });
+    expect((await requireCommand(env.DB, input.id)).status).toBe('cancelling');
+    const browser = await connect('browser');
+    await frame(browser, { type: 'command', ...command });
+    const saved = await env.DB.prepare('SELECT data FROM agent_commands WHERE id = ?')
+      .bind(command.id)
+      .first<string>('data');
+    expect(JSON.parse(saved ?? '{}').principal).toEqual(human);
+    await frame(browser, { type: 'command', ...command, id: 'forged', principal: actor });
+    expect(browser.frames.at(-1)).toMatchObject({ type: 'error', code: 'http_400' });
+  });
+
+  it('intersects current executor and originator grants without upgrading the captured ceiling', async () => {
+    const socket = await start({ ...context, field: null });
+    const limited = await issuePrincipal([
+      'tasks:submit',
+      'tasks:manage',
+      'prompts:read',
+      'productions:read',
+    ]);
+    await enqueue(env.DB, { ...command, id: 'limited', context: { ...context, field: null } }, limited);
+    await env.DB.prepare('UPDATE agent_tokens SET scopes = ? WHERE id = ?')
+      .bind(JSON.stringify(scopePresets.owner), limited.tokenId)
+      .run();
+    const patch: AgentOperation = {
+      kind: 'production.patch',
+      id: 'limited-write',
+      commandId: 'limited',
+      productionId: 'p1',
+      version: 1,
+      changes: { title: 'No upgrade' },
+    };
+    expect(await executeOperation(env, executor(socket), identity(socket), patch)).toMatchObject({
+      ok: false,
+      status: 403,
+    });
+    const origin = await issuePrincipal([
+      'tasks:submit',
+      'tasks:manage',
+      'prompts:read',
+      'productions:read',
+      'productions:write',
+    ]);
+    await enqueue(env.DB, { ...command, id: 'writer', context: { ...context, field: null } }, origin);
+    await env.DB.prepare('UPDATE agent_tokens SET scopes = ? WHERE id = ?')
+      .bind(JSON.stringify(['runtime:connect', 'productions:read']), tokenId)
+      .run();
+    expect(
+      await executeOperation(env, executor(socket), identity(socket), {
+        ...patch,
+        id: 'executor-shrink',
+        commandId: 'writer',
+      }),
+    ).toMatchObject({ ok: false, status: 403 });
+    expect((await getProduction(env.DB, 'p1')).version).toBe(1);
+    await expect(
+      executeOperation(env, { ...executor(socket), tokenId: 'wrong' }, identity(socket), {
+        ...patch,
+        id: 'wrong-executor',
+      }),
+    ).rejects.toMatchObject({ status: 403 });
+    await env.DB.prepare("UPDATE agent_commands SET data = json_remove(data, '$.principal') WHERE id = ?")
+      .bind('writer')
+      .run();
+    await expect(
+      executeOperation(env, executor(socket), identity(socket), {
+        ...patch,
+        id: 'legacy',
+        commandId: 'writer',
+      }),
+    ).rejects.toThrow('originator');
+  });
+
+  it.each([
+    ['origin revoked', null],
+    ['origin grants removed', 'productions:write'],
+    ['origin task management removed', 'tasks:manage'],
+    ['origin prompt access removed', 'prompts:read'],
+    ['contextual origin read removed', 'productions:read'],
+    ['origin expired', null],
+    ['executor grants removed', null],
+    ['captured principal replaced', null],
+  ] as const)(
+    'atomically fences a concurrent %s before any production effect',
+    async (change, removedScope) => {
+      const socket = await start({ ...context, field: null });
+      expect(executor(socket).scopes).not.toContain('tasks:manage');
+      const origin = await issuePrincipal([
+        'tasks:submit',
+        'tasks:manage',
+        'prompts:read',
+        'productions:read',
+        'productions:write',
+      ]);
+      await enqueue(env.DB, { ...command, id: 'raced-origin', context: { ...context, field: null } }, origin);
+      if (removedScope === 'productions:read')
+        await env.DB.prepare('UPDATE agent_tokens SET scopes = ? WHERE id = ?')
+          .bind(
+            JSON.stringify(scopePresets.coordinator.filter((scope) => scope !== 'productions:read')),
+            tokenId,
+          )
+          .run();
+      const raced = new Proxy(env.DB, {
+        get(target, property) {
+          if (property === 'batch')
+            return async (statements: D1PreparedStatement[]) => {
+              if (change === 'origin revoked')
+                await target
+                  .prepare('UPDATE agent_tokens SET revoked_at = ? WHERE id = ?')
+                  .bind(new Date().toISOString(), origin.tokenId)
+                  .run();
+              else if (change === 'origin expired')
+                await target
+                  .prepare("UPDATE agent_tokens SET expires_at = '2000-01-01' WHERE id = ?")
+                  .bind(origin.tokenId)
+                  .run();
+              else if (change === 'captured principal replaced')
+                await target
+                  .prepare(
+                    "UPDATE agent_commands SET data = json_set(data, '$.principal', json(?)) WHERE id = 'raced-origin'",
+                  )
+                  .bind(JSON.stringify(human))
+                  .run();
+              else if (removedScope)
+                await target
+                  .prepare('UPDATE agent_tokens SET scopes = ? WHERE id = ?')
+                  .bind(
+                    JSON.stringify(origin.scopes?.filter((scope) => scope !== removedScope)),
+                    origin.tokenId,
+                  )
+                  .run();
+              else
+                await target
+                  .prepare('UPDATE agent_tokens SET scopes = ? WHERE id = ?')
+                  .bind(JSON.stringify(['runtime:connect', 'productions:read']), tokenId)
+                  .run();
+              return target.batch(statements);
+            };
+          return Reflect.get(target, property);
+        },
+      });
+      await expect(
+        executeOperation({ ...env, DB: raced }, executor(socket), identity(socket), {
+          kind: 'production.patch',
+          id: 'raced-write',
+          commandId: 'raced-origin',
+          productionId: 'p1',
+          version: 1,
+          changes: { title: 'Never commit' },
+        }),
+      ).rejects.toThrow('租约');
+      expect((await getProduction(env.DB, 'p1')).version).toBe(1);
+      expect(
+        await env.DB.prepare("SELECT response FROM agent_receipts WHERE id = 'raced-write'").first(
+          'response',
+        ),
+      ).toBeNull();
+    },
+  );
+
+  it('replays terminal receipts without triggering audio, redacts private publications and validates live origins', async () => {
+    await env.DB.prepare('UPDATE agent_tokens SET scopes = ? WHERE id = ?')
+      .bind(JSON.stringify(scopePresets.owner), tokenId)
+      .run();
+    const socket = await start({ ...context, field: null });
+    const origin = await issuePrincipal();
+    await enqueue(env.DB, { ...command, id: 'receipt-origin', context: { ...context, field: null } }, origin);
+    const operation: AgentOperation = {
+      kind: 'audio.request',
+      id: 'replay-audio',
+      commandId: 'receipt-origin',
+      productionId: 'p1',
+      version: 1,
+      options: {},
+    };
+    const production = readyFixture({
+      id: 'p1',
+      publications: [
+        {
+          platform: 'wechat',
+          url: 'https://mp.weixin.qq.com/s/private-audit',
+          publishedAt: '',
+          confirmedAt: '',
+          confirmedBy: 'Owner',
+          version: 1,
+        },
+      ],
+      events: [
+        {
+          id: 'publication-audit',
+          at: '',
+          actor: human,
+          action: 'record_publication:wechat',
+          feedback: 'private-audit',
+        },
+      ],
+    });
+    const receipt = {
+      type: 'operation.result',
+      id: operation.id,
+      ok: true,
+      status: 202,
+      result: { production },
+    };
+    await env.DB.prepare('INSERT INTO agent_receipts (id, hash, command_id, response) VALUES (?, ?, ?, ?)')
+      .bind(operation.id, await digest(operation), operation.commandId, JSON.stringify(receipt))
+      .run();
+    const trigger = vi.spyOn(audioRoutes, 'triggerAudio').mockResolvedValue(undefined);
+    for (const status of ['complete', 'failed', 'cancelled', 'cancelling']) {
+      await env.DB.prepare('UPDATE agent_commands SET status = ? WHERE id = ?')
+        .bind(status, operation.commandId)
+        .run();
+      expect(await executeOperation(env, executor(socket), identity(socket), operation)).toEqual(receipt);
+    }
+    expect(trigger).not.toHaveBeenCalled();
+    trigger.mockRestore();
+    await env.DB.prepare('UPDATE agent_tokens SET scopes = ? WHERE id = ?')
+      .bind(
+        JSON.stringify(scopePresets.owner.filter((scope) => scope !== 'publications:read')),
+        origin.tokenId,
+      )
+      .run();
+    const redacted = await readReceipt(env.DB, operation.id, executor(socket));
+    expect(JSON.stringify(redacted)).not.toContain('private-audit');
+    await env.DB.prepare('UPDATE agent_tokens SET scopes = ? WHERE id = ?')
+      .bind(JSON.stringify(['tasks:submit', 'tasks:manage', 'prompts:read']), origin.tokenId)
+      .run();
+    expect(await readReceipt(env.DB, operation.id, executor(socket))).toMatchObject({
+      result: { production: { id: 'p1', version: 1 } },
+    });
+    expect(
+      Object.keys((await readReceipt(env.DB, operation.id, executor(socket)))?.result as object),
+    ).toEqual(['production']);
+    await env.DB.prepare('UPDATE agent_tokens SET revoked_at = ? WHERE id = ?')
+      .bind(new Date().toISOString(), origin.tokenId)
+      .run();
+    await expect(readReceipt(env.DB, operation.id, executor(socket))).rejects.toThrow('no longer valid');
+    await expect(executeOperation(env, executor(socket), identity(socket), operation)).rejects.toThrow(
+      'no longer valid',
+    );
+  });
+
+  it('keeps write-only durable receipts minimal even if a later executor has broader read access', async () => {
+    const socket = await start();
+    const origin = await issuePrincipal([
+      'tasks:submit',
+      'tasks:manage',
+      'prompts:read',
+      'productions:write',
+    ]);
+    await enqueue(env.DB, { ...command, id: 'write-only', context: null }, origin);
+    const operation: AgentOperation = {
+      kind: 'production.create',
+      id: 'write-only-op',
+      commandId: 'write-only',
+      brief,
+    };
+    const receipt = await executeOperation(env, executor(socket), identity(socket), operation);
+    expect(receipt.ok).toBe(true);
+    const value = receipt.result as { production: { id: string; version: number } };
+    expect(Object.keys(value.production).sort()).toEqual(['id', 'version']);
+    expect(await readReceipt(env.DB, operation.id, human)).toEqual(receipt);
+    expect((await getProduction(env.DB, value.production.id)).title).toBe(brief.title);
+    expect(operationOrigin()).toBeUndefined();
+  });
+
+  it('carries the original task principal into audio snapshots rather than borrowing the station token', async () => {
+    const production = await insertProduction(readyFixture({ stage: 'production', audioJob: null }));
+    const socket = await start();
+    expect(executor(socket).scopes).not.toContain('tasks:manage');
+    const origin = await issuePrincipal([
+      'tasks:submit',
+      'tasks:manage',
+      'prompts:read',
+      'productions:read',
+      'audio:generate',
+    ]);
+    await enqueue(
+      env.DB,
+      {
+        ...command,
+        id: 'origin-audio',
+        text: '请生成音频',
+        context: { ...context, productionId: production.id, field: null },
+      },
+      origin,
+    );
+    const audioEnv = {
+      ...env,
+      AGENT_HUB: {
+        getByName: () => ({
+          fetch: async () =>
+            Response.json({
+              version: '0'.repeat(64),
+              settings: defaultSpeechSettings,
+              providers: { gemini: true, elevenlabs: true, raven: true, decision: true },
+              coordinator: { provider: 'raven', model: 'gpt-6-astra', thinkingLevel: 'high' },
+              executor: { provider: 'raven', model: 'gpt-6.1-sol', thinkingLevels: ['low'] },
+              decision: { model: 'jev-latest', maxInputBytes: 16384, maxBatchQuestions: 12 },
+            }),
+        }),
+      },
+    } as unknown as Env;
+    expect(
+      await executeOperation(audioEnv, executor(socket), identity(socket), {
+        kind: 'audio.request',
+        id: 'audio-origin-op',
+        commandId: 'origin-audio',
+        productionId: production.id,
+        version: 1,
+        options: {},
+      }),
+    ).toMatchObject({ ok: true });
+    const snapshot = await env.DB.prepare('SELECT snapshot FROM audio_jobs WHERE production_id = ?')
+      .bind(production.id)
+      .first<string>('snapshot');
+    expect(JSON.parse(snapshot ?? '{}').principal).toEqual(origin);
+    expect(JSON.parse(snapshot ?? '{}').principal.tokenId).not.toBe(tokenId);
+    expect(operationOrigin()).toBeUndefined();
+  });
+
+  it('isolates legacy speech jobs and invalid queued audio instead of blocking valid later work', async () => {
+    const socket = await start();
+    const input = {
+      provider: 'gemini' as const,
+      model: 'gemini-3.8-flash-tts',
+      voice: 'Kore',
+      speakingStyle: 'calm',
+      text: '你好',
+      stability: 0.5,
+      similarity: 0.75,
+    };
+    await queueSpeech(env, 'legacy-preview', 'preview', input, null, human);
+    await env.DB.prepare(
+      "UPDATE agent_commands SET data = json_remove(data, '$.principal') WHERE id IN (SELECT command_id FROM speech_jobs WHERE id = 'legacy-preview')",
+    ).run();
+    await queueSpeech(env, 'valid-preview', 'preview', input, null, human);
+    await hub.fetch(new Request('https://hub/speech-queued'));
+    expect(
+      await env.DB.prepare("SELECT status FROM speech_jobs WHERE id = 'legacy-preview'").first('status'),
+    ).toBe('failed');
+    expect(socket.frames).toContainEqual(
+      expect.objectContaining({
+        type: 'command',
+        command: expect.objectContaining({ id: expect.stringContaining('speech:valid-preview:') }),
+      }),
+    );
+    const base = readyFixture({ stage: 'production' });
+    await insertProduction({
+      ...base,
+      id: 'legacy-audio',
+      audioJob: { id: 'legacy-audio', status: 'queued', scriptVersion: 1, createdAt: '', error: null },
+    });
+    await env.DB.prepare(
+      "INSERT INTO audio_jobs (id, production_id, snapshot, status, created_at, updated_at) VALUES ('legacy-audio', 'legacy-audio', ?, 'queued', '', '')",
+    )
+      .bind(
+        JSON.stringify({
+          jobId: 'legacy-audio',
+          productionId: 'legacy-audio',
+          scriptVersion: 1,
+          speech: input,
+        }),
+      )
+      .run();
+    await hub.alarm();
+    expect(
+      await env.DB.prepare("SELECT status FROM audio_jobs WHERE id = 'legacy-audio'").first('status'),
+    ).toBe('failed');
+    expect((await getProduction(env.DB, 'legacy-audio')).audioJob?.status).toBe('failed');
+    expect(
+      await env.DB.prepare("SELECT status FROM speech_jobs WHERE id = 'valid-preview'").first('status'),
+    ).toBe('queued');
   });
 });

@@ -8,9 +8,10 @@ import { HttpError, json } from '../../worker/http';
 import { publishProduction, routeProductions } from '../../worker/production';
 import { readBytes, readJson } from '../../worker/production-body';
 import { getProduction, saveProduction, updateProduction } from '../../worker/production-store';
-import { agent, brief, fixture, human, readyFixture } from './production-fixture';
+import { agent, brief, fixture, fullAgent, human, readyFixture } from './production-fixture';
 
 const origin = 'https://hisfm.dev.hexly.ai';
+const assetAgent: Actor = { ...agent, scopes: [...(agent.scopes ?? []), 'storage:write'] };
 let miniflare: Miniflare;
 let env: Env;
 const png = Uint8Array.from(
@@ -60,7 +61,7 @@ async function insert(production: Production) {
 }
 async function tokenCall(path: string, method = 'GET', data?: unknown) {
   try {
-    return await routeAgentTokens(request(path, method, data), env, path);
+    return await routeAgentTokens(request(path, method, data), env, path, human);
   } catch (error) {
     if (error instanceof HttpError) return json({ error: error.message }, error.status);
     throw error;
@@ -74,7 +75,7 @@ async function cover(production: Production, bytes = png, mime = 'image/png', ve
     body: bytes,
   });
   try {
-    const response = await routeProductions(upload, env, path, agent);
+    const response = await routeProductions(upload, env, path, assetAgent);
     if (!response) throw new Error('Missing upload route');
     return response;
   } catch (error) {
@@ -112,6 +113,8 @@ beforeAll(async () => {
     '0005_channel.sql',
     '0010_categories.sql',
     '0011_prompts.sql',
+    '0012_token_scopes.sql',
+    '0013_resource_versions.sql',
   ]) {
     const sql = readFileSync(new URL(`../../migrations/${file}`, import.meta.url), 'utf8');
     await env.DB.batch(
@@ -186,14 +189,14 @@ describe('production API and optimistic updates', () => {
     expect((await call(path, 'PUT', { version: 1, id: 'replacement' })).status).toBe(400);
     for (const query of ['', '?version=0', '?version=-1', '?version=1.2', '?version=999999999999999999999']) {
       const req = request(`${path}${query}`, 'DELETE');
-      await expect(routeProductions(req, env, path, agent)).rejects.toMatchObject({ status: 400 });
+      await expect(routeProductions(req, env, path, fullAgent)).rejects.toMatchObject({ status: 400 });
     }
     await expect(
-      routeProductions(request(`${path}?version=2`, 'DELETE'), env, path, agent),
+      routeProductions(request(`${path}?version=2`, 'DELETE'), env, path, fullAgent),
     ).rejects.toMatchObject({ status: 409 });
-    expect((await routeProductions(request(`${path}?version=1`, 'DELETE'), env, path, agent))?.status).toBe(
-      204,
-    );
+    expect(
+      (await routeProductions(request(`${path}?version=1`, 'DELETE'), env, path, fullAgent))?.status,
+    ).toBe(204);
     expect((await call(path)).status).toBe(404);
   });
 
@@ -214,7 +217,7 @@ describe('production API and optimistic updates', () => {
           `${path}/actions`,
           'POST',
           { version: 1, action: 'submit_brief', changes: { intent: 'Agent inline write' } },
-          agent,
+          { ...agent, scopes: ['productions:submit'] },
         )
       ).status,
     ).toBe(403);
@@ -282,7 +285,7 @@ describe('production API and optimistic updates', () => {
       version: production.version,
       summary: '新的具体摘要',
       description: '来源与内容',
-      category: 'work',
+      category: 'life',
       tags: ['日常'],
     });
     expect(response.status).toBe(200);
@@ -430,13 +433,15 @@ describe('immutable raster cover uploads', () => {
       headers: { 'Content-Type': 'image/png' },
       body: png,
     });
-    await expect(routeProductions(upload, { ...env, DB: conflictingDb }, path, agent)).rejects.toMatchObject({
+    await expect(
+      routeProductions(upload, { ...env, DB: conflictingDb }, path, assetAgent),
+    ).rejects.toMatchObject({
       status: 409,
     });
     expect((await env.MEDIA.list()).objects).toHaveLength(before.objects.length);
     expect((await getProduction(env.DB, production.id)).assets.cover).toEqual(production.assets.cover);
     const missingType = new Request(`${origin}${path}?version=1`, { method: 'PUT', body: png });
-    await expect(routeProductions(missingType, env, path, agent)).rejects.toMatchObject({ status: 415 });
+    await expect(routeProductions(missingType, env, path, assetAgent)).rejects.toMatchObject({ status: 415 });
   });
 
   it('rejects stale, wrongly typed, truncated and oversized uploads', async () => {
@@ -453,13 +458,13 @@ describe('immutable raster cover uploads', () => {
       headers: { 'Content-Type': 'image/png', 'Content-Length': String(9 * 1024 * 1024) },
       body: png,
     });
-    await expect(routeProductions(oversized, env, path, agent)).rejects.toMatchObject({ status: 413 });
+    await expect(routeProductions(oversized, env, path, assetAgent)).rejects.toMatchObject({ status: 413 });
     await saveProduction(env.DB, { ...production, stage: 'ready' }, 1);
     expect((await cover({ ...production, version: 2 })).status).toBe(409);
   });
 });
 
-describe('human-confirmed publication snapshots', () => {
+describe('scope-authorized publication snapshots', () => {
   const publication = {
     version: 1,
     platform: 'wechat' as const,
@@ -585,6 +590,7 @@ describe('revocable expiring agent tokens', () => {
     const response = await tokenCall('/admin/api/agent-tokens', 'POST', {
       name: 'Hermes',
       expiresInDays: 30,
+      scopes: ['productions:read'],
     });
     expect(response.status).toBe(201);
     const created = (await response.json()) as { token: string; record: { id: string } };
@@ -595,9 +601,12 @@ describe('revocable expiring agent tokens', () => {
     const authorized = new Request(`${origin}/api/agent/productions`, {
       headers: { Authorization: `Bearer ${created.token}` },
     });
-    expect(await authenticateAgent(authorized, env)).toEqual({
+    expect(await authenticateAgent(authorized, env)).toMatchObject({
       kind: 'agent',
       name: `Hermes (${created.record.id})`,
+      tokenId: created.record.id,
+      scopes: ['productions:read'],
+      expiresAt: expect.any(Number),
     });
     const list = (await (await tokenCall('/admin/api/agent-tokens')).json()) as {
       tokens: { lastUsedAt: string }[];
@@ -611,7 +620,11 @@ describe('revocable expiring agent tokens', () => {
   });
 
   it('rejects expired, absent and forged credentials and invalid token management', async () => {
-    const response = await tokenCall('/admin/api/agent-tokens', 'POST', { name: 'Hermes', expiresInDays: 1 });
+    const response = await tokenCall('/admin/api/agent-tokens', 'POST', {
+      name: 'Hermes',
+      expiresInDays: 1,
+      scopes: ['productions:read'],
+    });
     const created = (await response.json()) as { token: string };
     await env.DB.prepare("UPDATE agent_tokens SET expires_at = '2000-01-01T00:00:00.000Z'").run();
     for (const header of [
@@ -639,6 +652,7 @@ describe('revocable expiring agent tokens', () => {
         new Request(`${origin}/admin/api/agent-tokens`, { method: 'POST' }),
         env,
         '/admin/api/agent-tokens',
+        { kind: 'agent', name: 'Unscoped' },
       ),
     ).rejects.toMatchObject({ status: 403 });
   });

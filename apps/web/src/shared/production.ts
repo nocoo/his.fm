@@ -1,3 +1,4 @@
+import type { Principal, Scope } from '@his-fm/contracts';
 import { z } from 'zod';
 import { categoryIdSchema } from './category';
 
@@ -83,9 +84,10 @@ export const productionActionSchema = z.strictObject({
   changes: productionPatchSchema.omit({ version: true }).optional(),
 });
 export type ProductionAction = z.infer<typeof productionActionSchema>;
-export type Actor = { kind: 'human' | 'agent'; name: string };
+export type Actor = Principal;
 export type Approval = { at: string; by: string };
 export type ProductionAsset = {
+  source?: 'upload';
   key: string;
   url: string;
   mimeType: string;
@@ -184,6 +186,7 @@ export type AgentTokenRecord = {
   expiresAt: string;
   lastUsedAt: string | null;
   revokedAt: string | null;
+  scopes: Scope[];
 };
 export type ProductionPrompts = { brief: string; script: string; cover: string; description: string };
 

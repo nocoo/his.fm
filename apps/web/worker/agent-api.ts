@@ -1,18 +1,25 @@
-import instructions from '../../../docs/native-agent.md?raw';
+import { hasScope } from '@his-fm/contracts';
+import instructions from '../../../docs/api-onboarding.md?raw';
 import { version } from '../../../package.json';
 import { editorialPriority } from '../src/shared/channel';
-import { type Actor, agentActions, agentEditableFields, type Production } from '../src/shared/production';
+import {
+  type Actor,
+  actionNames,
+  agentActions,
+  agentEditableFields,
+  type Production,
+  productionPatchSchema,
+} from '../src/shared/production';
 import { voiceSamples } from '../src/shared/voice-samples';
 import { voiceCharacters, voices } from '../src/shared/voices';
 import { agentOpenApi } from './agent-contract';
 import { connectRuntime, routeRuntimeReceipt } from './agent-runtime';
+import { station } from './agent-runtime-store';
 import { authenticateAgent } from './agent-tokens';
-import { routeAudio } from './audio-routes';
-import { routeCategories } from './categories';
-import { routeChannel } from './channel';
+import { commandPrincipal, requireScope } from './authorization';
 import { HttpError, json } from './http';
+import { routeManagement } from './management';
 import { routeNativeSpeech } from './native-speech';
-import { routeProductions } from './production';
 import { applyAction } from './production-model';
 import { getProduction } from './production-store';
 
@@ -45,7 +52,7 @@ function manifest(origin: string) {
       health: `${origin}/api/live`,
     },
     workflow: 'draft -> brief_review -> scripting -> script_review -> production -> final_review -> ready',
-    humanReview: ['brief', 'script', 'final', 'publication'],
+    approvalScopes: ['productions:approve', 'publications:write'],
     editorialPriority,
   };
 }
@@ -105,7 +112,7 @@ export function routeDiscovery(request: Request): Response | null {
   } else {
     const text =
       path === '/llms.txt'
-        ? `# his.fm\n\n> Chinese solo podcast production studio.\n\n## Editorial priority\n\nGlobal prompt > selected category prompt > episode intent > source material. Authenticated agents must read ${origin}/api/agent/channel before every creative task. Read the selected category through the private production categoryProfile or /api/agent/categories/:id. Global, category and runtime/stage prompts are private. The channel response includes the editable prompts bundle.\n\n## Agent API\n\n- [Service discovery](${origin}/api/agent): Read-only REST and typed WebSocket entrypoints.\n- [OpenAPI 3.1](${origin}/api/agent/openapi.json): Complete machine-readable contract.\n- [Native agent instructions](${origin}/api/agent/instructions): Authentication, enrollment, typed operations and review boundaries.\n\nDiscovery is public; all production data requires a studio-issued bearer token. This service does not expose MCP or A2A.\n`
+        ? `# his.fm\n\n> Chinese solo podcast production studio.\n\n## Editorial priority\n\nGlobal prompt > selected category prompt > episode intent > source material. Authenticated agents must read ${origin}/api/agent/channel before every creative task. Read the selected category through the private production categoryProfile or /api/agent/categories/:id. Global, category and runtime/stage prompts are private. The channel response includes the editable prompts bundle.\n\n## Agent API\n\n- [Service discovery](${origin}/api/agent): Scoped REST management and optional native WebSocket entrypoints.\n- [OpenAPI 3.1](${origin}/api/agent/openapi.json): Complete machine-readable contract.\n- [API onboarding](${origin}/api/agent/instructions): Authentication, scopes, versioned operations and optional enrollment.\n\nDiscovery is public; all production data requires a studio-issued bearer token. This service does not expose MCP or A2A.\n`
         : instructions.replaceAll('https://his.fm', origin);
     response = new Response(text, {
       headers: {
@@ -120,11 +127,12 @@ export function routeDiscovery(request: Request): Response | null {
 }
 
 export function productionCapabilities(production: Production, actor: Actor, origin: string) {
-  const availableActions: (typeof agentActions)[number][] = [];
+  const canReopen = hasScope(actor, 'productions:reopen');
+  const availableActions: (typeof actionNames)[number][] = [];
   const blockedActions: Record<string, string> = {};
-  for (const action of agentActions) {
+  for (const action of actionNames) {
     try {
-      applyAction(production, { action, version: production.version }, actor);
+      applyAction(production, { action, version: production.version, feedback: 'Capability check' }, actor);
       availableActions.push(action);
     } catch (error) {
       if (!(error instanceof HttpError)) throw error;
@@ -136,13 +144,30 @@ export function productionCapabilities(production: Production, actor: Actor, ori
     id: production.id,
     version: production.version,
     stage: production.stage,
-    editableFields: agentEditableFields[production.stage],
+    editableFields: hasScope(actor, 'productions:write')
+      ? canReopen
+        ? Object.keys(productionPatchSchema.shape).filter((field) => field !== 'version')
+        : agentEditableFields[production.stage].filter(
+            (field) => field !== 'category' || !production.approvals.brief,
+          )
+      : [],
     availableActions,
     blockedActions,
-    canDelete: !production.publications.length,
-    canUploadCover: production.stage === 'production',
+    canDelete:
+      hasScope(actor, 'productions:delete') &&
+      !production.publications.length &&
+      !production.events.some((event) => event.action.includes('publication:')) &&
+      !['queued', 'running'].includes(production.audioJob?.status ?? ''),
+    canUploadCover:
+      hasScope(actor, 'productions:write') &&
+      hasScope(actor, 'storage:write') &&
+      (canReopen || production.stage === 'production'),
     canGenerateAudio:
-      production.stage === 'production' &&
+      hasScope(actor, 'audio:generate') &&
+      hasScope(actor, 'tasks:manage') &&
+      hasScope(actor, 'prompts:read') &&
+      hasScope(actor, 'productions:read') &&
+      (canReopen || production.stage === 'production') &&
       Boolean(production.approvals.brief && production.approvals.script) &&
       production.audioJob?.status !== 'running',
     links: {
@@ -165,23 +190,30 @@ export async function routeAgent(request: Request, env: Env): Promise<Response> 
     if (path === '/runtime/connect') return connectRuntime(request, env);
     if (path.startsWith('/runtime/speech/')) return routeNativeSpeech(request, env);
     if (path.startsWith('/runtime/receipts/')) return routeRuntimeReceipt(request, env);
-    const actor = await authenticateAgent(request, env);
-    const category = /^\/categories(?:\/([a-z0-9-]+))?$/.exec(path);
-    if (category) return routeCategories(request, env, actor, category[1]);
-    if (path === '/channel') {
-      const response = await routeChannel(request, env, actor);
-      response.headers.set('Link', headers.Link);
-      return response;
+    let actor = await authenticateAgent(request, env);
+    const commandId = request.headers.get('X-Hisfm-Command');
+    if (commandId) {
+      requireScope(actor, 'runtime:connect');
+      const current = await station(env.DB);
+      if (
+        !current ||
+        current.tokenId !== actor.tokenId ||
+        current.stationId !== request.headers.get('X-Hisfm-Station')
+      )
+        throw new HttpError(403, 'Task reads require the enrolled runtime');
+      actor = await commandPrincipal(env.DB, commandId, actor);
     }
     if (path === '/me' || path === '/capabilities' || /^\/productions\/[^/]+\/capabilities$/.test(path)) {
       if (request.method !== 'GET') throw new HttpError(405, '此接口只支持 GET');
       if (path === '/me') return json({ actor }, 200, headers);
-      if (path !== '/capabilities')
+      if (path !== '/capabilities') {
+        requireScope(actor, 'productions:read');
         return json(
           productionCapabilities(await getProduction(env.DB, path.split('/')[2]), actor, url.origin),
           200,
           headers,
         );
+      }
       return json(
         {
           authentication: 'Bearer',
@@ -190,9 +222,9 @@ export async function routeAgent(request: Request, env: Env): Promise<Response> 
             channelUrl: `${url.origin}/api/agent/channel`,
             readBeforeEveryTask: true,
           },
-          editableFields: agentEditableFields,
-          agentActions,
-          humanOnly: ['approval', 'revision', 'reopening', 'channel', 'settings', 'tokens', 'publication'],
+          scopes: actor.scopes ?? [],
+          editableFields: hasScope(actor, 'productions:write') ? agentEditableFields : {},
+          agentActions: hasScope(actor, 'productions:submit') ? agentActions : [],
           limits: { jsonBytes: 750000, coverBytes: 8388608, auditEvents: 200 },
           audio: {
             execution: 'native',
@@ -208,18 +240,9 @@ export async function routeAgent(request: Request, env: Env): Promise<Response> 
         headers,
       );
     }
-    if (request.method !== 'GET' && request.method !== 'HEAD')
-      return json(
-        {
-          error: '请通过已绑定主控的类型化操作提交写入',
-          code: 'runtime_required',
-          documentation: `${url.origin}/api/agent/instructions`,
-        },
-        409,
-        headers,
-      );
-    const response =
-      (await routeAudio(request, env, path, actor)) ?? (await routeProductions(request, env, path, actor));
+    if (commandId && !['GET', 'HEAD'].includes(request.method))
+      throw new HttpError(403, 'Delegated runtime mutations require typed operations');
+    const response = await routeManagement(request, env, path, actor);
     if (!response) throw new HttpError(404, '接口不存在，请读取服务发现和 OpenAPI 中的实际路径');
     response.headers.set('Link', headers.Link);
     return response;

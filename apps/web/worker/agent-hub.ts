@@ -5,22 +5,67 @@ import {
   aiStatusSchema,
   type BrowserFrame,
   browserFrameSchema,
+  commandSchema,
+  hasScope,
   maxFrameBytes,
   type PageContext,
+  type Principal,
+  principalSchema,
   protocolVersion,
   runtimeRequestSchema,
   type ServerFrame,
 } from '@his-fm/contracts';
+import { z } from 'zod';
 import type { ConnectionIdentity } from './agent-runtime';
 import { executeOperation, persistOperationFailure } from './agent-runtime-operation';
 import { enqueue, persistEvent, requireCommand, runtimeSnapshot, saveContext } from './agent-runtime-store';
 import { triggerAudio } from './audio-routes';
 import { getAudioSnapshot, setAudioState } from './audio-store';
+import { commandOrigin, requireScope } from './authorization';
 import { HttpError, json } from './http';
+import { readJson } from './production-body';
 
 export class AgentHub extends DurableObject<Env> {
   private pending: Promise<unknown> = Promise.resolve();
   private requests = new Map<string, { generation: string; resolve: (response: Response) => void }>();
+
+  private async submit(input: Omit<AgentCommand, 'createdAt' | 'principal'>, principal: Principal) {
+    const saved = await enqueue(this.env.DB, input, principal);
+    if (saved.inserted) {
+      this.broadcast({ type: 'command', command: saved.command }, 'agent');
+      this.broadcast(
+        {
+          type: 'message',
+          message: {
+            id: input.id,
+            role: 'user',
+            text: input.text,
+            commandId: input.id,
+            createdAt: saved.command.createdAt,
+          },
+        },
+        'browser',
+      );
+    }
+    return saved;
+  }
+
+  private async cancelTask(commandId: string) {
+    await requireCommand(this.env.DB, commandId);
+    const updated = await this.env.DB.prepare(
+      "UPDATE agent_commands SET status = 'cancelling', detail = '' WHERE id = ? AND status NOT IN ('complete', 'failed', 'cancelled')",
+    )
+      .bind(commandId)
+      .run();
+    if (updated.meta.changes) {
+      this.broadcast({ type: 'cancel', commandId }, 'agent');
+      this.broadcast(
+        { type: 'command.state', id: commandId, commandId, status: 'cancelling', detail: '' },
+        'browser',
+      );
+    }
+    return json({ id: commandId, cancelling: Boolean(updated.meta.changes) });
+  }
 
   async runtimeRequest(request: Request): Promise<Response> {
     await this.prune();
@@ -100,16 +145,34 @@ export class AgentHub extends DurableObject<Env> {
 
   private async dispatchSpeech() {
     const pending = await this.env.DB.prepare(
-      "SELECT agent_commands.data FROM speech_jobs JOIN agent_commands ON agent_commands.id = speech_jobs.command_id WHERE speech_jobs.status IN ('queued', 'running') AND agent_commands.status = 'queued' ORDER BY speech_jobs.created_at LIMIT 5",
-    ).all<{ data: string }>();
-    for (const row of pending.results)
-      this.broadcast({ type: 'command', command: JSON.parse(row.data) as AgentCommand }, 'agent');
+      "SELECT speech_jobs.id, speech_jobs.kind, agent_commands.data FROM speech_jobs JOIN agent_commands ON agent_commands.id = speech_jobs.command_id WHERE speech_jobs.status IN ('queued', 'running') AND agent_commands.status = 'queued' ORDER BY speech_jobs.created_at LIMIT 5",
+    ).all<{ id: string; kind: string; data: string }>();
+    for (const row of pending.results) {
+      const command = JSON.parse(row.data) as AgentCommand;
+      try {
+        requireScope(await commandOrigin(this.env.DB, command.id), 'audio:generate');
+        this.broadcast({ type: 'command', command }, 'agent');
+      } catch (error) {
+        if (!(error instanceof HttpError)) throw error;
+        if (row.kind === 'production')
+          await setAudioState(this.env, await getAudioSnapshot(this.env.DB, row.id), 'failed', error.message);
+        await this.env.DB.batch([
+          this.env.DB.prepare(
+            "UPDATE agent_commands SET status = 'failed', detail = ? WHERE id = ? AND status = 'queued'",
+          ).bind(error.message, command.id),
+          this.env.DB.prepare(
+            "UPDATE speech_jobs SET status = 'failed' WHERE command_id = ? AND status IN ('queued', 'running')",
+          ).bind(command.id),
+        ]);
+      }
+    }
   }
 
   private async valid(identity: ConnectionIdentity) {
     const now = Date.now();
     if (identity.expiresAt <= now || identity.lastSeen + 35000 <= now) return false;
     if (identity.role === 'browser') {
+      if (identity.actor.kind !== 'human') return false;
       if (!identity.sessionHash) return true;
       return Boolean(
         await this.env.DB.prepare(
@@ -119,9 +182,10 @@ export class AgentHub extends DurableObject<Env> {
           .first(),
       );
     }
+    if (!hasScope(identity.actor, 'runtime:connect')) return false;
     return Boolean(
       await this.env.DB.prepare(
-        'SELECT agent_station.id FROM agent_station JOIN agent_tokens ON agent_tokens.id = token_id WHERE agent_station.id = 1 AND token_id = ? AND version = ? AND generation = ? AND lease_until > ? AND revoked_at IS NULL AND expires_at > ?',
+        "SELECT agent_station.id FROM agent_station JOIN agent_tokens ON agent_tokens.id = token_id WHERE agent_station.id = 1 AND token_id = ? AND version = ? AND generation = ? AND lease_until > ? AND revoked_at IS NULL AND expires_at > ? AND EXISTS (SELECT 1 FROM json_each(agent_tokens.scopes) WHERE value = 'runtime:connect')",
       )
         .bind(
           identity.tokenId,
@@ -184,6 +248,23 @@ export class AgentHub extends DurableObject<Env> {
     return this.serial(async () => {
       await this.prune();
       const path = new URL(request.url).pathname;
+      if (path === '/task') {
+        if (request.method !== 'POST') throw new HttpError(405, 'Task submission requires POST');
+        const input = await readJson(
+          request,
+          z.strictObject({
+            input: commandSchema.omit({ createdAt: true, principal: true }),
+            principal: principalSchema,
+          }),
+        );
+        const saved = await this.submit(input.input, input.principal);
+        return json(saved, saved.inserted ? 201 : 200);
+      }
+      if (path === '/task-cancel') {
+        if (request.method !== 'POST') throw new HttpError(405, 'Task cancellation requires POST');
+        const input = await readJson(request, z.strictObject({ id: z.string().min(1).max(160) }));
+        return this.cancelTask(input.id);
+      }
       if (path === '/snapshot')
         return json(await runtimeSnapshot(this.env.DB, this.sockets('agent').length > 0));
       if (path === '/prune') return json({ ok: true });
@@ -202,10 +283,20 @@ export class AgentHub extends DurableObject<Env> {
         request.headers.get('X-Hisfm-Identity') ?? 'null',
       ) as ConnectionIdentity | null;
       if (!identity || identity.expiresAt <= Date.now()) return json({ error: 'Unauthorized' }, 401);
+      if (
+        !principalSchema.safeParse(identity.actor).success ||
+        (identity.role === 'browser'
+          ? identity.actor.kind !== 'human'
+          : identity.role !== 'agent' ||
+            identity.actor.kind !== 'agent' ||
+            identity.actor.tokenId !== identity.tokenId ||
+            !hasScope(identity.actor, 'runtime:connect'))
+      )
+        return json({ error: 'Forbidden connection principal' }, 403);
       if (identity.role === 'agent') {
         if (this.sockets('agent').length) return json({ error: '主控已连接，不能抢占活跃站点' }, 409);
         const acquired = await this.env.DB.prepare(
-          'UPDATE agent_station SET generation = ?, lease_until = ? WHERE id = 1 AND token_id = ? AND station_id = ? AND version = ? AND (generation IS NULL OR lease_until <= ?) AND EXISTS (SELECT 1 FROM agent_tokens WHERE id = token_id AND revoked_at IS NULL AND expires_at > ?)',
+          "UPDATE agent_station SET generation = ?, lease_until = ? WHERE id = 1 AND token_id = ? AND station_id = ? AND version = ? AND (generation IS NULL OR lease_until <= ?) AND EXISTS (SELECT 1 FROM agent_tokens WHERE id = token_id AND revoked_at IS NULL AND expires_at > ? AND EXISTS (SELECT 1 FROM json_each(agent_tokens.scopes) WHERE value = 'runtime:connect'))",
         )
           .bind(
             identity.connectionId,
@@ -240,6 +331,14 @@ export class AgentHub extends DurableObject<Env> {
         ).all<{ data: string; status: string }>();
         for (const row of commands.results) {
           const command = JSON.parse(row.data) as AgentCommand;
+          if (row.status !== 'cancelling') {
+            try {
+              await commandOrigin(this.env.DB, command.id);
+            } catch (error) {
+              if (error instanceof HttpError) continue;
+              throw error;
+            }
+          }
           this.send(
             server,
             row.status === 'cancelling'
@@ -409,45 +508,11 @@ export class AgentHub extends DurableObject<Env> {
       this.send(socket, { type: 'context.ack', seq: frame.context.seq, tabId: frame.context.tabId });
     } else if (frame.type === 'command') {
       const { type: _type, ...input } = frame;
-      const saved = await enqueue(db, input);
+      await this.submit(input, this.identity(socket).actor);
       this.send(socket, { type: 'command.ack', id: frame.id });
-      if (saved.inserted) {
-        this.broadcast({ type: 'command', command: saved.command }, 'agent');
-        this.broadcast(
-          {
-            type: 'message',
-            message: {
-              id: frame.id,
-              role: 'user',
-              text: frame.text,
-              commandId: frame.id,
-              createdAt: saved.command.createdAt,
-            },
-          },
-          'browser',
-        );
-      }
     } else if (frame.type === 'cancel') {
-      await requireCommand(db, frame.commandId);
-      const updated = await db
-        .prepare(
-          "UPDATE agent_commands SET status = 'cancelling', detail = '' WHERE id = ? AND status NOT IN ('complete', 'failed', 'cancelled')",
-        )
-        .bind(frame.commandId)
-        .run();
-      if (updated.meta.changes) {
-        this.broadcast(frame, 'agent');
-        this.broadcast(
-          {
-            type: 'command.state',
-            id: frame.commandId,
-            commandId: frame.commandId,
-            status: 'cancelling',
-            detail: '',
-          },
-          'browser',
-        );
-      }
+      requireScope(this.identity(socket).actor, 'tasks:cancel');
+      await this.cancelTask(frame.commandId);
     } else {
       const updated = await db
         .prepare(
@@ -503,8 +568,15 @@ export class AgentHub extends DurableObject<Env> {
         if (!pending) continue;
         try {
           await triggerAudio(this.env, job.id);
-        } catch {
-          console.error(JSON.stringify({ event: 'agent_audio_dispatch_pending', jobId: job.id }));
+        } catch (error) {
+          if (error instanceof HttpError && error.status === 403)
+            await setAudioState(
+              this.env,
+              await getAudioSnapshot(this.env.DB, job.id),
+              'failed',
+              error.message,
+            );
+          else console.error(JSON.stringify({ event: 'agent_audio_dispatch_pending', jobId: job.id }));
         }
       }
       await this.dispatchSpeech();

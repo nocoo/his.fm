@@ -57,6 +57,16 @@ describe('private native configuration', () => {
       );
       expect(rotateOnly.version).not.toBe(refreshed.version);
       expect(JSON.stringify(rotateOnly)).not.toContain('rotated-key');
+      const cleared = await runtimeSettings(
+        {
+          kind: 'settings.update',
+          input: { version: rotateOnly.version, credentials: { gemini: null, elevenlabs: null } },
+        },
+        path,
+      );
+      expect(cleared.providers).toMatchObject({ gemini: false, elevenlabs: false });
+      expect(cleared.settings).toEqual(rotateOnly.settings);
+      expect(JSON.parse(await readFile(path, 'utf8')).speechKeys).toEqual({ gemini: '', elevenlabs: '' });
       await expect(runtimeSettings({ kind: 'settings.read' }, join(directory, 'missing'))).rejects.toThrow(
         '配置',
       );

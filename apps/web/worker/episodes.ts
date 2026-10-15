@@ -1,6 +1,16 @@
-import { type Episode, type EpisodeInput, episodeInputSchema } from '../src/shared/episode';
+import { hasScope } from '@his-fm/contracts';
+import {
+  type Episode,
+  type EpisodeInput,
+  episodeDisplaySchema,
+  episodeInputSchema,
+  episodeUpdateSchema,
+} from '../src/shared/episode';
+import type { Actor } from '../src/shared/production';
+import { requireScope } from './authorization';
 import { getCategory } from './categories';
-import { HttpError, json, requireSameOrigin } from './http';
+import { HttpError, json } from './http';
+import { readJson } from './production-body';
 
 type EpisodeRow = Omit<
   Episode,
@@ -31,6 +41,7 @@ type EpisodeRow = Omit<
 function fromRow(row: EpisodeRow): Episode {
   return {
     id: row.id,
+    version: row.version,
     sourceProductionId: row.source_production_id,
     slug: row.slug,
     episodeNumber: row.episode_number,
@@ -51,7 +62,11 @@ function fromRow(row: EpisodeRow): Episode {
   };
 }
 
-export async function listEpisodes(db: D1Database, publishedOnly: boolean) {
+export async function listEpisodes(db: D1Database, publishedOnly: boolean, actor?: Actor) {
+  if (!publishedOnly) {
+    if (!actor) throw new HttpError(403, 'Missing scope: episodes:read');
+    requireScope(actor, 'episodes:read');
+  }
   const query = publishedOnly
     ? "SELECT * FROM episodes WHERE status = 'published' AND published_at <= ? ORDER BY published_at DESC, episode_number DESC"
     : 'SELECT * FROM episodes ORDER BY updated_at DESC, episode_number DESC';
@@ -63,7 +78,11 @@ export async function listEpisodes(db: D1Database, publishedOnly: boolean) {
   return result.results.map(fromRow);
 }
 
-export async function getEpisode(db: D1Database, key: string, publishedOnly: boolean) {
+export async function getEpisode(db: D1Database, key: string, publishedOnly: boolean, actor?: Actor) {
+  if (!publishedOnly) {
+    if (!actor) throw new HttpError(403, 'Missing scope: episodes:read');
+    requireScope(actor, 'episodes:read');
+  }
   const statement = publishedOnly
     ? db
         .prepare("SELECT * FROM episodes WHERE slug = ? AND status = 'published' AND published_at <= ?")
@@ -74,7 +93,7 @@ export async function getEpisode(db: D1Database, key: string, publishedOnly: boo
   return fromRow(row);
 }
 
-async function readInput(request: Request): Promise<EpisodeInput> {
+async function readInput(request: Request, update: boolean) {
   if (!request.headers.get('Content-Type')?.toLowerCase().startsWith('application/json')) {
     throw new HttpError(415, '请提交 JSON 格式的节目内容');
   }
@@ -106,7 +125,7 @@ async function readInput(request: Request): Promise<EpisodeInput> {
   } catch {
     throw new HttpError(400, '节目内容不是有效的 JSON');
   }
-  const parsed = episodeInputSchema.safeParse(data);
+  const parsed = (update ? episodeUpdateSchema : episodeInputSchema).safeParse(data);
   if (!parsed.success) throw new HttpError(400, parsed.error.issues[0]?.message ?? '请检查节目内容');
   return parsed.data;
 }
@@ -130,39 +149,74 @@ function inputValues(input: EpisodeInput) {
   ];
 }
 
-export async function mutateEpisode(request: Request, db: D1Database, id?: string) {
-  requireSameOrigin(request);
-  if (id) {
-    const record = await db
-      .prepare('SELECT source_production_id FROM episodes WHERE id = ?')
-      .bind(id)
-      .first<{ source_production_id: string | null }>();
-    if (record?.source_production_id)
-      throw new HttpError(409, '这期节目由制作流程管理，请进入制作任务修改和重新审核');
+export async function mutateEpisode(request: Request, db: D1Database, actor: Actor, id?: string) {
+  const respond = (row: EpisodeRow, status = 200) =>
+    json(
+      { episode: hasScope(actor, 'episodes:read') ? fromRow(row) : { id: row.id, version: row.version } },
+      status,
+    );
+  if (
+    !['POST', 'PUT', 'PATCH', 'DELETE'].includes(request.method) ||
+    (request.method !== 'POST' && !id) ||
+    (request.method === 'POST' && id)
+  )
+    throw new HttpError(405, '不支持这个请求方式');
+  requireScope(actor, request.method === 'DELETE' ? 'episodes:delete' : 'episodes:write');
+  const current = id
+    ? await db.prepare('SELECT * FROM episodes WHERE id = ?').bind(id).first<EpisodeRow>()
+    : null;
+  if (id && !current) throw new HttpError(404, '这期节目不存在');
+  if (request.method === 'PATCH') {
+    const input = await readJson(request, episodeDisplaySchema);
+    const row = await db
+      .prepare(
+        'UPDATE episodes SET featured = ?, version = version + 1, updated_at = ? WHERE id = ? AND version = ? RETURNING *',
+      )
+      .bind(Number(input.featured), new Date().toISOString(), id, input.version)
+      .first<EpisodeRow>();
+    if (!row) throw new HttpError(409, '节目已被修改，请刷新后重试');
+    return respond(row);
   }
-  if (request.method === 'DELETE' && id) {
-    const deleted = await db.prepare('DELETE FROM episodes WHERE id = ? RETURNING id').bind(id).first();
-    if (!deleted) throw new HttpError(404, '这期节目不存在');
+  if (current?.source_production_id)
+    throw new HttpError(409, '这期节目由制作流程管理，请进入制作任务修改和重新审核');
+  if (request.method === 'DELETE') {
+    const raw = new URL(request.url).searchParams.get('version');
+    const version = Number(raw);
+    if (!raw || !/^[1-9]\d*$/.test(raw) || !Number.isSafeInteger(version))
+      throw new HttpError(400, '请提供节目版本');
+    const deleted = await db
+      .prepare(
+        'DELETE FROM episodes WHERE id = ? AND version = ? AND source_production_id IS NULL RETURNING id',
+      )
+      .bind(id, version)
+      .first();
+    if (!deleted) throw new HttpError(409, '节目已被修改，请刷新后重试');
     return new Response(null, { status: 204 });
   }
-  const input = await readInput(request);
+  const input = await readInput(request, Boolean(id));
+  if (
+    input.status === 'published' ||
+    current?.status === 'published' ||
+    input.publishedAt !== (current?.published_at ?? null)
+  )
+    requireScope(actor, 'episodes:publish');
   await getCategory(db, input.category);
   const now = new Date().toISOString();
   try {
     const statement = id
       ? db
           .prepare(
-            'UPDATE episodes SET slug = ?, episode_number = ?, title = ?, summary = ?, transcript = ?, show_notes = ?, cover_url = ?, category = ?, tags = ?, duration_seconds = ?, audio_url = ?, status = ?, featured = ?, published_at = ?, updated_at = ? WHERE id = ? RETURNING *',
+            'UPDATE episodes SET slug = ?, episode_number = ?, title = ?, summary = ?, transcript = ?, show_notes = ?, cover_url = ?, category = ?, tags = ?, duration_seconds = ?, audio_url = ?, status = ?, featured = ?, published_at = ?, updated_at = ?, version = version + 1 WHERE id = ? AND version = ? AND source_production_id IS NULL RETURNING *',
           )
-          .bind(...inputValues(input), now, id)
+          .bind(...inputValues(input), now, id, 'version' in input ? input.version : null)
       : db
           .prepare(
             'INSERT INTO episodes (slug, episode_number, title, summary, transcript, show_notes, cover_url, category, tags, duration_seconds, audio_url, status, featured, published_at, created_at, updated_at, id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *',
           )
           .bind(...inputValues(input), now, now, crypto.randomUUID());
     const row = await statement.first<EpisodeRow>();
-    if (!row) throw new HttpError(404, '这期节目不存在');
-    return json({ episode: fromRow(row) }, id ? 200 : 201);
+    if (!row) throw new HttpError(409, '节目已被修改，请刷新后重试');
+    return respond(row, id ? 200 : 201);
   } catch (error) {
     if (error instanceof Error && /UNIQUE constraint failed: episodes\.slug/.test(error.message)) {
       throw new HttpError(409, '这个链接名称已被另一集使用');

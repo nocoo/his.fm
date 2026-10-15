@@ -1,3 +1,4 @@
+import { hasScope } from '@his-fm/contracts';
 import {
   type Actor,
   agentEditableFields,
@@ -5,11 +6,8 @@ import {
   type ProductionAction,
   type ProductionBrief,
 } from '../src/shared/production';
+import { requireScope } from './authorization';
 import { HttpError } from './http';
-
-export function requireHuman(actor: Actor) {
-  if (actor.kind !== 'human') throw new HttpError(403, '此操作需要人工确认');
-}
 
 export function requireStage(production: Production, ...stages: Production['stage'][]) {
   if (!stages.includes(production.stage)) throw new HttpError(409, '当前阶段不能进行此操作');
@@ -17,7 +15,7 @@ export function requireStage(production: Production, ...stages: Production['stag
 
 export function requireFinalAssets(production: Production) {
   if (!production.approvals.brief || !production.approvals.script || !production.transcript.trim()) {
-    throw new HttpError(409, '请先完成人工选题与逐字稿确认');
+    throw new HttpError(409, '请先完成选题与逐字稿确认');
   }
   if (!production.summary.trim() || !production.description.trim())
     throw new HttpError(409, '请完成摘要与发布简介');
@@ -31,8 +29,10 @@ export function requireFinalAssets(production: Production) {
   }
   if (
     !production.assets.audio.durationSeconds ||
-    production.audioJob?.status !== 'complete' ||
-    production.audioJob.scriptVersion !== production.scriptVersion
+    (production.assets.audio.source === 'upload'
+      ? production.audioJob !== null
+      : production.audioJob?.status !== 'complete' ||
+        production.audioJob.scriptVersion !== production.scriptVersion)
   ) {
     throw new HttpError(409, '请等待当前版本音频制作完成');
   }
@@ -53,7 +53,7 @@ function reopenContent(production: Production, stage: 'draft' | 'scripting'): Pr
 }
 
 export function editAssets(production: Production, actor: Actor): Production {
-  if (actor.kind === 'agent') requireStage(production, 'production');
+  if (!canReopen(actor)) requireStage(production, 'production');
   return {
     ...production,
     stage: ['final_review', 'ready'].includes(production.stage) ? 'production' : production.stage,
@@ -61,16 +61,21 @@ export function editAssets(production: Production, actor: Actor): Production {
   };
 }
 
+function canReopen(actor: Actor) {
+  return hasScope(actor, 'productions:reopen');
+}
+
 export function applyPatch(
   production: Production,
   fields: Partial<ProductionBrief & Pick<Production, 'transcript' | 'summary' | 'description'>>,
   actor: Actor,
 ): Production {
-  if (actor.kind === 'agent') {
+  requireScope(actor, 'productions:write');
+  if (!canReopen(actor)) {
     requireStage(production, 'draft', 'scripting', 'production');
     const allowed = agentEditableFields[production.stage];
     if (Object.keys(fields).some((key) => !allowed.includes(key)))
-      throw new HttpError(409, '请由你本人修改已确认的内容，或返回对应阶段后让助手继续');
+      throw new HttpError(409, '当前字段需要 productions:reopen 权限');
   }
   const changed = Object.keys(fields).filter(
     (key) =>
@@ -82,6 +87,8 @@ export function applyPatch(
     ['title', 'episodeNumber', 'targetDurationSeconds', 'sources', 'intent', 'category'].includes(key),
   );
   const scriptChanged = changed.includes('transcript');
+  if (briefChanged && production.approvals.brief && !canReopen(actor))
+    requireScope(actor, 'productions:reopen');
   let next = production;
   if (
     briefChanged &&
@@ -99,7 +106,14 @@ export function applyPatch(
 
 export function applyAction(production: Production, action: ProductionAction, actor: Actor): Production {
   const feedbackActions = ['revise_brief', 'revise_script', 'revise_assets'];
-  if (!['submit_brief', 'submit_script', 'submit_final'].includes(action.action)) requireHuman(actor);
+  requireScope(
+    actor,
+    action.action.startsWith('submit_')
+      ? 'productions:submit'
+      : action.action.startsWith('reopen_') || feedbackActions.includes(action.action)
+        ? 'productions:reopen'
+        : 'productions:approve',
+  );
   if (feedbackActions.includes(action.action) && !action.feedback?.trim())
     throw new HttpError(400, '请填写修改意见');
   const approval = { at: new Date().toISOString(), by: actor.name };

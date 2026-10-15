@@ -96,7 +96,8 @@ test('editor can create, edit, publish, delete and log out', async ({ page, brow
     await expect(page.getByRole('alertdialog')).toBeVisible();
     const deletion = page.waitForResponse(
       (response) =>
-        response.url().endsWith(`/admin/api/episodes/${id}`) && response.request().method() === 'DELETE',
+        new URL(response.url()).pathname === `/admin/api/episodes/${id}` &&
+        response.request().method() === 'DELETE',
     );
     await page.getByRole('button', { name: '确认删除' }).click();
     expect((await deletion).status()).toBe(204);
@@ -110,7 +111,16 @@ test('editor can create, edit, publish, delete and log out', async ({ page, brow
     expect(errors).toEqual([]);
   } finally {
     try {
-      if (id) expect([204, 404]).toContain(await responseStatus(page, `/admin/api/episodes/${id}`, 'DELETE'));
+      if (id) {
+        const remaining = await page.evaluate(async (id) => {
+          const path = `/admin/api/episodes/${id}`;
+          const read = await fetch(path);
+          if (read.status === 404) return 404;
+          const { episode } = (await read.json()) as { episode: { version: number } };
+          return (await fetch(`${path}?version=${episode.version}`, { method: 'DELETE' })).status;
+        }, id);
+        expect([204, 404]).toContain(remaining);
+      }
     } finally {
       await publicContext.close();
     }

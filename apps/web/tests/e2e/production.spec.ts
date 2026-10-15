@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { mkdir, readFile } from 'node:fs/promises';
 import { defaultPrompts } from '@frogie/core/hisfm/prompts';
-import { defaultSpeechSettings, wavHeader } from '@his-fm/contracts';
+import { defaultSpeechSettings, scopePresets, scopes, wavHeader } from '@his-fm/contracts';
 import { expect, type Page, test } from '@playwright/test';
 import type { AgentTokenRecord, ProductionAction, ProductionSettings } from '../../src/shared/production';
 import {
@@ -119,6 +119,7 @@ async function studio(page: Page, initial = fixture()) {
         expiresAt: new Date(Date.now() + input.expiresInDays * 86400000).toISOString(),
         lastUsedAt: null,
         revokedAt: null,
+        scopes: input.scopes,
       };
       tokens = [record];
       return send({ record, token: 'hisfm_one_time_plaintext_for_test' }, 201);
@@ -504,16 +505,64 @@ test('separate bumper and connection pages preserve failed uploads and transient
   );
   await page.getByLabel('助手名称').fill('Hermes');
   await page.getByLabel('有效天数').fill('7');
+  await expect(page.getByRole('combobox', { name: '权限预设' })).toContainText('只读（默认）');
+  const creation = page.waitForRequest(
+    (request) => request.url().endsWith('/agent-tokens') && request.method() === 'POST',
+  );
   await page.getByRole('button', { name: '创建助手令牌', exact: true }).click();
+  expect((await creation).postDataJSON()).toEqual({
+    name: 'Hermes',
+    expiresInDays: 7,
+    scopes: scopePresets.reader,
+  });
   await expect(page.getByLabel('新建助手令牌')).toHaveValue('hisfm_one_time_plaintext_for_test');
   expect(await page.evaluate(() => JSON.stringify(localStorage))).not.toContain('hisfm_one_time');
   await page.reload();
   await expect(page.getByLabel('新建助手令牌')).toHaveCount(0);
+  await page.getByText(`已授权 ${scopePresets.reader.length} 项权限`, { exact: true }).click();
+  await expect(page.locator('.studio-token-list')).toContainText('productions:read');
   await page.getByRole('button', { name: '撤销 Hermes' }).click();
   await page.getByRole('alertdialog').getByRole('button', { name: '确认撤销令牌' }).click();
   await expect(page.getByRole('button', { name: '撤销 Hermes' })).toHaveCount(0);
   await mkdir('.local', { recursive: true });
   await page.screenshot({ path: '.local/studio-settings.png', fullPage: true });
+});
+
+test('token grants require explicit high-risk consent and reset it after grant changes', async ({ page }) => {
+  await studio(page);
+  await page.goto('/admin/connections');
+  await page.getByLabel('助手名称').fill('Scoped agent');
+  const create = page.getByRole('button', { name: '创建助手令牌', exact: true });
+  await page.getByRole('combobox', { name: '权限预设' }).click();
+  await page.getByRole('option', { name: '完全控制（高风险）', exact: true }).click();
+  await expect(create).toBeDisabled();
+  const risk = page.getByRole('region', { name: '高风险授权确认' });
+  await expect(risk).toContainText('不提供令牌间会话隔离');
+  await expect(risk).toContainText('完全控制授权');
+  await expect(risk).toContainText('Local / Prod 共享');
+  const consent = page.getByRole('checkbox', { name: '我确认授予以上高风险权限' });
+  await consent.check();
+  await expect(create).toBeEnabled();
+  await page.getByText(`逐项设置权限（已选 ${scopes.length} / ${scopes.length}）`).click();
+  await page.getByRole('checkbox', { name: '删除制作', exact: true }).uncheck();
+  await expect(page.getByRole('combobox', { name: '权限预设' })).toContainText('自定义权限');
+  await expect(consent).not.toBeChecked();
+  await expect(create).toBeDisabled();
+  await consent.check();
+  const creation = page.waitForRequest(
+    (request) => request.url().endsWith('/agent-tokens') && request.method() === 'POST',
+  );
+  await create.click();
+  expect((await creation).postDataJSON().scopes).toEqual(
+    scopes.filter((scope) => scope !== 'productions:delete'),
+  );
+  await expect(page.getByLabel('新建助手令牌')).toBeVisible();
+  await expect(page.getByRole('combobox', { name: '权限预设' })).toContainText('只读（默认）');
+  await expect(create).toBeDisabled();
+  await page.getByRole('button', { name: '我已保存，隐藏令牌', exact: true }).click();
+  for (const scope of scopePresets.reader) await page.locator(`[id="grant-${scope}"]`).uncheck();
+  await expect(create).toBeDisabled();
+  await expect(page.getByText(`逐项设置权限（已选 0 / ${scopes.length}）`)).toBeVisible();
 });
 
 test('catalog snapshots expose production links and never expose editing or deletion', async ({ page }) => {

@@ -75,7 +75,13 @@ export const testCommand = (
   id = 'command-1',
   text = '请帮我写稿',
   page: PageContext | null = null,
-): AgentCommand => ({ id, text, context: page, createdAt: '2026-10-03T00:00:00Z' });
+): AgentCommand => ({
+  id,
+  text,
+  context: page,
+  createdAt: '2026-10-03T00:00:00Z',
+  principal: { kind: 'human', name: 'owner' },
+});
 export class FakeSocket extends EventEmitter {
   readyState = 1;
   bufferedAmount = 0;
@@ -135,18 +141,17 @@ export async function fixture(responses: ModelResponse[] = [], options: { persis
     categoryProfile: { id: 'work', name: '工作之间', version: 1, prompt: 'Test category style.' },
     approvals: { script: { at: 'now', by: 'owner' }, brief: { at: 'now', by: 'owner' } },
   };
-  const client = new WebsiteClient(
-    config.websites.local,
-    vi.fn(async (input) =>
-      Response.json(
-        String(input).endsWith('/channel')
-          ? { channel }
-          : String(input).endsWith('/productions')
-            ? { productions: [production] }
-            : { production, categoryProfile: production.categoryProfile },
-      ),
-    ),
-  );
+  const request = vi.fn<typeof fetch>(async (input, init) => {
+    if (!new Headers(init?.headers).get('X-Hisfm-Command')) return new Response(null, { status: 403 });
+    return Response.json(
+      String(input).endsWith('/channel')
+        ? { channel }
+        : String(input).endsWith('/productions')
+          ? { productions: [production] }
+          : { production, categoryProfile: production.categoryProfile },
+    );
+  });
+  const client = new WebsiteClient(config.websites.local, request);
   const decide = vi.fn<(input: DecisionInput) => Promise<AssignmentPlan>>(async () => ({
     reuse: false,
     lifetime: 'task',
@@ -178,6 +183,7 @@ export async function fixture(responses: ModelResponse[] = [], options: { persis
     transport,
     socket,
     client,
+    request,
     channel,
     production,
     decide,

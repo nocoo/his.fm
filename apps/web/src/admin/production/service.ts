@@ -1,4 +1,4 @@
-import type { AiStatus, aiUpdateSchema } from '@his-fm/contracts';
+import type { AiStatus, aiUpdateSchema, Scope } from '@his-fm/contracts';
 import type { z } from 'zod';
 import type {
   AgentTokenRecord,
@@ -66,10 +66,10 @@ export const productionService = {
   settings: (signal?: AbortSignal) =>
     request<{ settings: ProductionSettings }>('/production-settings', { signal }),
   tokens: (signal?: AbortSignal) => request<{ tokens: AgentTokenRecord[] }>('/agent-tokens', { signal }),
-  createToken: (name: string, expiresInDays: number) =>
+  createToken: (name: string, expiresInDays: number, scopes: Scope[]) =>
     request<{ token: string; record: AgentTokenRecord }>(
       '/agent-tokens',
-      json('POST', { name, expiresInDays }),
+      json('POST', { name, expiresInDays, scopes }),
     ),
   revokeToken: (id: string) => request<void>(`/agent-tokens/${encodeURIComponent(id)}`, { method: 'DELETE' }),
 };

@@ -1,13 +1,14 @@
+import { hasScope } from '@his-fm/contracts';
 import {
   type Category,
-  categoryInputSchema,
-  categoryUpdateSchema,
+  categoryCreateSchema,
+  categoryMutationSchema,
   type PublicCategory,
 } from '../src/shared/category';
 import type { Actor } from '../src/shared/production';
+import { requireScope } from './authorization';
 import { HttpError, json } from './http';
 import { readJson } from './production-body';
-import { requireHuman } from './production-model';
 
 const fields = 'id, name, icon, color, prompt, version, updated_at AS updatedAt, updated_by AS updatedBy';
 export async function listCategories(db: D1Database) {
@@ -28,13 +29,24 @@ export function categoryFence(db: D1Database, id: string) {
     .bind(id);
 }
 export async function routeCategories(request: Request, env: Env, actor: Actor, id?: string) {
-  if (request.method === 'GET')
+  const project = (category: Category) => {
+    const { prompt, ...metadata } = category;
+    return hasScope(actor, 'prompts:read') ? { ...metadata, prompt } : metadata;
+  };
+  if (request.method === 'GET') {
+    requireScope(actor, 'categories:read');
     return id
-      ? json({ category: await getCategory(env.DB, id) })
-      : json({ categories: await listCategories(env.DB) });
-  requireHuman(actor);
+      ? json({ category: project(await getCategory(env.DB, id)) })
+      : json({
+          categories: (
+            await env.DB.prepare(`SELECT ${fields} FROM categories ORDER BY rowid`).all<Category>()
+          ).results.map(project),
+        });
+  }
   if (!id && request.method === 'POST') {
-    const input = await readJson(request, categoryInputSchema);
+    requireScope(actor, 'categories:write');
+    const input = await readJson(request, categoryCreateSchema);
+    if (input.prompt) requireScope(actor, 'prompts:write');
     const category = await env.DB.prepare(
       `INSERT INTO categories (id,name,icon,color,prompt,updated_at,updated_by) VALUES (?,?,?,?,?,?,?) RETURNING ${fields}`,
     )
@@ -43,23 +55,27 @@ export async function routeCategories(request: Request, env: Env, actor: Actor, 
         input.name,
         input.icon,
         input.color,
-        input.prompt,
+        input.prompt ?? '',
         new Date().toISOString(),
         actor.name,
       )
       .first<Category>();
-    return json({ category }, 201);
+    if (!category) throw new HttpError(503, '栏目暂时无法创建，请重试');
+    return json({ category: project(category) }, 201);
   }
   if (id && request.method === 'PUT') {
-    const input = await readJson(request, categoryUpdateSchema);
+    requireScope(actor, 'categories:write');
+    const input = await readJson(request, categoryMutationSchema);
+    const current = await getCategory(env.DB, id);
+    if (input.prompt !== undefined && input.prompt !== current.prompt) requireScope(actor, 'prompts:write');
     const category = await env.DB.prepare(
       `UPDATE categories SET name=?,icon=?,color=?,prompt=?,version=version+1,updated_at=?,updated_by=? WHERE id=? AND version=? RETURNING ${fields}`,
     )
       .bind(
-        input.name,
-        input.icon,
-        input.color,
-        input.prompt,
+        input.name ?? current.name,
+        input.icon ?? current.icon,
+        input.color ?? current.color,
+        input.prompt ?? current.prompt,
         new Date().toISOString(),
         actor.name,
         id,
@@ -67,9 +83,10 @@ export async function routeCategories(request: Request, env: Env, actor: Actor, 
       )
       .first<Category>();
     if (!category) throw new HttpError(409, '栏目已被修改或删除，草稿已保留，请刷新后对照');
-    return json({ category });
+    return json({ category: project(category) });
   }
   if (id && request.method === 'DELETE') {
+    requireScope(actor, 'categories:delete');
     const version = Number(new URL(request.url).searchParams.get('version'));
     if (!Number.isSafeInteger(version) || version < 1) throw new HttpError(400, '请提供栏目版本');
     const removed = await env.DB.prepare(
