@@ -179,10 +179,12 @@ export function AdminShell({ session, children }: { session: Session; children: 
             </Link>
             {!iconOnly && (
               <>
-                <span className="admin-brand" role="img" aria-label="his.fm">
-                  <Wordmark />
-                </span>
-                <span className="admin-version">v{version}</span>
+                <div className="admin-brand-meta">
+                  <span className="admin-brand" role="img" aria-label="his.fm">
+                    <Wordmark />
+                  </span>
+                  <span className="admin-version">v{version}</span>
+                </div>
                 {!compact && (
                   <Button
                     ref={focusNavigationToggle}

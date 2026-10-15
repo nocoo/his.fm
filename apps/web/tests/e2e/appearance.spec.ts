@@ -196,11 +196,13 @@ test('theme choices have no outer frame and retain selection and keyboard focus'
       'none',
     );
     await choice.focus();
-    await page.keyboard.press('ArrowDown');
+    await page.keyboard.down('ArrowDown');
     const next = group.getByRole('radio', { name: '02 · 间隙', exact: true });
     await expect(next).toBeChecked();
     await expect(next).toBeFocused();
+    await page.keyboard.up('ArrowDown');
     expect(await next.evaluate((element) => element.matches(':focus-visible'))).toBe(true);
+    await expect(next).not.toHaveCSS('box-shadow', 'none');
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await page.screenshot({ path: testInfo.outputPath(`appearance-${width}.png`), animations: 'disabled' });
   }

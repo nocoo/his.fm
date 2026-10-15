@@ -15,6 +15,7 @@ html:has(.admin-app) {
   --admin-space-5: 20px;
   --admin-space-6: 24px;
   --admin-space-8: 32px;
+  --admin-mark-size: 44px;
 }
 .admin-app {
   color: hsl(var(--basalt-foreground));
@@ -71,17 +72,30 @@ html:has(.admin-app) {
 }
 .admin-rail-header {
   gap: var(--admin-space-1);
+  padding-inline: calc((var(--basalt-size-rail) - var(--admin-mark-size)) / 2);
+}
+.admin-brand-meta {
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--admin-space-1);
+  min-width: 0;
+}
+.admin-brand {
+  flex: 1 1 88px;
+  min-width: 0;
 }
 [data-basalt-sidebar][data-collapsed] .admin-rail-header {
   justify-content: center;
   padding-inline: 0;
 }
 .admin-app a.admin-rail-mark {
-  width: 44px;
-  height: 44px;
+  width: var(--admin-mark-size);
+  height: var(--admin-mark-size);
   display: grid;
   place-items: center;
-  flex: 0 0 44px;
+  flex: 0 0 var(--admin-mark-size);
   color: hsl(var(--basalt-primary));
 }
 .admin-version {
@@ -458,7 +472,8 @@ html:has(.admin-app) {
 }
 
 .admin-brand .brand-wordmark {
-  width: 88px;
+  width: 100%;
+  max-width: 88px;
 }
 .admin-rail-mark .brand-symbol {
   width: 24px;

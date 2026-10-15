@@ -43,7 +43,7 @@ test('category editor preserves Markdown, icon/color selection, stale drafts and
   });
   await page.goto('/admin/categories/custom');
   await page.getByLabel('栏目名称', { exact: true }).fill('我的研究笔记');
-  await page.getByRole('button', { name: '栏目图标', exact: true }).click();
+  await page.getByRole('button', { name: '栏目图标: book-open', exact: true }).click();
   await page.getByRole('radio', { name: 'coffee', exact: true }).click();
   await page.getByRole('radio', { name: '琥珀', exact: true }).click();
   await page.getByRole('button', { name: '保存栏目', exact: true }).click();

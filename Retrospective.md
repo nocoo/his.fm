@@ -442,3 +442,15 @@ For focused browser checks, invoke the web workspace script directly. Passing
 `--grep` through the root npm wrapper caused npm to consume the flag and collect
 zero tests; the corrected command uses `npm run test:e2e --workspace @his-fm/web
 -- --grep ...`. Never count an empty collection as verification.
+
+## 2026-10-16: Test the library's minimum sidebar width
+
+Moving collapse into the header worked at the default width but clipped the
+button at Basalt's supported 180px minimum: its right edge remained at 224px.
+Let brand metadata wrap within the available space while preserving the logo
+and action targets. Browser checks must resize the rail and exercise Enter,
+Space and restored focus, not only inspect the default desktop layout.
+
+Basalt 3.1 supplies the standalone fieldset reset that previously lived in the
+appearance page. Remove that duplicate only after verifying the actual packaged
+styles and browser geometry; retain selection and visible keyboard focus checks.

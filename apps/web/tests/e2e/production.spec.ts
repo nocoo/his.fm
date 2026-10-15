@@ -914,7 +914,9 @@ test('sidebar separates content, brand and settings with a highlighted website s
     await expect(github).toHaveAttribute('rel', 'noopener noreferrer');
     await expect(github).toHaveText('');
     await expect(github.locator('svg.lucide-github')).toHaveCount(1);
-    await github.focus();
+    await page.getByRole('button', { name: '切换主题', exact: true }).focus();
+    await page.keyboard.press('Shift+Tab');
+    await expect(github).toBeFocused();
     await expect(page.getByRole('tooltip', { name: 'GitHub 仓库', exact: true })).toBeVisible();
     await page.keyboard.press('Escape');
     await expect(github).toBeFocused();
@@ -943,6 +945,28 @@ test('sidebar separates content, brand and settings with a highlighted website s
     'page',
   );
   expect(state.requests.every((request) => request.startsWith('GET '))).toBe(true);
+});
+
+test('sidebar collapse remains reachable at the minimum resized width', async ({ page }) => {
+  await studio(page);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/admin');
+  const sidebar = page.locator('[data-basalt-sidebar]');
+  const resize = sidebar.getByRole('separator', { name: 'Resize sidebar' });
+  for (let step = 0; step < 10; step++) await resize.press('ArrowLeft');
+  await expect(resize).toHaveAttribute('aria-valuenow', '180');
+  const collapse = sidebar.getByRole('button', { name: '收起导航', exact: true });
+  const railRight = await sidebar.evaluate((element) => element.getBoundingClientRect().right);
+  expect(await collapse.evaluate((element) => element.getBoundingClientRect().right)).toBeLessThanOrEqual(
+    railRight,
+  );
+  await collapse.click({ trial: true });
+  await collapse.press('Enter');
+  const expand = sidebar.getByRole('button', { name: '展开导航', exact: true });
+  await expect(expand).toBeFocused();
+  await expand.press('Space');
+  await expect(collapse).toBeFocused();
+  await expect(resize).toHaveAttribute('aria-valuenow', '180');
 });
 
 test('environment switch retains Basalt segment typography on desktop and phone', async ({ page }) => {
