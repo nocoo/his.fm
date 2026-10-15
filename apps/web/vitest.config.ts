@@ -7,6 +7,7 @@ export default defineConfig({
   cacheDir: 'coverage/.vite',
   test: {
     environment: 'node',
+    maxWorkers: 4,
     include: ['tests/**/*.test.ts', 'src/**/*.test.ts'],
     allowOnly: false,
     passWithNoTests: false,

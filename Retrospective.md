@@ -471,3 +471,16 @@ Calling focus again did not emit a new focus event. Move focus away and return
 through the real Tab order before asserting the tooltip reopens. Likewise,
 inspect or copy screenshots before the next Playwright invocation: it recreates
 the output directory, so an earlier successful capture may no longer exist.
+
+## 2026-10-16: Bound isolated test-runtime concurrency
+
+Unbounded machine-derived Vitest parallelism intermittently timed out different
+Worker or CLI-spawn tests. After a clean install, the run created 28 isolated
+workers across files with roughly 3.72 seconds of startup per file; 271 tests
+passed but the CLI fixture exceeded its unchanged five-second deadline. An
+earlier full gate also exceeded its outer timeout, while focused tests passed.
+
+The complete web suite passed with four concurrent workers in 4.95 seconds.
+That warm result is not a controlled cold-start benchmark. Cap concurrency using
+Vitest's native setting and verify the clean-install path again; do not raise
+deadlines, share fixture state, skip tests or lower coverage to hide contention.
