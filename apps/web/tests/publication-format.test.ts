@@ -89,6 +89,22 @@ describe('long-form review rendering', () => {
     expect(html).toContain('href="https://example.com/?a=1&amp;b=2"');
     expect(html).toContain('rel="noopener noreferrer"');
   });
+  it('renders markdown links, bare https URLs and angle-bracket autolinks', () => {
+    const html = formatReading(
+      '[来源](https://example.com/path)\n\n<https://other.example/foo>\n\n详见 https://third.example/bar 结束',
+    );
+    expect(html).toContain('<a href="https://example.com/path"');
+    expect(html).toContain('<a href="https://other.example/foo"');
+    expect(html).toContain('<a href="https://third.example/bar"');
+    expect(html).not.toContain('&lt;https://');
+  });
+  it('renders emphasis and ordered lists', () => {
+    const html = formatReading('**粗体** 与 *斜体*\n\n1. 第一条\n2. 第二条');
+    expect(html).toContain('<strong>粗体</strong>');
+    expect(html).toContain('<em>斜体</em>');
+    expect(html).toContain('<ol>');
+    expect(html).toContain('<li>第一条</li>');
+  });
   it('removes active HTML, external images and unsafe URLs from agent content', () => {
     const html = formatReading(
       content.transcript +
