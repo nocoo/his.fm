@@ -21,22 +21,24 @@ import {
 import { AppHeader } from '@nocoo/basalt/components/app-header';
 import { AppMain, AppShell, AppSkipLink } from '@nocoo/basalt/components/app-shell';
 import {
-  ArrowUpRight,
+  AudioLines,
   Compass,
-  GitBranch,
+  Globe,
   HardDrive,
   Library,
   LogOut,
   Menu,
   Palette,
   PanelLeft,
+  Plug,
   Plus,
-  Settings,
+  Tags,
 } from 'lucide-react';
-import { type ReactNode, useEffect, useState } from 'react';
+import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
 import { version } from '../../../../package.json';
 import { BrandSymbol, Wordmark } from '../brand/Brand';
+import { GithubIcon } from '../components/GithubIcon';
 import { errorMessage } from './model';
 import { EnvironmentSwitch } from './production/EnvironmentSwitch';
 import { adminService, type Session } from './service';
@@ -47,6 +49,7 @@ export function AdminShell({ session, children }: { session: Session; children: 
   const [compact, setCompact] = useState(() => window.matchMedia('(max-width: 1199px)').matches);
   const [collapsed, setCollapsed] = useState(compact);
   const [loggingOut, setLoggingOut] = useState(false);
+  const restoreNavigationFocus = useRef(false);
   useEffect(() => {
     const media = window.matchMedia('(max-width: 1199px)');
     const update = () => {
@@ -99,6 +102,15 @@ export function AdminShell({ session, children }: { session: Session; children: 
     navigate(path);
     if (compact) setCollapsed(true);
   }
+  function toggleNavigation() {
+    restoreNavigationFocus.current = true;
+    setCollapsed(!collapsed);
+  }
+  function focusNavigationToggle(button: HTMLButtonElement | null) {
+    if (!button || !restoreNavigationFocus.current) return;
+    restoreNavigationFocus.current = false;
+    button.focus({ preventScroll: true });
+  }
   async function logout() {
     setLoggingOut(true);
     try {
@@ -112,7 +124,7 @@ export function AdminShell({ session, children }: { session: Session; children: 
   }
   const groups = [
     {
-      label: '节目',
+      label: '内容制作',
       items: [
         {
           href: '/admin',
@@ -121,21 +133,30 @@ export function AdminShell({ session, children }: { session: Session; children: 
           active: isList || catalog || (location.pathname.startsWith('/admin/productions/') && !creating),
         },
         { href: '/admin/productions/new', label: '新建节目', icon: Plus, active: creating },
+        { href: '/admin/categories', label: '栏目管理', icon: Tags, active: categories },
+        { href: '/admin/channel', label: '提示词', icon: Compass, active: channel },
+        {
+          href: '/admin/bumpers',
+          label: '贴片库',
+          icon: AudioLines,
+          active: location.pathname === '/admin/bumpers',
+        },
       ],
     },
     {
-      label: '工作室',
+      label: '品牌外观',
+      items: [{ href: '/admin/appearance', label: '品牌外观', icon: Palette, active: appearance }],
+    },
+    {
+      label: '全站设置',
       items: [
-        { href: '/admin/channel', label: '提示词', icon: Compass, active: channel },
-        { href: '/admin/categories', label: '栏目管理', icon: Library, active: categories },
+        {
+          href: '/admin/connections',
+          label: '连接管理',
+          icon: Plug,
+          active: location.pathname === '/admin/connections',
+        },
         { href: '/admin/storage', label: '资源管理', icon: HardDrive, active: storage },
-        { href: '/admin/appearance', label: '品牌外观', icon: Palette, active: appearance },
-        ...Object.entries(settingsTitle).map(([href, label]) => ({
-          href,
-          label,
-          icon: Settings,
-          active: location.pathname === href,
-        })),
       ],
     },
   ];
@@ -147,10 +168,12 @@ export function AdminShell({ session, children }: { session: Session; children: 
           {compact && (
             <>
               <DialogTitle className="sr-only">工作室导航</DialogTitle>
-              <DialogDescription className="sr-only">选择节目库、素材资源或工作室设置。</DialogDescription>
+              <DialogDescription className="sr-only">
+                访问网站，或选择内容制作、品牌外观与全站设置。
+              </DialogDescription>
             </>
           )}
-          <SidebarHeader>
+          <SidebarHeader className="admin-rail-header">
             <Link className="admin-rail-mark" to="/" aria-label="his.fm 首页">
               <BrandSymbol />
             </Link>
@@ -160,21 +183,50 @@ export function AdminShell({ session, children }: { session: Session; children: 
                   <Wordmark />
                 </span>
                 <span className="admin-version">v{version}</span>
+                {!compact && (
+                  <Button
+                    ref={focusNavigationToggle}
+                    className="admin-collapse"
+                    size="icon"
+                    variant="ghost"
+                    aria-label="收起导航"
+                    onClick={toggleNavigation}
+                  >
+                    <PanelLeft size={16} strokeWidth={1.5} aria-hidden="true" />
+                  </Button>
+                )}
               </>
             )}
           </SidebarHeader>
-          {!compact && (
-            <div className="admin-collapse">
-              <Button
-                size="icon"
-                variant="ghost"
-                aria-label={collapsed ? '展开导航' : '收起导航'}
-                onClick={() => setCollapsed(!collapsed)}
-              >
-                <PanelLeft size={16} strokeWidth={1.5} />
-              </Button>
-            </div>
+          {iconOnly && (
+            <Button
+              ref={focusNavigationToggle}
+              className="admin-expand"
+              size="icon"
+              variant="ghost"
+              aria-label="展开导航"
+              onClick={toggleNavigation}
+            >
+              <PanelLeft size={16} strokeWidth={1.5} aria-hidden="true" />
+            </Button>
           )}
+          <div className="admin-site-action">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  size={iconOnly ? 'icon' : 'default'}
+                  className={iconOnly ? undefined : 'admin-site-link'}
+                  asChild
+                >
+                  <Link to="/" aria-label="访问网站">
+                    <Globe size={16} strokeWidth={1.5} aria-hidden="true" />
+                    {!iconOnly && <span>访问网站</span>}
+                  </Link>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="right">访问网站</TooltipContent>
+            </Tooltip>
+          </div>
           <SidebarNav aria-label="工作室导航">
             {groups.map((group) => (
               <section className="admin-nav-group" aria-label={group.label} key={group.label}>
@@ -273,22 +325,21 @@ export function AdminShell({ session, children }: { session: Session; children: 
             actions={
               <>
                 {import.meta.env.DEV && <EnvironmentSwitch />}
-                <Button size="sm" variant="ghost" className="admin-view-site" asChild>
-                  <Link to="/">
-                    查看网站
-                    <ArrowUpRight size={14} />
-                  </Link>
-                </Button>
-                <Button size="icon" variant="ghost" asChild>
-                  <a
-                    href="https://github.com/nocoo/his.fm"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    aria-label="GitHub 仓库"
-                  >
-                    <GitBranch size={16} />
-                  </a>
-                </Button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button size="icon" variant="ghost" asChild>
+                      <a
+                        href="https://github.com/nocoo/his.fm"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        aria-label="GitHub 仓库"
+                      >
+                        <GithubIcon size={16} strokeWidth={1.5} aria-hidden="true" />
+                      </a>
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>GitHub 仓库</TooltipContent>
+                </Tooltip>
                 <ThemeToggle aria-label="切换主题" />
               </>
             }

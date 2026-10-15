@@ -158,3 +158,51 @@ test('failed saves preserve selection and conflicts require an explicit reload',
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.screenshot({ path: '.local/appearance/admin-mobile-dark.png', fullPage: true });
 });
+
+test('theme choices have no outer frame and retain selection and keyboard focus', async ({
+  page,
+}, testInfo) => {
+  const writes: string[] = [];
+  await page.route('**/admin/api/**', (route) => {
+    const request = route.request();
+    if (request.method() !== 'GET') writes.push(request.url());
+    if (new URL(request.url()).pathname === '/admin/api/session')
+      return route.fulfill({ json: { mode: 'local', user: { email: 'editor@his.fm' } } });
+    if (new URL(request.url()).pathname === '/admin/api/appearance')
+      return route.fulfill({
+        json: { appearance: { theme: 'interval', version: 1, updatedAt: '', updatedBy: 'owner' } },
+      });
+    return route.fulfill({ status: 404, json: { error: 'Unexpected API' } });
+  });
+  await page.goto('/admin/appearance');
+  const group = page.getByRole('radiogroup', { name: '网站视觉主题' });
+  const frame = page.locator('.appearance-page > fieldset');
+  for (const width of [1440, 393]) {
+    await page.setViewportSize({ width, height: 900 });
+    if (width === 393) {
+      await page.getByRole('button', { name: '切换主题', exact: true }).click();
+      await page.getByRole('button', { name: '切换主题', exact: true }).click();
+      await expect(page.locator('html')).toHaveClass(/dark/);
+    }
+    await expect(frame).toHaveCSS('border-width', '0px');
+    await expect(frame).toHaveCSS('padding', '0px');
+    await expect(frame).toHaveCSS('margin', '0px');
+    const choice = group.getByRole('radio', { name: '01 · 林间电台', exact: true });
+    await choice.click();
+    await expect(choice).toBeChecked();
+    await expect(page.locator('.appearance-option[data-selected="true"]')).toHaveCount(1);
+    await expect(page.locator('.appearance-option[data-selected="true"]')).not.toHaveCSS(
+      'box-shadow',
+      'none',
+    );
+    await choice.focus();
+    await page.keyboard.press('ArrowDown');
+    const next = group.getByRole('radio', { name: '02 · 间隙', exact: true });
+    await expect(next).toBeChecked();
+    await expect(next).toBeFocused();
+    expect(await next.evaluate((element) => element.matches(':focus-visible'))).toBe(true);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await page.screenshot({ path: testInfo.outputPath(`appearance-${width}.png`), animations: 'disabled' });
+  }
+  expect(writes).toEqual([]);
+});

@@ -809,6 +809,111 @@ test('source subpages preserve brief drafts and keep long materials out of the o
   await expect(list.getByRole('listitem')).toHaveCount(2);
 });
 
+test('sidebar separates content, brand and settings with a highlighted website shortcut', async ({
+  page,
+}, testInfo) => {
+  const state = await studio(page);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/admin');
+  const sidebar = page.locator('[data-basalt-sidebar]');
+  const website = sidebar.getByRole('link', { name: '访问网站', exact: true });
+  const github = page.getByRole('link', { name: 'GitHub 仓库', exact: true });
+  const groups = [
+    ['内容制作', ['节目库', '新建节目', '栏目管理', '提示词', '贴片库']],
+    ['品牌外观', ['品牌外观']],
+    ['全站设置', ['连接管理', '资源管理']],
+  ] as const;
+  const expectGroups = async () => {
+    await expect(sidebar.locator('.admin-nav-group')).toHaveCount(3);
+    for (const [name, items] of groups) {
+      const region = sidebar.getByRole('region', { name, exact: true });
+      await expect(region.getByRole('button')).toHaveCount(items.length);
+      for (const item of items)
+        await expect(region.getByRole('button', { name: item, exact: true })).toBeVisible();
+    }
+    await expect(website).toBeInViewport();
+    await expect(website).toHaveAttribute('href', '/');
+    await expect(website).toHaveClass(/bg-basalt-primary/);
+    await expect(website.locator('svg.lucide-globe')).toHaveCount(1);
+    expect(
+      await website.evaluate((link) => {
+        const nav = document.querySelector('.admin-nav-group');
+        return nav !== null && link.getBoundingClientRect().bottom <= nav.getBoundingClientRect().top;
+      }),
+    ).toBe(true);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  };
+  await expectGroups();
+  await expect(website).toHaveText('访问网站');
+  await expect(sidebar.getByRole('button', { name: '节目库', exact: true })).toHaveAttribute(
+    'aria-current',
+    'page',
+  );
+  await expect(sidebar.getByRole('link', { name: 'GitHub 仓库', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('link', { name: '访问网站', exact: true })).toHaveCount(1);
+  const logo = sidebar.locator('.admin-rail-mark');
+  const original = await logo.evaluate((element) => element.getBoundingClientRect().toJSON());
+  const collapse = sidebar
+    .locator('.admin-rail-header')
+    .getByRole('button', { name: '收起导航', exact: true });
+  const toggle = await collapse.evaluate((element) => element.getBoundingClientRect().toJSON());
+  expect(Math.abs(toggle.y + toggle.height / 2 - original.y - original.height / 2)).toBeLessThan(1);
+  expect(toggle.x).toBeGreaterThan(original.right);
+  await page.screenshot({ path: testInfo.outputPath('sidebar-desktop.png'), animations: 'disabled' });
+  await collapse.click();
+  await expect(sidebar).toHaveAttribute('data-collapsed', '');
+  await expect(sidebar.getByRole('button', { name: '展开导航', exact: true })).toBeFocused();
+  await expectGroups();
+  await expect(website).toHaveText('');
+  await expect.poll(() => logo.evaluate((element) => element.getBoundingClientRect().x)).toBe(original.x);
+  await website.focus();
+  await expect(page.getByRole('tooltip', { name: '访问网站', exact: true })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(website).toBeFocused();
+  await sidebar.getByRole('button', { name: '展开导航', exact: true }).click();
+  await expect(sidebar).not.toHaveAttribute('data-collapsed');
+  await expect(collapse).toBeFocused();
+  await expect(website).toHaveText('访问网站');
+  await expect.poll(() => logo.evaluate((element) => element.getBoundingClientRect().x)).toBe(original.x);
+  for (const width of [1440, 393]) {
+    await page.setViewportSize({ width, height: 900 });
+    await expect(github).toBeInViewport();
+    await expect(github).toHaveAttribute('href', 'https://github.com/nocoo/his.fm');
+    await expect(github).toHaveAttribute('target', '_blank');
+    await expect(github).toHaveAttribute('rel', 'noopener noreferrer');
+    await expect(github).toHaveText('');
+    await expect(github.locator('svg.lucide-github')).toHaveCount(1);
+    await github.focus();
+    await expect(page.getByRole('tooltip', { name: 'GitHub 仓库', exact: true })).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(github).toBeFocused();
+  }
+  const menu = page.getByRole('button', { name: '打开导航', exact: true });
+  await expect(website).toBeHidden();
+  await menu.click();
+  await expectGroups();
+  await expect(website).toHaveText('访问网站');
+  await page.screenshot({ path: testInfo.outputPath('sidebar-phone-light.png'), animations: 'disabled' });
+  await page.keyboard.press('Escape');
+  await expect(menu).toBeFocused();
+  await page.getByRole('button', { name: '切换主题', exact: true }).click();
+  await page.getByRole('button', { name: '切换主题', exact: true }).click();
+  await expect(page.locator('html')).toHaveClass(/dark/);
+  await menu.click();
+  await expectGroups();
+  await page.screenshot({ path: testInfo.outputPath('sidebar-phone-dark.png'), animations: 'disabled' });
+  await sidebar.getByRole('button', { name: '连接管理', exact: true }).click();
+  await expect(page).toHaveURL(/\/admin\/connections$/);
+  await expect(sidebar).toBeHidden();
+  await expect(menu).toBeFocused();
+  await menu.click();
+  await expect(sidebar.getByRole('button', { name: '连接管理', exact: true })).toHaveAttribute(
+    'aria-current',
+    'page',
+  );
+  expect(state.requests.every((request) => request.startsWith('GET '))).toBe(true);
+});
+
 test('environment switch retains Basalt segment typography on desktop and phone', async ({ page }) => {
   await studio(page);
   await page.goto('/admin/productions/production-test');

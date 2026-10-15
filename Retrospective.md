@@ -415,3 +415,17 @@ installed declarations, including Vite's explicit client entry outside `@types`.
 Keep complete failed-check output instead of truncating away the diagnostic.
 Reuse real dependencies without mutating their shared directories, weakening
 compiler settings or treating a failed healthy control as rejection evidence.
+
+## 2026-10-16: Keep framework action identity explicit
+
+The repository action used a branch symbol instead of the GitHub mark. Lucide v1
+removed brand icons, but that does not justify substituting an unrelated symbol.
+Reuse the family's attributed GitHub paths and keep icon-only actions labelled
+and keyboard-discoverable. Keep the website shortcut prominent in the sidebar,
+including the mobile drawer, rather than mixing it into framework header actions.
+
+The standalone RadioGroup wraps its root in a fieldset; its className only styles
+the inner radio group. The appearance selector therefore retained the browser's
+default outer border and padding. Reset the page's grouping fieldset rather than
+removing selected-card outlines or keyboard focus indicators. Check the actual
+rendered component wrapper when an unexplained border surrounds library controls.

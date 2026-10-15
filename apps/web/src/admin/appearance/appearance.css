@@ -67,6 +67,12 @@
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 18px;
 }
+.appearance-page > fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
 .appearance-option {
   overflow: hidden;
   min-width: 0;
