@@ -484,3 +484,12 @@ The complete web suite passed with four concurrent workers in 4.95 seconds.
 That warm result is not a controlled cold-start benchmark. Cap concurrency using
 Vitest's native setting and verify the clean-install path again; do not raise
 deadlines, share fixture state, skip tests or lower coverage to hide contention.
+
+## 2026-10-16: Assert rendered Basalt contracts after upgrades
+
+Basalt 3.1 moves segmented indicators with transforms, so their offsetLeft stays
+zero even when the rendered selection is correct. Compare visible indicator and
+selected-item geometry, including width, rather than the previous positioning
+implementation. Its documented segmented text is now 12px with 0.025em tracking;
+update the browser baseline to 12px and 0.3px, retaining weight, font, selection
+and responsive assertions instead of overriding the package back to 11px.

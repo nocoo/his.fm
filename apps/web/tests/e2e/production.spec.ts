@@ -454,9 +454,17 @@ test('cover grid and detail sections fit desktop and phone in both themes withou
           page
             .getByRole('radiogroup', { name: '节目显示方式' })
             .locator('[data-slot="selection-indicator"]')
-            .evaluate((indicator) => (indicator as HTMLElement).offsetLeft),
+            .evaluate((indicator) => {
+              const { left, width } = indicator.getBoundingClientRect();
+              return { left: Math.round(left), width: Math.round(width) };
+            }),
         )
-        .toBe(await list.evaluate((control) => (control as HTMLElement).offsetLeft));
+        .toEqual(
+          await list.evaluate((control) => {
+            const { left, width } = control.getBoundingClientRect();
+            return { left: Math.round(left), width: Math.round(width) };
+          }),
+        );
       await expect(page.getByRole('table', { name: '节目库列表' })).toBeVisible();
       await expect(page.locator('.library-thumbnail img')).toHaveCount(2);
       await expect.poll(() => loaded('.library-thumbnail img')).toBe(true);
@@ -981,9 +989,9 @@ test('environment switch retains Basalt segment typography on desktop and phone'
     for (const name of ['Local', 'Prod']) {
       const segment = environment.getByRole('radio', { name, exact: true });
       await expect(segment).toBeInViewport();
-      await expect(segment).toHaveCSS('font-size', '11px');
+      await expect(segment).toHaveCSS('font-size', '12px');
       await expect(segment).toHaveCSS('font-weight', '600');
-      await expect(segment).toHaveCSS('letter-spacing', '0.275px');
+      await expect(segment).toHaveCSS('letter-spacing', '0.3px');
       await expect(segment).toHaveCSS(
         'font-family',
         await page.locator('.admin-app').evaluate((element) => getComputedStyle(element).fontFamily),
