@@ -11,7 +11,6 @@ import {
   Search,
   X,
 } from 'lucide-react';
-import { motion, useReducedMotion } from 'motion/react';
 import { createContext, type ReactNode, useContext, useEffect, useState } from 'react';
 import { Outlet, Route, Routes, useLocation, useParams } from 'react-router';
 import { BrandSymbol, Wordmark } from '../brand/Brand';
@@ -23,6 +22,7 @@ import { PublicLink as Link, PublicNavLink as NavLink, SiteAppearance, useAppear
 import { EpisodeCover } from './EpisodeCover';
 import { Hero, ThemeImage } from './Hero';
 import { categoryLabel, dateLabel, durationLabel, filterEpisodes } from './model';
+import { Reveal } from './Reveal';
 import { useEpisodes } from './useEpisodes';
 import './hero.css';
 
@@ -32,21 +32,6 @@ function useLibrary() {
   const value = useContext(EpisodeContext);
   if (!value) throw new Error('Episode library is missing');
   return value;
-}
-
-function Reveal({ children, className = '' }: { children: ReactNode; className?: string }) {
-  const reduced = useReducedMotion();
-  return (
-    <motion.div
-      className={className}
-      initial={reduced ? false : { opacity: 0, y: 24 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: '-40px' }}
-      transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1] }}
-    >
-      {children}
-    </motion.div>
-  );
 }
 
 function Header() {

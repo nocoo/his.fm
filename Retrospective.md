@@ -454,3 +454,20 @@ Space and restored focus, not only inspect the default desktop layout.
 Basalt 3.1 supplies the standalone fieldset reset that previously lived in the
 appearance page. Remove that duplicate only after verifying the actual packaged
 styles and browser geometry; retain selection and visible keyboard focus checks.
+
+## 2026-10-16: Handle every React callback-ref cleanup path
+
+The native reveal's reduced-motion branch returned without a cleanup function.
+React 19 then called the ref with null during StrictMode replay or detachment,
+and the original non-null implementation crashed. Accept null before any DOM
+access and capture the narrowed node in a const for asynchronous cleanup closures.
+Verify reduced-motion mounting and route changes with page-error assertions,
+not only animation appearance in the default preference.
+
+## 2026-10-16: Keep browser checks stateful and artifacts available
+
+After Escape dismissed a tooltip, a viewport change left its trigger focused.
+Calling focus again did not emit a new focus event. Move focus away and return
+through the real Tab order before asserting the tooltip reopens. Likewise,
+inspect or copy screenshots before the next Playwright invocation: it recreates
+the output directory, so an earlier successful capture may no longer exist.

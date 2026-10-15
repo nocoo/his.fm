@@ -55,6 +55,9 @@ html:has(.public-site) body {
   --well: color-mix(in srgb, var(--paper) 75%, var(--accent));
   --space: clamp(24px, 4.6vw, 80px);
   --radius: 2px;
+  --reveal-distance: 24px;
+  --reveal-duration: 650ms;
+  --reveal-ease: cubic-bezier(0.22, 1, 0.36, 1);
   --font: "Space Grotesk", "Noto Sans SC", "PingFang SC", sans-serif;
   font-family: var(--font);
   background: var(--paper);
@@ -1261,6 +1264,17 @@ html:has(.public-site) body {
   }
   .public-site[data-theme="human-sample"] .catalogue .episode-card h3 {
     font-size: 19px;
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .public-site .public-reveal {
+    transition:
+      opacity var(--reveal-duration) var(--reveal-ease),
+      transform var(--reveal-duration) var(--reveal-ease);
+  }
+  .public-site .public-reveal:not([data-revealed]) {
+    opacity: 0;
+    transform: translateY(var(--reveal-distance));
   }
 }
 @media (prefers-reduced-motion: reduce) {
