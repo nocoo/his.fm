@@ -18,14 +18,21 @@ test('listeners can browse, filter and read the complete first episode', async (
   await page.getByRole('searchbox', { name: '搜索播客' }).fill('AI 学习');
   await expect(page.locator('.episode-card')).toHaveCount(1);
   await page.getByRole('link', { name: '下班后，还要追多少个 AI？', exact: true }).click();
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText('下班后，还要追多少个 AI？');
+  const pageTitle = page.locator('.detail-intro').getByRole('heading', { level: 1 });
+  await expect(pageTitle).toHaveText('下班后，还要追多少个 AI？');
+  const notes = page.getByRole('tabpanel', { name: '本期摘要' });
+  await expect(notes.getByRole('heading', { level: 1 })).toHaveText('下班后，还要追多少个 AI？');
+  const source = notes.getByRole('link', { name: 'HowToLiveBetter：《高性价比人生指南》', exact: true });
+  await expect(source).toHaveAttribute('href', 'https://github.com/eternity4719/HowToLiveBetter');
+  await expect(source).toHaveAttribute('target', '_blank');
+  await expect(source).toHaveAttribute('rel', 'noopener noreferrer');
   await expect(page.getByText('声音正在准备中')).toBeVisible();
   await expect(page.locator('audio')).toHaveCount(0);
   await page.getByRole('tab', { name: '逐字稿' }).click();
   await expect(page.getByRole('tab', { name: '逐字稿' })).toHaveAttribute('aria-selected', 'true');
   expect((await page.getByRole('tabpanel').innerText()).length).toBeGreaterThan(2400);
   await page.reload();
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText('下班后，还要追多少个 AI？');
+  await expect(pageTitle).toHaveText('下班后，还要追多少个 AI？');
   await page.goto('/episodes/missing-episode');
   await expect(page.getByRole('heading', { level: 1 })).toContainText('别的频道');
   expect(errors).toEqual([]);
@@ -43,7 +50,7 @@ test('public pages fit a phone and respect reduced motion', async ({ page }) => 
   await expect(page.getByRole('navigation', { name: '主导航' })).toBeHidden();
   for (const path of ['/', '/episodes', '/episodes/how-many-ai-tools-after-work', '/about']) {
     await page.goto(path);
-    await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+    await expect(page.locator('main h1:not(article h1)')).toBeVisible();
     const fits = await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth);
     expect(fits, `${path} fits the viewport`).toBe(true);
   }

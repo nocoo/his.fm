@@ -493,3 +493,11 @@ selected-item geometry, including width, rather than the previous positioning
 implementation. Its documented segmented text is now 12px with 0.025em tracking;
 update the browser baseline to 12px and 0.3px, retaining weight, font, selection
 and responsive assertions instead of overriding the package back to 11px.
+
+## 2026-10-16: Distinguish page titles from authored headings
+
+The merged public Markdown reader preserves document headings, including an h1
+inside its article. Browser tests that selected every level-one heading became
+ambiguous between the page introduction and authored content. Scope page-title
+checks outside the article and independently verify its heading and safe source
+link. Do not discard authored structure or use first() to hide ambiguous matches.
