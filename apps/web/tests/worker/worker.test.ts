@@ -900,7 +900,7 @@ describe('agent discovery and real bearer routing', () => {
       (await agentCall(`/productions/${p.id}?version=${review.version}`, { method: 'DELETE' })).status,
     ).toBe(204);
     expect((await agentCall(`/productions/${p.id}`)).status).toBe(404);
-    await call(`/admin/api/agent-tokens/${secret.record.id}`, { method: 'DELETE' });
+    await call(`/admin/api/agent-tokens/${secret.record.id}/revoke`, { method: 'POST' });
     expect((await agentCall('/me')).status).toBe(401);
   });
 

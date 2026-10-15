@@ -7,7 +7,7 @@ html.dark:has(.admin-app),
 html.dark:has(.admin-app) body {
   color-scheme: dark;
 }
-.admin-app {
+html:has(.admin-app) {
   --admin-space-1: 4px;
   --admin-space-2: 8px;
   --admin-space-3: 12px;
@@ -15,6 +15,8 @@ html.dark:has(.admin-app) body {
   --admin-space-5: 20px;
   --admin-space-6: 24px;
   --admin-space-8: 32px;
+}
+.admin-app {
   color: hsl(var(--basalt-foreground));
   font-family: "Inter", "Noto Sans SC", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-size: 14px;

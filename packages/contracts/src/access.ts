@@ -34,6 +34,7 @@ export const scopes = [
   'tokens:read',
   'tokens:issue',
   'tokens:revoke',
+  'tokens:delete',
   'tasks:read',
   'tasks:submit',
   'tasks:cancel',

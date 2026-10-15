@@ -951,6 +951,16 @@ export function agentOpenApi(origin: string) {
       '/agent-tokens/{id}': {
         parameters: [idParameter],
         delete: operation(
+          'deleteAgentToken',
+          'Remove an already revoked token from management lists. Active or merely expired tokens return 409. Agent target grants must be a subset of caller grants. Revoked tombstones, delegation and station references remain for security and audit. Repeated deletion returns 204.',
+          {},
+          ['tokens:delete'],
+          204,
+        ),
+      },
+      '/agent-tokens/{id}/revoke': {
+        parameters: [idParameter],
+        post: operation(
           'revokeAgentToken',
           'Revoke the target and descendants; agent target grants must be a subset of revoker grants; runtime leases are pruned',
           {},

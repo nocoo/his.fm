@@ -38,6 +38,9 @@ describe('scoped OpenAPI contract', () => {
     ]);
     expect(contract.paths['/runtime/connect'].get['x-required-scopes']).toEqual(['runtime:connect']);
     expect(contract.paths['/agent/station'].post['x-required-scopes']).toEqual(['runtime:manage']);
+    expect(contract.paths['/agent-tokens/{id}/revoke'].post['x-required-scopes']).toEqual(['tokens:revoke']);
+    expect(contract.paths['/agent-tokens/{id}'].delete['x-required-scopes']).toEqual(['tokens:delete']);
+    expect(contract.paths['/agent-tokens/{id}'].delete.summary).toContain('409');
     expect(contract.info.description).not.toContain('runtime_required');
   });
 

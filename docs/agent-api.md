@@ -40,18 +40,23 @@ Tokens never authenticate a human studio session.
 | --- | --- | --- | --- |
 | GET | `/agent-tokens` | `tokens:read` | Metadata and grants, never existing token secrets |
 | POST | `/agent-tokens` | `tokens:issue` | `{name,expiresInDays,scopes}`; returns `{token,record}` once |
-| DELETE | `/agent-tokens/:id` | `tokens:revoke` | Revoke token and descendant tokens |
+| POST | `/agent-tokens/:id/revoke` | `tokens:revoke` | Revoke token and descendant tokens |
+| DELETE | `/agent-tokens/:id` | `tokens:delete` | Remove an already revoked token from management lists; active or merely expired tokens return 409 |
 
 The owner can also use these paths under `/admin/api`. Grants must be nonempty,
 unique known scope names. Lifetime is 1-365 days. A bearer issuer cannot grant
 scopes it lacks or issue a token outliving its own expiry; the request is rejected,
-not silently narrowed. A bearer revoker cannot target a token with grants outside
+not silently narrowed. A bearer revoker or deleter cannot target a token with grants outside
 its own. Complete token values appear only in their creation response. Persist
 secrets privately, never in browser storage, URLs, logs or source control.
 
 The database stores hashes, prefixes, grants, parentage and timestamps. Unknown,
 expired, revoked and legacy unscoped tokens fail closed. Reissue obsolete tokens
 and explicitly re-enroll the station; there is no automatic privilege migration.
+Deletion is idempotent and preserves the revoked tombstone, delegation chain,
+station references and task audit; it never restores access or deletes child records.
+Revocation uses the explicit POST endpoint, not DELETE. Existing tokens do not
+automatically gain the new `tokens:delete` grant.
 
 ## Resource operations
 

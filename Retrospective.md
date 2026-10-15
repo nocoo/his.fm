@@ -344,3 +344,12 @@ compiled Frogie boundary and validate the merged dependency graph before publica
 The first allowed npm mirror returned no metadata for a selected Vite version,
 surfacing as an apparent peer-resolution conflict. Verify the exact version through
 another allowed mirror instead of forcing installation or disabling peer checks.
+
+## 2026-10-15: Verify tables inside the real studio width
+
+The first token-table layout passed page-overflow checks but placed its action
+column outside the visible desktop island while the coordinator was expanded.
+Inspect the actual shell screenshot, not just viewport dimensions. Combine related
+metadata and assert that the desktop action column stays inside its scroll container.
+Portaled forms also need the same application spacing tokens as the island; keep
+those tokens on the admin document root instead of only on the shell wrapper.

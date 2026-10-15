@@ -32,7 +32,7 @@ there is no wildcard granting future capabilities.
 | audio | generate |
 | bumpers | read, write, delete |
 | storage | read, write, delete |
-| tokens | read, issue, revoke |
+| tokens | read, issue, revoke, delete |
 | tasks | read, submit, cancel, manage |
 | runtime | connect, manage |
 

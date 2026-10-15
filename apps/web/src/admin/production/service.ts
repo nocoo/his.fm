@@ -71,7 +71,9 @@ export const productionService = {
       '/agent-tokens',
       json('POST', { name, expiresInDays, scopes }),
     ),
-  revokeToken: (id: string) => request<void>(`/agent-tokens/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+  revokeToken: (id: string) =>
+    request<void>(`/agent-tokens/${encodeURIComponent(id)}/revoke`, { method: 'POST' }),
+  deleteToken: (id: string) => request<void>(`/agent-tokens/${encodeURIComponent(id)}`, { method: 'DELETE' }),
 };
 
 import type { ChannelProfile } from '../../shared/channel';

@@ -193,10 +193,10 @@ describe('token authority', () => {
         (await api('/agent-tokens', issuer, 'POST', { name: 'Escalation', scopes, expiresInDays })).status,
       ).toBe(403);
     }
-    expect((await api(`/agent-tokens/${parent.record.id}`, leaf, 'DELETE')).status).toBe(403);
+    expect((await api(`/agent-tokens/${parent.record.id}/revoke`, leaf, 'POST')).status).toBe(403);
     const revoker = await issue(['tokens:revoke']);
-    expect((await api(`/agent-tokens/${leaf.record.id}`, revoker, 'DELETE')).status).toBe(403);
-    expect((await api(`/agent-tokens/${leaf.record.id}`, parent, 'DELETE')).status).toBe(204);
+    expect((await api(`/agent-tokens/${leaf.record.id}/revoke`, revoker, 'POST')).status).toBe(403);
+    expect((await api(`/agent-tokens/${leaf.record.id}/revoke`, parent, 'POST')).status).toBe(204);
     expect((await api('/me', leaf)).status).toBe(401);
     expect((await api('/me', child)).status).toBe(200);
   });
@@ -206,7 +206,9 @@ describe('token authority', () => {
     const child = await issue(['tokens:issue', 'episodes:read'], 5, parent);
     const grandchild = await issue(['episodes:read'], 1, child);
     const independent = await issue(['episodes:read']);
-    expect((await call(`/admin/api/agent-tokens/${parent.record.id}`, undefined, 'DELETE')).status).toBe(204);
+    expect((await call(`/admin/api/agent-tokens/${parent.record.id}/revoke`, undefined, 'POST')).status).toBe(
+      204,
+    );
     for (const secret of [parent, child, grandchild]) {
       expect((await api('/me', secret)).status).toBe(401);
       expect(
@@ -217,13 +219,88 @@ describe('token authority', () => {
     expect(hubFetch.mock.calls.some(([request]) => String(request).endsWith('/prune'))).toBe(true);
   });
 
+  it('requires revocation before deletion, including expired tokens', async () => {
+    const secret = await issue(['episodes:read']);
+    const path = `/admin/api/agent-tokens/${secret.record.id}`;
+    expect((await call(path, undefined, 'DELETE')).status).toBe(409);
+    expect((await api('/me', secret)).status).toBe(200);
+    await env.DB.prepare('UPDATE agent_tokens SET expires_at=? WHERE id=?')
+      .bind('2000-01-01T00:00:00.000Z', secret.record.id)
+      .run();
+    expect((await call(path, undefined, 'DELETE')).status).toBe(409);
+    expect((await call(`${path}/revoke`, undefined, 'DELETE')).status).toBe(405);
+    expect((await call(`${path}/revoke`, undefined, 'POST')).status).toBe(204);
+    expect((await call(path, undefined, 'DELETE')).status).toBe(204);
+    const first = await env.DB.prepare('SELECT deleted_at FROM agent_tokens WHERE id=?')
+      .bind(secret.record.id)
+      .first();
+    expect(first).toEqual({ deleted_at: expect.any(String) });
+    expect((await call(path, undefined, 'DELETE')).status).toBe(204);
+    expect(
+      await env.DB.prepare('SELECT deleted_at FROM agent_tokens WHERE id=?').bind(secret.record.id).first(),
+    ).toEqual(first);
+    expect((await api('/me', secret)).status).toBe(401);
+  });
+
+  it('separates token deletion from revocation and checks target grant ceilings', async () => {
+    const secret = await issue(['episodes:read']);
+    const revoker = await issue(['tokens:revoke', 'episodes:read']);
+    const narrowDeleter = await issue(['tokens:delete']);
+    const deleter = await issue(['tokens:delete', 'tokens:read', 'episodes:read']);
+    const path = `/agent-tokens/${secret.record.id}`;
+    expect((await api(`${path}/revoke`, deleter, 'POST')).status).toBe(403);
+    expect((await api(`${path}/revoke`, revoker, 'POST')).status).toBe(204);
+    expect((await api(path, revoker, 'DELETE')).status).toBe(403);
+    expect((await api(path, narrowDeleter, 'DELETE')).status).toBe(403);
+    expect((await api(path, deleter, 'DELETE')).status).toBe(204);
+    expect((await api('/agent-tokens/missing', deleter, 'DELETE')).status).toBe(404);
+    const list = (await (await api('/agent-tokens', deleter)).json()) as { tokens: AgentTokenRecord[] };
+    expect(list.tokens.map((record) => record.id)).not.toContain(secret.record.id);
+    expect(list.tokens.map((record) => record.id)).toContain(revoker.record.id);
+  });
+
+  it('retains revoked delegation, station and task audit references after deleting a parent', async () => {
+    const parent = await issue(['tokens:issue', 'runtime:connect', 'episodes:read', ...taskScopes], 10);
+    const child = await issue(['episodes:read'], 1, parent);
+    const actor = await principal(parent);
+    await env.DB.prepare('INSERT INTO agent_station(id,token_id,station_id,version) VALUES(1,?,?,1)')
+      .bind(parent.record.id, 'deleted-token-station')
+      .run();
+    expect((await api('/tasks', parent, 'POST', task('deletion-audit'))).status).toBe(201);
+    const audit = await env.DB.prepare('SELECT data FROM agent_commands WHERE id=?')
+      .bind('deletion-audit')
+      .first();
+    const path = `/admin/api/agent-tokens/${parent.record.id}`;
+    expect((await call(`${path}/revoke`, undefined, 'POST')).status).toBe(204);
+    expect((await call(path, undefined, 'DELETE')).status).toBe(204);
+    const list = (await (await call('/admin/api/agent-tokens')).json()) as { tokens: AgentTokenRecord[] };
+    expect(list.tokens.map((record) => record.id)).not.toContain(parent.record.id);
+    expect(list.tokens.find((record) => record.id === child.record.id)?.revokedAt).toEqual(
+      expect.any(String),
+    );
+    expect(
+      await env.DB.prepare('SELECT parent_id FROM agent_tokens WHERE id=?').bind(child.record.id).first(),
+    ).toEqual({ parent_id: parent.record.id });
+    expect(await env.DB.prepare('SELECT token_id FROM agent_station').first()).toEqual({
+      token_id: parent.record.id,
+    });
+    expect(
+      await env.DB.prepare('SELECT data FROM agent_commands WHERE id=?').bind('deletion-audit').first(),
+    ).toEqual(audit);
+    for (const secret of [parent, child]) expect((await api('/me', secret)).status).toBe(401);
+    await expect(currentPrincipal(env.DB, actor)).rejects.toMatchObject({ status: 403 });
+    await expect(
+      env.DB.prepare('UPDATE agent_tokens SET revoked_at=NULL WHERE id=?').bind(parent.record.id).run(),
+    ).rejects.toThrow();
+  });
+
   it.each(['revoked', 'issue-grant', 'child-grant', 'expiry', 'deleted'])(
     'rechecks live issuer authority atomically after authentication: %s',
     async (change) => {
       const parent = await issue(['tokens:issue', 'episodes:read'], 10);
       const actor = await principal(parent);
       if (change === 'revoked')
-        await call(`/admin/api/agent-tokens/${parent.record.id}`, undefined, 'DELETE');
+        await call(`/admin/api/agent-tokens/${parent.record.id}/revoke`, undefined, 'POST');
       else if (change === 'deleted')
         await env.DB.prepare('DELETE FROM agent_tokens WHERE id=?').bind(parent.record.id).run();
       else if (change === 'expiry')

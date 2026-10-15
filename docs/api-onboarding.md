@@ -40,6 +40,13 @@ actions and limits. A public discovery response does not verify the token.
 Expired, revoked and legacy unscoped tokens fail closed. A `403` means required
 grants are absent, not that a station connection must be established.
 
+Token revocation and deletion are separate: `POST /agent-tokens/:id/revoke`
+requires `tokens:revoke` and revokes descendants too. `DELETE /agent-tokens/:id`
+requires `tokens:delete` and only removes already revoked tokens from management
+lists; active or merely expired tokens return `409`. Security tombstones,
+delegation and station references remain. Both operations require the target's
+grants to be a subset of the caller's. New grants are never added to existing tokens.
+
 A write grant never implies a read grant. Private prompts require `prompts:read`;
 publication details require `publications:read`. Read projections also apply to
 mutation responses. Do not overwrite omitted fields with guessed empty values.

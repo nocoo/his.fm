@@ -30,6 +30,8 @@ async function studio(page: Page, initial = fixture()) {
     ttsConfigured: false,
   };
   let tokens: AgentTokenRecord[] = [];
+  let failTokenDelete = false;
+  let failTokenLoad = false;
   let ai = {
     version: '0'.repeat(64),
     settings: structuredClone(defaultSpeechSettings),
@@ -109,10 +111,16 @@ async function studio(page: Page, initial = fixture()) {
       return send({ bumper }, 201);
     }
     if (path === '/agent-tokens') {
-      if (method === 'GET') return send({ tokens });
+      if (method === 'GET') {
+        if (failTokenLoad) {
+          failTokenLoad = false;
+          return send({ error: '令牌列表加载失败' }, 503);
+        }
+        return send({ tokens });
+      }
       const input = request.postDataJSON();
       const record: AgentTokenRecord = {
-        id: 'token-one',
+        id: randomUUID(),
         name: input.name,
         prefix: 'hisfm_once',
         createdAt: new Date().toISOString(),
@@ -121,11 +129,24 @@ async function studio(page: Page, initial = fixture()) {
         revokedAt: null,
         scopes: input.scopes,
       };
-      tokens = [record];
+      tokens = [record, ...tokens];
       return send({ record, token: 'hisfm_one_time_plaintext_for_test' }, 201);
     }
     if (path.startsWith('/agent-tokens/')) {
-      tokens = tokens.map((record) => ({ ...record, revokedAt: new Date().toISOString() }));
+      const id = decodeURIComponent(path.split('/')[2]);
+      if (path.endsWith('/revoke') && method === 'POST') {
+        tokens = tokens.map((record) =>
+          record.id === id ? { ...record, revokedAt: new Date().toISOString() } : record,
+        );
+      } else if (method === 'DELETE') {
+        if (failTokenDelete) {
+          failTokenDelete = false;
+          return send({ error: '删除失败，请重试' }, 503);
+        }
+        if (!tokens.find((record) => record.id === id)?.revokedAt)
+          return send({ error: '请先撤销令牌' }, 409);
+        tokens = tokens.filter((record) => record.id !== id);
+      } else return send({ error: '不支持这个请求方式' }, 405);
       return send(null, 204);
     }
     if (path === '/production-settings') {
@@ -289,6 +310,15 @@ async function studio(page: Page, initial = fixture()) {
     },
     failUpload: () => {
       failUpload = true;
+    },
+    setTokens: (records: AgentTokenRecord[]) => {
+      tokens = records;
+    },
+    failTokenDelete: () => {
+      failTokenDelete = true;
+    },
+    failTokenLoad: () => {
+      failTokenLoad = true;
     },
   };
 }
@@ -503,6 +533,8 @@ test('separate bumper and connection pages preserve failed uploads and transient
     'href',
     `${origin}/api/agent/instructions`,
   );
+  await expect(page.getByLabel('助手名称')).toHaveCount(0);
+  await page.getByRole('button', { name: '创建令牌', exact: true }).click();
   await page.getByLabel('助手名称').fill('Hermes');
   await page.getByLabel('有效天数').fill('7');
   await expect(page.getByRole('combobox', { name: '权限预设' })).toContainText('只读（默认）');
@@ -519,11 +551,16 @@ test('separate bumper and connection pages preserve failed uploads and transient
   expect(await page.evaluate(() => JSON.stringify(localStorage))).not.toContain('hisfm_one_time');
   await page.reload();
   await expect(page.getByLabel('新建助手令牌')).toHaveCount(0);
-  await page.getByText(`已授权 ${scopePresets.reader.length} 项权限`, { exact: true }).click();
-  await expect(page.locator('.studio-token-list')).toContainText('productions:read');
+  await page
+    .getByRole('button', { name: `Hermes：已授权 ${scopePresets.reader.length} 项权限`, exact: true })
+    .click();
+  await expect(page.getByRole('dialog', { name: 'Hermes的权限' })).toContainText('productions:read');
+  await page.keyboard.press('Escape');
   await page.getByRole('button', { name: '撤销 Hermes' }).click();
   await page.getByRole('alertdialog').getByRole('button', { name: '确认撤销令牌' }).click();
   await expect(page.getByRole('button', { name: '撤销 Hermes' })).toHaveCount(0);
+  await expect(page.getByRole('alertdialog')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: '删除 Hermes' })).toBeVisible();
   await mkdir('.local', { recursive: true });
   await page.screenshot({ path: '.local/studio-settings.png', fullPage: true });
 });
@@ -531,6 +568,7 @@ test('separate bumper and connection pages preserve failed uploads and transient
 test('token grants require explicit high-risk consent and reset it after grant changes', async ({ page }) => {
   await studio(page);
   await page.goto('/admin/connections');
+  await page.getByRole('button', { name: '创建令牌', exact: true }).click();
   await page.getByLabel('助手名称').fill('Scoped agent');
   const create = page.getByRole('button', { name: '创建助手令牌', exact: true });
   await page.getByRole('combobox', { name: '权限预设' }).click();
@@ -557,12 +595,123 @@ test('token grants require explicit high-risk consent and reset it after grant c
     scopes.filter((scope) => scope !== 'productions:delete'),
   );
   await expect(page.getByLabel('新建助手令牌')).toBeVisible();
+  await expect(create).toHaveCount(0);
+  await page.getByRole('button', { name: '我已保存，关闭', exact: true }).click();
+  await expect(page.getByRole('button', { name: '创建令牌', exact: true })).toBeFocused();
+  await page.getByRole('button', { name: '创建令牌', exact: true }).click();
   await expect(page.getByRole('combobox', { name: '权限预设' })).toContainText('只读（默认）');
-  await expect(create).toBeDisabled();
-  await page.getByRole('button', { name: '我已保存，隐藏令牌', exact: true }).click();
+  await page.getByText(`逐项设置权限（已选 ${scopePresets.reader.length} / ${scopes.length}）`).click();
   for (const scope of scopePresets.reader) await page.locator(`[id="grant-${scope}"]`).uncheck();
   await expect(create).toBeDisabled();
   await expect(page.getByText(`逐项设置权限（已选 0 / ${scopes.length}）`)).toBeVisible();
+});
+
+test('token table separates statuses and confirms deletion with failure recovery', async ({ page }) => {
+  const state = await studio(page);
+  const record: AgentTokenRecord = {
+    id: 'revoked-token',
+    name: 'Old assistant',
+    prefix: 'hisfm_old',
+    scopes: ['episodes:read'],
+    createdAt: '2026-01-01T10:00:00Z',
+    expiresAt: '2099-01-01T10:00:00Z',
+    lastUsedAt: null,
+    revokedAt: '2026-01-02T10:00:00Z',
+  };
+  state.setTokens([
+    record,
+    { ...record, id: 'active-token', name: 'Current assistant', revokedAt: null },
+    {
+      ...record,
+      id: 'expired-token',
+      name: 'Expired assistant',
+      revokedAt: null,
+      expiresAt: '2000-01-01T10:00:00Z',
+    },
+  ]);
+  await page.goto('/admin/connections');
+  const table = page.getByRole('table', { name: '访问令牌列表' });
+  await expect(table.getByRole('columnheader')).toHaveCount(5);
+  await expect(table.getByRole('row').filter({ hasText: 'Current assistant' })).toContainText('有效');
+  await expect(table.getByRole('row').filter({ hasText: 'Expired assistant' })).toContainText('已过期');
+  await expect(table.getByRole('row').filter({ hasText: 'Old assistant' })).toContainText('已撤销');
+  await expect(page.getByRole('button', { name: '删除 Current assistant' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: '删除 Expired assistant' })).toHaveCount(0);
+  await page.getByRole('button', { name: '删除 Old assistant' }).click();
+  await page.getByRole('alertdialog').getByRole('button', { name: '取消', exact: true }).click();
+  await expect(table).toContainText('Old assistant');
+  state.failTokenDelete();
+  await page.getByRole('button', { name: '删除 Old assistant' }).click();
+  const confirmation = page.getByRole('alertdialog');
+  await expect(confirmation).toContainText('保留撤销记录和审计关联');
+  await confirmation.getByRole('button', { name: '确认删除令牌' }).click();
+  await expect(confirmation.getByRole('alert')).toContainText('删除失败，请重试');
+  await confirmation.getByRole('button', { name: '确认删除令牌' }).click();
+  await expect(confirmation).toHaveCount(0);
+  await expect(table).not.toContainText('Old assistant');
+  await page.reload();
+  await expect(table).not.toContainText('Old assistant');
+  await expect(table).toContainText('Current assistant');
+  state.failTokenLoad();
+  await page.getByRole('button', { name: '刷新令牌列表' }).click();
+  await expect(page.getByText('令牌列表加载失败', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: '重试', exact: true }).click();
+  await expect(table).toContainText('Current assistant');
+});
+
+test('token table and creation dialog stay usable on desktop and phone in both themes', async ({ page }) => {
+  const state = await studio(page);
+  state.setTokens([
+    {
+      id: 'layout-token',
+      name: '只读资料助手',
+      prefix: 'hisfm_layout',
+      scopes: [...scopePresets.reader],
+      createdAt: '2026-01-01T10:00:00Z',
+      expiresAt: '2099-01-01T10:00:00Z',
+      lastUsedAt: null,
+      revokedAt: null,
+    },
+  ]);
+  await mkdir('.local', { recursive: true });
+  for (const theme of ['light', 'dark'] as const) {
+    for (const width of [1440, 393]) {
+      await page.setViewportSize({ width, height: 900 });
+      await page.emulateMedia({ colorScheme: theme });
+      await page.goto('/admin/connections');
+      await page.evaluate((value) => {
+        document.documentElement.classList.toggle('dark', value === 'dark');
+      }, theme);
+      const table = page.getByRole('table', { name: '访问令牌列表' });
+      await expect(table).toContainText('只读资料助手');
+      if (width === 1440) {
+        const container = await page.locator('.studio-token-table').boundingBox();
+        const action = await table.getByRole('button', { name: '撤销 只读资料助手' }).boundingBox();
+        expect(container).not.toBeNull();
+        expect(action).not.toBeNull();
+        expect((action?.x ?? 0) + (action?.width ?? 0)).toBeLessThanOrEqual(
+          (container?.x ?? 0) + (container?.width ?? 0),
+        );
+      }
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      await page.screenshot({ path: `.local/tokens-${theme}-${width}.png`, fullPage: true });
+      await page.getByRole('button', { name: '创建令牌', exact: true }).click();
+      const dialog = page.getByRole('dialog', { name: '创建访问令牌', exact: true });
+      await expect(dialog).toBeVisible();
+      const bounds = await dialog.boundingBox();
+      expect(bounds).not.toBeNull();
+      expect(bounds?.x).toBeGreaterThanOrEqual(0);
+      expect((bounds?.x ?? 0) + (bounds?.width ?? 0)).toBeLessThanOrEqual(width);
+      await page.getByText(`逐项设置权限（已选 ${scopePresets.reader.length} / ${scopes.length}）`).click();
+      await expect(dialog.getByRole('region', { name: '令牌管理', exact: true })).toContainText(
+        '删除已撤销令牌',
+      );
+      await page.screenshot({ path: `.local/token-create-${theme}-${width}.png`, fullPage: true });
+      await page.keyboard.press('Escape');
+      await expect(dialog).toHaveCount(0);
+      await expect(page.getByRole('button', { name: '创建令牌', exact: true })).toBeFocused();
+    }
+  }
 });
 
 test('catalog snapshots expose production links and never expose editing or deletion', async ({ page }) => {

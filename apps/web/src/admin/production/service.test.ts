@@ -147,6 +147,9 @@ describe('production service contracts', () => {
     });
     response(null, 204);
     await service.revokeToken('a/b');
+    expect(lastRequest()).toMatchObject({ url: '/admin/api/agent-tokens/a%2Fb/revoke', method: 'POST' });
+    response(null, 204);
+    await service.deleteToken('a/b');
     expect(lastRequest()).toMatchObject({ url: '/admin/api/agent-tokens/a%2Fb', method: 'DELETE' });
   });
   it('does not add grants to a custom token', async () => {

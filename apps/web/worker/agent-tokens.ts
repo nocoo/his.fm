@@ -56,7 +56,7 @@ export async function routeAgentTokens(
     if (request.method === 'GET') {
       requireScope(actor, 'tokens:read');
       const { results } = await env.DB.prepare(
-        `SELECT ${publicFields} FROM agent_tokens ORDER BY created_at DESC`,
+        `SELECT ${publicFields} FROM agent_tokens WHERE deleted_at IS NULL ORDER BY created_at DESC`,
       ).all<Omit<AgentTokenRecord, 'scopes'> & { scopes: string }>();
       return json({
         tokens: results.map((record) => ({
@@ -121,10 +121,12 @@ export async function routeAgentTokens(
     }
     throw new HttpError(405, '不支持这个请求方式');
   }
-  if (/^\/agent-tokens\/[^/]+$/.test(path)) {
-    if (request.method !== 'DELETE') throw new HttpError(405, '不支持这个请求方式');
-    requireScope(actor, 'tokens:revoke');
-    const id = decodeURIComponent(path.slice('/agent-tokens/'.length));
+  const target = path.match(/^\/agent-tokens\/([^/]+)(\/revoke)?$/);
+  if (target) {
+    const revoking = Boolean(target[2]);
+    if (request.method !== (revoking ? 'POST' : 'DELETE')) throw new HttpError(405, '不支持这个请求方式');
+    requireScope(actor, revoking ? 'tokens:revoke' : 'tokens:delete');
+    const id = decodeURIComponent(target[1]);
     const record = await env.DB.prepare('SELECT scopes FROM agent_tokens WHERE id = ?')
       .bind(id)
       .first<{ scopes: string }>();
@@ -133,7 +135,16 @@ export async function routeAgentTokens(
       actor.kind === 'agent' &&
       grantsSchema.parse(JSON.parse(record.scopes)).some((scope) => !actor.scopes?.includes(scope))
     )
-      throw new HttpError(403, 'Cannot revoke a token outside your grants');
+      throw new HttpError(403, 'Cannot manage a token outside your grants');
+    if (!revoking) {
+      const removed = await env.DB.prepare(
+        'UPDATE agent_tokens SET deleted_at = COALESCE(deleted_at, ?) WHERE id = ? AND revoked_at IS NOT NULL RETURNING id',
+      )
+        .bind(new Date().toISOString(), id)
+        .first();
+      if (!removed) throw new HttpError(409, '请先撤销令牌，再删除记录');
+      return new Response(null, { status: 204 });
+    }
     await env.DB.prepare(
       'WITH RECURSIVE descendants(id) AS (SELECT id FROM agent_tokens WHERE id = ? UNION ALL SELECT child.id FROM agent_tokens child JOIN descendants parent ON child.parent_id = parent.id) UPDATE agent_tokens SET revoked_at = COALESCE(revoked_at, ?) WHERE id IN (SELECT id FROM descendants)',
     )

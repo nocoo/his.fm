@@ -110,7 +110,7 @@
 }
 .studio-token-form {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 150px auto;
+  grid-template-columns: minmax(0, 1fr) 150px;
   gap: var(--admin-space-3);
   align-items: end;
 }
@@ -168,26 +168,68 @@
   flex-direction: column;
   gap: var(--admin-space-4);
 }
-.studio-token-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--admin-space-3);
-}
-.studio-token-list li {
-  display: flex;
-  justify-content: space-between;
+.studio-connection-info {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: var(--admin-space-3);
-  flex-wrap: wrap;
+}
+.studio-connection-runtime {
+  grid-column: 1 / -1;
+  justify-content: flex-start;
+}
+.studio-token-table td:first-child {
+  min-width: 140px;
+  max-width: 200px;
+}
+.studio-token-validity {
+  align-items: flex-start;
+  white-space: nowrap;
+}
+.studio-token-table time {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.studio-token-scopes {
+  max-height: min(420px, var(--radix-popover-content-available-height));
+  overflow-y: auto;
+  overflow-wrap: anywhere;
+}
+.studio-token-grants {
+  display: grid;
+  gap: var(--admin-space-3);
+  padding: 0;
+  margin: var(--admin-space-3) 0 0;
+  list-style: none;
+}
+.studio-scope-code {
+  display: block;
+  font-size: 12px;
+}
+.studio-scope-groups {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--admin-space-5);
+}
+.studio-scope-group {
+  align-self: start;
+}
+.studio-scope-group h3 {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0;
+}
+.studio-token-dialog p {
+  margin: 0;
 }
 .studio-table {
   overflow-x: auto;
 }
 .studio-table table {
   min-width: 740px;
+}
+.studio-table.studio-token-table table {
+  min-width: 580px;
 }
 .studio-stack summary {
   cursor: pointer;
@@ -201,6 +243,8 @@
 }
 @media (max-width: 767px) {
   .studio-grid,
+  .studio-connection-info,
+  .studio-scope-groups,
   .studio-token-form {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -395,6 +439,9 @@
   display: flex;
   align-items: center;
   gap: var(--admin-space-2);
+}
+.studio-scope-group .studio-checkbox {
+  align-items: start;
 }
 .studio-preview-settings > summary {
   margin-bottom: var(--admin-space-2);

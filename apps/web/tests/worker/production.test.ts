@@ -115,6 +115,7 @@ beforeAll(async () => {
     '0011_prompts.sql',
     '0012_token_scopes.sql',
     '0013_resource_versions.sql',
+    '0014_token_deletion.sql',
   ]) {
     const sql = readFileSync(new URL(`../../migrations/${file}`, import.meta.url), 'utf8');
     await env.DB.batch(
@@ -614,9 +615,9 @@ describe('revocable expiring agent tokens', () => {
     expect(list.tokens[0].lastUsedAt).toBeTruthy();
     expect(JSON.stringify(list)).not.toContain(created.token);
     expect(JSON.stringify(list)).not.toContain('token_hash');
-    expect((await tokenCall(`/admin/api/agent-tokens/${created.record.id}`, 'DELETE')).status).toBe(204);
+    expect((await tokenCall(`/admin/api/agent-tokens/${created.record.id}/revoke`, 'POST')).status).toBe(204);
     await expect(authenticateAgent(authorized, env)).rejects.toMatchObject({ status: 401 });
-    expect((await tokenCall(`/admin/api/agent-tokens/${created.record.id}`, 'DELETE')).status).toBe(204);
+    expect((await tokenCall(`/admin/api/agent-tokens/${created.record.id}/revoke`, 'POST')).status).toBe(204);
   });
 
   it('rejects expired, absent and forged credentials and invalid token management', async () => {
