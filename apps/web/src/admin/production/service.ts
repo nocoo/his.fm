@@ -61,7 +61,7 @@ export const productionService = {
   publish: (
     id: string,
     version: number,
-    publication: Pick<Publication, 'platform' | 'url' | 'publishedAt'>,
+    publication: Pick<Publication, 'platform' | 'publishedAt'> & { url?: string },
   ) => request<Result>(`${path(id)}/publications`, json('POST', { ...publication, version })),
   settings: (signal?: AbortSignal) =>
     request<{ settings: ProductionSettings }>('/production-settings', { signal }),

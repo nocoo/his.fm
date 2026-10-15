@@ -106,7 +106,7 @@ export const productionResponseSchema = briefSchema.extend({
     .nullable(),
   publications: z.array(
     z.object({
-      platform: z.enum(['wechat', 'xiaoyuzhou']),
+      platform: z.enum(['wechat', 'xiaoyuzhou', 'site']),
       url: z.string(),
       publishedAt: stamp,
       confirmedAt: stamp,

@@ -88,11 +88,12 @@ export function ProductionList() {
       header: '平台发布',
       accessor: (row) => (
         <div className="studio-stack studio-gap-sm">
-          {(['wechat', 'xiaoyuzhou'] as const).map((platform) => {
+          {(['site', 'wechat', 'xiaoyuzhou'] as const).map((platform) => {
             const publication = latestPublication(row, platform);
+            const label = platform === 'site' ? '本站' : platform === 'wechat' ? '微信' : '小宇宙';
             return (
               <span key={platform} className="admin-muted">
-                {platform === 'wechat' ? '微信' : '小宇宙'} ·{' '}
+                {label} ·{' '}
                 {publication ? (
                   <time dateTime={publication.publishedAt}>{dateLabel(publication.publishedAt)}</time>
                 ) : (
