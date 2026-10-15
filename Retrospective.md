@@ -331,3 +331,16 @@ caught approval implicitly reopening stages despite a separate reopen scope, and
 bumper mutation responses returning old media metadata to write-only callers. Test
 each grant alone, not just full-owner workflows, and test stale authentication
 against commit-time authority changes.
+
+## 2026-10-15: Release from the deployed baseline
+
+The local manifest was already 2.2.1, but production and the latest published tag
+were still 2.2.0. Checking only the current feature's two migrations understated
+the release's four pending migrations. Compare the deployed revision and published
+tag before writing release notes or describing migration impact. Remote dependency
+updates also diverged from local work; obtain merge authorization, preserve the
+compiled Frogie boundary and validate the merged dependency graph before publication.
+
+The first allowed npm mirror returned no metadata for a selected Vite version,
+surfacing as an apparent peer-resolution conflict. Verify the exact version through
+another allowed mirror instead of forcing installation or disabling peer checks.

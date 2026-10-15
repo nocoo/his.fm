@@ -1,6 +1,6 @@
 # CI/CD
 
-Shared workflows come from [nocoo/base-ci](https://github.com/nocoo/base-ci), pinned to the immutable commit `8816553dc9f4544d1e8486bacb5cce630a9f14cb` (`v2026.8`). Upgrade by updating the full SHA after a reviewed base-ci release.
+Shared workflows come from [nocoo/base-ci](https://github.com/nocoo/base-ci), pinned to the immutable commit `0394178ebcff0418c442d84a84119220f31f8987` (`v2026.9`). Upgrade by updating the full SHA after a reviewed base-ci release.
 
 ## CI (`.github/workflows/ci.yml`)
 

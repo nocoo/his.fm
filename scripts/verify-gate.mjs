@@ -12,6 +12,7 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { linkSnapshotNodeModules } from './l1-snapshot.mjs';
 
 const here = import.meta.dirname;
 const repo = join(here, '..');
@@ -66,6 +67,7 @@ function fixture(name, extra = {}) {
   writeFileSync(join(dir, 'biome.json'), `${JSON.stringify(biome, null, 2)}\n`);
   execFileSync(join(repo, 'node_modules/.bin/biome'), ['format', '--write', 'biome.json'], { cwd: dir });
   writeFileSync(join(dir, 'scripts/check-staged.mjs'), readFileSync(join(repo, 'scripts/check-staged.mjs')));
+  writeFileSync(join(dir, 'scripts/l1-snapshot.mjs'), readFileSync(join(repo, 'scripts/l1-snapshot.mjs')));
   writeFileSync(join(dir, '.husky/pre-commit'), readFileSync(join(repo, '.husky/pre-commit')));
   chmodSync(join(dir, '.husky/pre-commit'), 0o755);
   writeFileSync(
@@ -272,6 +274,67 @@ try {
 
   check('root hooks unchanged', rootHooks() === hooksBefore && hooksBefore === '.husky/_', rootHooks());
   check('root index untouched', rootIndex() === indexBefore);
+
+  const snapRoot = mkdtempSync(join(owned, 'snapshot-root-'));
+  const liveRootModules = join(snapRoot, 'node_modules');
+  const liveWebModules = join(snapRoot, 'apps/web/node_modules');
+  mkdirSync(join(liveWebModules, '@types/node'), { recursive: true });
+  mkdirSync(join(liveRootModules, '@types/node'), { recursive: true });
+  writeFileSync(
+    join(liveWebModules, '@types/node/package.json'),
+    '{"name":"@types/node","version":"26.6.5"}\n',
+  );
+  writeFileSync(
+    join(liveRootModules, '@types/node/package.json'),
+    '{"name":"@types/node","version":"26.6.3"}\n',
+  );
+  writeFileSync(join(snapRoot, 'package.json'), '{"name":"his-fm"}\n');
+  writeFileSync(join(snapRoot, 'apps/web/package.json'), '{"name":"@his-fm/web"}\n');
+  mkdirSync(join(liveRootModules, '@his-fm'), { recursive: true });
+  const earendilBefore = existsSync(join(liveRootModules, '@earendil-works'))
+    ? readdirSync(join(liveRootModules, '@earendil-works')).sort().join(',')
+    : '';
+  const snapDir = mkdtempSync(join(snapRoot, 'gate-'));
+  writeFileSync(join(snapDir, 'package.json'), '{"name":"his-fm"}\n');
+  mkdirSync(join(snapDir, 'apps/web'), { recursive: true });
+  writeFileSync(join(snapDir, 'apps/web/package.json'), '{"name":"@his-fm/web"}\n');
+  linkSnapshotNodeModules(snapRoot, snapDir);
+  const nestedVersion = JSON.parse(
+    readFileSync(join(snapDir, 'apps/web/node_modules/@types/node/package.json'), 'utf8'),
+  ).version;
+  check('L1 snapshot prefers workspace nested @types/node', nestedVersion === '26.6.5');
+  const earendilAfter = existsSync(join(liveRootModules, '@earendil-works'))
+    ? readdirSync(join(liveRootModules, '@earendil-works')).sort().join(',')
+    : '';
+  check('L1 snapshot does not mutate working-tree scopes', earendilBefore === earendilAfter);
+  rmSync(snapDir, { recursive: true, force: true });
+  rmSync(snapRoot, { recursive: true, force: true });
+
+  const stagedHelperDir = fixture('staged-l1-helper');
+  const helperPath = join(stagedHelperDir, 'scripts/l1-snapshot.mjs');
+  const goodHelper = readFileSync(helperPath, 'utf8');
+  rmSync(helperPath);
+  const deletedHelper = runHook(stagedHelperDir);
+  check('L1 gate ignores unstaged l1-snapshot deletion', deletedHelper.status === 0, deletedHelper.output);
+  writeFileSync(
+    helperPath,
+    'export function linkSnapshotNodeModules() {\n  throw new Error("worktree poison");\n}\n',
+  );
+  const poisonedHelper = runHook(stagedHelperDir);
+  check('L1 gate ignores unstaged l1-snapshot edits', poisonedHelper.status === 0, poisonedHelper.output);
+  writeFileSync(helperPath, goodHelper);
+  writeFileSync(
+    helperPath,
+    'export function linkSnapshotNodeModules() {\n  throw new Error("staged poison");\n}\n',
+  );
+  execFileSync('git', ['add', '--', 'scripts/l1-snapshot.mjs'], { cwd: stagedHelperDir });
+  writeFileSync(helperPath, goodHelper);
+  const stagedPoison = runHook(stagedHelperDir);
+  check(
+    'L1 gate uses staged l1-snapshot when worktree differs',
+    stagedPoison.status !== 0,
+    stagedPoison.output,
+  );
 } finally {
   rmSync(owned, { recursive: true, force: true });
 }
