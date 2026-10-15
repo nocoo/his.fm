@@ -14,6 +14,7 @@ import {
   productionActionSchema,
   productionPatchSchema,
   productionStages,
+  publicationPlatforms,
   publicationSchema,
 } from '../src/shared/production';
 import { storageCleanupSchema, storageKinds } from '../src/shared/storage';
@@ -78,7 +79,7 @@ export const productionResponseSchema = briefSchema.extend({
   approvals: z.object({ brief: approval, script: approval, final: approval }),
   publications: z.array(
     z.object({
-      platform: z.enum(['wechat', 'xiaoyuzhou', 'site']),
+      platform: z.enum(publicationPlatforms),
       url: z.string(),
       publishedAt: stamp,
       confirmedAt: stamp,
@@ -595,7 +596,7 @@ export function agentOpenApi(origin: string) {
             name: 'platform',
             in: 'path',
             required: true,
-            schema: { type: 'string', enum: ['wechat', 'xiaoyuzhou'] },
+            schema: { type: 'string', enum: publicationPlatforms },
           },
         ],
         patch: {

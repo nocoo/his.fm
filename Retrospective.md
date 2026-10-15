@@ -429,3 +429,16 @@ the inner radio group. The appearance selector therefore retained the browser's
 default outer border and padding. Reset the page's grouping fieldset rather than
 removing selected-card outlines or keyboard focus indicators. Check the actual
 rendered component wrapper when an unexplained border surrounds library controls.
+
+## 2026-10-16: Verify merged contracts and browser paths
+
+The upstream site-publication change added a platform to runtime routes but not
+the OpenAPI path enum, and changed the default form platform while an existing
+browser test still assumed WeChat. Reuse the shared platform list in discovery
+and test both the URL-free site request and explicit external-platform selection.
+A passing unit gate is not evidence that merged browser interactions still work.
+
+For focused browser checks, invoke the web workspace script directly. Passing
+`--grep` through the root npm wrapper caused npm to consume the flag and collect
+zero tests; the corrected command uses `npm run test:e2e --workspace @his-fm/web
+-- --grep ...`. Never count an empty collection as verification.

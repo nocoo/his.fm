@@ -173,7 +173,12 @@ async function studio(page: Page, initial = fixture()) {
         version: production.version + 1,
         publications: [
           ...production.publications,
-          { ...input, confirmedAt: new Date().toISOString(), confirmedBy: 'editor@his.fm' },
+          {
+            ...input,
+            url: input.platform === 'site' ? '' : input.url,
+            confirmedAt: new Date().toISOString(),
+            confirmedBy: 'editor@his.fm',
+          },
         ],
       };
     else {
@@ -375,12 +380,38 @@ test('publication keeps current asset, final approval and explicit record gates'
   await page.getByRole('button', { name: '批准成品', exact: true }).click();
   await expect.poll(() => state.production.stage).toBe('ready');
   await expect(page.getByRole('button', { name: '记录已发布', exact: true })).toBeEnabled();
+  await page.getByRole('combobox', { name: '记录发布平台' }).click();
+  await page.getByRole('option', { name: '微信公众号', exact: true }).click();
   await page.getByLabel('已发布的节目链接', { exact: true }).fill('https://mp.weixin.qq.com/s/verified');
   await page.getByLabel('实际发布时间', { exact: true }).fill('2026-09-25T12:30');
   await page.getByRole('button', { name: '记录已发布', exact: true }).click();
   expect(state.production.publications).toHaveLength(0);
   await page.getByRole('alertdialog').getByRole('button', { name: '确认记录此次发布', exact: true }).click();
   await expect.poll(() => state.production.publications.length).toBe(1);
+});
+
+test('site publication requires confirmation but sends no external URL', async ({ page }) => {
+  const state = await studio(page, readyFixture());
+  await page.goto('/admin/productions/production-test?section=publication');
+  await expect(page.getByRole('combobox', { name: '记录发布平台' })).toContainText('his.fm 本站');
+  await expect(page.getByLabel('已发布的节目链接', { exact: true })).toHaveCount(0);
+  await page.getByLabel('实际发布时间', { exact: true }).fill('2026-09-25T12:30');
+  await page.getByRole('button', { name: '记录已发布', exact: true }).click();
+  expect(state.production.publications).toHaveLength(0);
+  const request = page.waitForRequest(
+    (value) => value.method() === 'POST' && value.url().endsWith('/publications'),
+  );
+  await page.getByRole('alertdialog').getByRole('button', { name: '确认记录此次发布', exact: true }).click();
+  expect((await request).postDataJSON()).toEqual({
+    version: 1,
+    platform: 'site',
+    publishedAt: new Date('2026-09-25T12:30').toISOString(),
+  });
+  await expect.poll(() => state.production.publications.length).toBe(1);
+  await expect(page.getByRole('link', { name: 'his.fm 本站', exact: true })).toHaveAttribute(
+    'href',
+    `/episodes/${state.production.slug}`,
+  );
 });
 
 test('cover grid and detail sections fit desktop and phone in both themes without native UI', async ({

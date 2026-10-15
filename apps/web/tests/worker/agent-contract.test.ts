@@ -113,4 +113,14 @@ describe('scoped OpenAPI contract', () => {
     ] as const)
       expect(grants[action]).toEqual(['productions:reopen']);
   });
+
+  it('allows correcting and withdrawing site publications in the discovered contract', () => {
+    const contract = agentOpenApi('https://example.test');
+    expect(contract.paths['/productions/{id}/publications/{platform}'].parameters).toContainEqual({
+      name: 'platform',
+      in: 'path',
+      required: true,
+      schema: { type: 'string', enum: ['wechat', 'xiaoyuzhou', 'site'] },
+    });
+  });
 });
