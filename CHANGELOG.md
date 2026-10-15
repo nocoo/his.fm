@@ -2,6 +2,12 @@
 
 All notable changes to his.fm are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions use the owner’s patch-only deployment policy in `AGENTS.md`, with the authoritative version in `package.json`.
 
+## 2.3.2 - 2026-10-15
+
+### Fixed
+
+- Public episode 本期摘要 and 逐字稿 now render Markdown links through shared `ReadingText` and `formatReading` (HTTPS-only), so show-notes hyperlinks work instead of escaped plain text.
+
 ## 2.3.1 - 2026-10-15
 
 ### Added
