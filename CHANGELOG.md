@@ -2,7 +2,23 @@
 
 All notable changes to his.fm are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions use the owner’s patch-only deployment policy in `AGENTS.md`, with the authoritative version in `package.json`.
 
-## 2.2.1
+## 2.3.0 - 2026-10-15
+
+The owner explicitly requested this minor release (Y+1). It includes the unpublished 2.2.1 work; the comparison baseline is the deployed release v2.2.0.
+
+### Added
+
+- Add 39 explicit API scopes with reader, editor, coordinator and owner presets, individual grant selection and acknowledgement of high-risk permissions. Ordinary REST clients can use scoped bearer tokens without Frogie or station enrollment.
+- Expose scoped production, episode, category, prompt, appearance, bumper, storage, settings, token and task operations through shared business controllers. Keep discovery, OpenAPI, capability projections and REST-first onboarding aligned with the implemented validators.
+- Add validated immutable manual WAV uploads, cover/audio detachment, publication correction and withdrawal, and independent episode featured metadata. Publication changes preserve append-only audit events and versioned episode snapshots.
+- Add stable-ID editorial categories with private prompts and a centralized Prompts page for global policy, sixteen named runtime/stage prompts, category prompts and narration style.
+
+### Security
+
+- Require explicit nonempty token grants; delegated tokens cannot exceed the issuer's current scopes or expiration. Fence issuance against concurrent revocation and revoke descendants with their parent.
+- Keep approval and reopening separate. Scope reads independently from writes, return minimal acknowledgements to write-only callers, and omit unauthorized prompts, publications and other private metadata.
+- Carry the original task principal through runtime operations and speech jobs. Revalidate live origin/executor grants, expiry, station leases and captured authority at reads and atomic writes; fail closed for legacy records without an authorized principal.
+- Authorize native command reads, cached preparation, recovery and shared-history compaction before model use. Agent-origin native tasks require tasks:submit, tasks:manage and prompts:read, plus productions:read for production context; audio also requires audio:generate. Shared coordinator/resident history is not isolated by token.
 
 ### Changed
 
@@ -10,6 +26,25 @@ All notable changes to his.fm are documented here. The format follows [Keep a Ch
 - Run resident conversations through `@frogie/core/host`, which owns Pi Durable integration, context compaction and execution diagnostics. his.fm retains Jev scheduling, website tools, approvals, speech execution and transport receipts.
 - Install the compiled Frogie 0.5.0 package from the tracked `vendor/` artifact, independently of a neighboring checkout. Require Node 26 or newer.
 - Store new execution state in `frogie.sqlite`, preserving `pi.sqlite` and existing transport history. Initial adoption checks for unfinished legacy commands and pending events; read-only debugging reports the new Host's tool diagnostics.
+- Merge dependency maintenance updates, including Vite 8.3.4, Vitest 5.0.4, Playwright 1.64.0 and Zod 4.6.7, while retaining the compiled Frogie integration. Pin shared CI and release workflows to base-ci v2026.9.
+
+### Fixed
+
+- Isolate native runtime effect identities, recover durable context compaction and report safe speech failure reasons without exposing provider credentials.
+- Preserve workspace-local dependency resolution in staged quality snapshots and verify that unstaged helper changes cannot alter the committed gate.
+- Prevent the studio's light loading flash and improve compact prompt controls and tablet layouts.
+
+### Validation
+
+- The merged dependency graph passes 487 unit tests across web (348), native agent (126) and contracts (13); all four coverage metrics exceed 95% in every workspace. Strict lint, type checking, production build and staged-gate rejection probes pass.
+- Two focused mocked browser scenarios verify token presets, explicit grants and high-risk acknowledgement before the dependency merge. Full browser acceptance and authenticated production business workflows are not claimed by this release.
+
+### Deployment Notes
+
+- Apply migrations 0010 through 0013 before deploying the Worker: categories and episode references, centralized prompts, token scopes, and episode versions. No mock episodes, local media or private native configuration are copied into production.
+- Migration 0012 revokes every existing website token. Issue explicit replacement grants and enroll the updated production coordinator again before native tasks or audio can run.
+- Native histories remain shared, so tasks:manage is a high-trust grant, not a per-token isolation boundary. Plain REST access does not require this grant unless invoking those native workflows.
+- Credentials remain write-only; immutable IDs, audit records and receipts are not arbitrary CRUD fields. Publication APIs maintain website publication records and do not publish to external platforms. Authenticated production acceptance awaits a newly issued owner token; no paid generation is included in release verification.
 
 ## 2.2.0 - 2026-10-05
 
