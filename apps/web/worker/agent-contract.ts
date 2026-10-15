@@ -78,7 +78,7 @@ export const productionResponseSchema = briefSchema.extend({
   approvals: z.object({ brief: approval, script: approval, final: approval }),
   publications: z.array(
     z.object({
-      platform: z.enum(['wechat', 'xiaoyuzhou']),
+      platform: z.enum(['wechat', 'xiaoyuzhou', 'site']),
       url: z.string(),
       publishedAt: stamp,
       confirmedAt: stamp,

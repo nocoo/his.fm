@@ -2,6 +2,18 @@
 
 All notable changes to his.fm are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions use the owner’s patch-only deployment policy in `AGENTS.md`, with the authoritative version in `package.json`.
 
+## 2.3.2 - 2026-10-15
+
+### Fixed
+
+- Public episode 本期摘要 and 逐字稿 now render Markdown links through shared `ReadingText` and `formatReading` (HTTPS-only), so show-notes hyperlinks work instead of escaped plain text.
+
+## 2.3.1 - 2026-10-15
+
+### Added
+
+- Allow `platform: "site"` publication confirmation so a ready production can promote its public episode snapshot without a WeChat or Xiaoyuzhou URL. External platforms still require validated HTTPS links.
+
 ## 2.3.0 - 2026-10-15
 
 The owner explicitly requested this minor release (Y+1). It includes the unpublished 2.2.1 work; the comparison baseline is the deployed release v2.2.0.

@@ -41,6 +41,12 @@ OpenAPI derives request schemas from shared/controller validators; use its `x-re
 
 ## Critical invariants
 
+Publication accepts `platform: "site"` with `{version,platform,publishedAt}` to
+publish the approved snapshot without an external URL. `wechat` and `xiaoyuzhou`
+still require `{version,platform,url,publishedAt}` with a matching platform HTTPS
+URL. All platforms require current final approval and reject future timestamps;
+no endpoint posts to an external platform.
+
 - Existing-resource mutations use optimistic versions; production/episode/category/bumper versions are integers, storage versions are opaque R2 strings.
 - `approve_*` requires `productions:approve`; `revise_*` and `reopen_*` require `productions:reopen`. Atomic action changes additionally obey edit scopes.
 - Upload/detach requires `productions:write` and `storage:write`; WAV attaches only to an approved current script. No synthetic completed job is needed.

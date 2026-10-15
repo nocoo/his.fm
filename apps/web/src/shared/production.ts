@@ -96,8 +96,10 @@ export type ProductionAsset = {
   voice?: string;
   includesBumpers?: boolean;
 };
+export const publicationPlatforms = ['wechat', 'xiaoyuzhou', 'site'] as const;
+export type PublicationPlatform = (typeof publicationPlatforms)[number];
 export type Publication = {
-  platform: 'wechat' | 'xiaoyuzhou';
+  platform: PublicationPlatform;
   url: string;
   publishedAt: string;
   confirmedAt: string;
@@ -126,19 +128,29 @@ export type Production = ProductionBrief & {
   createdAt: string;
   updatedAt: string;
 };
-export const publicationSchema = z.strictObject({
-  version: z.number().int().min(1),
-  platform: z.enum(['wechat', 'xiaoyuzhou']),
-  url: z
-    .string()
-    .url()
-    .max(2048)
-    .refine((value) => {
-      const url = new URL(value);
-      return url.protocol === 'https:' && !url.username && !url.password;
-    }),
-  publishedAt: z.iso.datetime({ offset: true }).transform((value) => new Date(value).toISOString()),
-});
+const publicationPublishedAt = z.iso
+  .datetime({ offset: true })
+  .transform((value) => new Date(value).toISOString());
+export const publicationSchema = z.union([
+  z.strictObject({
+    version: z.number().int().min(1),
+    platform: z.literal('site'),
+    publishedAt: publicationPublishedAt,
+  }),
+  z.strictObject({
+    version: z.number().int().min(1),
+    platform: z.enum(['wechat', 'xiaoyuzhou']),
+    url: z
+      .string()
+      .url()
+      .max(2048)
+      .refine((value) => {
+        const url = new URL(value);
+        return url.protocol === 'https:' && !url.username && !url.password;
+      }),
+    publishedAt: publicationPublishedAt,
+  }),
+]);
 export type Bumper = { key: string; url: string; durationSeconds: number; size: number };
 export type BumperRecord = Bumper & {
   id: string;

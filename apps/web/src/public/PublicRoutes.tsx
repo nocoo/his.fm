@@ -18,6 +18,7 @@ import { BrandSymbol, Wordmark } from '../brand/Brand';
 import { themeMedia } from '../brand/themes';
 import { AudioPlayer } from '../components/AudioPlayer';
 import type { Episode } from '../shared/episode';
+import { ReadingText } from '../shared/ReadingText';
 import { PublicLink as Link, PublicNavLink as NavLink, SiteAppearance, useAppearance } from './Appearance';
 import { EpisodeCover } from './EpisodeCover';
 import { Hero, ThemeImage } from './Hero';
@@ -370,30 +371,6 @@ function Catalogue() {
   );
 }
 
-function ReadableText({ text }: { text: string }) {
-  return (
-    <div className="readable-text">
-      {text
-        .split(/\n\s*\n/)
-        .filter(Boolean)
-        .map((block, index) => {
-          const key = `${index}-${block.slice(0, 20)}`;
-          if (/^#{1,4} /.test(block))
-            return <h3 key={key}>{block.replace(/^#{1,4} /, '').replaceAll('**', '')}</h3>;
-          if (/^---+$/.test(block.trim())) return <hr key={key} />;
-          return (
-            <p key={key}>
-              {block
-                .replaceAll('**', '')
-                .replace(/^> /gm, '')
-                .replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, '$1（$2）')}
-            </p>
-          );
-        })}
-    </div>
-  );
-}
-
 function EpisodeDetail() {
   const { slug } = useParams();
   const { episodes, categories, loading, error } = useLibrary();
@@ -505,7 +482,8 @@ function EpisodeDetail() {
                   </button>
                 </div>
                 <div id="reading-panel" role="tabpanel" aria-labelledby={`${tab}-tab`}>
-                  <ReadableText
+                  <ReadingText
+                    className="readable-text"
                     text={
                       tab === 'notes'
                         ? episode.showNotes || episode.summary

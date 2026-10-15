@@ -159,10 +159,12 @@ export async function publishProduction(
   if (!production.approvals.final) throw new HttpError(409, '请先完成成品确认');
   if (new Date(input.publishedAt).getTime() > Date.now())
     throw new HttpError(400, '请填写实际已经发布的时间');
-  const hostname = new URL(input.url).hostname.toLowerCase();
-  const platformHost = input.platform === 'wechat' ? 'mp.weixin.qq.com' : 'xiaoyuzhoufm.com';
-  if (hostname !== platformHost && !hostname.endsWith(`.${platformHost}`))
-    throw new HttpError(400, '发布链接与所选平台不一致');
+  if (input.platform !== 'site') {
+    const hostname = new URL(input.url).hostname.toLowerCase();
+    const platformHost = input.platform === 'wechat' ? 'mp.weixin.qq.com' : 'xiaoyuzhoufm.com';
+    if (hostname !== platformHost && !hostname.endsWith(`.${platformHost}`))
+      throw new HttpError(400, '发布链接与所选平台不一致');
+  }
   const previous = production.publications.filter((record) => record.platform === input.platform);
   if (correction ? !previous.length : previous.length)
     throw new HttpError(correction ? 404 : 409, correction ? '发布记录不存在' : '请使用发布记录修正接口');
@@ -174,7 +176,7 @@ export async function publishProduction(
           ...production.publications.filter((record) => record.platform !== input.platform),
           {
             platform: input.platform,
-            url: input.url,
+            url: input.platform === 'site' ? '' : input.url,
             publishedAt: input.publishedAt,
             confirmedAt: new Date().toISOString(),
             confirmedBy: actor.name,
@@ -322,7 +324,7 @@ export async function routeProductions(
     throw new HttpError(405, '不支持这个请求方式');
   }
   const match = path.match(
-    /^\/productions\/([^/]+)(?:\/(actions|prompts|assets\/(?:cover|audio)|publications(?:\/(?:wechat|xiaoyuzhou))?))?$/,
+    /^\/productions\/([^/]+)(?:\/(actions|prompts|assets\/(?:cover|audio)|publications(?:\/(?:site|wechat|xiaoyuzhou))?))?$/,
   );
   if (!match) return null;
   const id = match[1];

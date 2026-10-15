@@ -381,6 +381,21 @@ describe('audit and production prompts', () => {
         }).success,
       ).toBe(false);
     }
+    expect(
+      publicationSchema.safeParse({
+        version: 1,
+        platform: 'site',
+        publishedAt: '2026-09-24T00:00:00Z',
+      }).success,
+    ).toBe(true);
+    expect(
+      publicationSchema.safeParse({
+        version: 1,
+        platform: 'site',
+        url: 'https://example.com',
+        publishedAt: '2026-09-24T00:00:00Z',
+      }).success,
+    ).toBe(false);
   });
 
   it('does not inject brief defaults into a transcript-only patch', () => {
