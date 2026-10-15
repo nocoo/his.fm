@@ -10,16 +10,11 @@ import {
   type Production,
   productionPatchSchema,
 } from '../src/shared/production';
-import { voiceSamples } from '../src/shared/voice-samples';
-import { voiceCharacters, voices } from '../src/shared/voices';
 import { agentOpenApi } from './agent-contract';
-import { connectRuntime, routeRuntimeReceipt } from './agent-runtime';
-import { station } from './agent-runtime-store';
 import { authenticateAgent } from './agent-tokens';
-import { commandPrincipal, requireScope } from './authorization';
+import { requireScope } from './authorization';
 import { HttpError, json } from './http';
 import { routeManagement } from './management';
-import { routeNativeSpeech } from './native-speech';
 import { applyAction } from './production-model';
 import { getProduction } from './production-store';
 
@@ -37,8 +32,6 @@ function manifest(origin: string) {
     authentication: {
       type: 'http',
       scheme: 'bearer',
-      configurationFile: '~/.config/his.fm/config.json',
-      tokenPath: 'websites.<environment>.token',
       tokenManagement: `${origin}/admin/connections`,
       verification: `${base}/me`,
     },
@@ -112,7 +105,7 @@ export function routeDiscovery(request: Request): Response | null {
   } else {
     const text =
       path === '/llms.txt'
-        ? `# his.fm\n\n> Chinese solo podcast production studio.\n\n## Editorial priority\n\nGlobal prompt > selected category prompt > episode intent > source material. Authenticated agents must read ${origin}/api/agent/channel before every creative task. Read the selected category through the private production categoryProfile or /api/agent/categories/:id. Global, category and runtime/stage prompts are private. The channel response includes the editable prompts bundle.\n\n## Agent API\n\n- [Service discovery](${origin}/api/agent): Scoped REST management and optional native WebSocket entrypoints.\n- [OpenAPI 3.1](${origin}/api/agent/openapi.json): Complete machine-readable contract.\n- [API onboarding](${origin}/api/agent/instructions): Authentication, scopes, versioned operations and optional enrollment.\n\nDiscovery is public; all production data requires a studio-issued bearer token. This service does not expose MCP or A2A.\n`
+        ? `# his.fm\n\n> Chinese solo podcast production studio.\n\n## Editorial priority\n\nGlobal prompt > selected category prompt > episode intent > source material. Authenticated agents must read ${origin}/api/agent/channel before every creative task. Read the selected category through the private production categoryProfile or /api/agent/categories/:id. Global, category and workflow/stage prompts are private. The channel response includes the editable prompts bundle.\n\n## Agent API\n\n- [Service discovery](${origin}/api/agent): Scoped external REST content management.\n- [OpenAPI 3.1](${origin}/api/agent/openapi.json): Complete machine-readable contract.\n- [API onboarding](${origin}/api/agent/instructions): Authentication, scopes, versioned content operations.\n\nDiscovery is public; all production data requires a studio-issued bearer token. This service does not expose MCP or A2A.\n`
         : instructions.replaceAll('https://his.fm', origin);
     response = new Response(text, {
       headers: {
@@ -156,27 +149,23 @@ export function productionCapabilities(production: Production, actor: Actor, ori
     canDelete:
       hasScope(actor, 'productions:delete') &&
       !production.publications.length &&
-      !production.events.some((event) => event.action.includes('publication:')) &&
-      !['queued', 'running'].includes(production.audioJob?.status ?? ''),
+      !production.events.some((event) => event.action.includes('publication:')),
     canUploadCover:
       hasScope(actor, 'productions:write') &&
       hasScope(actor, 'storage:write') &&
       (canReopen || production.stage === 'production'),
-    canGenerateAudio:
-      hasScope(actor, 'audio:generate') &&
-      hasScope(actor, 'tasks:manage') &&
-      hasScope(actor, 'prompts:read') &&
-      hasScope(actor, 'productions:read') &&
+    canUploadAudio:
+      hasScope(actor, 'productions:write') &&
+      hasScope(actor, 'storage:write') &&
       (canReopen || production.stage === 'production') &&
-      Boolean(production.approvals.brief && production.approvals.script) &&
-      production.audioJob?.status !== 'running',
+      Boolean(production.approvals.brief && production.approvals.script && production.transcript.trim()),
     links: {
       self: `${base}/capabilities`,
       production: base,
       prompts: `${base}/prompts`,
       actions: `${base}/actions`,
       cover: `${base}/assets/cover?version=${production.version}`,
-      audio: `${base}/audio`,
+      audio: `${base}/assets/audio?version=${production.version}`,
       review: `${origin}/admin/productions/${encodeURIComponent(production.id)}`,
     },
   };
@@ -187,22 +176,7 @@ export async function routeAgent(request: Request, env: Env): Promise<Response> 
   const path = url.pathname.slice('/api/agent'.length).replace(/\/$/, '');
   const headers: Record<string, string> = { Link: discoveryLinks(url.origin) };
   try {
-    if (path === '/runtime/connect') return connectRuntime(request, env);
-    if (path.startsWith('/runtime/speech/')) return routeNativeSpeech(request, env);
-    if (path.startsWith('/runtime/receipts/')) return routeRuntimeReceipt(request, env);
-    let actor = await authenticateAgent(request, env);
-    const commandId = request.headers.get('X-Hisfm-Command');
-    if (commandId) {
-      requireScope(actor, 'runtime:connect');
-      const current = await station(env.DB);
-      if (
-        !current ||
-        current.tokenId !== actor.tokenId ||
-        current.stationId !== request.headers.get('X-Hisfm-Station')
-      )
-        throw new HttpError(403, 'Task reads require the enrolled runtime');
-      actor = await commandPrincipal(env.DB, commandId, actor);
-    }
+    const actor = await authenticateAgent(request, env);
     if (path === '/me' || path === '/capabilities' || /^\/productions\/[^/]+\/capabilities$/.test(path)) {
       if (request.method !== 'GET') throw new HttpError(405, '此接口只支持 GET');
       if (path === '/me') return json({ actor }, 200, headers);
@@ -227,21 +201,16 @@ export async function routeAgent(request: Request, env: Env): Promise<Response> 
           agentActions: hasScope(actor, 'productions:submit') ? agentActions : [],
           limits: { jsonBytes: 750000, coverBytes: 8388608, auditEvents: 200 },
           audio: {
-            execution: 'native',
-            providers: ['gemini', 'elevenlabs'],
-            voices: voices.map((id) => ({
-              id,
-              description: voiceCharacters[id],
-              previewUrl: voiceSamples.find((sample) => sample.voice === id)?.url ?? null,
-            })),
+            execution: 'external',
+            uploadMimeTypes: ['audio/wav'],
+            maximumSeconds: 1800,
+            maximumBytes: 86465536,
           },
         },
         200,
         headers,
       );
     }
-    if (commandId && !['GET', 'HEAD'].includes(request.method))
-      throw new HttpError(403, 'Delegated runtime mutations require typed operations');
     const response = await routeManagement(request, env, path, actor);
     if (!response) throw new HttpError(404, '接口不存在，请读取服务发现和 OpenAPI 中的实际路径');
     response.headers.set('Link', headers.Link);

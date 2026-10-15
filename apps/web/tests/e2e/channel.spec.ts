@@ -1,7 +1,7 @@
 import { mkdir } from 'node:fs/promises';
-import { defaultPrompts, channelDefault as initialContent } from '@frogie/core/hisfm/prompts';
 import { expect, type Page, test } from '@playwright/test';
 import type { ChannelProfile } from '../../src/shared/channel';
+import { defaultPrompts, channelDefault as initialContent } from '../../worker/prompt-defaults';
 
 async function mockChannel(page: Page) {
   let channel: ChannelProfile = {
@@ -13,7 +13,6 @@ async function mockChannel(page: Page) {
   };
   let fail = false;
   const writes: unknown[] = [];
-  await page.routeWebSocket('**/admin/api/agent/live?protocol=1', () => {});
   await page.route('**/admin/api/categories', (route) => route.fulfill({ json: { categories: [] } }));
   await page.route('**/admin/api/session', (route) =>
     route.fulfill({ json: { mode: 'local', user: { email: 'editor@his.fm' } } }),
@@ -218,17 +217,24 @@ test('stage prompts keep independent drafts and undo, merge unrelated saves and 
     await page.getByRole('combobox', { name: '提示词环节' }).click();
     await page.getByRole('option', { name, exact: true }).click();
   };
-  const coordinator = page.getByRole('textbox', { name: '主控协调', exact: true });
-  await expect(coordinator).toContainText('你是 his.fm 唯一的主控');
+  const coordinator = page.getByRole('textbox', { name: '工作流协调', exact: true });
+  await expect(coordinator).toContainText(defaultPrompts.coordinator);
   await coordinator.fill('主控中文草稿');
   await choose('上下文压缩');
   const compact = page.getByRole('textbox', { name: '上下文压缩', exact: true });
-  await expect(compact).toContainText('关键决策');
+  await expect
+    .poll(() =>
+      compact
+        .locator('.cm-line')
+        .allTextContents()
+        .then((lines) => lines.join('\n')),
+    )
+    .toBe(defaultPrompts.compaction);
   await compact.fill('压缩中文草稿');
-  await choose('主控协调');
+  await choose('工作流协调');
   await expect(coordinator).toContainText('主控中文草稿');
   await page.getByRole('button', { name: '撤销', exact: true }).click();
-  await expect(coordinator).toContainText('你是 his.fm 唯一的主控');
+  await expect(coordinator).toContainText(defaultPrompts.coordinator);
   await page.getByRole('button', { name: '重做', exact: true }).click();
   await page.getByRole('button', { name: '保存提示词', exact: true }).click();
   await expect.poll(() => state.saved().prompts.coordinator).toBe('主控中文草稿');
@@ -258,7 +264,7 @@ test('prompt controls stay compact and readable across viewport sizes and themes
     for (const width of [320, 393, 768, 1024, 1440]) {
       await page.setViewportSize({ width, height: 1000 });
       await page.goto('/admin/channel?prompt=coordinator');
-      await expect(page.getByRole('textbox', { name: '主控协调', exact: true })).toBeVisible();
+      await expect(page.getByRole('textbox', { name: '工作流协调', exact: true })).toBeVisible();
       await expect(page.locator('html')).toHaveAttribute('data-mode', theme);
       const trigger = page.getByRole('combobox', { name: '提示词环节' });
       const save = page.getByRole('button', { name: '保存提示词', exact: true });
@@ -279,7 +285,7 @@ test('prompt controls stay compact and readable across viewport sizes and themes
       await trigger.click();
       const menu = page.getByRole('listbox');
       await expect(menu).toBeVisible();
-      await expect(page.getByRole('group', { name: '主控与运行', exact: true })).toBeVisible();
+      await expect(page.getByRole('group', { name: '外部工作流程', exact: true })).toBeVisible();
       const normal = page.getByRole('option', { name: '上下文压缩', exact: true });
       expect(await normal.evaluate((element) => element.getBoundingClientRect().height)).toBeLessThan(40);
       const long = page.getByRole('option', { name: `栏目 · ${categoryName}`, exact: true });
@@ -304,14 +310,39 @@ test('prompt controls stay compact and readable across viewport sizes and themes
     }
   }
   await page.setViewportSize({ width: 393, height: 852 });
+  await page.goto('/admin/channel?prompt=coordinator');
+  await expect(page.getByRole('textbox', { name: '工作流协调', exact: true })).toBeVisible();
   const trigger = page.getByRole('combobox', { name: '提示词环节' });
   await trigger.focus();
   await page.keyboard.press('ArrowDown');
-  await expect(page.getByRole('option', { name: '主控协调', exact: true })).toBeFocused();
+  await expect(page.getByRole('option', { name: '工作流协调', exact: true })).toBeFocused();
   await page.keyboard.press('ArrowDown');
   await expect(page.getByRole('option', { name: '通用执行', exact: true })).toBeFocused();
   await page.keyboard.press('Enter');
   await expect(trigger).toContainText('通用执行');
   await expect(page.getByRole('textbox', { name: '通用执行', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: '保存提示词', exact: true })).toHaveCount(1);
+});
+
+test('narration is an ordinary versioned prompt with Markdown undo and no generation settings', async ({
+  page,
+}) => {
+  const state = await mockChannel(page);
+  await page.goto('/admin/channel?prompt=narration');
+  const editor = page.getByRole('textbox', { name: '旁白风格', exact: true });
+  await expect(editor).toContainText(defaultPrompts.narration);
+  await editor.fill('## 旁白\n\n自然、平静地讲述真实细节。');
+  await page.getByRole('button', { name: '撤销', exact: true }).click();
+  await expect(editor).toContainText(defaultPrompts.narration);
+  await page.getByRole('button', { name: '重做', exact: true }).click();
+  await page.getByRole('button', { name: '保存提示词', exact: true }).click();
+  await expect.poll(() => state.saved().prompts.narration).toBe('## 旁白\n\n自然、平静地讲述真实细节。');
+  expect(state.writes).toHaveLength(1);
+  expect(state.writes[0]).toMatchObject({
+    version: 1,
+    prompts: { narration: '## 旁白\n\n自然、平静地讲述真实细节。' },
+  });
+  await expect(page.getByRole('button', { name: /生成/ })).toHaveCount(0);
+  await expect(page.getByRole('combobox', { name: /声音|提供商/ })).toHaveCount(0);
+  await page.screenshot({ path: '.local/admin-narration-prompt.png', fullPage: true });
 });

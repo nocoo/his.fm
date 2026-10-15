@@ -21,7 +21,6 @@ jobs:
       lockfiles: 'package-lock.json'
       coverage-path: |
         apps/web/coverage
-        packages/agent/coverage
         packages/contracts/coverage
       build: true
       build-command: npm run build

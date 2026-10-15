@@ -2,7 +2,7 @@ import { scopePresets } from '@his-fm/contracts';
 import type { Actor, Production } from '../../src/shared/production';
 
 export const human: Actor = { kind: 'human', name: 'editor@his.fm' };
-export const agent: Actor = { kind: 'agent', name: 'Hermes (test-token)', scopes: scopePresets.coordinator };
+export const agent: Actor = { kind: 'agent', name: 'Hermes (test-token)', scopes: scopePresets.editor };
 export const fullAgent: Actor = {
   kind: 'agent',
   name: 'Scoped owner (test-token)',
@@ -33,7 +33,6 @@ export function fixture(changes: Partial<Production> = {}): Production {
     summary: '',
     assets: { cover: null, audio: null },
     approvals: { brief: null, script: null, final: null },
-    audioJob: null,
     publications: [],
     events: [],
     createdAt: now,
@@ -69,7 +68,6 @@ export function readyFixture(changes: Partial<Production> = {}): Production {
         durationSeconds: 600,
       },
     },
-    audioJob: { id: 'job-1', status: 'complete', scriptVersion: 1, createdAt: approval.at, error: null },
     ...changes,
   });
 }

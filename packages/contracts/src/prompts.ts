@@ -1,12 +1,12 @@
 import { z } from 'zod';
 
 export const promptLabels = {
-  coordinator: '主控协调',
+  coordinator: '工作流协调',
   executor: '通用执行',
   reviewer: '独立审校',
   speech: '语音任务',
   voiceComparison: '音色对比风格',
-  capabilities: '执行环境说明',
+  capabilities: '外部工具说明',
   network: '网络与代理',
   decisionPlan: '会话复用决策',
   decisionThinking: '思考强度决策',
@@ -17,6 +17,7 @@ export const promptLabels = {
   script: '逐字稿',
   cover: '封面原图',
   description: '摘要与发布简介',
+  narration: '旁白风格',
 } as const;
 export type PromptKey = keyof typeof promptLabels;
 export const promptKeys = Object.keys(promptLabels) as PromptKey[];

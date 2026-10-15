@@ -83,7 +83,7 @@ beforeAll(async () => {
 });
 beforeEach(async () => {
   await env.DB.batch(
-    ['speech_jobs', 'audio_jobs', 'productions', 'episodes', 'bumpers', 'production_settings'].map((table) =>
+    ['media_provenance', 'productions', 'episodes', 'bumpers'].map((table) =>
       env.DB.prepare(`DELETE FROM ${table}`),
     ),
   );
@@ -394,22 +394,20 @@ it('supports versioned bumper metadata and refuses removal of referenced snapsho
   await expect(
     routeBumpers(request('DELETE', undefined, '?version=1'), env, human, bumper.id),
   ).rejects.toMatchObject({ status: 409 });
-  await env.DB.prepare('INSERT INTO production_settings VALUES (1,?)')
+  await env.DB.prepare("INSERT INTO media_provenance VALUES ('settings',?)")
     .bind(JSON.stringify({ intro: { key: bumper.key } }))
     .run();
   await expect(
     routeBumpers(request('DELETE', undefined, '?version=2'), env, human, bumper.id),
   ).rejects.toMatchObject({ status: 409 });
-  await env.DB.prepare('DELETE FROM production_settings').run();
-  await env.DB.prepare(
-    "INSERT INTO speech_jobs(id,kind,snapshot,command_id,status,created_at) VALUES ('snapshot','production',?,'command','complete','now')",
-  )
+  await env.DB.prepare('DELETE FROM media_provenance').run();
+  await env.DB.prepare("INSERT INTO media_provenance VALUES ('snapshot',?)")
     .bind(JSON.stringify({ introKey: bumper.key }))
     .run();
   await expect(
     routeBumpers(request('DELETE', undefined, '?version=2'), env, human, bumper.id),
   ).rejects.toMatchObject({ status: 409 });
-  await env.DB.prepare('DELETE FROM speech_jobs').run();
+  await env.DB.prepare('DELETE FROM media_provenance').run();
   expect(
     (
       await routeBumpers(
@@ -506,9 +504,7 @@ it('revalidates private category and speech snapshot references before storage d
   await env.DB.prepare("UPDATE categories SET prompt=? WHERE id='work'")
     .bind(`![Reference](/media/${categoryObject.key})`)
     .run();
-  await env.DB.prepare(
-    "INSERT INTO speech_jobs(id,kind,snapshot,command_id,status,created_at) VALUES ('reference','preview',?,'command','complete','now')",
-  )
+  await env.DB.prepare("INSERT INTO media_provenance VALUES ('reference',?)")
     .bind(JSON.stringify({ source: { key: speechObject.key } }))
     .run();
   const aged = {

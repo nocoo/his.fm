@@ -6,16 +6,13 @@ import { lazy, Suspense, useEffect, useLayoutEffect, useState } from 'react';
 import { Link, Navigate, Route, Routes } from 'react-router';
 import { AdminShell } from './AdminShell';
 import { EpisodeEditor } from './EpisodeEditor';
-import { EpisodeList } from './EpisodeList';
 import { LoginBadge } from './LoginBadge';
 import { errorMessage } from './model';
-import { AiSettings } from './production/AiSettings';
 import { BumpersPage } from './production/BumpersPage';
 import { ConnectionsPage } from './production/ConnectionsPage';
 import { NewProduction } from './production/NewProduction';
 import { ProductionEditor } from './production/ProductionEditor';
 import { ProductionList } from './production/ProductionList';
-import { VoiceReferences } from './production/VoiceReferences';
 import { ApiError, adminService, type Session } from './service';
 import './admin.css';
 import './production/production.css';
@@ -122,7 +119,6 @@ function SessionGate() {
     <AdminShell session={session}>
       <Routes>
         <Route index element={<ProductionList />} />
-        <Route path="catalog" element={<EpisodeList />} />
         <Route path="productions/new" element={<NewProduction />} />
         <Route path="productions/:id" element={<ProductionEditor />} />
         <Route
@@ -133,7 +129,6 @@ function SessionGate() {
             </Suspense>
           }
         />
-        <Route path="ai" element={<AiSettings />} />
         <Route path="connections" element={<ConnectionsPage />} />
         <Route path="bumpers" element={<BumpersPage />} />
         <Route
@@ -144,7 +139,6 @@ function SessionGate() {
             </Suspense>
           }
         />
-        <Route path="voices" element={<VoiceReferences />} />
         <Route
           path="appearance"
           element={

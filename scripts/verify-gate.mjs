@@ -34,7 +34,7 @@ it('accepts text', () => {
 const failingTest = passingTest.replace('toBe(true)', 'toBe(false)');
 
 function check(name, ok, detail = '') {
-  const text = detail.replace(/\s+/g, ' ').slice(0, 240);
+  const text = ok ? detail.replace(/\s+/g, ' ').slice(0, 240) : detail.trim();
   console.log(`${ok ? 'ok' : 'FAIL'} ${name}${text ? `: ${text}` : ''}`);
   if (!ok) failed = 1;
 }
@@ -62,10 +62,19 @@ function fixture(name, extra = {}) {
   for (const file of ['tsconfig.json', 'vitest.config.ts']) {
     writeFileSync(join(dir, file), readFileSync(join(repo, 'apps/web', file)));
   }
+  const tsconfig = JSON.parse(readFileSync(join(dir, 'tsconfig.json'), 'utf8'));
+  tsconfig.compilerOptions.typeRoots = [
+    join(repo, 'apps/web/node_modules/@types'),
+    join(repo, 'node_modules/@types'),
+    join(repo, 'node_modules'),
+  ];
+  writeFileSync(join(dir, 'tsconfig.json'), `${JSON.stringify(tsconfig, null, 2)}\n`);
   const biome = JSON.parse(readFileSync(join(repo, 'biome.json'), 'utf8'));
   biome.files.includes = ['src/**', 'scripts/**', '*.json', '*.ts'];
   writeFileSync(join(dir, 'biome.json'), `${JSON.stringify(biome, null, 2)}\n`);
-  execFileSync(join(repo, 'node_modules/.bin/biome'), ['format', '--write', 'biome.json'], { cwd: dir });
+  execFileSync(join(repo, 'node_modules/.bin/biome'), ['format', '--write', 'biome.json', 'tsconfig.json'], {
+    cwd: dir,
+  });
   writeFileSync(join(dir, 'scripts/check-staged.mjs'), readFileSync(join(repo, 'scripts/check-staged.mjs')));
   writeFileSync(join(dir, 'scripts/l1-snapshot.mjs'), readFileSync(join(repo, 'scripts/l1-snapshot.mjs')));
   writeFileSync(join(dir, '.husky/pre-commit'), readFileSync(join(repo, '.husky/pre-commit')));
@@ -291,9 +300,7 @@ try {
   writeFileSync(join(snapRoot, 'package.json'), '{"name":"his-fm"}\n');
   writeFileSync(join(snapRoot, 'apps/web/package.json'), '{"name":"@his-fm/web"}\n');
   mkdirSync(join(liveRootModules, '@his-fm'), { recursive: true });
-  const earendilBefore = existsSync(join(liveRootModules, '@earendil-works'))
-    ? readdirSync(join(liveRootModules, '@earendil-works')).sort().join(',')
-    : '';
+  const modulesBefore = readdirSync(liveRootModules).sort().join(',');
   const snapDir = mkdtempSync(join(snapRoot, 'gate-'));
   writeFileSync(join(snapDir, 'package.json'), '{"name":"his-fm"}\n');
   mkdirSync(join(snapDir, 'apps/web'), { recursive: true });
@@ -303,10 +310,8 @@ try {
     readFileSync(join(snapDir, 'apps/web/node_modules/@types/node/package.json'), 'utf8'),
   ).version;
   check('L1 snapshot prefers workspace nested @types/node', nestedVersion === '26.6.5');
-  const earendilAfter = existsSync(join(liveRootModules, '@earendil-works'))
-    ? readdirSync(join(liveRootModules, '@earendil-works')).sort().join(',')
-    : '';
-  check('L1 snapshot does not mutate working-tree scopes', earendilBefore === earendilAfter);
+  const modulesAfter = readdirSync(liveRootModules).sort().join(',');
+  check('L1 snapshot does not mutate working-tree scopes', modulesBefore === modulesAfter);
   rmSync(snapDir, { recursive: true, force: true });
   rmSync(snapRoot, { recursive: true, force: true });
 

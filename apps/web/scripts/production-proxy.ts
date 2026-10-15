@@ -10,7 +10,7 @@ const application = 'https://his.fm/admin';
 const remoteOrigin = 'https://his.fm';
 const apiPrefix = '/admin/remote-api';
 const connectPath = '/admin/remote-connect';
-const maxUploadBytes = 9 * 1024 * 1024;
+const defaultUploadBytes = 9 * 1024 * 1024;
 const run = promisify(execFile);
 const localHosts = new Set(['localhost', '127.0.0.1', '[::1]', 'hisfm.dev.hexly.ai']);
 
@@ -79,7 +79,7 @@ function target(request: IncomingMessage): URL | 'connect' | null {
   return url;
 }
 
-export async function accessToken(): Promise<string> {
+async function accessToken(): Promise<string> {
   try {
     const { stdout } = await run('cloudflared', ['access', 'token', `--app=${application}`], {
       encoding: 'utf8',
@@ -97,12 +97,16 @@ export async function accessToken(): Promise<string> {
   }
 }
 
-function readBody(request: IncomingMessage, signal: AbortSignal): Promise<Buffer | undefined> {
+function readBody(
+  request: IncomingMessage,
+  signal: AbortSignal,
+  limit = defaultUploadBytes,
+): Promise<Buffer | undefined> {
   if (request.method === 'GET' || request.method === 'HEAD') return Promise.resolve(undefined);
   const declared = request.headers['content-length'];
-  if (declared && (!/^\d+$/.test(declared) || Number(declared) > maxUploadBytes)) {
+  if (declared && (!/^\d+$/.test(declared) || Number(declared) > limit)) {
     request.resume();
-    return Promise.reject(new ProxyError(413, '上传内容不能超过 9 MiB'));
+    return Promise.reject(new ProxyError(413, `上传内容不能超过 ${limit} 字节`));
   }
   return new Promise((resolve, reject) => {
     let size = 0;
@@ -120,7 +124,7 @@ function readBody(request: IncomingMessage, signal: AbortSignal): Promise<Buffer
     };
     const onData = (chunk: Buffer) => {
       size += chunk.length;
-      if (size > maxUploadBytes) fail(new ProxyError(413, '上传内容不能超过 9 MiB'));
+      if (size > limit) fail(new ProxyError(413, `上传内容不能超过 ${limit} 字节`));
       else chunks.push(chunk);
     };
     const onEnd = () => {
@@ -183,15 +187,17 @@ export function productionProxy(): Plugin {
       }
       return;
     }
+    const audioUpload =
+      request.method === 'PUT' &&
+      /^\/admin\/api\/productions\/[^/]+\/assets\/audio$/.test(destination.pathname);
+    const storageUpload = request.method === 'POST' && destination.pathname === '/admin/api/storage';
+    const limit = audioUpload ? 86465536 : storageUpload ? 25 * 1024 * 1024 : defaultUploadBytes;
     const controller = new AbortController();
-    const timeout = setTimeout(
-      () => controller.abort(),
-      destination.pathname.endsWith('/production-settings/preview') ? 200000 : 30000,
-    );
+    const timeout = setTimeout(() => controller.abort(), audioUpload || storageUpload ? 120000 : 30000);
     const abort = () => controller.abort();
     response.once('close', abort);
     try {
-      const body = await readBody(request, controller.signal);
+      const body = await readBody(request, controller.signal, limit);
       const token = await accessToken();
       const headers = new Headers({
         Cookie: `CF_Authorization=${token}`,
@@ -200,6 +206,20 @@ export function productionProxy(): Plugin {
       });
       const contentType = request.headers['content-type'];
       if (contentType) headers.set('Content-Type', contentType);
+      if (body) headers.set('Content-Length', String(body.byteLength));
+      if (request.method === 'GET' || request.method === 'HEAD') {
+        for (const name of [
+          'range',
+          'if-range',
+          'if-match',
+          'if-none-match',
+          'if-modified-since',
+          'if-unmodified-since',
+        ]) {
+          const value = request.headers[name];
+          if (typeof value === 'string') headers.set(name, value);
+        }
+      }
       const remote = await fetch(destination, {
         method: request.method,
         headers,
@@ -207,15 +227,28 @@ export function productionProxy(): Plugin {
         redirect: 'manual',
         signal: controller.signal,
       });
-      if (remote.status >= 300 && remote.status < 400) {
+      if (remote.status >= 300 && remote.status < 400 && remote.status !== 304) {
         await remote.body?.cancel();
         throw new ProxyError(401, '线上登录已失效，请重新连接线上工作室');
       }
       response.statusCode = remote.status;
       response.setHeader('Cache-Control', 'no-store');
       response.setHeader('X-Content-Type-Options', 'nosniff');
-      const type = remote.headers.get('content-type');
-      if (type) response.setHeader('Content-Type', type);
+      for (const name of [
+        'content-type',
+        'content-range',
+        'accept-ranges',
+        'etag',
+        'last-modified',
+        'content-disposition',
+      ]) {
+        const value = remote.headers.get(name);
+        if (value) response.setHeader(name, value);
+      }
+      if (!remote.headers.has('content-encoding')) {
+        const length = remote.headers.get('content-length');
+        if (length) response.setHeader('Content-Length', length);
+      }
       if (remote.body) await pipeline(Readable.fromWeb(remote.body as ReadableStream), response);
       else response.end();
     } catch (error) {

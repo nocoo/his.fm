@@ -3,12 +3,6 @@ import { defineConfig } from 'vitest/config';
 process.env.MINIFLARE_CACHE_DIR = '.cloudflare/cache';
 
 export default defineConfig({
-  resolve: {
-    alias: {
-      'cloudflare:workers': new URL('./tests/worker/runtime.ts', import.meta.url).pathname,
-      'cloudflare:workflows': new URL('./tests/worker/runtime.ts', import.meta.url).pathname,
-    },
-  },
   define: { __BUILD_REVISION__: JSON.stringify('test-revision') },
   cacheDir: 'coverage/.vite',
   test: {
@@ -23,11 +17,10 @@ export default defineConfig({
       include: [
         'src/shared/**/*.ts',
         'src/admin/environment.ts',
-        'src/admin/agent/presentation.ts',
         'scripts/production-proxy.ts',
-        'scripts/agent-production-proxy.ts',
         'worker/**/*.ts',
         'src/**/model.ts',
+        'src/**/*.model.ts',
         'src/**/models/**/*.ts',
         'src/**/service.ts',
         'src/**/services/**/*.ts',

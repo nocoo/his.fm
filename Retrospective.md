@@ -353,3 +353,65 @@ Inspect the actual shell screenshot, not just viewport dimensions. Combine relat
 metadata and assert that the desktop action column stays inside its scroll container.
 Portaled forms also need the same application spacing tokens as the island; keep
 those tokens on the admin document root instead of only on the shell wrapper.
+
+## 2026-10-16: Retire execution without reviving invalid authority
+
+The first retirement SQL filtered JSON values without preserving all invalid grant
+states. Shape hardening retained non-text elements, but independent review then
+found duplicate retired grants could disappear and turn a previously rejected
+token into a valid one. Migration 0015 now preserves the old array-size and
+uniqueness rejection boundaries as well as JSON types. The regression includes
+object/null/nested values, duplicate retired grants, oversized arrays and all 40
+formerly valid scopes. Permission migrations must preserve rejection, not merely
+remove obsolete strings. Invalid-token metadata also uses JSON serialization,
+not object String coercion that can throw and disable the cleanup list.
+
+Local migration had already run after a stopped-server state backup when these
+edge cases were found. A read-only audit of that backup found one token and zero
+malformed shapes, non-text elements, duplicate grants or oversized arrays, so no
+local token restoration was needed. Production was not touched. The fresh-import
+script also still wrote the retired job field after migration; remove obsolete
+writers together with schemas, not only existing stored fields. Future deployment
+must coordinate the destructive migration with Worker cutover and a restorable
+backup; deploying an old Worker alone is not a database rollback.
+
+## 2026-10-16: Verify real playback and rapid CMS interactions
+
+Native controls did not establish working seeking: Chrome needed a real seekable
+byte range, not merely known duration. Public and private media now share range
+streaming, and custom-player browser checks assert forward/backward drag,
+keyboard, real touch and cancellation. The exact reported image-drag symptom was
+not reproduced by the initial native-control diagnostic; it should not be claimed
+as independently proven. The replacement prevents artwork dragging explicitly.
+
+Native volume/rate change events arrive asynchronously. Rapid mute/unmute then a
+keyboard volume change exposed stale controlled state. Update user-initiated
+control state synchronously while retaining native-event synchronization, and
+keep the rapid sequence as a regression rather than adding test waits.
+
+The new library initially sorted differently formatted ISO timestamps as strings
+and lost a just-selected layout when another filter ran before deferred router
+rendering. Compare parsed instants and compose query changes from current browser
+history. Old sidebar CSS also owned shell geometry; remove the obsolete wrapper
+and retain the actual Basalt layout, rather than preserving a hidden retired-style
+dependency. Browser acceptance checks actual rendered geometry and rapid actions.
+
+Vite's stale optimizer returned 504 after new granular controls were imported.
+Verify installed exports, then restart the existing owned server after backing up
+and testing pending migrations; do not replace supported controls to mask a dev
+cache problem. Synthetic incomplete HTTP uploads also need a closed test
+connection before its reuse, otherwise the next request is consumed as the
+previous declared body. Local backup inspection uses the installed modern SQLite
+runtime; the system Python's older SQLite and tarfile APIs were not assumed after
+their first incompatible calls. A verification wrapper also attempted to assign
+zsh's read-only `status`; rerun it with exit-preserving `&&` rather than confusing
+a shell wrapper failure with the check's result. None of these diagnostics requires
+credentials, private configuration, production requests or starting an extra server.
+
+Removing the native workspace changed dependency hoisting: Node declarations now
+live under the web workspace, so the reduced gate fixture could not typecheck
+while the real workspaces passed. Point the isolated fixture's type roots at the
+installed declarations, including Vite's explicit client entry outside `@types`.
+Keep complete failed-check output instead of truncating away the diagnostic.
+Reuse real dependencies without mutating their shared directories, weakening
+compiler settings or treating a failed healthy control as rejection evidence.

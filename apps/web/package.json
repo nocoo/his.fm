@@ -22,7 +22,6 @@
     "@codemirror/search": "6.7.2",
     "@codemirror/state": "6.7.6",
     "@codemirror/view": "6.43.14",
-    "@frogie/core": "file:../../vendor/frogie-core-0.5.0.tgz",
     "@his-fm/contracts": "*",
     "@lezer/highlight": "1.2.5",
     "@nocoo/basalt": "2.2.0",
@@ -42,14 +41,12 @@
     "@types/node": "26.6.5",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
-    "@types/ws": "8.18.2",
     "@vitejs/plugin-react": "6.1.2",
     "@vitest/coverage-v8": "5.0.4",
     "cf": "1.0.0-beta.12",
     "miniflare": "5.20261006.1-alpha",
     "typescript": "7.0.2",
     "vite": "8.3.4",
-    "vitest": "5.0.4",
-    "ws": "8.22.0"
+    "vitest": "5.0.4"
   }
 }

@@ -1,11 +1,9 @@
 export const AUDIO_SAMPLE_RATE = 24_000;
 
 export class AudioError extends Error {
-  readonly retryable: boolean;
-  constructor(message: string, retryable = false) {
+  constructor(message: string) {
     super(message);
     this.name = 'AudioError';
-    this.retryable = retryable;
   }
 }
 
@@ -20,31 +18,6 @@ export type WavInfo = {
 };
 
 export type StoredWav = WavInfo & { key: string; etag: string; size: number };
-
-export function chunkTranscript(transcript: string, maximum = 420): string[] {
-  if (!transcript.trim()) throw new AudioError('逐字稿不能为空');
-  if (!Number.isInteger(maximum) || maximum < 1 || maximum > 420) {
-    throw new AudioError('语音分段长度必须在 1 到 420 字符之间');
-  }
-  const characters = Array.from(transcript);
-  const chunks: string[] = [];
-  let offset = 0;
-  while (offset < characters.length) {
-    let end = Math.min(offset + maximum, characters.length);
-    if (end < characters.length) {
-      const minimum = offset + Math.floor(maximum / 2);
-      for (let index = end - 1; index >= minimum; index--) {
-        if (/[。！？.!?\n]/.test(characters[index] ?? '')) {
-          end = index + 1;
-          break;
-        }
-      }
-    }
-    chunks.push(characters.slice(offset, end).join(''));
-    offset = end;
-  }
-  return chunks;
-}
 
 export function parseWav(bytes: Uint8Array, fileSize = bytes.byteLength): WavInfo {
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);

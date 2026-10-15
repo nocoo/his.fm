@@ -1,28 +1,22 @@
-# 文档目录
+# Documentation
 
-## 待评审设计
+## Product
 
-- **[先看整套 Agent 架构图（Archify）](agent-architecture/index.html)** — 浏览器／Cloudflare／本机三边界、12 个组件、5 个聚焦视图；[图源与校验证据](agent-architecture/README.md)。
+- [Architecture](architecture.md): public/private boundaries, content records and storage.
+- [Production](production.md): cover-first library, editing, approval and publication.
+- [Audio](audio.md): external recording uploads and custom playback.
+- [Prompts](prompts.md): private editorial, workflow and narration instructions.
+- [Categories](categories.md): metadata, private guidance and versioned changes.
+- [Markdown editing](markdown-editing.md): draft retention, safe preview and clipboard formats.
+- [Appearance](appearance.md): public themes, immutable originals and branded exports.
+- [Design research](design/README.md): visual research and provenance.
 
-- [01 · 核心 Agent 工作流](01-agent-workflow.md) — Pi Durable、本机 Jev、长期／短期 conversation、网站集成与恢复契约；尚未实施。
-- [02 · 页面上下文与主控 API 重构](02-page-context-api.md) — 默认后台理解页面／草稿／正式内容，无启用暂停或感知提示；命令快照、选区定位、双向修改与完整接口契约。
-- [03 · 常驻双向实时连接](03-realtime-agent-link.md) — 参考 Eagle 的传输生命周期；仅结构化上下文，不含屏幕采集。
-- [工作室协同原型与交互架构图](01-agent-workflow/index.html) — 左侧可编辑并 Save，右侧与主控聊天；可演练实时更新／冲突并导出 Markdown 评审意见。
+## API and operations
 
-## 当前产品与工程
+- [API onboarding](api-onboarding.md): external-client starting point, served at `/api/agent/instructions`.
+- [API reference](agent-api.md): route families and business contracts.
+- [Scope model](scoped-api.md): explicit grants, delegation and response projections.
+- [Operations](operations.md): local setup, safe storage management and release boundaries.
+- [CI/CD](ci-cd.md): quality gates and exact-revision release deployment.
 
-- [Native agent implementation and local operation](agent-implementation.md) — executable status, local acceptance and explicit limits.
-- [Frogie integration](frogie-integration.md) — definition ownership, compiled package delivery, native Host adapter and execution-state boundaries.
-- [Local agent development and debugging](local-agent-debug.md) — shared startup, read-only SQLite diagnostics and loopback inspection.
-
-- [系统架构](architecture.md)
-- [播客生产流程](production.md)
-- [Agent API](agent-api.md)
-- [本机 Agent 接入](native-agent.md) — 本机运行、显式站点绑定、实时协议和权限边界。
-- [栏目管理](categories.md) — 栏目名称、图标、颜色、私有 Markdown 提示词与逐字稿注入顺序。
-- [音频生产](audio.md)
-- [Markdown 编辑](markdown-editing.md)
-- [外观与素材](appearance.md)
-- [设计研究](design/README.md)
-- [本地与生产运维](operations.md)
-- [CI/CD](ci-cd.md)
+The website manages podcast content. Content generation happens externally; it has no embedded agent, task transport or provider execution service. Historical release and retrospective records describe their original revisions, not the current contract.

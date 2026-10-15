@@ -1,4 +1,4 @@
-import { bindings, defineConfig, exports } from 'cf/config';
+import { bindings, defineConfig } from 'cf/config';
 
 process.env.MINIFLARE_CACHE_DIR = '.cloudflare/cache';
 
@@ -19,9 +19,6 @@ export default defineConfig(({ mode }) => {
         notFoundHandling: 'single-page-application',
         runWorkerFirst: ['/api/*', '/.well-known/api-catalog', '/llms.txt', '/admin', '/admin/*', '/media/*'],
       },
-      exports: {
-        AgentHub: exports.durableObject({ storage: 'sqlite' }),
-      },
       env: {
         ENVIRONMENT: bindings.text<string>(local ? 'local' : 'production'),
         MEDIA_BASE_URL: bindings.text<string>(local ? '/media' : 'https://f.no.mt'),
@@ -30,7 +27,6 @@ export default defineConfig(({ mode }) => {
           id: local ? '00000000-0000-4000-8000-000000007056' : '66f7e201-22a8-450d-838d-ecbc382afbc6',
         }),
         MEDIA: bindings.r2({ name: 'his-fm' }),
-        AGENT_HUB: bindings.durableObject({ worker: name, exportName: 'AgentHub' }),
         BUILD_INFO: bindings.versionMetadata(),
         ASSETS: bindings.assets(),
       },

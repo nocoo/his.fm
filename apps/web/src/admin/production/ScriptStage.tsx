@@ -1,8 +1,8 @@
 import { Button, Field } from '@nocoo/basalt';
 import { useEffect } from 'react';
 import type { Production } from '../../shared/production';
-import { useAgentField, useDraft } from '../agent/AgentProvider';
-import { DraftConflicts } from '../agent/DraftConflicts';
+import { DraftConflicts } from '../draft/DraftConflicts';
+import { useDraft } from '../draft/useDraft';
 import { MarkdownEditor } from '../markdown/MarkdownEditor';
 
 export function ScriptStage({
@@ -22,24 +22,12 @@ export function ScriptStage({
 }) {
   const draft = useDraft({ transcript: production.transcript });
   const text = draft.value.transcript;
-  const field = useAgentField(
-    { productionId: production.id, field: 'transcript' },
-    text,
-    production.transcript,
-    (next) => {
-      draft.change('transcript', next);
-      onDirty(true);
-    },
-    pending || draft.conflicts.length > 0,
-  );
   useEffect(() => {
     onDirty(draft.dirty);
   }, [draft.dirty, onDirty]);
   return (
     <div className="studio-stack">
-      <p className="studio-location">
-        本机 Agent 生成 · 在当前浏览器阅读、修改与确认 · 确认后可交给语音 Agent 生成声音
-      </p>
+      <p className="studio-location">保存外部创作的逐字稿，在这里阅读、修改与批准。</p>
       <DraftConflicts fields={draft.conflicts} resolve={draft.resolve} />
       <Field
         label={`逐字稿 · 第 ${production.scriptVersion} 版`}
@@ -52,9 +40,7 @@ export function ScriptStage({
           value={text}
           defaultMode={production.transcript ? 'preview' : 'edit'}
           previewClassName="studio-transcript"
-          onChange={field.onChange}
-          onSelection={field.onSelection}
-          onComposition={field.onComposition}
+          onChange={(next) => draft.change('transcript', next)}
           maxLength={50000}
           disabled={pending}
         />
@@ -75,10 +61,15 @@ export function ScriptStage({
           </Button>
           <Button
             loading={pending}
-            disabled={!text.trim() || !production.approvals.brief || draft.conflicts.length > 0}
+            disabled={
+              !text.trim() ||
+              !production.approvals.brief ||
+              draft.conflicts.length > 0 ||
+              (Boolean(production.approvals.script) && !dirty)
+            }
             onClick={() => void onComplete({ transcript: text })}
           >
-            {production.approvals.script && !dirty ? '继续到成品制作' : '标记逐字稿完成'}
+            {production.approvals.script && !dirty ? '逐字稿已确认' : '标记逐字稿完成'}
           </Button>
         </div>
       </div>

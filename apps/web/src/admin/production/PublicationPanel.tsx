@@ -3,7 +3,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@nocoo/basalt/componen
 import { useEffect, useState } from 'react';
 import { type Production, type Publication, publicationSchema } from '../../shared/production';
 import { formatWechat, formatXiaoyuzhou } from '../../shared/publication-format';
-import { useDraft } from '../agent/AgentProvider';
+import { useDraft } from '../draft/useDraft';
 import { toLocalDateTime } from '../model';
 import { CoverDownload } from './CoverDownload';
 import { Choice, Confirm, CopyButton } from './controls';

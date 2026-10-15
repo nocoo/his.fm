@@ -77,17 +77,21 @@ export function EpisodeEditor() {
     return (
       <div className="admin-page">
         <PageHeader
-          title={episode.title}
+          title={
+            <span className="studio-title-group">
+              <Button variant="ghost" size="icon" asChild>
+                <Link to="/admin" aria-label="返回节目库">
+                  <ArrowLeft size={18} />
+                </Link>
+              </Button>
+              <span>{episode.title}</span>
+            </span>
+          }
           description="这是制作流程同步的已发布快照。请回到制作记录管理内容与发布。"
           actions={
-            <>
-              <Button variant="ghost" asChild>
-                <Link to="/admin/catalog">节目库</Link>
-              </Button>
-              <Button asChild>
-                <Link to={`/admin/productions/${episode.sourceProductionId}`}>打开制作记录</Link>
-              </Button>
-            </>
+            <Button asChild>
+              <Link to={`/admin/productions/${episode.sourceProductionId}`}>打开制作记录</Link>
+            </Button>
           }
         />
         <LayerCard>
@@ -105,15 +109,18 @@ export function EpisodeEditor() {
   return (
     <div className="admin-page">
       <PageHeader
-        title={id ? value.title : '新建节目'}
-        actions={
-          <>
-            <Button variant="ghost" asChild>
-              <Link to="/admin/catalog">
-                <ArrowLeft size={16} />
-                节目库
+        title={
+          <span className="studio-title-group">
+            <Button variant="ghost" size="icon" asChild>
+              <Link to="/admin" aria-label="返回节目库">
+                <ArrowLeft size={18} />
               </Link>
             </Button>
+            <span>{id ? value.title : '直接录入成品'}</span>
+          </span>
+        }
+        actions={
+          <>
             {episode?.status === 'published' && (
               <Button variant="outline" asChild>
                 <Link to={`/episodes/${episode.slug}`} target="_blank">

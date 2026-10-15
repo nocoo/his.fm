@@ -17,7 +17,7 @@ his.fm 是一档面向年轻程序员的中文播客，关注 AI 带来的企业
 - 不把职业与组织压力全归咎于个人心态，不用自律清单增加负担，也不许诺一个工具就能解决现实困境。
 - 用自然的中文口语写单人播讲。少说套话，避免空泛安慰、说教和反复总结；建议必须交代现实成本和可选择的余地。
 
-频道定位的日常维护入口为后台 `/admin/channel`。初始内容来自以上原则，保存后以当前环境数据库中的定位为创作依据；README 保留创办时的编辑约定，不会覆盖后台修改。创作优先级固定为：**频道定位 → 本期中心思想 → 素材资料**。素材服务于问题，事实核查不因表达意图而让步。
+频道定位的日常维护入口为后台 `/admin/channel`。初始内容来自以上原则，保存后以当前环境数据库中的定位为创作依据；README 保留创办时的编辑约定，不会覆盖后台修改。创作优先级固定为：**频道定位 → 栏目提示词 → 本期中心思想 → 素材资料**。素材服务于问题，事实核查不因表达意图而让步。
 
 ## 单集材料
 
@@ -29,13 +29,14 @@ his.fm 是一档面向年轻程序员的中文播客，关注 AI 带来的企业
 
 ## Website
 
-The website is a Cloudflare Worker application built with Vite 8, TypeScript 7.0.2, React 19 and Biome. The public listening room uses original Sunburst artwork, grass greens and restrained violet accents. The editor uses Basalt 2.2.0 and Cloudflare Access.
+his.fm is a podcast content-management site built with React 19, Vite 8, TypeScript 7.0.2 and one Cloudflare Worker. The public listening room keeps the Open Interval identity; the private studio uses Basalt 2.2.0 and Cloudflare Access.
 
-- Public pages: homepage, searchable episode catalogue, episode summaries/transcripts and channel introduction.
-- Studio: source collection, editorial intent, human brief/script/final reviews, AI production, manual WeChat/Xiaoyuzhou publication, voice comparisons and expiring Native Agent API tokens.
-- Local preview: **https://hisfm.dev.hexly.ai**. Run `npm run dev` (the project-pinned `cf` CLI); six preview episodes and the real first-episode draft load into local D1 once, preserving later edits and deletions. The top-right segment switches local admin data between the local Worker and the production Worker, using the editor's Cloudflare Access identity.
-- Production: **https://his.fm**. D1 and R2 are named `his-fm`; media uses **https://f.no.mt**. Published GitHub Releases deploy through pinned `nocoo/base-ci` workflows after exact-revision CI verification.
-- The first episode currently has a complete manuscript. The site explicitly distinguishes written episodes from playable recordings.
+- Public pages: searchable episodes, summaries, transcripts and a custom accessible audio player. A written episode without a recording is never presented as playable.
+- Studio: one cover-first library at `/admin`, grid/list views, metadata and source editing, manuscripts, uploaded artwork/recordings, explicit reviews and publication records. Existing standalone episodes remain editable.
+- Content creation happens outside the website. External agents use explicit scoped REST tokens to read prompts, edit content, upload assets, approve/reopen and record publication when authorized. There is no embedded agent, generation queue or provider configuration.
+- Settings: categories, versioned editorial/workflow/narration prompts, brand appearance, bumpers, storage and token management. Revoked token records can be deleted.
+- Local preview: **https://hisfm.dev.hexly.ai**. `npm run dev` applies local migrations and seeds preview data once, preserving later edits. The Local/Production segment selects the data environment; Production performs real operations using the editor's Access identity.
+- Production: **https://his.fm**, with D1 and R2 named `his-fm` and media at **https://f.no.mt**. Published GitHub Releases deploy only after exact-revision CI verification.
 
 ```sh
 npm ci --registry https://packagefeedproxy.microsoft.io/npm/
@@ -47,49 +48,13 @@ npm run test:e2e
 npm run build
 ```
 
-For the configured local coordinator, use `npm run dev:all` to run the website and agent together, `npm run agent:debug` for read-only runtime diagnostics, and `npm run agent:inspect` for the loopback Node inspector. See [local agent setup and debugging](docs/native-agent.md#local-development-and-debugging) before starting a second runtime.
+Husky checks the staged Git snapshot with coverage, strict lint and typecheck. All four unit coverage floors are 95%; browser tests verify rendered interactions. L1 evidence does not imply full 6DQ certification.
 
-Husky runs coverage, strict lint and typecheck against the staged Git snapshot. All four unit coverage floors are 95%. Pure React views are verified through browser interaction checks. Audit results live in nmem; L1 does not imply full 6DQ certification.
-
-See [production workflow](docs/production.md), [Native Agent API](docs/agent-api.md), [CI/CD](docs/ci-cd.md), [architecture](docs/architecture.md), [operations](docs/operations.md) and [artwork provenance](artwork/README.md). Secrets, generated audio/video and local databases remain ignored.
-
-Design review: start with the [Archify agent architecture map](docs/agent-architecture/index.html) ([source and verification](docs/agent-architecture/README.md)), then [native Pi Durable agent workflow](docs/01-agent-workflow.md), [page-context and API redesign](docs/02-page-context-api.md), [interactive Chinese workspace and architecture review](docs/01-agent-workflow/index.html), and [documentation index](docs/README.md). The walkthrough remains a static design simulation; see [implementation status and local operation](docs/agent-implementation.md) for the working runtime and its remaining boundaries.
+See [production workflow](docs/production.md), [external API](docs/agent-api.md), [audio uploads](docs/audio.md), [architecture](docs/architecture.md), [operations](docs/operations.md), [CI/CD](docs/ci-cd.md) and [artwork provenance](artwork/README.md).
 
 ## Repository layout
 
 - `apps/web`: React website, Cloudflare Worker, migrations and tests (`@his-fm/web`).
-- `packages/agent`: resident coordinator using [Frogie's local Host](docs/frogie-integration.md), with local model/Jev configuration, business tools and durable transport.
-- `packages/contracts`: shared validated browser/agent/server protocol.
-- Root `package.json` and `package-lock.json`: one release version and one npm workspace dependency graph. Root commands delegate to the web workspace.
-- `artwork`, `episodes`, `docs` and repository-level `scripts` stay at root. Local Worker secrets live in `apps/web/.dev.vars`; persistent state lives in `apps/web/.cloudflare/state`.
-
-## Voice comparison
-
-The initial voice comparison is a single-speaker Mandarin launch announcement. It predates the editorial direction above and is retained as an audio test, not as the current channel description.
-
-Listen at `/admin/voices`: Charon/George, Aoede/Sarah and Orus/Liam are grouped by delivery description, with Gemini left and ElevenLabs right. Each pair uses the same Mandarin script and fixed comparison style, independent of studio defaults. Verified Gemini references are paired with newly generated native ElevenLabs samples; the original six Gemini samples remain in a collapsed history section. Choosing a voice updates the native user configuration while preserving the speaking direction.
-
-Settings are separated into Brand Appearance, AI Settings, Connections, Narration and Bumpers. Gemini `gemini-3.8-flash-tts` and ElevenLabs `eleven_v4` run through a dedicated native speech conversation and local Node script. Provider keys remain in `~/.config/his.fm/config.json`; the website reads presence flags and safe parameters only. See [native audio](docs/audio.md).
-
-Uses `gemini-3.8-flash-tts` through the Gemini Interactions REST API. Google announced Gemini 3.8 Flash TTS and Flash-Lite TTS on September 23, 2026.
-
-## Archived comparison script
-
-Requires Python 3. No third-party packages.
-
-Set `GEMINI_API_KEY` in the environment or in the ignored local `.env` file, then run:
-
-```sh
-python3 scripts/voice-comparison/generate.py Kore Zephyr Puck Charon Aoede Orus
-```
-
-Every voice reads the same `scripts/voice-comparison/script.txt` with the same delivery direction, targeting approximately 20 seconds. Duration varies naturally by voice; output is not truncated or time-stretched. WAV files and request metadata are written to the ignored `output/` directory. Existing files for the selected voices are overwritten.
-
-The curated voice descriptions are Kore (firm), Zephyr (bright), Puck (upbeat), Charon (informative), Aoede (breezy), and Orus (firm). These describe the voices, not separate performance prompts.
-
-## Sources
-
-- [Google announcement](https://blog.google/innovation-and-ai/models-and-research/gemini-models/gemini-3-8-text-to-speech/)
-- [Speech generation documentation](https://ai.google.dev/gemini-api/docs/speech-generation)
-
-The API key and generated audio are excluded from Git. Never put credentials in source files or request metadata.
+- `packages/contracts`: shared scope, prompt and WAV validation; no runtime or model execution.
+- Root `package.json` and `package-lock.json`: one release version and one workspace dependency graph.
+- `artwork`, `episodes`, `docs` and repository automation stay at root. Secrets, generated audio/video, screenshots and local state stay ignored.

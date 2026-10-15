@@ -13,6 +13,7 @@ import { PageHeader } from '@nocoo/basalt/components/page-header';
 import { TagBadge } from '@nocoo/basalt/components/tag-badge';
 import { AudioLines, File, Image as ImageIcon, Play, RefreshCw, Trash2, Video } from 'lucide-react';
 import { useState } from 'react';
+import { AudioPlayer } from '../../components/AudioPlayer';
 import { formatBytes, type StorageObject, storageKindLabels, storageKinds } from '../../shared/storage';
 import { getEnvironment } from '../environment';
 import { Choice, Confirm, CopyButton, Failure } from '../production/controls';
@@ -39,16 +40,7 @@ function Preview({ object, close }: { object: StorageObject; close: () => void }
         <DialogTitle>资源预览</DialogTitle>
         <DialogDescription className="studio-wrap">{object.key}</DialogDescription>
         {raster && <img src={url} alt={object.key} onError={() => setFailed(true)} />}
-        {object.kind === 'audio' && (
-          // biome-ignore lint/a11y/useMediaCaption: This owner-only preview inspects raw assets without caption tracks.
-          <audio
-            controls
-            preload="metadata"
-            src={url}
-            onError={() => setFailed(true)}
-            aria-label="音频预览"
-          />
-        )}
+        {object.kind === 'audio' && <AudioPlayer src={url} title={object.key} compact />}
         {object.kind === 'video' && (
           // biome-ignore lint/a11y/useMediaCaption: This owner-only preview inspects raw assets without caption tracks.
           <video

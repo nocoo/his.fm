@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { chunkTranscript, parseWav, wavHeader } from './wav.ts';
+import { parseWav, wavHeader } from './wav.ts';
 
 const goldenHeader =
   '524946462c00000057415645666d74201000000001000100c05d000080bb0000020010006461746108000000';
@@ -23,25 +23,6 @@ function edited(offset: number, value: number, width = 2) {
   else view.setUint16(offset, value, true);
   return bytes;
 }
-
-describe('exact transcript segmentation', () => {
-  it('preserves every code point and prefers sentence boundaries', () => {
-    const text = `${'今晚先聊一件小事。\n给自己留一点时间！'.repeat(100)}🌱`;
-    const chunks = chunkTranscript(text);
-    expect(chunks.join('')).toBe(text);
-    expect(chunks.every((chunk) => Array.from(chunk).length <= 420)).toBe(true);
-    expect(chunks[0].at(-1)).toMatch(/[。！\n]/);
-    expect(chunkTranscript('甲'.repeat(421)).map((chunk) => chunk.length)).toEqual([420, 1]);
-    expect(chunkTranscript('🌱🌱🌱', 2)).toEqual(['🌱🌱', '🌱']);
-  });
-
-  it('rejects empty scripts and invalid chunk limits', () => {
-    expect(() => chunkTranscript(' \n ')).toThrow('不能为空');
-    for (const maximum of [0, -1, 0.5, 421, Number.NaN]) {
-      expect(() => chunkTranscript('text', maximum)).toThrow('长度');
-    }
-  });
-});
 
 describe('bounded PCM WAV parsing', () => {
   it('reads a standard WAV and creates the expected RIFF header', () => {

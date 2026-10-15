@@ -24,12 +24,12 @@ The deploy job uses base-ci `deploy-worker.yml`, which proves the release source
 
 1. resolves the tag to its exact commit and requires a successful CI run (`.github/workflows/ci.yml`, name `CI`, branch `main`) on that same SHA — `workflow_dispatch`-triggered CI runs also count as evidence;
 2. requires the tag `vX.Y.Z` to equal `package.json` version at that commit (`package-version-match`);
-3. installs and rebuilds from the proven repository root with the single workspace lockfile, then invokes `scripts/deploy.mjs` through `deploy-script`; the script verifies the exact local cf version from `apps/web/package.json` and runs the web workspace deploy command (schema-only D1 migrations by production UUID, then `cf deploy --prebuilt --mode production`; seeding never runs in CI/CD);
+3. installs and rebuilds from the proven repository root with the single workspace lockfile, then invokes `scripts/deploy.mjs` through `deploy-script`; the script verifies the exact local cf version from `apps/web/package.json` and runs the web workspace deploy command (versioned D1 migrations by production UUID, then `cf deploy --prebuilt --mode production`; seeding never runs in CI/CD);
 4. verifies production through `node scripts/ci-verify-live.mjs`, which compares `/api/live` `status`, `service`, `version` and `revision` against `package.json` and the proven commit (`__BUILD_REVISION__` is injected at build time).
 
 Production deploys hold a non-cancelling lock (`deploy-worker-production`) on the `production` GitHub environment.
 
-The locked `cf` CLI (`1.0.0-beta.12`) and Cloudflare Vite plugin (`2.0.0-beta.sha-52b0dc0e9`) produce `apps/web/.cloudflare/output/v0`. Prebuilt deployment must use its recorded `production` mode. The shared workflow's script path avoids requiring a second lockfile inside `apps/web`. `scripts/deploy.mjs` retains exact CLI version verification before calling the web workspace; shared D1 migration steps are disabled because migrations must execute inside that workspace. The CLI comes from the hoisted root installation, resolved through package metadata rather than a hard-coded `node_modules` path. No Wrangler installation is needed, directly or transitively. Coverage artifacts come from `apps/web/coverage`, `packages/agent/coverage` and `packages/contracts/coverage`; root typecheck and test commands include every workspace, each with enforced 95% floors; root `package.json` remains the release-version authority.
+The locked `cf` CLI (`1.0.0-beta.12`) and Cloudflare Vite plugin (`2.0.0-beta.sha-52b0dc0e9`) produce `apps/web/.cloudflare/output/v0`. Prebuilt deployment must use its recorded `production` mode. The shared workflow's script path avoids requiring a second lockfile inside `apps/web`. `scripts/deploy.mjs` retains exact CLI version verification before calling the web workspace; shared D1 migration steps are disabled because migrations must execute inside that workspace. The CLI comes from the hoisted root installation, resolved through package metadata rather than a hard-coded `node_modules` path. No Wrangler installation is needed, directly or transitively. Coverage artifacts come from `apps/web/coverage` and `packages/contracts/coverage`; root typecheck and test commands include every workspace, each with enforced 95% floors; root `package.json` remains the release-version authority.
 
 Release procedure follows `system0-github-versioning`: bump `package.json`, maintain `CHANGELOG.md`, commit, push, tag `vX.Y.Z`, publish the GitHub Release with the changelog as What's New. Publishing the Release triggers this workflow; CI must have passed on the tagged commit first.
 
@@ -37,10 +37,10 @@ Release procedure follows `system0-github-versioning`: bump `package.json`, main
 
 Stored as repository Actions secrets and explicitly passed to the reusable deployment workflow. The deploy job targets the `production` environment; environment secrets with the same name would override repository values. Quality jobs receive no deployment secrets:
 
-- `CLOUDFLARE_API_TOKEN` — Cloudflare API token. Minimum scopes: Workers Scripts (Edit), D1 (Edit), Workers Routes (Edit, for the `his.fm` custom domain). Native TTS no longer uses a Workflows binding.
+- `CLOUDFLARE_API_TOKEN` — Cloudflare API token. Minimum scopes: Workers Scripts (Edit), D1 (Edit), Workers Routes (Edit, for the `his.fm` custom domain).
 - `CLOUDFLARE_ACCOUNT_ID` — the Cloudflare account ID.
 
-Gemini and ElevenLabs keys live only in the native user's private config. The Worker has no TTS provider secret; CI/CD never reads or deploys these keys. Removing an old remotely stored secret is a separate authorized operational action, not part of this local code change.
+The website accepts no provider credentials and performs no generation. CI/CD has no model-provider secrets. Removing any historically configured remote secret or resource remains a separate authorized operational action.
 
 ## Local verification
 

@@ -51,7 +51,6 @@ const production = {
   summary: description.split('## 发表摘要\n')[1].split('\n## ')[0].trim(),
   assets: { cover: null, audio: null },
   approvals: { brief: null, script: null, final: null },
-  audioJob: null,
   publications: [],
   events: [
     {

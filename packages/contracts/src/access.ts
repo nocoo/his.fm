@@ -21,10 +21,6 @@ export const scopes = [
   'prompts:write',
   'appearance:read',
   'appearance:write',
-  'settings:read',
-  'settings:write',
-  'credentials:write',
-  'audio:generate',
   'bumpers:read',
   'bumpers:write',
   'bumpers:delete',
@@ -35,12 +31,6 @@ export const scopes = [
   'tokens:issue',
   'tokens:revoke',
   'tokens:delete',
-  'tasks:read',
-  'tasks:submit',
-  'tasks:cancel',
-  'tasks:manage',
-  'runtime:connect',
-  'runtime:manage',
 ] as const;
 export const scopeSchema = z.enum(scopes);
 export type Scope = z.infer<typeof scopeSchema>;
@@ -62,14 +52,5 @@ export function hasScope(actor: Principal, scope: Scope): boolean {
 export const scopePresets = {
   reader: ['productions:read', 'publications:read', 'episodes:read', 'categories:read', 'prompts:read'],
   editor: ['productions:read', 'productions:write', 'productions:submit', 'categories:read', 'prompts:read'],
-  coordinator: [
-    'productions:read',
-    'productions:write',
-    'productions:submit',
-    'categories:read',
-    'prompts:read',
-    'audio:generate',
-    'runtime:connect',
-  ],
   owner: [...scopes],
 } satisfies Record<string, Scope[]>;

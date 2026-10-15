@@ -1,4 +1,3 @@
-import { defaultPrompts } from '@frogie/core/hisfm/prompts';
 import { describe, expect, it } from 'vitest';
 import {
   type Actor,
@@ -10,6 +9,7 @@ import {
 import { applyAction, applyPatch, editAssets, requireFinalAssets } from '../../worker/production-model';
 import { productionPrompts } from '../../worker/production-prompts';
 import { appendEvent, mediaUrl, nextVersion } from '../../worker/production-store';
+import { defaultPrompts } from '../../worker/prompt-defaults';
 import { agent, fixture, fullAgent, human, readyFixture } from './production-fixture';
 
 describe('production approvals and revision state machine', () => {
@@ -180,7 +180,6 @@ describe('production approvals and revision state machine', () => {
       description: ready.description,
       summary: ready.summary,
       assets: ready.assets,
-      audioJob: null,
       approvals: { script: null, final: null },
     });
     expect(script.approvals.brief).toEqual(ready.approvals.brief);
@@ -239,7 +238,6 @@ describe('production approvals and revision state machine', () => {
       transcript: ready.transcript,
       assets: ready.assets,
       approvals: { brief: null, script: null, final: null },
-      audioJob: null,
     });
     const scriptEdit = applyPatch(ready, { transcript: '修改后的稿子' }, human);
     expect(scriptEdit).toMatchObject({
@@ -284,29 +282,20 @@ describe('production approvals and revision state machine', () => {
       { ...ready, assets: { ...ready.assets, cover: null } },
       { ...ready, assets: { ...ready.assets, audio: null } },
       { ...ready, scriptVersion: 2 },
-      { ...ready, audioJob: null },
-      {
-        ...ready,
-        audioJob: { id: 'job', status: 'running' as const, scriptVersion: 1, createdAt: '', error: null },
-      },
-      {
-        ...ready,
-        audioJob: { id: 'job', status: 'complete' as const, scriptVersion: 2, createdAt: '', error: null },
-      },
       { ...ready, assets: { ...ready.assets, audio: { ...audio, durationSeconds: 0 } } },
     ])
       expect(() => requireFinalAssets(invalid)).toThrow();
     requireFinalAssets({
       ...ready,
       assets: { ...ready.assets, audio: { ...audio, source: 'upload' } },
-      audioJob: null,
     });
-    expect(() =>
-      requireFinalAssets({
-        ...ready,
-        assets: { ...ready.assets, audio: { ...audio, source: 'upload' } },
-      }),
-    ).toThrow('制作完成');
+    for (const durationSeconds of [undefined, -1, Number.NaN, Number.POSITIVE_INFINITY, 1801])
+      expect(() =>
+        requireFinalAssets({
+          ...ready,
+          assets: { ...ready.assets, audio: { ...audio, durationSeconds } },
+        }),
+      ).toThrow('有效');
   });
 });
 
@@ -362,7 +351,7 @@ describe('audit and production prompts', () => {
     expect(prompts.cover).toContain('上传未加框的栅格原图');
     expect(prompts.cover).toContain('只在所有者下载成品时');
     expect(prompts.cover).not.toContain('scripts/frame-cover.py');
-    expect(prompts.cover).toContain('gpt-image-2.5-sunburst');
+    expect(prompts.cover).toContain('外部图像工具');
     expect(prompts.description).toContain('人工批准');
   });
 

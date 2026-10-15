@@ -2,8 +2,6 @@ import type { Principal, Scope } from '@his-fm/contracts';
 import { z } from 'zod';
 import { categoryIdSchema } from './category';
 
-export { voices } from './voices';
-
 export const productionStages = [
   'draft',
   'brief_review',
@@ -98,13 +96,6 @@ export type ProductionAsset = {
   voice?: string;
   includesBumpers?: boolean;
 };
-export type AudioJob = {
-  id: string;
-  status: 'queued' | 'running' | 'complete' | 'failed';
-  scriptVersion: number;
-  createdAt: string;
-  error: string | null;
-};
 export type Publication = {
   platform: 'wechat' | 'xiaoyuzhou';
   url: string;
@@ -113,7 +104,13 @@ export type Publication = {
   confirmedBy: string;
   version: number;
 };
-export type ProductionEvent = { id: string; at: string; actor: Actor; action: string; feedback: string };
+export type ProductionEvent = {
+  id: string;
+  at: string;
+  actor: Omit<Actor, 'scopes'> & { scopes?: string[] };
+  action: string;
+  feedback: string;
+};
 export type Production = ProductionBrief & {
   id: string;
   version: number;
@@ -124,7 +121,6 @@ export type Production = ProductionBrief & {
   summary: string;
   assets: { cover: ProductionAsset | null; audio: ProductionAsset | null };
   approvals: { brief: Approval | null; script: Approval | null; final: Approval | null };
-  audioJob: AudioJob | null;
   publications: Publication[];
   events: ProductionEvent[];
   createdAt: string;
@@ -143,35 +139,7 @@ export const publicationSchema = z.strictObject({
     }),
   publishedAt: z.iso.datetime({ offset: true }).transform((value) => new Date(value).toISOString()),
 });
-export const productionSettingsSchema = z.strictObject({
-  provider: z.enum(['gemini', 'elevenlabs']),
-  voice: z.string().trim().min(1).max(160),
-  speakingStyle: z.string().trim().min(1).max(2000),
-});
-export const audioGenerationSchema = productionSettingsSchema
-  .partial()
-  .extend({
-    version: z.number().int().min(1),
-    introId: z.string().max(160).nullable().default(null),
-    outroId: z.string().max(160).nullable().default(null),
-  })
-  .strict();
-export type AudioGeneration = z.input<typeof audioGenerationSchema>;
-export const audioPreviewSchema = productionSettingsSchema
-  .extend({
-    text: z.string().trim().min(1).max(200),
-  })
-  .strict();
-export type AudioPreviewInput = z.infer<typeof audioPreviewSchema>;
-export type AudioPreview = AudioPreviewInput & { url: string; durationSeconds: number; cached: boolean };
 export type Bumper = { key: string; url: string; durationSeconds: number; size: number };
-export type ProductionSettings = z.infer<typeof productionSettingsSchema> & {
-  version: string;
-  bumpers: BumperRecord[];
-  ttsConfigured: boolean;
-  providers: { gemini: boolean; elevenlabs: boolean };
-  voices: { gemini: string; elevenlabs: string };
-};
 export type BumperRecord = Bumper & {
   id: string;
   name: string;
@@ -187,6 +155,7 @@ export type AgentTokenRecord = {
   lastUsedAt: string | null;
   revokedAt: string | null;
   scopes: Scope[];
+  invalidScopes?: string[];
 };
 export type ProductionPrompts = { brief: string; script: string; cover: string; description: string };
 

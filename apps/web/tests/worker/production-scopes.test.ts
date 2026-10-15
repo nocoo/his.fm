@@ -1,12 +1,10 @@
 import { readFileSync } from 'node:fs';
-import { defaultSpeechSettings, wavHeader } from '@his-fm/contracts';
+import { wavHeader } from '@his-fm/contracts';
 import { Miniflare } from 'miniflare';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Actor, Production } from '../../src/shared/production';
 import { productionCapabilities } from '../../worker/agent-api';
-import { authenticateAgent, routeAgentTokens } from '../../worker/agent-tokens';
-import * as aiSettings from '../../worker/ai-settings';
-import { routeAudio } from '../../worker/audio-routes';
+import { readStoredWav, storeUploadedWav } from '../../worker/audio';
 import { HttpError, json } from '../../worker/http';
 import { publishProduction, routeProductions } from '../../worker/production';
 import { getProduction, projectProduction, saveProduction } from '../../worker/production-store';
@@ -44,11 +42,7 @@ async function call(path: string, method = 'GET', body?: unknown, actor = fullAg
   });
   try {
     const path = new URL(request.url).pathname;
-    return (
-      (await routeAudio(request, bindings, path, actor)) ??
-      (await routeProductions(request, bindings, path, actor)) ??
-      json({}, 404)
-    );
+    return (await routeProductions(request, bindings, path, actor)) ?? json({}, 404);
   } catch (error) {
     if (error instanceof HttpError) return json({ error: error.message }, error.status);
     throw error;
@@ -128,6 +122,8 @@ beforeAll(async () => {
     '0011_prompts.sql',
     '0012_token_scopes.sql',
     '0013_resource_versions.sql',
+    '0014_token_deletion.sql',
+    '0015_retire_native_runtime.sql',
   ]) {
     const sql = readFileSync(new URL(`../../migrations/${file}`, import.meta.url), 'utf8');
     await env.DB.batch(
@@ -141,7 +137,7 @@ beforeAll(async () => {
 
 beforeEach(async () => {
   await env.DB.batch(
-    ['speech_jobs', 'agent_commands', 'agent_tokens', 'audio_jobs', 'episodes', 'productions'].map((table) =>
+    ['agent_tokens', 'episodes', 'productions', 'media_provenance'].map((table) =>
       env.DB.prepare(`DELETE FROM ${table}`),
     ),
   );
@@ -189,7 +185,7 @@ describe('production scope enforcement and projections', () => {
       expect(capabilities).toMatchObject({
         editableFields: [],
         canUploadCover: false,
-        canGenerateAudio: false,
+        canUploadAudio: false,
         blockedActions: {
           reopen_brief: 'Missing scope: productions:reopen',
           reopen_script: 'Missing scope: productions:reopen',
@@ -198,7 +194,7 @@ describe('production scope enforcement and projections', () => {
         },
       });
       const reopened = productionCapabilities(production, reopener, origin);
-      expect(reopened).toMatchObject({ canUploadCover: true, canGenerateAudio: true });
+      expect(reopened).toMatchObject({ canUploadCover: true, canUploadAudio: true });
       expect(reopened.editableFields).toEqual(expect.arrayContaining(['category', 'transcript', 'summary']));
       expect(reopened.blockedActions.approve_final).toBe('Missing scope: productions:approve');
       expect(reopened.availableActions).toEqual(
@@ -206,10 +202,10 @@ describe('production scope enforcement and projections', () => {
       );
       if (stage === 'final_review') expect(capabilities.availableActions).toContain('approve_final');
       const editable = productionCapabilities({ ...production, stage: 'production' }, approver, origin);
-      expect(editable).toMatchObject({ canUploadCover: true, canGenerateAudio: true });
+      expect(editable).toMatchObject({ canUploadCover: true, canUploadAudio: true });
       expect(editable.editableFields).toContain('summary');
       expect(editable.editableFields).not.toContain('category');
-      expect(productionCapabilities(production, human, origin).canGenerateAudio).toBe(true);
+      expect(productionCapabilities(production, human, origin).canUploadAudio).toBe(true);
     },
   );
 
@@ -322,7 +318,7 @@ describe('production scope enforcement and projections', () => {
     );
     production = await result(await call(`${path}/assets/cover?version=${production.version}`, 'PUT', png));
     production = await result(await call(`${path}/assets/audio?version=${production.version}`, 'PUT', wav));
-    expect(production.audioJob).toBeNull();
+    expect(production).not.toHaveProperty('audioJob');
     expect(production.assets.audio).toMatchObject({
       source: 'upload',
       size: wav.length,
@@ -496,68 +492,6 @@ describe('manual assets and safe detach', () => {
     },
   );
 
-  it('queues real audio work from a final-approved production only with independent reopen authority', async () => {
-    const production = await insert(readyFixture());
-    const path = `/productions/${production.id}/audio`;
-    const approver: Actor = {
-      ...fullAgent,
-      scopes: fullAgent.scopes?.filter((scope) => scope !== 'productions:reopen'),
-    };
-    const denied = await call(path, 'POST', { version: 1 }, approver);
-    expect(denied.status).toBe(409);
-    expect(await denied.json()).toEqual({ error: '当前阶段生成音频需要 productions:reopen 权限' });
-    expect(await getProduction(env.DB, production.id)).toEqual(production);
-    expect((await env.DB.prepare('SELECT id FROM audio_jobs').all()).results).toEqual([]);
-    const issued = await routeAgentTokens(
-      new Request(`${origin}/admin/api/agent-tokens`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: 'Reopen audio',
-          expiresInDays: 1,
-          scopes: fullAgent.scopes?.filter((scope) => scope !== 'productions:approve'),
-        }),
-      }),
-      env,
-      '/admin/api/agent-tokens',
-      human,
-    );
-    const { token } = (await issued.json()) as { token: string };
-    const reopener = await authenticateAgent(
-      new Request(origin, { headers: { Authorization: `Bearer ${token}` } }),
-      env,
-    );
-    vi.spyOn(aiSettings, 'runtimeConfiguration').mockResolvedValue({
-      version: '0'.repeat(64),
-      settings: defaultSpeechSettings,
-      providers: { gemini: true, elevenlabs: true, raven: true, decision: true },
-      coordinator: { provider: 'raven', model: 'gpt-6-astra', thinkingLevel: 'high' },
-      executor: { provider: 'raven', model: 'gpt-6.1-sol', thinkingLevels: ['low'] },
-      decision: { model: 'jev-latest', maxInputBytes: 16384, maxBatchQuestions: 12 },
-    });
-    const response = await call(path, 'POST', { version: 1 }, reopener);
-    expect(response.status).toBe(202);
-    const changed = await result(response);
-    expect(changed).toMatchObject({
-      stage: 'production',
-      version: 2,
-      scriptVersion: production.scriptVersion,
-      approvals: { brief: production.approvals.brief, script: production.approvals.script, final: null },
-      audioJob: { status: 'queued' },
-      assets: { audio: null },
-    });
-    const job = await env.DB.prepare('SELECT snapshot, status FROM audio_jobs WHERE id = ?')
-      .bind(changed.audioJob?.id)
-      .first<{ snapshot: string; status: string }>();
-    expect(job?.status).toBe('queued');
-    expect(JSON.parse(job?.snapshot ?? '{}').principal).toEqual(reopener);
-    expect(
-      await env.DB.prepare('SELECT status FROM speech_jobs WHERE id = ?')
-        .bind(changed.audioJob?.id)
-        .first('status'),
-    ).toBe('queued');
-  });
-
   it('retains immutable bytes on detach and requires reopening authority after final approval', async () => {
     let production = await insert(readyFixture({ stage: 'production' }));
     const path = `/productions/${production.id}`;
@@ -576,7 +510,6 @@ describe('manual assets and safe detach', () => {
     expect(production).toMatchObject({
       stage: 'production',
       assets: { audio: null },
-      audioJob: null,
       scriptVersion: 1,
       approvals: { final: null },
     });
@@ -586,7 +519,7 @@ describe('manual assets and safe detach', () => {
     expect(production.approvals.script).not.toBeNull();
   });
 
-  it('rejects stale, active, unapproved and invalid audio without fabricating successful jobs', async () => {
+  it('rejects stale, unapproved and invalid audio without generation jobs', async () => {
     let production = await insert(readyFixture({ stage: 'production' }));
     const path = `/productions/${production.id}`;
     expect((await call(`${path}/assets/audio?version=99`, 'PUT', wav)).status).toBe(409);
@@ -594,18 +527,7 @@ describe('manual assets and safe detach', () => {
     expect((await call(`${path}/assets/audio?version=1`, 'PUT', {})).status).toBe(415);
     production = await saveProduction(
       env.DB,
-      {
-        ...production,
-        audioJob: { id: 'job', status: 'running', scriptVersion: 1, createdAt: '', error: null },
-      },
-      production.version,
-    );
-    expect((await call(`${path}/assets/audio?version=${production.version}`, 'PUT', wav)).status).toBe(409);
-    expect((await call(`${path}/assets/audio?version=${production.version}`, 'DELETE')).status).toBe(409);
-    expect((await call(`${path}?version=${production.version}`, 'DELETE')).status).toBe(409);
-    production = await saveProduction(
-      env.DB,
-      { ...production, audioJob: null, approvals: { ...production.approvals, script: null } },
+      { ...production, approvals: { ...production.approvals, script: null } },
       production.version,
     );
     expect((await call(`${path}/assets/audio?version=${production.version}`, 'PUT', wav)).status).toBe(409);
@@ -635,4 +557,51 @@ describe('manual assets and safe detach', () => {
     expect((await call(path, 'PUT', wav)).status).toBe(400);
     expect(await env.MEDIA.head(key)).not.toBeNull();
   });
+});
+
+it('bounds uploaded WAV streams and removes only newly stored invalid audio', async () => {
+  for (const size of ['0', '43', 'invalid', '86465537', '44.5']) {
+    const request = new Request(origin, { method: 'PUT', headers: { 'Content-Length': size }, body: wav });
+    await expect(storeUploadedWav(request, env.MEDIA, `invalid-${size}.wav`, 1800)).rejects.toThrow('大小');
+  }
+  await expect(storeUploadedWav(new Request(origin), env.MEDIA, 'no-body.wav', 1800)).rejects.toThrow('大小');
+  const tooLong = new Request(origin, {
+    method: 'PUT',
+    headers: { 'Content-Length': String(wav.length) },
+    body: wav,
+  });
+  await expect(storeUploadedWav(tooLong, env.MEDIA, 'too-long.wav', 0.000001)).rejects.toThrow('时长');
+  expect(await env.MEDIA.head('too-long.wav')).toBeNull();
+  const trailing = new Uint8Array(wav.length + 2);
+  trailing.set(wav);
+  await expect(
+    storeUploadedWav(
+      new Request(origin, {
+        method: 'PUT',
+        headers: { 'Content-Length': String(trailing.length) },
+        body: trailing,
+      }),
+      env.MEDIA,
+      'trailing.wav',
+      1800,
+    ),
+  ).rejects.toThrow('数据大小');
+  expect(await env.MEDIA.head('trailing.wav')).toBeNull();
+  await expect(readStoredWav(env.MEDIA, 'missing.wav')).rejects.toThrow('不存在');
+  const missingBucket = new Proxy(env.MEDIA, {
+    get(target, property) {
+      return property === 'get' ? async () => null : Reflect.get(target, property);
+    },
+  });
+  await expect(
+    storeUploadedWav(
+      new Request(origin, { method: 'PUT', headers: { 'Content-Length': String(wav.length) }, body: wav }),
+      missingBucket,
+      'disappeared.wav',
+      1800,
+    ),
+  ).rejects.toThrow('不存在');
+  expect(await env.MEDIA.head('disappeared.wav')).toBeNull();
+  const mismatch = new Request(origin, { method: 'PUT', headers: { 'Content-Length': '44' }, body: wav });
+  await expect(storeUploadedWav(mismatch, env.MEDIA, 'mismatch.wav', 1800)).rejects.toThrow('Too many bytes');
 });

@@ -7,8 +7,7 @@ import {
   productionPatchSchema,
   publicationSchema,
 } from '../src/shared/production';
-import { operationFence, operationReceipt } from './agent-runtime-operation';
-import { storeNativeWav } from './audio';
+import { storeUploadedWav } from './audio';
 import { requireScope } from './authorization';
 import { categoryFence, getCategory } from './categories';
 import { getChannel } from './channel';
@@ -79,11 +78,6 @@ async function uploadCover(request: Request, env: Env, id: string, actor: Actor)
   }
 }
 
-function requireIdleAudio(production: Production) {
-  if (production.audioJob && ['queued', 'running'].includes(production.audioJob.status))
-    throw new HttpError(409, '请等待正在制作的音频完成后再修改素材');
-}
-
 async function uploadAudio(request: Request, env: Env, id: string, actor: Actor) {
   requireScope(actor, 'productions:write');
   requireScope(actor, 'storage:write');
@@ -92,15 +86,14 @@ async function uploadAudio(request: Request, env: Env, id: string, actor: Actor)
   if (current.version !== expectedVersion) throw new HttpError(409, '内容已更新，请刷新后重试');
   requireStage(current, 'production', 'final_review', 'ready');
   editAssets(current, actor);
-  requireIdleAudio(current);
   if (!current.approvals.brief || !current.approvals.script || !current.transcript.trim())
     throw new HttpError(409, '请先确认当前逐字稿');
   if (request.headers.get('Content-Type')?.split(';')[0] !== 'audio/wav')
     throw new HttpError(415, '请上传 WAV 音频');
   const key = `productions/${id}/audio-${current.scriptVersion}-${crypto.randomUUID()}.wav`;
-  let stored: Awaited<ReturnType<typeof storeNativeWav>>;
+  let stored: Awaited<ReturnType<typeof storeUploadedWav>>;
   try {
-    stored = await storeNativeWav(request, env.MEDIA, key, 1800);
+    stored = await storeUploadedWav(request, env.MEDIA, key, 1800);
   } catch (error) {
     if (error instanceof AudioError) throw new HttpError(400, error.message);
     throw error;
@@ -113,7 +106,6 @@ async function uploadAudio(request: Request, env: Env, id: string, actor: Actor)
       'upload_audio',
       (production) => ({
         ...editAssets(production, actor),
-        audioJob: null,
         assets: {
           ...production.assets,
           audio: {
@@ -145,11 +137,9 @@ async function detachAsset(request: Request, env: Env, id: string, asset: 'cover
     actor,
     `detach_${asset}`,
     (production) => {
-      if (asset === 'audio') requireIdleAudio(production);
       return {
         ...editAssets(production, actor),
         assets: { ...production.assets, [asset]: null },
-        audioJob: asset === 'audio' ? null : production.audioJob,
       };
     },
     { expectedVersion: versionQuery(request) },
@@ -226,16 +216,12 @@ export async function publishProduction(
       eventId,
     );
   try {
-    const fence = operationFence(db);
     const results = await db.batch([
-      ...fence,
       categoryFence(db, next.category),
       updateStatement(db, next, input.version),
       snapshot,
-      ...operationReceipt(db, next),
     ]);
-    if (results[fence.length + 1]?.meta.changes !== 1)
-      throw new HttpError(409, '内容已更新，请刷新后重新确认发布');
+    if (results[1]?.meta.changes !== 1) throw new HttpError(409, '内容已更新，请刷新后重新确认发布');
   } catch (error) {
     if (error instanceof Error && error.message.includes('UNIQUE constraint failed'))
       throw new HttpError(409, '公开节目存在相同链接名称或记录标识，尚未登记发布');
@@ -281,14 +267,8 @@ async function withdrawPublication(
       next.version,
       next.events.at(-1)?.id,
     );
-  const fence = operationFence(db);
-  const results = await db.batch([
-    ...fence,
-    updateStatement(db, next, version),
-    snapshot,
-    ...operationReceipt(db, next),
-  ]);
-  if (results[fence.length]?.meta.changes !== 1) throw new HttpError(409, '内容已更新，请刷新后重试');
+  const results = await db.batch([updateStatement(db, next, version), snapshot]);
+  if (results[0]?.meta.changes !== 1) throw new HttpError(409, '内容已更新，请刷新后重试');
   return next;
 }
 
@@ -325,7 +305,6 @@ export async function routeProductions(
           summary: '',
           assets: { cover: null, audio: null },
           approvals: { brief: null, script: null, final: null },
-          audioJob: null,
           publications: [],
           events: [],
           createdAt: now,
@@ -337,12 +316,7 @@ export async function routeProductions(
       const insert = env.DB.prepare(
         'INSERT INTO productions (id, version, stage, data, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
       ).bind(production.id, production.version, production.stage, JSON.stringify(production), now, now);
-      await env.DB.batch([
-        ...operationFence(env.DB),
-        categoryFence(env.DB, brief.category),
-        insert,
-        ...operationReceipt(env.DB, production),
-      ]);
+      await env.DB.batch([categoryFence(env.DB, brief.category), insert]);
       return respond(production, 201);
     }
     throw new HttpError(405, '不支持这个请求方式');
@@ -455,7 +429,6 @@ export async function routeProductions(
     requireScope(actor, 'productions:delete');
     const version = versionQuery(request);
     const production = await getProduction(env.DB, id);
-    requireIdleAudio(production);
     if (
       production.publications.length ||
       production.events.some((event) => event.action.includes('publication:'))

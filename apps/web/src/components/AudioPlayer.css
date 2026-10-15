@@ -1,0 +1,273 @@
+.his-audio-player {
+  --player-surface: hsl(var(--basalt-secondary));
+  --player-ink: hsl(var(--basalt-foreground));
+  --player-muted: hsl(var(--basalt-muted-foreground));
+  --player-line: hsl(var(--basalt-border));
+  --player-accent: hsl(var(--basalt-primary));
+  --player-on-accent: hsl(var(--basalt-primary-foreground));
+  --player-track: hsl(var(--basalt-primary));
+  --player-radius: var(--basalt-radius);
+  display: grid;
+  min-width: 0;
+  width: 100%;
+  overflow: hidden;
+  border-radius: var(--player-radius);
+  background: var(--player-surface);
+  color: var(--player-ink);
+  font-family: inherit;
+  text-align: left;
+  box-sizing: border-box;
+  container-type: inline-size;
+}
+.his-audio-player *,
+.his-audio-player *::before,
+.his-audio-player *::after {
+  box-sizing: border-box;
+}
+.his-audio-player audio {
+  display: none;
+}
+.his-audio-player .his-audio-cover {
+  width: 100%;
+  aspect-ratio: 1;
+  overflow: hidden;
+  background: var(--player-line);
+  user-select: none;
+}
+.his-audio-player .his-audio-cover img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-height: none;
+  object-fit: cover;
+  pointer-events: none;
+  -webkit-user-drag: none;
+}
+.his-audio-player .his-audio-body {
+  min-width: 0;
+  padding: clamp(16px, 5cqi, 28px);
+}
+.his-audio-player .his-audio-heading {
+  display: grid;
+  gap: 5px;
+  margin-bottom: 19px;
+  min-width: 0;
+}
+.his-audio-player .his-audio-kicker {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 5px;
+  color: var(--player-muted);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+}
+.his-audio-player .his-audio-title {
+  overflow-wrap: anywhere;
+  font-size: clamp(16px, 4cqi, 21px);
+  font-weight: 500;
+  line-height: 1.5;
+}
+.his-audio-player .his-audio-subtitle {
+  color: var(--player-muted);
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.his-audio-player .his-audio-main {
+  display: flex;
+  align-items: center;
+  gap: 17px;
+}
+.his-audio-player .his-audio-play {
+  position: relative;
+  flex: none;
+  width: 52px;
+  height: 52px;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  color: var(--player-on-accent);
+  background: var(--player-accent);
+  box-shadow: none;
+}
+.his-audio-player .his-audio-play:hover {
+  background: color-mix(in srgb, var(--player-accent) 88%, var(--player-ink));
+}
+.his-audio-player .his-audio-play svg {
+  width: 22px;
+  height: 22px;
+  stroke-width: 1.7;
+}
+.his-audio-player .his-audio-timeline {
+  flex: 1;
+  min-width: 0;
+}
+.his-audio-player .his-audio-seek,
+.his-audio-player .his-audio-volume-slider {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 44px;
+  touch-action: none;
+  cursor: pointer;
+  user-select: none;
+}
+.his-audio-player :is(.his-audio-seek, .his-audio-volume-slider) > span:first-child {
+  height: 4px;
+  overflow: hidden;
+  border-radius: 99px;
+  background: var(--player-line);
+}
+.his-audio-player :is(.his-audio-seek, .his-audio-volume-slider) > span:first-child > span {
+  background: var(--player-track);
+}
+.his-audio-player [role="slider"] {
+  width: 13px;
+  height: 13px;
+  border: 2px solid var(--player-surface);
+  border-radius: 50%;
+  background: var(--player-track);
+  box-shadow: 0 0 0 1px var(--player-track);
+}
+.his-audio-player [data-disabled] {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+.his-audio-player .his-audio-times {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--player-muted);
+  font-size: 11px;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+}
+.his-audio-player .his-audio-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+.his-audio-player .his-audio-volume {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+}
+.his-audio-player .his-audio-volume-slider {
+  width: clamp(45px, 14cqi, 76px);
+}
+.his-audio-player .his-audio-volume-slider [role="slider"] {
+  width: 10px;
+  height: 10px;
+}
+.his-audio-player .his-audio-tool,
+.his-audio-player .his-audio-retry {
+  position: relative;
+  min-width: 44px;
+  height: 44px;
+  padding: 0 9px;
+  color: var(--player-ink);
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: var(--player-radius);
+  background: transparent;
+  box-shadow: none;
+}
+.his-audio-player .his-audio-tool:hover,
+.his-audio-player .his-audio-retry:hover {
+  background: color-mix(in srgb, var(--player-ink) 7%, transparent);
+}
+.his-audio-player .his-audio-tool svg {
+  width: 17px;
+  height: 17px;
+  stroke-width: 1.5;
+}
+.his-audio-player .his-audio-speed {
+  flex: none;
+  font-variant-numeric: tabular-nums;
+}
+.his-audio-player .his-audio-status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  flex: 1;
+  min-width: 0;
+  color: var(--player-muted);
+  font-size: 11px;
+  line-height: 1.5;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+.his-audio-player .his-audio-status svg {
+  flex: none;
+  animation: his-audio-spin 1.4s linear infinite;
+}
+.his-audio-player .his-audio-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--player-line);
+  color: var(--player-ink);
+  font-size: 12px;
+  line-height: 1.6;
+}
+.his-audio-player .his-audio-retry {
+  flex: none;
+  gap: 5px;
+  border-color: var(--player-line);
+}
+.his-audio-player :is(button, [role="slider"]):focus-visible {
+  outline: 2px solid var(--player-track);
+  outline-offset: 4px;
+  box-shadow: none;
+}
+.his-audio-player.is-compact .his-audio-cover {
+  display: none;
+}
+.his-audio-player.is-compact .his-audio-body {
+  padding: 12px 16px 8px;
+}
+.his-audio-player.is-compact .his-audio-heading {
+  gap: 2px;
+  margin-bottom: 7px;
+}
+.his-audio-player.is-compact .his-audio-kicker {
+  display: none;
+}
+.his-audio-player.is-compact .his-audio-title {
+  font-size: 13px;
+}
+.his-audio-player.is-compact .his-audio-play {
+  width: 44px;
+  height: 44px;
+}
+.his-audio-player.is-compact .his-audio-toolbar {
+  margin-top: 0;
+}
+@keyframes his-audio-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .his-audio-player .his-audio-status svg {
+    animation: none;
+  }
+}
+@container (max-width: 300px) {
+  .his-audio-player .his-audio-main {
+    gap: 12px;
+  }
+  .his-audio-player .his-audio-status {
+    font-size: 11px;
+  }
+}

@@ -2,6 +2,7 @@ import { Button, Field, Input, LayerCard, toast } from '@nocoo/basalt';
 import { FileDropzone } from '@nocoo/basalt/components/file-dropzone';
 import { PageHeader } from '@nocoo/basalt/components/page-header';
 import { useEffect, useState } from 'react';
+import { AudioPlayer } from '../../components/AudioPlayer';
 import type { BumperRecord } from '../../shared/production';
 import { errorMessage } from '../model';
 import { request } from '../service';
@@ -103,9 +104,7 @@ export function BumpersPage() {
                 {item.position === 'intro' ? '片头' : '片尾'} · {item.durationSeconds.toFixed(1)} 秒
               </span>
             </div>
-            <audio controls preload="none" src={item.url} aria-label={item.name}>
-              <track kind="captions" />
-            </audio>
+            <AudioPlayer src={item.url} title={item.name} preload="none" compact />
           </LayerCard>
         ))}
       </div>

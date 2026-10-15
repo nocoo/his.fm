@@ -6,12 +6,13 @@ import { listCategories } from './categories';
 import { getEpisode, listEpisodes } from './episodes';
 import { HttpError, json, requireSameOrigin } from './http';
 import { routeManagement } from './management';
+import { streamMedia } from './media';
 
 async function media(request: Request, env: Env) {
   if (request.method !== 'GET' && request.method !== 'HEAD') throw new HttpError(405, '不支持这个请求方式');
   const key = new URL(request.url).pathname.slice('/media/'.length);
   if (!key || key.includes('..') || !/^[a-zA-Z0-9/_.-]+$/.test(key)) throw new HttpError(404, '媒体不存在');
-  const object = await env.MEDIA.get(key, { onlyIf: request.headers });
+  const object = await env.MEDIA.head(key);
   if (!object) throw new HttpError(404, '媒体不存在');
   const headers = new Headers();
   object.writeHttpMetadata(headers);
@@ -19,8 +20,7 @@ async function media(request: Request, env: Env) {
   headers.set('Cache-Control', 'public, max-age=3600');
   headers.set('X-Content-Type-Options', 'nosniff');
   headers.set('Content-Security-Policy', "default-src 'none'; sandbox");
-  if (!('body' in object)) return new Response(null, { status: 304, headers });
-  return new Response(request.method === 'HEAD' ? null : object.body, { headers });
+  return streamMedia(request, env.MEDIA, object, headers);
 }
 
 async function route(request: Request, env: Env): Promise<Response> {

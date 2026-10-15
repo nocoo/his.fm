@@ -1,22 +1,20 @@
 import { Button, Field, LayerCard } from '@nocoo/basalt';
 import { FileDropzone } from '@nocoo/basalt/components/file-dropzone';
 import { InputArea } from '@nocoo/basalt/components/input-area';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@nocoo/basalt/components/tabs';
 import { useEffect, useState } from 'react';
+import { AudioPlayer } from '../../components/AudioPlayer';
 import type { Production } from '../../shared/production';
-import { useAgent, useAgentField, useDraft } from '../agent/AgentProvider';
-import { DraftConflicts } from '../agent/DraftConflicts';
+import { DraftConflicts } from '../draft/DraftConflicts';
+import { useDraft } from '../draft/useDraft';
 import { MarkdownEditor } from '../markdown/MarkdownEditor';
-import { AudioGeneration } from './AudioGeneration';
 import { CoverDownload } from './CoverDownload';
-import { audioBusy } from './model';
+import { Confirm } from './controls';
 import { ReadingText } from './ReadingText';
 import { productionService } from './service';
 
 export function Assets({
   production,
   pending,
-  dirty,
   onDirty,
   onSave,
   mutate,
@@ -29,63 +27,46 @@ export function Assets({
   mutate: (operation: () => Promise<{ production: Production }>, message: string) => Promise<boolean>;
 }) {
   const [cover, setCover] = useState<File | null>(null);
-  const agent = useAgent();
-  const [uploadError, setUploadError] = useState('');
+  const [audio, setAudio] = useState<File | null>(null);
+  const [error, setError] = useState('');
+  const [detach, setDetach] = useState<'cover' | 'audio' | null>(null);
   const draft = useDraft({ summary: production.summary, description: production.description });
-  const { summary, description } = draft.value;
-  const summaryField = useAgentField(
-    { productionId: production.id, field: 'summary' },
-    summary,
-    production.summary,
-    (next) => draft.change('summary', next),
-    pending || draft.conflicts.length > 0,
-  );
-  const descriptionField = useAgentField(
-    { productionId: production.id, field: 'description' },
-    description,
-    production.description,
-    (next) => draft.change('description', next),
-    pending || draft.conflicts.length > 0,
-  );
-  const copyDirty = summary !== production.summary || description !== production.description;
-  useEffect(() => {
-    onDirty(copyDirty || Boolean(cover));
-  }, [copyDirty, cover, onDirty]);
-  const busy = audioBusy(production);
+  useEffect(() => onDirty(draft.dirty || Boolean(cover || audio)), [draft.dirty, cover, audio, onDirty]);
+  const blocked = pending || draft.dirty || draft.conflicts.length > 0;
   return (
-    <Tabs defaultValue="cover" className="studio-stack" onValueChange={() => agent?.clearField()}>
-      <p className="studio-location">封面、文案和音频由本机 Agent 分工处理，成品由网站保存</p>
-      <TabsList aria-label="成品素材">
-        <TabsTrigger value="cover">封面</TabsTrigger>
-        <TabsTrigger value="copy">发布文案</TabsTrigger>
-        <TabsTrigger value="audio">音频</TabsTrigger>
-      </TabsList>
-      <TabsContent value="cover" className="studio-stack">
-        <LayerCard>
-          <div className="studio-stack">
-            <CoverPreview production={production} />
-            <FileDropzone
-              label="上传节目封面"
-              description="JPEG、PNG 或 WebP，最大 8 MB。只上传干净原图，不得包含品牌字标、边框或叠加层。"
-              accept="image/jpeg,image/png,image/webp"
-              multiple={false}
-              maxSize={8 * 1024 * 1024}
-              disabled={pending}
-              browseLabel="选择封面"
-              dropLabel="松开以上传封面"
-              formatRejection={() => '请选择 8 MB 以内的 JPEG、PNG 或 WebP 图片。'}
-              onFilesAccepted={([file]) => {
-                setCover(file);
-                setUploadError('');
-              }}
-              onFilesRejected={() => setUploadError('图片格式或大小不符合要求。')}
-            />
-            {cover && (
-              <div className="studio-row">
-                <span className="studio-wrap">{cover.name}</span>
+    <div className="studio-stack">
+      <p className="admin-muted">
+        外部工具制作成品，在此上传干净原图与完整音频。上传不会覆盖原文件，解除关联也不会删除存储中的原件。
+      </p>
+      <div className="studio-grid studio-assets-grid">
+        <LayerCard className="studio-stack">
+          <strong>节目封面</strong>
+          <CoverPreview production={production} />
+          <FileDropzone
+            label={production.assets.cover ? '替换节目封面' : '上传节目封面'}
+            description="JPEG、PNG 或 WebP，最大 8 MB。只上传无文字、标志、边框的干净原图。"
+            accept="image/jpeg,image/png,image/webp"
+            multiple={false}
+            maxSize={8 * 1024 * 1024}
+            disabled={pending}
+            browseLabel="选择封面"
+            formatRejection={() => '请选择 8 MB 以内的 JPEG、PNG 或 WebP 图片。'}
+            onFilesAccepted={([file]) => {
+              setCover(file);
+              setError('');
+            }}
+            onFilesRejected={() => setError('封面格式或大小不符合要求。')}
+          />
+          {cover && (
+            <div className="studio-row">
+              <span className="studio-wrap">{cover.name}</span>
+              <div className="studio-actions">
+                <Button variant="ghost" disabled={pending} onClick={() => setCover(null)}>
+                  取消选择
+                </Button>
                 <Button
                   loading={pending}
-                  disabled={copyDirty}
+                  disabled={blocked}
                   onClick={async () => {
                     if (
                       await mutate(
@@ -99,93 +80,128 @@ export function Assets({
                   上传封面
                 </Button>
               </div>
-            )}
-            {uploadError && (
-              <p className="admin-error" role="alert">
-                {uploadError}
-              </p>
-            )}
-            {copyDirty && <p className="admin-muted">先保存发布文案，再上传封面。</p>}
-          </div>
+            </div>
+          )}
+          {production.assets.cover && (
+            <Button
+              variant="ghost"
+              disabled={blocked || Boolean(cover || audio)}
+              onClick={() => setDetach('cover')}
+            >
+              解除封面关联
+            </Button>
+          )}
         </LayerCard>
-      </TabsContent>
-      <TabsContent value="copy" className="studio-stack">
+        <LayerCard className="studio-stack">
+          <strong>完整音频</strong>
+          <AudioPreview production={production} />
+          <FileDropzone
+            label={production.assets.audio ? '替换节目音频' : '上传节目音频'}
+            description="WAV / 24 kHz / 单声道 / 16-bit PCM，最长 30 分钟、最大 86,465,536 字节。服务器检查格式并读取真实时长。"
+            accept="audio/wav,.wav"
+            multiple={false}
+            maxSize={86465536}
+            disabled={pending}
+            browseLabel="选择 WAV 音频"
+            formatRejection={() => '请选择大小不超过 86,465,536 字节的 WAV 文件。'}
+            onFilesAccepted={([file]) => {
+              setAudio(file);
+              setError('');
+            }}
+            onFilesRejected={() => setError('音频格式或大小不符合要求。')}
+          />
+          {audio && (
+            <div className="studio-row">
+              <span className="studio-wrap">{audio.name}</span>
+              <div className="studio-actions">
+                <Button variant="ghost" disabled={pending} onClick={() => setAudio(null)}>
+                  取消选择
+                </Button>
+                <Button
+                  loading={pending}
+                  disabled={blocked || !production.approvals.script}
+                  onClick={async () => {
+                    if (
+                      await mutate(
+                        () => productionService.audio(production.id, production.version, audio),
+                        '音频已上传',
+                      )
+                    )
+                      setAudio(null);
+                  }}
+                >
+                  上传音频
+                </Button>
+              </div>
+            </div>
+          )}
+          {!production.approvals.script && (
+            <p className="admin-muted">确认逐字稿后，才能上传对应版本的音频。</p>
+          )}
+          {production.assets.audio && (
+            <Button
+              variant="ghost"
+              disabled={blocked || Boolean(cover || audio)}
+              onClick={() => setDetach('audio')}
+            >
+              解除音频关联
+            </Button>
+          )}
+        </LayerCard>
+      </div>
+      {error && (
+        <p className="admin-error" role="alert">
+          {error}
+        </p>
+      )}
+      {draft.dirty && <p className="admin-muted">先保存发布文案，再上传或解除资产关联。</p>}
+      <LayerCard className="studio-stack">
+        <strong>发布文案</strong>
         <DraftConflicts fields={draft.conflicts} resolve={draft.resolve} />
         <Field label="节目摘要" htmlFor="production-summary" hint="用于网站列表与分享，最多 2,000 字。">
           <InputArea
-            className="studio-autosize"
             id="production-summary"
-            value={summary}
-            onFocus={summaryField.onFocus}
-            onChange={(event) => summaryField.onChange(event.target.value)}
-            onSelect={(event) => {
-              const input = event.currentTarget;
-              summaryField.onSelection({
-                from: input.selectionStart,
-                to: input.selectionEnd,
-                text: input.value.slice(input.selectionStart, input.selectionEnd),
-              });
-            }}
-            onCompositionStart={() => summaryField.onComposition(true)}
-            onCompositionEnd={() => summaryField.onComposition(false)}
+            value={draft.value.summary}
+            onChange={(event) => draft.change('summary', event.target.value)}
             maxLength={2000}
             rows={3}
             disabled={pending}
           />
         </Field>
-        <Field label="发布简介" htmlFor="production-description" hint="小宇宙介绍，支持 Markdown。">
+        <Field label="发布简介" htmlFor="production-description">
           <MarkdownEditor
             id="production-description"
             label="发布简介"
-            value={description}
-            onChange={descriptionField.onChange}
-            onSelection={descriptionField.onSelection}
-            onComposition={descriptionField.onComposition}
+            value={draft.value.description}
             defaultMode={production.description ? 'preview' : 'edit'}
+            onChange={(next) => draft.change('description', next)}
             maxLength={20000}
             disabled={pending}
           />
         </Field>
         <div className="studio-actions">
           <Button
-            variant="outline"
-            loading={pending}
-            disabled={!copyDirty || draft.conflicts.length > 0}
-            onClick={() => void onSave({ summary, description })}
+            disabled={pending || !draft.dirty || draft.conflicts.length > 0}
+            onClick={() => void onSave(draft.value)}
           >
             保存发布文案
           </Button>
         </div>
-      </TabsContent>
-      <TabsContent value="audio" className="studio-stack">
-        <p className="studio-location">
-          本机语音 Agent · 按所选服务生成正文，可选添加片头片尾，完成后上传至网站
-        </p>
-        <LayerCard>
-          <div className="studio-stack">
-            <AudioPreview production={production} />
-            <p role="status">
-              {busy
-                ? production.audioJob?.status === 'queued'
-                  ? '已进入生成队列，进度会自动更新。'
-                  : '正在生成音频，进度会自动更新。'
-                : production.audioJob?.status === 'failed'
-                  ? '音频生成失败，可以重试。'
-                  : production.assets.audio &&
-                      production.assets.audio.scriptVersion === production.scriptVersion
-                    ? '音频制作完成'
-                    : '等待生成当前版本音频'}
-            </p>
-            {production.audioJob?.error && (
-              <p className="admin-error" role="alert">
-                {production.audioJob.error}
-              </p>
-            )}
-            <AudioGeneration production={production} pending={pending} dirty={dirty} mutate={mutate} />
-          </div>
-        </LayerCard>
-      </TabsContent>
-    </Tabs>
+      </LayerCard>
+      {detach && (
+        <Confirm
+          title={`解除${detach === 'cover' ? '封面' : '音频'}关联`}
+          description="当前节目将不再使用这份资产；原件和已发布快照保留。最终批准将被撤销，重新发布前需完成检查。"
+          onClose={() => setDetach(null)}
+          onConfirm={() =>
+            mutate(
+              () => productionService.detach(production.id, production.version, detach),
+              '资产关联已解除',
+            )
+          }
+        />
+      )}
+    </div>
   );
 }
 function CoverPreview({ production }: { production: Production }) {
@@ -194,54 +210,71 @@ function CoverPreview({ production }: { production: Production }) {
     <>
       <img className="studio-cover" src={cover.url} alt={`${production.title}的节目封面`} />
       {cover.scriptVersion !== production.scriptVersion && (
-        <p className="studio-notice">这是旧版封面。请按当前逐字稿重新制作并上传。</p>
+        <p className="studio-notice">这是旧版封面，请上传对应当前逐字稿的成品。</p>
       )}
-      <a className="studio-link" href={cover.url} target="_blank" rel="noopener noreferrer">
-        打开封面原图
-      </a>
-      <CoverDownload source={cover.url} episodeNumber={production.episodeNumber} />
+      <div className="studio-row">
+        <a className="studio-link" href={cover.url} target="_blank" rel="noopener noreferrer">
+          打开封面原图 ↗
+        </a>
+        <CoverDownload source={cover.url} episodeNumber={production.episodeNumber} />
+      </div>
+      <AssetInfo asset={cover} />
     </>
   ) : (
-    <p className="admin-muted">尚未上传封面。和主控讨论并生成干净原图。品牌框架仅在下载成品时叠加。</p>
+    <p className="admin-muted">尚未上传封面。品牌框架仅在下载成品时叠加。</p>
   );
 }
 function AudioPreview({ production }: { production: Production }) {
   const audio = production.assets.audio;
   return audio ? (
     <>
-      <audio controls preload="metadata" src={audio.url}>
-        <track kind="captions" />
-      </audio>
+      <AudioPlayer
+        src={audio.url}
+        title={production.title}
+        coverUrl={production.assets.cover?.url}
+        subtitle={`第 ${production.episodeNumber} 期 · 完整音频`}
+        compact
+      />
       <p className="admin-muted">
-        {Math.round(audio.durationSeconds ?? 0)} 秒{audio.voice ? ` · ${audio.voice}` : ''} ·{' '}
-        {audio.includesBumpers ? '含片头与片尾' : '正文音频'}
+        {Math.round(audio.durationSeconds ?? 0)} 秒{audio.voice ? ` · ${audio.voice}` : ''}
+        {audio.includesBumpers ? ' · 含片头与片尾' : ''}
       </p>
       {audio.scriptVersion !== production.scriptVersion && (
-        <p className="studio-notice">这是旧版音频。请先确认当前逐字稿，再重新生成。</p>
+        <p className="studio-notice">这是旧版音频，请上传对应当前逐字稿的成品。</p>
       )}
       <a className="studio-link" href={audio.url} target="_blank" rel="noopener noreferrer">
-        打开音频文件
+        打开音频原件 ↗
       </a>
+      <AssetInfo asset={audio} />
     </>
   ) : (
-    <p className="admin-muted">尚未生成正文音频。本机语音 Agent 将使用你确认过的逐字稿。</p>
+    <p className="admin-muted">尚未上传完整音频。</p>
+  );
+}
+function AssetInfo({ asset }: { asset: NonNullable<Production['assets']['audio']> }) {
+  return (
+    <details className="studio-asset-info admin-muted">
+      <summary>
+        原件信息 · 逐字稿 v{asset.scriptVersion} · {(asset.size / 1024 / 1024).toFixed(2)} MB
+      </summary>
+      <code className="studio-wrap">{asset.key}</code>
+      <p>
+        {asset.mimeType} · {new Date(asset.createdAt).toLocaleString('zh-CN')}
+      </p>
+    </details>
   );
 }
 export function FinalReview({ production }: { production: Production }) {
   return (
     <div className="studio-stack">
       <div className="studio-grid">
-        <LayerCard>
-          <div className="studio-stack">
-            <strong>封面检查</strong>
-            <CoverPreview production={production} />
-          </div>
+        <LayerCard className="studio-stack">
+          <strong>封面检查</strong>
+          <CoverPreview production={production} />
         </LayerCard>
-        <LayerCard>
-          <div className="studio-stack">
-            <strong>完整试听</strong>
-            <AudioPreview production={production} />
-          </div>
+        <LayerCard className="studio-stack">
+          <strong>完整试听</strong>
+          <AudioPreview production={production} />
         </LayerCard>
       </div>
       <strong>节目摘要</strong>

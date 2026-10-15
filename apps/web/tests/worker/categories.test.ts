@@ -1,6 +1,5 @@
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync } from 'node:fs';
-import { defaultPrompts } from '@frogie/core/hisfm/prompts';
 import { Miniflare } from 'miniflare';
 import { afterAll, beforeAll, beforeEach, expect, it, vi } from 'vitest';
 import { type Category, categoryInputSchema } from '../../src/shared/category';
@@ -9,6 +8,7 @@ import worker from '../../worker/index';
 import { routeProductions } from '../../worker/production';
 import { applyPatch } from '../../worker/production-model';
 import { productionPrompts } from '../../worker/production-prompts';
+import { defaultPrompts } from '../../worker/prompt-defaults';
 import { agent, brief, type fixture, human, readyFixture } from './production-fixture';
 
 vi.setConfig({ testTimeout: 30000, hookTimeout: 30000 });

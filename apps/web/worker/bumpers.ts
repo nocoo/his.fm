@@ -56,9 +56,7 @@ export async function routeBumpers(request: Request, env: Env, actor: Actor, id?
     const { key, url: media } = JSON.parse(current.data) as { key: string; url: string };
     const sources = [
       ['productions', 'data'],
-      ['production_settings', 'data'],
-      ['audio_jobs', 'snapshot'],
-      ['speech_jobs', 'snapshot'],
+      ['media_provenance', 'data'],
     ] as const;
     const references = sources
       .map(

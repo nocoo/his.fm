@@ -16,7 +16,6 @@ test('category editor preserves Markdown, icon/color selection, stale drafts and
   };
   let fail = false;
   let missing = false;
-  await page.routeWebSocket('**/admin/api/agent/live?protocol=1', () => {});
   await page.route('**/admin/api/**', async (route) => {
     const path = new URL(route.request().url()).pathname;
     if (path.endsWith('/session'))

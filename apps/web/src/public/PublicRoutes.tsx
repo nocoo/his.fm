@@ -16,6 +16,7 @@ import { createContext, type ReactNode, useContext, useEffect, useState } from '
 import { Outlet, Route, Routes, useLocation, useParams } from 'react-router';
 import { BrandSymbol, Wordmark } from '../brand/Brand';
 import { themeMedia } from '../brand/themes';
+import { AudioPlayer } from '../components/AudioPlayer';
 import type { Episode } from '../shared/episode';
 import { PublicLink as Link, PublicNavLink as NavLink, SiteAppearance, useAppearance } from './Appearance';
 import { EpisodeCover } from './EpisodeCover';
@@ -426,7 +427,16 @@ function EpisodeDetail() {
           <>
             <section className="episode-detail-hero">
               <Reveal className="detail-art">
-                <EpisodeCover episode={episode} priority />
+                {episode.audioUrl ? (
+                  <AudioPlayer
+                    src={episode.audioUrl}
+                    title={episode.title}
+                    coverUrl={episode.coverUrl}
+                    subtitle={`EP.${String(episode.episodeNumber).padStart(2, '0')} · ${categoryLabel(episode.category, categories)}`}
+                  />
+                ) : (
+                  <EpisodeCover episode={episode} priority />
+                )}
               </Reveal>
               <Reveal className="detail-intro">
                 <p className="eyebrow">
@@ -440,20 +450,7 @@ function EpisodeDetail() {
                     <span key={tag}>{tag}</span>
                   ))}
                 </div>
-                {episode.audioUrl ? (
-                  <div className="audio-player">
-                    <span>
-                      <Headphones size={17} /> {durationLabel(episode.durationSeconds)}
-                    </span>
-                    {/* biome-ignore lint/a11y/useMediaCaption: The complete transcript is available in the adjacent reading panel. */}
-                    <audio
-                      controls
-                      preload="metadata"
-                      src={episode.audioUrl}
-                      aria-label={`收听 ${episode.title}`}
-                    />
-                  </div>
-                ) : (
+                {!episode.audioUrl && (
                   <div className="recording-note">
                     <BrandSymbol />
                     <div>

@@ -15,7 +15,6 @@ export function productionPrompts(
       targetDurationSeconds: production.targetDurationSeconds,
       sources: production.sources,
       transcript: production.transcript,
-      audio: { execution: 'native speech conversation', providers: ['gemini', 'elevenlabs'] },
       feedback: production.events
         .filter((event) => event.feedback)
         .map((event) => ({ action: event.action, feedback: event.feedback })),

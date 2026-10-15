@@ -1,47 +1,39 @@
-# AI podcast production
+# Podcast production
 
-The production record is the coordination boundary between The coordinator, local creative agents, Cloudflare and the owner. Sources are stored as references or text; the server does not fetch arbitrary URLs. The editorial intent belongs to the brief and guides all generation prompts. Local agents verify the original sources before writing.
+The website manages podcast records and assets; it does not generate content. Owners and authorized external clients collect sources, prepare text and media outside the site, then save through the same versioned controllers. Source URLs are references, not server-side fetch instructions.
 
-| Stage | Executor | Human decision |
-| --- | --- | --- |
-| Brief | The coordinator collects article/GitHub URLs or text and intent | Mark the angle complete, or keep editing |
-| Transcript | The coordinator delegates to Pi Durable execution conversations | Read and edit the full text, then mark the exact script version complete |
-| Parallel production | Local GPT Image 2.5 cover; local description; Cloudflare Gemini audio | Review the cover, introduction and complete recording |
-| Ready | Platform material preparation | Confirm final assets |
-| Manual publication | Owner pastes into WeChat or Xiaoyuzhou | Record actual URL/time and synchronize approved website snapshot |
+## Library and editor
 
-An enrolled coordinator can read productions/prompts and use typed operations to create, revise, submit for review and dispatch approved audio. Machine legacy REST writes are rejected; binary cover upload remains an owner action. It cannot approve any review or record platform publication. Token creation/revocation is protected by Cloudflare Access; raw tokens are displayed once and only SHA-256 hashes are stored. Agent routes live outside `/admin` at `/api/agent`, so Access does not intercept the independent bearer authentication.
+`/admin` combines productions and standalone episodes in a cover-first grid, with list, search, status and category controls. Linked public snapshots appear only once, using `sourceProductionId`. Standalone records keep `/admin/episodes/:id`; new production creation also links to direct finished-episode entry.
 
-Every write requires the current `version`. A stale write returns 409; refetch and review changes before retrying. Agents edit only fields allowed in the current stage. The owner can edit any stage directly and mark the brief or script complete without a separate submission step. Completion actions can include validated `changes`, saved atomically with the transition. Earlier edits revoke dependent confirmations and make existing media stale while preserving text, files and publication history. A task preserves feedback and review history. Public episodes are immutable publication snapshots; editing those through the old catalog CRUD is blocked. An existing published snapshot remains available while a new revision is prepared.
+Production details expose four URL-addressable sections: `?section=metadata|manuscript|assets|publication`. Sections are freely navigable and do not themselves change saved state. Visited Markdown editors remain mounted to preserve drafts/undo. Source detail navigation uses persistent source IDs; explicit brief saving persists sources together. The content island scrolls without moving the shell header.
 
-## Owner studio
+## Review state
 
-The top navigation exposes five stages through `?step=brief|script|assets|review|publish`. Any stage can be viewed immediately, without changing stored state. Completion turns its marker green and opens the next view. Required materials and owner confirmations still protect paid generation and publication. Earlier content remains editable; changing it revokes dependent confirmations while preserving the existing material. Reopening a completed stage allows local agents to work again without deleting the previous version.
+The stored state machine remains:
 
-Only one stage is mounted at a time. Cover, copy and audio have their own task tabs, with drafts retained between them. Unsaved changes require confirmation before switching stages or environments. Long text uses the same Charter/TsangerJinKai02 typography as xray Channel, safe Markdown and natural page height. Editing fields grow with content; fonts are private admin assets with provenance in their NOTICE.
+`draft -> brief_review -> scripting -> script_review -> production -> final_review -> ready`
 
-The coordinator sidebar remains beside the existing editor. Explicit editor callbacks provide typed context without inspecting the DOM or capturing screens. Commands freeze the current context; exact matching draft proposals apply locally without Save, and stale suggestions remain reviewable. Canonical production events refresh clean fields while preserving dirty conflicts. Visited stage panels stay mounted, preserving draft text and undo. Local/Prod remains a top-right environment switch; it never retargets an in-flight command.
+- `productions:write` edits permitted business fields, not versions or approval records.
+- `productions:submit` submits brief/script/final material for review.
+- `productions:approve` confirms the exact version after validation.
+- `productions:reopen` permits reopening and revision actions. Approval does not imply reopening.
+- Owner sessions have full business authority, but all validation and optimistic conflicts still apply.
 
-## Local creative work
+Existing-record writes carry the current version; stale writes return 409. Actions may include validated changes for an atomic save and transition. Earlier edits invalidate dependent approvals and make script-dependent media stale without deleting files, text or publication history. Full-scope clients can complete the workflow, but cannot forge IDs, audits, versions or completed asset validation.
 
-`GET /api/agent/productions/:id/prompts` returns brief, script, cover and description prompts containing the intent, sources, approved script, review feedback and channel policy. Internal editorial rules guide preparation but must never be recited in published text.
+## Assets
 
-Use the Workflow `agi-image-generation` skill, default deployment `gpt-image-2.5-sunburst`, for square cover artwork. Save the original and exact prompt. Generated, uploaded and stored covers must be clean source images: no text, wordmarks, borders, brand frames or overlays. Upload the original raster bytes through the cover endpoint. Human final review checks the artwork and its relation to the approved script; byte validation cannot identify visual branding.
+The assets section organizes a clean cover, full recording, short summary and publication description. Upload and detach operations are explicit and versioned. Recording uploads require an approved current script. Final review requires nonempty summary/description, a current-script cover and a current-script recording with valid duration.
 
-The studio's “下载封面成品” action composes the original with the independent Open Interval frame and episode number into a 1600×1600 PNG. Composition happens only at download time and never replaces or uploads the source. Public pages and normal studio previews display the stored original. The common frame is available under `/admin/appearance`; see [appearance](appearance.md) for its source and regeneration. An older saved editorial profile cannot change this source/export storage contract.
+Cover originals must have no text, logos, borders or overlays. Only the finished-cover download composes the independent Open Interval frame into a 1600x1600 PNG; it never replaces the stored original. See [appearance](appearance.md).
 
-The coordinator writes `summary` and `description` after script approval. Platform descriptions should contain meaningful listening points and verified source links. Do not invent timestamps before the final audio has been checked.
+Recording uploads accept 24 kHz mono PCM16 WAV, up to 30 minutes. There is no in-site TTS, mixing, paid generation, task queue or voice comparison. Bumpers remain an independent downloadable/uploadable library for external composition. See [audio](audio.md).
 
-## Cloud audio
+## Publication
 
-The native user-global configuration owns both Gemini and ElevenLabs provider credentials, selected voices and the shared speaking style. AI settings, connection tokens, narration style and the bumper library have separate pages; no existing key can be read back.
+WeChat copy provides the exact sanitized HTML preview plus plain text. External links become numbered references; unsafe HTML and unapproved embedded images are removed. Xiaoyuzhou copy preserves clean paragraphs. Copying material never marks it published and the site never logs into either platform.
 
-A versioned website job snapshots the approved script, selected provider/model/voice/style and independent optional intro/outro IDs. A dedicated native speech conversation invokes the local Node script, checkpoints validated WAV segments and returns a scoped website upload receipt. The Worker only validates storage/state and optionally composes selected bumpers. See [native audio](audio.md).
+An authorized publisher records a real platform URL and past publication time. The transaction checks final approval and the current version, appends an audit event and updates the linked website episode snapshot. Corrections use PATCH on the platform record; withdrawals use DELETE. Withdrawing the last platform makes the snapshot draft without deleting its content or immutable media. Revisions never leak into the snapshot during withdrawal. Independent `featured` metadata survives later publication updates.
 
-## Publishing
-
-The WeChat copy command is based on Firefly's approach: inline typography, approved cover, external links converted to numbered references, and both `text/html` and `text/plain` clipboard representations. Raw HTML and unapproved inline images are removed. Xiaoyuzhou receives clean plain text with paragraphs and timestamps preserved. Title and summary can be copied separately; WeChat body does not repeat those editor fields.
-
-Copying content does not mark it published. The editor supplies the actual platform link and publication time and confirms publication. The D1 transaction records the platform event and updates the website snapshot only if the reviewed version is still current. The app does not log into either publishing platform.
-
-See [Agent API](agent-api.md), [Audio implementation](audio.md), and [CI/CD](ci-cd.md).
+Read [API onboarding](api-onboarding.md) and [scopes](scoped-api.md) before connecting an external client. Prompts guide content; they cannot grant permissions or override facts.

@@ -1,15 +1,4 @@
-import {
-  agentFrameSchema,
-  agentMessageSchema,
-  aiStatusSchema,
-  aiUpdateSchema,
-  browserFrameSchema,
-  commandSchema,
-  grantsSchema,
-  principalSchema,
-  type Scope,
-  serverFrameSchema,
-} from '@his-fm/contracts';
+import { grantsSchema, principalSchema, type Scope } from '@his-fm/contracts';
 import { z } from 'zod';
 import { version } from '../../../package.json';
 import { appearanceSchema, appearanceUpdateSchema } from '../src/shared/appearance';
@@ -20,22 +9,16 @@ import {
   actionNames,
   agentActionSchema,
   agentActions,
-  audioGenerationSchema,
-  audioPreviewSchema,
   briefSchema,
   type Production,
   productionActionSchema,
   productionPatchSchema,
-  productionSettingsSchema,
   productionStages,
   publicationSchema,
 } from '../src/shared/production';
 import { storageCleanupSchema, storageKinds } from '../src/shared/storage';
-import { voices } from '../src/shared/voices';
-import { enrollmentSchema } from './agent-runtime';
 import { tokenSchema } from './agent-tokens';
 import { bumperInputSchema, bumperUpdateSchema } from './bumpers';
-import { taskInputSchema } from './tasks';
 
 const stamp = z.string();
 const prioritySchema = z.tuple([
@@ -52,8 +35,6 @@ export const serviceManifestSchema = z.object({
   authentication: z.object({
     type: z.literal('http'),
     scheme: z.literal('bearer'),
-    configurationFile: z.literal('~/.config/his.fm/config.json'),
-    tokenPath: z.literal('websites.<environment>.token'),
     tokenManagement: z.string(),
     verification: z.string(),
   }),
@@ -95,15 +76,6 @@ export const productionResponseSchema = briefSchema.extend({
   summary: z.string(),
   assets: z.object({ cover: asset, audio: asset }),
   approvals: z.object({ brief: approval, script: approval, final: approval }),
-  audioJob: z
-    .object({
-      id: z.string(),
-      status: z.enum(['queued', 'running', 'complete', 'failed']),
-      scriptVersion: z.number().int(),
-      createdAt: stamp,
-      error: z.string().nullable(),
-    })
-    .nullable(),
   publications: z.array(
     z.object({
       platform: z.enum(['wechat', 'xiaoyuzhou']),
@@ -118,7 +90,7 @@ export const productionResponseSchema = briefSchema.extend({
     z.object({
       id: z.string(),
       at: stamp,
-      actor: principalSchema,
+      actor: principalSchema.extend({ scopes: z.array(z.string()).optional() }),
       action: z.string(),
       feedback: z.string(),
     }),
@@ -135,7 +107,7 @@ export const productionCapabilitiesSchema = z.object({
   blockedActions: z.record(z.string(), z.string()),
   canDelete: z.boolean(),
   canUploadCover: z.boolean(),
-  canGenerateAudio: z.boolean(),
+  canUploadAudio: z.boolean(),
   links: z.object({
     self: z.string(),
     production: z.string(),
@@ -158,11 +130,10 @@ export const serviceCapabilitiesSchema = z.object({
   scopes: grantsSchema,
   limits: z.object({ jsonBytes: z.number(), coverBytes: z.number(), auditEvents: z.number() }),
   audio: z.object({
-    execution: z.literal('native'),
-    providers: z.array(z.enum(['gemini', 'elevenlabs'])),
-    voices: z.array(
-      z.object({ id: z.enum(voices), description: z.string(), previewUrl: z.string().nullable() }),
-    ),
+    execution: z.literal('external'),
+    uploadMimeTypes: z.array(z.literal('audio/wav')),
+    maximumSeconds: z.number(),
+    maximumBytes: z.number(),
   }),
 });
 const ref = (name: string) => ({ $ref: `#/components/schemas/${name}` });
@@ -236,6 +207,8 @@ export function agentOpenApi(origin: string) {
   };
   const categoryProjection = categorySchema.partial({ prompt: true });
   const tokenRecord = tokenSchema.omit({ expiresInDays: true }).extend({
+    scopes: grantsSchema,
+    invalidScopes: z.array(z.string()).optional(),
     id: z.string(),
     prefix: z.string(),
     createdAt: stamp,
@@ -282,7 +255,6 @@ export function agentOpenApi(origin: string) {
       }),
     ),
   });
-  const task = commandSchema.extend({ status: z.string(), detail: z.string() });
   const bumper = z.object({
     id: z.string(),
     name: z.string(),
@@ -299,16 +271,6 @@ export function agentOpenApi(origin: string) {
       z.object({ bumper: z.strictObject({ id: bumper.shape.id, version: bumper.shape.version }) }),
     ]),
   );
-  const previewResult = audioPreviewSchema.extend({
-    url: z.string(),
-    durationSeconds: z.number(),
-    cached: z.boolean(),
-  });
-  const station = z.object({
-    tokenId: z.string(),
-    stationId: z.string(),
-    version: z.number().int().positive(),
-  });
   const binaryBody = (types: string[]) => ({
     required: true,
     content: Object.fromEntries(
@@ -321,7 +283,7 @@ export function agentOpenApi(origin: string) {
       title: 'his.fm Scoped Site API',
       version,
       description:
-        'Scoped REST site management plus an explicitly enrolled native coordinator transport. Ordinary REST business writes do not require a station. Each operation declares x-required-scopes; all listed grants are required, with conditional grants documented separately. Write does not imply read, review or publication. Existing-record mutations require optimistic versions and retain the actual authenticated audit actor. Creative tasks and narration execute on the configured native station, not in a stationless server runtime. Editorial priority is global prompt, category prompt, intent, sources; it never changes facts or grants permission. Provider secrets are write-only; native settings are shared by Local and Prod. No infrastructure operations or external-platform publishing.',
+        'Scoped external REST content management. Content creation and audio generation happen outside this service. Each operation declares x-required-scopes; all listed grants are required, with conditional grants documented separately. Write does not imply read, review or publication. Existing-record mutations require optimistic versions and retain the actual authenticated audit actor. Editorial priority is global prompt, category prompt, intent, sources; it never changes facts or grants permission. This service does not accept provider credentials or operate a task runtime. No infrastructure operations or external-platform publishing.',
     },
     servers: [{ url: `${origin}/api/agent` }],
     security: [{ AgentBearer: [] }],
@@ -385,14 +347,14 @@ export function agentOpenApi(origin: string) {
       '/capabilities': {
         get: operation(
           'getServiceCapabilities',
-          'Read limits, permissions and available narration voices',
+          'Read limits, permissions and external audio upload requirements',
           ref('ServiceCapabilities'),
         ),
       },
       '/channel': {
         get: operation(
           'getChannelPositioning',
-          'Read the private global editorial prompt and runtime/stage bundle before every creative task. Keep internal principles out of public content.',
+          'Read the private global editorial prompt and workflow/stage bundle before every creative task. Keep internal principles out of public content.',
           {
             type: 'object',
             required: ['channel', 'priority'],
@@ -538,7 +500,7 @@ export function agentOpenApi(origin: string) {
         parameters: [idParameter],
         get: operation(
           'getProductionPrompts',
-          'Read local research, script, cover and description tasks',
+          'Read external research, script, cover and description instructions',
           ref('Prompts'),
           ['productions:read', 'prompts:read'],
         ),
@@ -591,7 +553,7 @@ export function agentOpenApi(origin: string) {
         put: {
           ...operation(
             'uploadProductionAudio',
-            'Attach complete mono 24 kHz PCM16 WAV after script approval; cannot race a queued/running audio job',
+            'Attach complete mono 24 kHz PCM16 WAV after script approval, at most 1800 seconds and 86465536 bytes. Content-Length is required; duration is derived from validated bytes. Final-approved assets require productions:reopen.',
             wrappedProduction,
             ['productions:write', 'storage:write'],
           ),
@@ -599,23 +561,10 @@ export function agentOpenApi(origin: string) {
         },
         delete: operation(
           'detachProductionAudio',
-          'Detach current audio and clear attached job; queued/running jobs block this change',
+          'Detach current audio by expected version, preserving immutable media and published snapshots. Final-approved assets require productions:reopen.',
           wrappedProduction,
           ['productions:write', 'storage:write'],
         ),
-      },
-      '/productions/{id}/audio': {
-        parameters: [idParameter],
-        post: {
-          ...operation(
-            'generateProductionAudio',
-            'Queue native narration for the approved script; may incur provider charges; no stationless execution. Bumpers are opt-in and options are immutable job snapshots.',
-            wrappedProduction,
-            ['audio:generate', 'tasks:manage', 'prompts:read', 'productions:read'],
-            202,
-          ),
-          requestBody: body(audioGenerationSchema),
-        },
       },
       '/productions/{id}/publications': {
         parameters: [idParameter],
@@ -740,95 +689,6 @@ export function agentOpenApi(origin: string) {
           requestBody: body(appearanceUpdateSchema),
         },
       },
-      '/ai-settings': {
-        get: operation(
-          'getAiSettings',
-          'Read allowlisted native configuration and key presence only; shared across Local/Prod and requires an available native host',
-          schema(z.object({ config: aiStatusSchema })),
-          ['settings:read'],
-        ),
-        put: {
-          ...operation(
-            'updateAiSettings',
-            'Save shared Local/Prod native configuration by fingerprint. Supplied settings require settings:write; supplied credentials require credentials:write. Null clears a key. With settings:read returns config; otherwise only the new version. No existing keys are returned.',
-            schema(
-              z.union([z.object({ config: aiStatusSchema }), z.object({ version: z.string().length(64) })]),
-            ),
-          ),
-          'x-required-scopes-by-field': { settings: ['settings:write'], credentials: ['credentials:write'] },
-          requestBody: body(aiUpdateSchema),
-        },
-      },
-      '/production-settings': {
-        get: operation(
-          'getProductionSettings',
-          'Read shared native narration settings; bumper metadata is an empty array without bumpers:read. No provider secrets. Requires an available native host.',
-          schema(
-            z.object({
-              settings: productionSettingsSchema.extend({
-                version: z.string().length(64),
-                bumpers: z.array(bumper),
-                ttsConfigured: z.boolean(),
-                providers: z.object({ gemini: z.boolean(), elevenlabs: z.boolean() }),
-                voices: z.object({ gemini: z.string(), elevenlabs: z.string() }),
-              }),
-            }),
-          ),
-          ['settings:read'],
-        ),
-      },
-      '/production-settings/preview': {
-        post: {
-          ...operation(
-            'requestAudioPreview',
-            'Request at most 200 characters of native narration; reuses content-addressed audio when available, otherwise queues native execution. May incur provider charges.',
-            schema(z.object({ preview: previewResult })),
-            ['audio:generate', 'tasks:manage', 'prompts:read'],
-          ),
-          requestBody: body(audioPreviewSchema),
-          responses: {
-            ...errors,
-            '200': {
-              description: 'Cached preview',
-              content: content(schema(z.object({ preview: previewResult }))),
-            },
-            '202': {
-              description: 'Queued native preview, not completed media',
-              content: content(schema(z.object({ jobId: z.string() }))),
-            },
-          },
-        },
-      },
-      '/production-settings/preview/{id}': {
-        parameters: [{ ...idParameter, schema: { type: 'string', pattern: '^[a-f0-9]{64}$' } }],
-        get: {
-          ...operation(
-            'readAudioPreview',
-            'Read an exact native preview result or pending job state; failed generation returns 502',
-            schema(z.object({ preview: previewResult })),
-            ['settings:read'],
-          ),
-          responses: {
-            ...errors,
-            '200': {
-              description: 'Completed preview',
-              content: content(schema(z.object({ preview: previewResult }))),
-            },
-            '202': {
-              description: 'Pending native preview',
-              content: content(schema(z.object({ jobId: z.string(), status: z.string() }))),
-            },
-          },
-        },
-      },
-      '/production-settings/previews': {
-        get: operation(
-          'listAudioPreviews',
-          'Read up to 30 completed previews for the fixed voice-comparison script; no generation occurs',
-          schema(z.object({ previews: z.array(previewResult) })),
-          ['settings:read'],
-        ),
-      },
       '/bumpers': {
         get: operation(
           'listBumpers',
@@ -870,7 +730,7 @@ export function agentOpenApi(origin: string) {
         delete: {
           ...operation(
             'deleteBumper',
-            'Delete unreferenced bumper metadata by version; saved settings, productions and job snapshots block deletion; immutable media is retained',
+            'Delete unreferenced bumper metadata by version; productions and historical media provenance block deletion; immutable media is retained',
             {},
             ['bumpers:delete'],
             204,
@@ -878,62 +738,10 @@ export function agentOpenApi(origin: string) {
           parameters: [versionQuery],
         },
       },
-      '/tasks': {
-        get: operation(
-          'listTasks',
-          'List at most 100 latest caller-owned tasks; tasks:manage additionally permits all-site administration',
-          schema(z.object({ tasks: z.array(task) })),
-          ['tasks:read'],
-        ),
-        post: {
-          ...operation(
-            'submitTask',
-            'Submit an idempotent product task using shared coordinator/executor history; tasks:manage authorizes this history, not token-isolated sessions. Production context additionally requires productions:read. Principal is server-owned; execution needs an enrolled native station and effects require originator/executor grants.',
-            schema(z.object({ command: commandSchema, inserted: z.boolean() })),
-            ['tasks:submit', 'tasks:manage', 'prompts:read'],
-          ),
-          requestBody: body(taskInputSchema),
-        },
-      },
-      '/tasks/{id}': {
-        parameters: [idParameter],
-        get: operation(
-          'getTask',
-          'Read a caller-owned task and up to 100 latest messages; tasks:manage additionally permits all-site administration',
-          schema(z.object({ task, messages: z.array(agentMessageSchema) })),
-          ['tasks:read'],
-        ),
-      },
-      '/tasks/{id}/cancel': {
-        parameters: [idParameter],
-        post: operation(
-          'cancelTask',
-          'Request cancellation of a caller-owned task, not disabling the coordinator; tasks:manage additionally permits all-site administration',
-          schema(z.object({ id: z.string(), cancelling: z.boolean() })),
-          ['tasks:cancel'],
-        ),
-      },
-      '/agent/station': {
-        get: operation(
-          'getRuntimeStation',
-          'Read the current website station binding and version; null means not enrolled',
-          schema(z.object({ station: station.nullable() })),
-          ['runtime:manage'],
-        ),
-        post: {
-          ...operation(
-            'enrollRuntimeStation',
-            'Explicitly enroll or replace a station using the current binding version (initial 0). Target token needs runtime:connect. Agent managers cannot bind grants or expiry beyond their own; replacement prunes existing leases.',
-            schema(z.object({ station })),
-            ['runtime:manage'],
-          ),
-          requestBody: body(enrollmentSchema),
-        },
-      },
       '/agent-tokens': {
         get: operation(
           'listAgentTokens',
-          'Read token metadata and grants, never existing secrets',
+          'Read token metadata and grants, never existing secrets. Invalid stored grants project scopes:[] plus invalidScopes; authentication remains disabled until the owner revokes the token.',
           schema(z.object({ tokens: z.array(tokenRecord) })),
           ['tokens:read'],
         ),
@@ -952,7 +760,7 @@ export function agentOpenApi(origin: string) {
         parameters: [idParameter],
         delete: operation(
           'deleteAgentToken',
-          'Remove an already revoked token from management lists. Active or merely expired tokens return 409. Agent target grants must be a subset of caller grants. Revoked tombstones, delegation and station references remain for security and audit. Repeated deletion returns 204.',
+          'Remove an already revoked token from management lists. Active or merely expired tokens return 409. Agent target grants must be a subset of caller grants. Revoked tombstones and delegation remain for security and audit. Repeated deletion returns 204.',
           {},
           ['tokens:delete'],
           204,
@@ -962,7 +770,7 @@ export function agentOpenApi(origin: string) {
         parameters: [idParameter],
         post: operation(
           'revokeAgentToken',
-          'Revoke the target and descendants; agent target grants must be a subset of revoker grants; runtime leases are pruned',
+          'Revoke the target and descendants; agent target grants must be a subset of revoker grants',
           {},
           ['tokens:revoke'],
           204,
@@ -1051,82 +859,6 @@ export function agentOpenApi(origin: string) {
           requestBody: body(storageCleanupSchema),
         },
       },
-      '/runtime/connect': {
-        get: {
-          operationId: 'connectCoordinator',
-          summary:
-            'Upgrade the explicitly enrolled coordinator; 10s ping, 35s idle timeout, at most 15 minute authorization lease',
-          'x-required-scopes': ['runtime:connect'],
-          parameters: [
-            { name: 'X-Hisfm-Station', in: 'header', required: true, schema: { type: 'string' } },
-            { name: 'protocol', in: 'query', schema: { const: '1' } },
-          ],
-          responses: {
-            ...errors,
-            '101': {
-              description:
-                'Typed AgentFrame/ServerFrame WebSocket. Never put tokens in the URL. Existing healthy station connections cannot be replaced.',
-            },
-          },
-        },
-      },
-      '/runtime/receipts/{id}': {
-        get: {
-          ...operation(
-            'readOperationReceipt',
-            'Read an exact durable operation receipt; 202 means still unknown, not success',
-            { type: 'object' },
-            ['runtime:connect'],
-          ),
-          parameters: [
-            { ...idParameter, description: 'Stable operation ID' },
-            { name: 'X-Hisfm-Station', in: 'header', required: true, schema: { type: 'string' } },
-          ],
-        },
-      },
-      '/runtime/speech/{id}': {
-        parameters: [
-          { ...idParameter, description: 'Immutable website speech job ID, not a production ID' },
-          ...['X-Hisfm-Station', 'X-Hisfm-Generation', 'X-Hisfm-Command'].map((name) => ({
-            name,
-            in: 'header',
-            required: true,
-            schema: { type: 'string' },
-          })),
-        ],
-        get: operation(
-          'readNativeSpeechJob',
-          'Read the exact authorized speech job or completed receipt',
-          {
-            type: 'object',
-          },
-          ['runtime:connect', 'audio:generate'],
-        ),
-        post: operation(
-          'startNativeSpeechJob',
-          'Mark local speech execution under the active enrolled lease',
-          { type: 'object' },
-          ['runtime:connect', 'audio:generate'],
-        ),
-        put: {
-          ...operation(
-            'completeNativeSpeechJob',
-            'Upload mono 24 kHz PCM16 WAV and atomically attach a still-approved job',
-            { type: 'object' },
-            ['runtime:connect', 'audio:generate'],
-          ),
-          requestBody: {
-            required: true,
-            content: { 'audio/wav': { schema: { type: 'string', format: 'binary' } } },
-          },
-        },
-        delete: operation(
-          'failNativeSpeechJob',
-          'Record a failed native attempt without deleting completed audio',
-          { type: 'object' },
-          ['runtime:connect', 'audio:generate'],
-        ),
-      },
     },
     components: {
       securitySchemes: {
@@ -1135,24 +867,20 @@ export function agentOpenApi(origin: string) {
           scheme: 'bearer',
           bearerFormat: 'hisfm_<64 hex characters>',
           description:
-            'Store the studio-created token in the selected website entry of ~/.config/his.fm/config.json. Never send it to other origins. This is not a Cloudflare Access token or OAuth flow.',
+            'Store the studio-created token securely in your external client. Never send it to other origins. This is not a Cloudflare Access token or OAuth flow.',
         },
       },
       schemas: {
-        AgentFrame: schema(agentFrameSchema, 'input'),
-        BrowserFrame: schema(browserFrameSchema, 'input'),
-        ServerFrame: schema(serverFrameSchema),
         ChannelProfile: {
           ...schema(channelProfileSchema),
           description:
-            'Private Markdown global prompt and named runtime/stage prompts, versioned together independently of productions. Re-read at each task; pause and reassess if version changes. Internal editorial requirements do not grant API permissions.',
+            'Private Markdown global prompt and named workflow/stage prompts, versioned together independently of productions. Re-read at each task; pause and reassess if version changes. Internal editorial requirements do not grant API permissions.',
         },
         ServiceManifest: schema(serviceManifestSchema),
         CreateProduction: schema(briefSchema, 'input'),
         UpdateProduction: schema(productionPatchSchema, 'input'),
         AgentAction: schema(agentActionSchema, 'input'),
         ProductionAction: schema(productionActionSchema, 'input'),
-        GenerateAudio: schema(audioGenerationSchema, 'input'),
         Production: schema(productionResponseSchema),
         Publication: schema(productionResponseSchema.shape.publications.element),
         ProductionCapabilities: schema(productionCapabilitiesSchema),

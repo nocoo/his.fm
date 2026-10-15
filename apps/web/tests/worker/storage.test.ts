@@ -91,7 +91,7 @@ beforeAll(async () => {
 }, 30000);
 beforeEach(async () => {
   await env.DB.batch(
-    ['audio_jobs', 'episodes', 'productions', 'production_settings', 'channel_profile'].map((table) =>
+    ['media_provenance', 'episodes', 'productions', 'channel_profile'].map((table) =>
       env.DB.prepare(`DELETE FROM ${table}`),
     ),
   );
@@ -155,7 +155,7 @@ describe('owner R2 inventory and cleanup', () => {
     await env.DB.prepare('INSERT INTO productions VALUES (?, ?, ?, ?, ?, ?)')
       .bind(production.id, 1, 'ready', JSON.stringify(production), production.createdAt, production.updatedAt)
       .run();
-    await env.DB.prepare('INSERT INTO production_settings VALUES (1, ?)')
+    await env.DB.prepare("INSERT INTO media_provenance VALUES ('settings', ?)")
       .bind(JSON.stringify({ intro: { key: 'bumper-current.wav' }, outro: null }))
       .run();
     await env.DB.prepare(
@@ -165,7 +165,7 @@ describe('owner R2 inventory and cleanup', () => {
       .run();
     await env.DB.prepare(`INSERT INTO episodes (id, slug, episode_number, title, summary, transcript, show_notes, cover_url, category, status, created_at, updated_at)
       VALUES ('episode', 'episode', 1, '目录标题', '', '/media/transcript.wav', 'https://his.fm/media/notes.wav', 'https://f.no.mt/published.webp', 'life', 'draft', 'now', 'now')`).run();
-    for (const [id, status] of [
+    for (const [id] of [
       ['active', 'running'],
       ['queued', 'queued'],
       ['done', 'complete'],
@@ -178,8 +178,8 @@ describe('owner R2 inventory and cleanup', () => {
         introKey: `bumper-${id}.wav`,
         outroKey: null,
       };
-      await env.DB.prepare('INSERT INTO audio_jobs VALUES (?, ?, ?, ?, NULL, ?, ?)')
-        .bind(id, production.id, JSON.stringify(snapshot), status, 'now', 'now')
+      await env.DB.prepare('INSERT INTO media_provenance VALUES (?, ?)')
+        .bind(id, JSON.stringify(snapshot))
         .run();
       await put(`audio/${production.id}/1/${id}/part-001.wav`);
       await put(`bumper-${id}.wav`);
@@ -216,16 +216,13 @@ describe('owner R2 inventory and cleanup', () => {
       'bumper-failed.wav',
     ])
       expect(states[key]).toBe('referenced');
-    for (const key of [
-      'images/hero.webp',
-      'reference/voices/Kore.wav',
-      'audio/production-test/1/active/part-001.wav',
-      'audio/production-test/1/queued/part-001.wav',
-    ])
+    for (const key of ['images/hero.webp', 'reference/voices/Kore.wav'])
       expect(states[key]).toBe('protected');
     for (const key of [
       'unused.mp4',
       'not-ours.wav',
+      'audio/production-test/1/active/part-001.wav',
+      'audio/production-test/1/queued/part-001.wav',
       'audio/production-test/1/done/part-001.wav',
       'audio/production-test/1/failed/part-001.wav',
     ])
@@ -251,7 +248,7 @@ describe('owner R2 inventory and cleanup', () => {
     const failed = await put('failed.mp4');
     const disposable = await put('disposable.mp4');
     const items = [used, replaced, gone, failed, disposable].map(({ key, version }) => ({ key, version }));
-    await env.DB.prepare('INSERT INTO production_settings VALUES (1, ?)')
+    await env.DB.prepare("INSERT INTO media_provenance VALUES ('settings', ?)")
       .bind(JSON.stringify({ outro: { key: used.key } }))
       .run();
     await put(replaced.key);

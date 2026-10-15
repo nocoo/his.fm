@@ -2,7 +2,7 @@
 
 The studio uses one CodeMirror 6 editor for the global prompt, episode intent,
 text sources, transcripts, publication descriptions and catalogue notes. Short
-plain-text summaries, voice settings and URL fields retain Basalt inputs.
+plain-text summaries, short metadata and URL fields retain Basalt inputs.
 
 The selection follows an inspection of `miantiao-me/bm.md` (CodeMirror 6 with
 `@uiw/react-codemirror`), firefly (Markdown source and preview) and ellie (Tiptap
@@ -19,9 +19,9 @@ find and keyboard navigation must not scroll the outer application shell.
 
 Global and per-stage instructions are centralized under “提示词”; see `docs/prompts.md`. Existing `/admin/channel`,
 `/api/agent/channel`, the D1 table and optimistic-version contracts retain their
-technical names. Authority remains global prompt, episode intent, then source
-material. Owners alone can change global instructions; agents read them before
-every creative task. Existing stored documents are never rewritten by a UI rename.
+technical names. Authority remains global prompt, category prompt, episode intent, then source
+material. Changing instructions requires `prompts:write`; external clients read them
+with `prompts:read` before creative work. Existing stored documents are never rewritten by a UI rename.
 
 The global prompt retains per-environment session drafts, explicit saving,
 Cmd/Ctrl+S and version-conflict comparison. Other fields retain their existing
@@ -29,13 +29,11 @@ form submission and unsaved-change guards. Over-limit content is kept available
 for correction rather than silently truncated.
 
 Brief source material is presented as a compact list. Each source opens its own
-`?step=brief&source=N` detail view, where N is its one-based position in the brief.
-The overview form stays mounted but hidden so browser back/forward and source
-navigation preserve unsaved intent and metadata. Only the selected source has an
-editor; returning keeps its draft in the brief. Completing source editing checks
-the shared source schema, while saving the brief persists all edits through the
-existing optimistic-version contract. Source positions are local to the current
-brief, not permanent document identifiers.
+`?section=metadata&source=<id>` detail view using a persistent source ID. The
+metadata form stays mounted so browser navigation preserves unsaved intent and
+sources. Only the selected source has a detail editor; explicit saving persists
+all brief changes through the optimistic-version contract. Production sections
+remain mounted while hidden to preserve Markdown undo and draft state.
 
 Publication offers WeChat HTML and plain-text clipboard representations,
 Xiaoyuzhou plain text, and the original Markdown. The WeChat preview renders the

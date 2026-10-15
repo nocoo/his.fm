@@ -1,10 +1,10 @@
-import { channelDefault as defaultContent, defaultPrompts } from '@frogie/core/hisfm/prompts';
 import { hasScope, promptSetSchema } from '@his-fm/contracts';
 import { type ChannelProfile, channelUpdateSchema, editorialPriority } from '../src/shared/channel';
 import type { Actor } from '../src/shared/production';
 import { requireScope } from './authorization';
 import { HttpError, json } from './http';
 import { readJson } from './production-body';
+import { channelDefault as defaultContent, defaultPrompts } from './prompt-defaults';
 
 export async function getChannel(db: D1Database): Promise<ChannelProfile> {
   await db

@@ -3,9 +3,9 @@ import { Plus } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import type { ProductionBrief } from '../../shared/production';
-import { useAgent, useAgentField, useDraft } from '../agent/AgentProvider';
-import { DraftConflicts } from '../agent/DraftConflicts';
 import { CategorySelect } from '../categories/CategorySelect';
+import { DraftConflicts } from '../draft/DraftConflicts';
+import { useDraft } from '../draft/useDraft';
 import { MarkdownEditor } from '../markdown/MarkdownEditor';
 import { Failure } from './controls';
 import { readBrief } from './model';
@@ -18,7 +18,6 @@ export function BriefForm({
   onDirty,
   onComplete,
   completed = false,
-  productionId,
 }: {
   value: ProductionBrief;
   pending: boolean;
@@ -26,10 +25,8 @@ export function BriefForm({
   onComplete?: (brief: ProductionBrief) => Promise<void>;
   completed?: boolean;
   onDirty: (dirty: boolean) => void;
-  productionId?: string;
 }) {
   const [query, setQuery] = useSearchParams();
-  const agent = useAgent();
   const selected = query.get('source');
   const draft = useDraft({
     title: value.title,
@@ -44,26 +41,6 @@ export function BriefForm({
   const { sources, category } = draft.value;
   const sourceIndex = sources.findIndex((source) => source.id === selected);
   const setSources = (sources: SourceDraft[]) => draft.change('sources', sources);
-  const title = useAgentField(
-    productionId ? { productionId, field: 'title' } : null,
-    draft.value.title,
-    value.title,
-    (next) => {
-      draft.change('title', next);
-      onDirty(true);
-    },
-    pending || draft.conflicts.length > 0,
-  );
-  const intent = useAgentField(
-    productionId ? { productionId, field: 'intent' } : null,
-    draft.value.intent,
-    value.intent,
-    (next) => {
-      draft.change('intent', next);
-      onDirty(true);
-    },
-    pending || draft.conflicts.length > 0,
-  );
   useEffect(() => {
     onDirty(draft.dirty);
   }, [draft.dirty, onDirty]);
@@ -105,18 +82,7 @@ export function BriefForm({
                   id="production-title"
                   name="title"
                   value={draft.value.title}
-                  onFocus={title.onFocus}
-                  onChange={(event) => title.onChange(event.target.value)}
-                  onSelect={(event) => {
-                    const input = event.currentTarget;
-                    title.onSelection({
-                      from: input.selectionStart ?? 0,
-                      to: input.selectionEnd ?? 0,
-                      text: input.value.slice(input.selectionStart ?? 0, input.selectionEnd ?? 0),
-                    });
-                  }}
-                  onCompositionStart={() => title.onComposition(true)}
-                  onCompositionEnd={() => title.onComposition(false)}
+                  onChange={(event) => draft.change('title', event.target.value)}
                   required
                   maxLength={160}
                   placeholder="一个具体、值得讲清楚的问题"
@@ -137,9 +103,7 @@ export function BriefForm({
                   id="production-intent"
                   name="intent"
                   value={draft.value.intent}
-                  onChange={intent.onChange}
-                  onSelection={intent.onSelection}
-                  onComposition={intent.onComposition}
+                  onChange={(next) => draft.change('intent', next)}
                   disabled={pending}
                   maxLength={12000}
                   placeholder="为什么想讲这个话题？听众听完应该带走什么？"
@@ -150,7 +114,6 @@ export function BriefForm({
                   <Input
                     id="production-number"
                     name="episodeNumber"
-                    onFocus={() => agent?.clearField()}
                     type="number"
                     min={1}
                     max={99999}
@@ -163,7 +126,6 @@ export function BriefForm({
                   <Input
                     id="production-slug"
                     name="slug"
-                    onFocus={() => agent?.clearField()}
                     value={draft.value.slug}
                     onChange={(event) => draft.change('slug', event.target.value)}
                     required
@@ -176,7 +138,6 @@ export function BriefForm({
               <div className="studio-grid">
                 <Field label="栏目">
                   <CategorySelect
-                    onFocus={() => agent?.clearField()}
                     value={category}
                     disabled={pending}
                     onChange={(next) => {
@@ -189,7 +150,6 @@ export function BriefForm({
                   <Input
                     id="production-duration"
                     name="durationMinutes"
-                    onFocus={() => agent?.clearField()}
                     type="number"
                     min={1}
                     max={30}
@@ -206,7 +166,6 @@ export function BriefForm({
                 <Input
                   id="production-tags"
                   name="tags"
-                  onFocus={() => agent?.clearField()}
                   value={draft.value.tags}
                   onChange={(event) => draft.change('tags', event.target.value)}
                 />
@@ -240,7 +199,7 @@ export function BriefForm({
             </LayerCard.Body>
           </LayerCard>
           <div className="studio-stage-footer">
-            <p className="admin-muted">明确素材与讲述意图，确认后进入逐字稿。随时可以回来调整。</p>
+            <p className="admin-muted">保存资料与素材；确认选题后才可批准逐字稿。</p>
             <div className="studio-actions">
               <Button
                 type="submit"
@@ -255,9 +214,9 @@ export function BriefForm({
                   type="submit"
                   value="complete"
                   loading={pending}
-                  disabled={draft.conflicts.length > 0}
+                  disabled={draft.conflicts.length > 0 || (completed && !draft.dirty)}
                 >
-                  {completed ? '确认选题并继续' : '标记选题完成'}
+                  {completed && !draft.dirty ? '选题已确认' : '标记选题完成'}
                 </Button>
               )}
             </div>
@@ -267,9 +226,6 @@ export function BriefForm({
       {selected !== null && (
         <SourceEditor
           key={selected}
-          productionId={productionId}
-          proposalBlocked={draft.conflicts.length > 0}
-          base={value.sources.find((source) => source.id === selected)}
           source={sources[sourceIndex]}
           index={sourceIndex}
           pending={pending}

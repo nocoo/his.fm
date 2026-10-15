@@ -767,8 +767,10 @@ describe('agent discovery and real bearer routing', () => {
     });
     expect(await (await call('/api/agent/openapi.json')).json()).toEqual(agentOpenApi(origin));
     const instructions = await (await call('/api/agent/instructions')).text();
-    expect(instructions).toContain('X-Hisfm-Station');
-    expect(instructions).toContain('/api/agent/runtime/connect');
+    expect(instructions).toContain('External clients create text, artwork and recordings outside the site');
+    expect(instructions).toContain('productions:approve');
+    expect(instructions).not.toContain('X-Hisfm-Station');
+    expect(instructions).not.toContain('/api/agent/runtime/connect');
     expect(instructions).not.toContain('https://his.fm');
     const unauthorized = await call('/api/agent/me');
     expect(unauthorized.status).toBe(401);
@@ -792,7 +794,7 @@ describe('agent discovery and real bearer routing', () => {
       ...body({
         name: 'Hermes integration',
         expiresInDays: 1,
-        scopes: [...scopePresets.coordinator, 'productions:delete', 'storage:write'],
+        scopes: [...scopePresets.editor, 'productions:delete', 'storage:write'],
       }),
     });
     const secret = (await tokenResponse.json()) as { token: string; record: { id: string } };
@@ -805,8 +807,12 @@ describe('agent discovery and real bearer routing', () => {
       actor: { kind: 'agent', name: expect.stringContaining('Hermes integration') },
     });
     const capabilities = serviceCapabilitiesSchema.parse(await (await agentCall('/capabilities')).json());
-    expect(capabilities.audio.voices).toHaveLength(30);
-    expect(capabilities.audio.voices.filter((voice) => voice.previewUrl)).toHaveLength(6);
+    expect(capabilities.audio).toEqual({
+      execution: 'external',
+      uploadMimeTypes: ['audio/wav'],
+      maximumSeconds: 1800,
+      maximumBytes: 86465536,
+    });
     expect((await agentCall('/me', { method: 'POST' })).status).toBe(405);
     expect((await agentCall('/me', { method: 'POST' })).headers.get('Allow')).toBe('GET');
     expect((await agentCall('/productions', { method: 'PATCH' })).status).toBe(405);
@@ -874,11 +880,11 @@ describe('agent discovery and real bearer routing', () => {
           ...body({ version: review.version }),
         })
       ).status,
-    ).toBe(403);
+    ).toBe(404);
     expect(
       (await agentCall(`/productions/${p.id}/publications`, { method: 'POST', ...body({}) })).status,
     ).toBe(403);
-    expect((await agentCall('/production-settings')).status).toBe(403);
+    expect((await agentCall('/production-settings')).status).toBe(404);
     expect((await agentCall('/unknown')).status).toBe(404);
     expect((await agentCall('/productions/missing/capabilities')).status).toBe(404);
     const log = vi.spyOn(console, 'error').mockImplementation(() => undefined);
@@ -909,7 +915,7 @@ describe('agent discovery and real bearer routing', () => {
     const copy = structuredClone(ready);
     expect(productionCapabilities(ready, agent, origin)).toMatchObject({
       availableActions: ['submit_final'],
-      canGenerateAudio: false,
+      canUploadAudio: false,
     });
     expect(ready).toEqual(copy);
     expect(productionCapabilities(fixture(), agent, origin).blockedActions.submit_brief).toBeUndefined();

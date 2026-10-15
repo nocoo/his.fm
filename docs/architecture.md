@@ -1,44 +1,40 @@
 # Architecture
 
-his.fm has one React application and one Cloudflare Worker. Public pages use an original editorial design; the separately loaded administration bundle uses Basalt 2.2.0. Both share the episode schema, while frontend models/services and Worker modules own business behavior.
+his.fm has one React application and one Cloudflare Worker. Public pages use the Open Interval identity; the separately loaded studio uses Basalt 2.2.0. Frontend models/services own view state and HTTP calls. Shared validators define editable business fields; Worker controllers own D1, R2 and authorization.
 
-The native coordinator depends on `@frogie/core/host`; Frogie owns role definitions and Pi integration. his.fm owns the website, business scheduling, tools, approvals, transport and local execution data. See [Frogie integration](frogie-integration.md).
+`apps/web` contains the website, Worker, migrations and tests. `packages/contracts` contains scope, prompt and WAV validation. There is no embedded agent, WebSocket coordinator, generation worker or provider settings service. External clients generate assets elsewhere and use the scoped REST API.
 
 ## Request boundaries
 
-| Route | Behavior |
+| Route | Contract |
 | --- | --- |
-| `/api/live` | D1 connectivity and service health |
-| `/api/episodes` | Published episodes whose publication date has arrived |
-| `/api/episodes/:slug` | One visible episode; missing/draft/future episodes return 404 |
-| `/api/appearance` | Public theme ID only, never owner metadata |
-| `/admin/api/appearance` | Owner-selected website theme with optimistic version updates |
-| `/admin/api/session` | Verified editor identity and local/Access mode |
-| `/admin/api/episodes` | Authenticated list and create |
-| `/admin/api/episodes/:id` | Authenticated read, update and delete |
-| `/admin/api/dev-login` | Development-only session creation |
-| `/admin/api/logout` | Revoke local session or navigate to Access logout |
-| `/media/*` | R2 image/media reads with metadata and conditional ETag handling |
+| `/api/live` | D1 health, release version and revision |
+| `/api/episodes[/:slug]` | Published episodes whose publication date has arrived |
+| `/api/categories`, `/api/appearance` | Public metadata only |
+| `/admin/api/session` | Verified owner identity |
+| `/admin/api/*` | Owner management through shared controllers |
+| `/api/agent`, `/.well-known/api-catalog`, `/llms.txt` | Public API discovery, no private content |
+| `/api/agent/*` business routes | Explicitly scoped bearer management |
+| `/media/*` | R2 streaming with HEAD, validators and single byte ranges |
 
-All management traffic reaches the Worker before SPA asset handling. Production verifies the Access JWT signature, issuer, audience and expiry against the team's published signing keys. Missing credentials cannot reach management APIs. Human-session mutation requests require an exact same-origin `Origin` header. `/api/agent` business routes use bearer authentication with explicit scopes and share the same management controllers; no station or browser Origin is required for ordinary REST. Write-only production/episode responses acknowledge IDs and versions rather than returning existing private content. Prompt and publication projections apply independently. Input is bounded, parsed with Zod and written with prepared statements. Slug conflicts return 409. IDs and timestamps are server-owned.
+Cloudflare Access JWTs are verified for signature, issuer, audience and expiry. An email header is never authentication. Human mutations require exact same-origin `Origin`. Bearer REST needs neither a browser session nor station enrollment. Public discovery does not establish authentication.
 
-The existing Access application at `his.fm/admin` covers descendant paths through [Access path inheritance](https://developers.cloudflare.com/cloudflare-one/access-controls/policies/app-paths/), unless a more specific application overrides that policy.
-
-Local authentication is intentionally a different mode: the Worker must have `ENVIRONMENT=local` and receive an allowed local hostname. The login response sets an eight-hour HttpOnly, SameSite session cookie; only a SHA-256 token hash is stored in D1. Production rejects local-login requests, even if a local cookie is supplied.
+Local login requires `ENVIRONMENT=local` and an allowlisted hostname. Its eight-hour HttpOnly/SameSite session stores only a token hash in D1; production never accepts this login route. The existing Access application protects `his.fm/admin` and descendants unless a more specific application overrides it.
 
 ## Content and storage
 
-Episode records contain publication metadata, summary, transcript, show notes, topic, tags, artwork and optional audio URL. A published manuscript may have no audio yet; the listening page says so and provides the text. Future-dated episodes stay out of public queries.
+A production is a versioned editorial record: sources, intent, script, descriptions, cover/audio assets, approvals and publication audit. The server does not fetch arbitrary source URLs. Field changes and approval transitions share the same state machine for owners and external clients; scopes do not bypass validity or versions.
 
-Migrations create tables only. The dev script applies migrations with `--local` and runs an idempotent local seed. A seed marker preserves subsequent edits and deletions. No mock records are imported to production.
+Published episodes are snapshots, not live views of mutable productions. An explicit publication operation atomically updates the snapshot and appends an audit event. Editing a production preserves its public snapshot. Linked snapshot content cannot be changed through standalone episode CRUD; `featured` has a separate versioned display PATCH. Standalone episodes retain CRUD and can publish a manuscript without audio.
 
-Images are optimized WebP assets. Originals, prompts, model details and SHA-256 digests remain in `artwork/`. Public images and media use the R2 custom domain `https://f.no.mt`; local uploaded assets use `/media/` against local R2. Six original voice references live under `reference/voices/` in R2.
+R2 assets use unique immutable keys. Detaching an asset does not delete bytes. Cleanup checks current references, saved media provenance, object versions and the 24-hour retention period; reserved brand/reference prefixes remain protected. Public and private media streaming share range handling so browser seeking works without downloading an entire recording first.
+
+Migration 0015 retires operational tables, removes the production job field without changing assets/approvals/publications/versions, and retains allowlisted media provenance only. It preserves saved prompts, appends narration, and removes only retired text grants from valid token arrays. Unknown or malformed grants remain unusable; they never become authority.
 
 ## Interface and verification
 
-- Public: eight responsive visual directions sharing the Open Interval identity, episode catalogue, topic/search filters, detail pages, summaries, transcripts, native audio controls when media exists, about page and missing/error/empty states. See [appearance](appearance.md).
-- Admin: Basalt visitor badge, AppShell, compact episode table, draft/published filters, complete editor, field validation, destructive-action confirmation, responsive navigation and theme switching.
-- Animation respects reduced-motion preferences. Navigation, fields and controls have keyboard focus states.
-- Unit coverage targets shared validation, frontend models/services and Worker behavior. Worker tests use actual Miniflare D1/R2 plus signed JWT fixtures. Browser checks exercise rendered interactions. L1 evidence is stored in nmem rather than asserted by a repository badge.
-
-The production studio uses a versioned D1 record, explicit scoped reviews and immutable R2 assets. Hermes calls bearer-authenticated `/api/agent/` routes; Cloudflare Access remains mandatory for human production administration. Authorized agents write scripts, descriptions and clean original covers; only the studio download composes a brand frame. A dedicated native speech conversation runs Gemini or ElevenLabs through a local script; the website validates the leased upload, composes explicitly selected bumpers, and attaches the result atomically. See [production](production.md) and [agent API](agent-api.md). Video production is not implemented.
+- `/admin` is a unified cover-grid library with a list alternative. Production snapshots are deduplicated by explicit `sourceProductionId`, never by slug/title guesses.
+- Production details have four non-linear sections: information, manuscript, assets and publication. Viewing a section does not mutate workflow state. Visited editors retain drafts and undo; approvals and saves are explicit.
+- One custom `AudioPlayer` serves public and admin views. A hidden HTML audio element handles decoding; Basalt controls handle keyboard, pointer and touch seeking, volume, speed and errors.
+- Prompt defaults are Worker-only; private prompt bodies never enter public discovery or the frontend bundle.
+- Meaningful model/service/Worker/contracts tests enforce four 95% coverage floors. Miniflare covers actual D1/R2 behavior; browser checks exercise real controls with local or mocked content.

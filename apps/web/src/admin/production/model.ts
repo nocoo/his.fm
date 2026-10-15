@@ -1,3 +1,4 @@
+import type { Episode } from '../../shared/episode';
 import {
   briefSchema,
   type Production,
@@ -61,9 +62,9 @@ export function finalMissing(production: Production): string[] {
   if (
     !production.assets.audio ||
     production.assets.audio.scriptVersion !== production.scriptVersion ||
-    !production.assets.audio.durationSeconds ||
-    production.audioJob?.status !== 'complete' ||
-    production.audioJob.scriptVersion !== production.scriptVersion
+    !Number.isFinite(production.assets.audio.durationSeconds) ||
+    (production.assets.audio.durationSeconds ?? 0) <= 0 ||
+    (production.assets.audio.durationSeconds ?? 0) > 1800
   )
     missing.push('当前版本完整音频');
   return missing;
@@ -73,10 +74,6 @@ export function dateLabel(value: string | null) {
     ? new Date(value).toLocaleString('zh-CN', { dateStyle: 'short', timeStyle: 'short' })
     : '尚无记录';
 }
-export function audioBusy(production: Production) {
-  return production.audioJob?.status === 'queued' || production.audioJob?.status === 'running';
-}
-
 export function latestPublication(production: Production, platform: Publication['platform']) {
   return production.publications
     .filter((item) => item.platform === platform)
@@ -87,32 +84,76 @@ export function latestPublication(production: Production, platform: Publication[
     );
 }
 
-export const studioSteps = ['brief', 'script', 'assets', 'review', 'publish'] as const;
-export type StudioStep = (typeof studioSteps)[number];
-export const stepLabels: Record<StudioStep, string> = {
-  brief: '选题',
-  script: '逐字稿',
-  assets: '成品制作',
-  review: '最终检查',
-  publish: '发布',
+export type LibraryEntry = {
+  id: string;
+  title: string;
+  episodeNumber: number;
+  category: string;
+  summary: string;
+  tags: string[];
+  coverUrl: string | null;
+  audioUrl: string | null;
+  status: 'draft' | 'ready' | 'published';
+  updatedAt: string;
+  href: string;
+  production?: Production;
+  episode?: Episode;
+  snapshot?: Episode;
 };
-export function currentStep(stage: Production['stage']): StudioStep {
-  if (stage === 'draft' || stage === 'brief_review') return 'brief';
-  if (stage === 'scripting' || stage === 'script_review') return 'script';
-  if (stage === 'production') return 'assets';
-  if (stage === 'final_review') return 'review';
-  return 'publish';
-}
-export function completedSteps(production: Production): Record<StudioStep, boolean> {
-  return {
-    brief: Boolean(production.approvals.brief),
-    script: Boolean(production.approvals.script),
-    assets: ['final_review', 'ready'].includes(production.stage) && !finalMissing(production).length,
-    review: Boolean(production.approvals.final),
-    publish:
-      Boolean(production.approvals.final) &&
-      production.publications.some(
-        (item) => Date.parse(item.confirmedAt) >= Date.parse(production.approvals.final?.at ?? ''),
+export function programLibrary(productions: Production[], episodes: Episode[]): LibraryEntry[] {
+  const ids = new Set(productions.map((production) => production.id));
+  return [
+    ...productions.map((production): LibraryEntry => {
+      const snapshot = episodes.find((episode) => episode.sourceProductionId === production.id);
+      return {
+        id: `production:${production.id}`,
+        title: production.title,
+        episodeNumber: production.episodeNumber,
+        category: production.category,
+        summary: production.summary || production.intent,
+        tags: production.tags,
+        coverUrl: production.assets.cover?.url ?? null,
+        audioUrl: production.assets.audio?.url ?? null,
+        status:
+          snapshot?.status === 'published' || production.publications.length > 0
+            ? 'published'
+            : production.stage === 'ready'
+              ? 'ready'
+              : 'draft',
+        updatedAt: production.updatedAt,
+        href: `/admin/productions/${production.id}`,
+        production,
+        snapshot,
+      };
+    }),
+    ...episodes
+      .filter((episode) => !episode.sourceProductionId || !ids.has(episode.sourceProductionId))
+      .map(
+        (episode): LibraryEntry => ({
+          id: `episode:${episode.id}`,
+          title: episode.title,
+          episodeNumber: episode.episodeNumber,
+          category: episode.category,
+          summary: episode.summary,
+          tags: episode.tags,
+          coverUrl: episode.coverUrl,
+          audioUrl: episode.audioUrl,
+          status: episode.status,
+          updatedAt: episode.updatedAt,
+          href: episode.sourceProductionId
+            ? `/admin/productions/${episode.sourceProductionId}`
+            : `/admin/episodes/${episode.id}`,
+          episode,
+        }),
       ),
-  };
+  ].sort((a, b) => b.episodeNumber - a.episodeNumber || Date.parse(b.updatedAt) - Date.parse(a.updatedAt));
+}
+export function filterLibrary(rows: LibraryEntry[], query: string, status: string, category: string) {
+  const search = query.trim().toLocaleLowerCase();
+  return rows.filter(
+    (row) =>
+      (status === 'all' || row.status === status) &&
+      (category === 'all' || row.category === category) &&
+      `${row.title} ${row.summary} ${row.tags.join(' ')}`.toLocaleLowerCase().includes(search),
+  );
 }

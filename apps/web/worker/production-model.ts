@@ -28,14 +28,11 @@ export function requireFinalAssets(production: Production) {
     throw new HttpError(409, '素材不属于当前逐字稿版本，请重新制作');
   }
   if (
-    !production.assets.audio.durationSeconds ||
-    (production.assets.audio.source === 'upload'
-      ? production.audioJob !== null
-      : production.audioJob?.status !== 'complete' ||
-        production.audioJob.scriptVersion !== production.scriptVersion)
-  ) {
-    throw new HttpError(409, '请等待当前版本音频制作完成');
-  }
+    !Number.isFinite(production.assets.audio.durationSeconds) ||
+    (production.assets.audio.durationSeconds ?? 0) <= 0 ||
+    (production.assets.audio.durationSeconds ?? 0) > 1800
+  )
+    throw new HttpError(409, '请上传有效的成品音频');
 }
 
 function reopenContent(production: Production, stage: 'draft' | 'scripting'): Production {
@@ -43,7 +40,6 @@ function reopenContent(production: Production, stage: 'draft' | 'scripting'): Pr
     ...production,
     stage,
     scriptVersion: production.scriptVersion + 1,
-    audioJob: null,
     approvals: {
       brief: stage === 'draft' ? null : production.approvals.brief,
       script: null,

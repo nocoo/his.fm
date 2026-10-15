@@ -20,31 +20,19 @@ describe('scoped OpenAPI contract', () => {
       'productions:write',
       'storage:write',
     ]);
-    expect(contract.paths['/tasks'].post['x-required-scopes']).toEqual([
-      'tasks:submit',
-      'tasks:manage',
-      'prompts:read',
+    for (const path of Object.keys(contract.paths))
+      expect(path).not.toMatch(/runtime|tasks|ai-settings|production-settings/);
+    expect(contract.paths['/productions/{id}/assets/audio'].put['x-required-scopes']).toEqual([
+      'productions:write',
+      'storage:write',
     ]);
-    expect(contract.paths['/productions/{id}/audio'].post['x-required-scopes']).toEqual([
-      'audio:generate',
-      'tasks:manage',
-      'prompts:read',
-      'productions:read',
-    ]);
-    expect(contract.paths['/production-settings/preview'].post['x-required-scopes']).toEqual([
-      'audio:generate',
-      'tasks:manage',
-      'prompts:read',
-    ]);
-    expect(contract.paths['/runtime/connect'].get['x-required-scopes']).toEqual(['runtime:connect']);
-    expect(contract.paths['/agent/station'].post['x-required-scopes']).toEqual(['runtime:manage']);
     expect(contract.paths['/agent-tokens/{id}/revoke'].post['x-required-scopes']).toEqual(['tokens:revoke']);
     expect(contract.paths['/agent-tokens/{id}'].delete['x-required-scopes']).toEqual(['tokens:delete']);
     expect(contract.paths['/agent-tokens/{id}'].delete.summary).toContain('409');
     expect(contract.info.description).not.toContain('runtime_required');
   });
 
-  it('derives token and task input schemas without accepting caller authority', () => {
+  it('derives token input schemas without accepting caller authority', () => {
     const contract = agentOpenApi('https://example.test');
     const token = contract.paths['/agent-tokens'].post.requestBody.content['application/json'].schema;
     expect(token.required).toEqual(['name', 'expiresInDays', 'scopes']);
@@ -55,10 +43,6 @@ describe('scoped OpenAPI contract', () => {
       uniqueItems: true,
       items: { enum: [...scopes] },
     });
-    const task = contract.paths['/tasks'].post.requestBody.content['application/json'].schema;
-    expect(task.required).toEqual(['id', 'text', 'context']);
-    expect(task.properties).not.toHaveProperty('principal');
-    expect(task.additionalProperties).toBe(false);
     expect(JSON.stringify(contract.paths['/agent-tokens'].get.responses)).not.toContain('token_hash');
   });
 
@@ -98,7 +82,6 @@ describe('scoped OpenAPI contract', () => {
         },
       });
     }
-    expect(contract.paths['/production-settings'].get.summary).toContain('without bumpers:read');
     expect(contract.paths['/bumpers'].post.summary).toContain('Without bumpers:read');
     expect(contract.paths['/bumpers/{id}'].put.summary).toContain('Without bumpers:read');
     expect(contract.components.schemas.ProductionCapabilities.properties?.availableActions).toMatchObject({
@@ -113,16 +96,6 @@ describe('scoped OpenAPI contract', () => {
     expect(
       contract.paths['/bumpers/{id}'].put.requestBody.content['application/json'].schema.required,
     ).toEqual(['name', 'position', 'version']);
-    expect(contract.paths['/ai-settings'].get.summary).toContain('shared across Local/Prod');
-    expect(contract.paths['/ai-settings'].put['x-required-scopes-by-field']).toEqual({
-      settings: ['settings:write'],
-      credentials: ['credentials:write'],
-    });
-    const ai = contract.paths['/ai-settings'].put.requestBody.content['application/json'].schema;
-    expect(ai.required).toEqual(['version']);
-    expect(ai.properties?.credentials).toMatchObject({
-      properties: { gemini: { anyOf: expect.arrayContaining([{ type: 'null' }]) } },
-    });
   });
 
   it('keeps approval separate from every revise and reopen action', () => {

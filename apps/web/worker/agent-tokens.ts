@@ -18,7 +18,7 @@ async function hashToken(token: string) {
   return Array.from(new Uint8Array(hash), (byte) => byte.toString(16).padStart(2, '0')).join('');
 }
 
-export async function authenticateAgentIdentity(request: Request, env: Env) {
+export async function authenticateAgent(request: Request, env: Env): Promise<Actor> {
   const token = request.headers.get('Authorization')?.match(/^Bearer (hisfm_[a-f0-9]{64})$/i)?.[1];
   if (!token) throw new HttpError(401, '需要有效的 Agent Token');
   const now = new Date().toISOString();
@@ -28,21 +28,15 @@ export async function authenticateAgentIdentity(request: Request, env: Env) {
     .bind(now, await hashToken(token), now)
     .first<{ id: string; name: string; scopes: string; expiresAt: string }>();
   if (!record) throw new HttpError(401, 'Agent Token 已失效或被撤销');
+  const grants = grantsSchema.safeParse(JSON.parse(record.scopes));
+  if (!grants.success || !grants.data.length) throw new HttpError(401, 'Agent Token grants are invalid');
   return {
-    actor: {
-      kind: 'agent' as const,
-      name: `${record.name} (${record.id})`,
-      tokenId: record.id,
-      scopes: grantsSchema.parse(JSON.parse(record.scopes)),
-      expiresAt: Date.parse(record.expiresAt),
-    },
+    kind: 'agent',
+    name: `${record.name} (${record.id})`,
     tokenId: record.id,
+    scopes: grants.data,
     expiresAt: Date.parse(record.expiresAt),
   };
-}
-
-export async function authenticateAgent(request: Request, env: Env): Promise<Actor> {
-  return (await authenticateAgentIdentity(request, env)).actor;
 }
 
 export async function routeAgentTokens(
@@ -59,10 +53,21 @@ export async function routeAgentTokens(
         `SELECT ${publicFields} FROM agent_tokens WHERE deleted_at IS NULL ORDER BY created_at DESC`,
       ).all<Omit<AgentTokenRecord, 'scopes'> & { scopes: string }>();
       return json({
-        tokens: results.map((record) => ({
-          ...record,
-          scopes: grantsSchema.parse(JSON.parse(record.scopes)),
-        })),
+        tokens: results.map((record) => {
+          const stored: unknown = JSON.parse(record.scopes);
+          const grants = grantsSchema.safeParse(stored);
+          return {
+            ...record,
+            scopes: grants.success ? grants.data : [],
+            ...(!grants.success
+              ? {
+                  invalidScopes: (Array.isArray(stored) ? stored : [stored]).map((value) =>
+                    typeof value === 'string' ? value : JSON.stringify(value),
+                  ),
+                }
+              : {}),
+          };
+        }),
       });
     }
     if (request.method === 'POST') {
@@ -131,11 +136,11 @@ export async function routeAgentTokens(
       .bind(id)
       .first<{ scopes: string }>();
     if (!record) throw new HttpError(404, 'Token 不存在');
-    if (
-      actor.kind === 'agent' &&
-      grantsSchema.parse(JSON.parse(record.scopes)).some((scope) => !actor.scopes?.includes(scope))
-    )
-      throw new HttpError(403, 'Cannot manage a token outside your grants');
+    if (actor.kind === 'agent') {
+      const targetGrants = grantsSchema.safeParse(JSON.parse(record.scopes));
+      if (!targetGrants.success || targetGrants.data.some((scope) => !actor.scopes?.includes(scope)))
+        throw new HttpError(403, 'Cannot manage a token outside your grants');
+    }
     if (!revoking) {
       const removed = await env.DB.prepare(
         'UPDATE agent_tokens SET deleted_at = COALESCE(deleted_at, ?) WHERE id = ? AND revoked_at IS NOT NULL RETURNING id',
@@ -150,15 +155,6 @@ export async function routeAgentTokens(
     )
       .bind(id, new Date().toISOString())
       .run();
-    if (env.AGENT_HUB) {
-      try {
-        await env.AGENT_HUB.getByName(`his.fm:${env.ENVIRONMENT}`).fetch('https://hub/prune', {
-          method: 'POST',
-        });
-      } catch {
-        console.error(JSON.stringify({ event: 'agent_revocation_notification_failed' }));
-      }
-    }
     return new Response(null, { status: 204 });
   }
   throw new HttpError(404, '接口不存在');

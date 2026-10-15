@@ -17,7 +17,7 @@ describe('explicit grants', () => {
   it('expands presets to finite validated grants without implicitly granting future capabilities', () => {
     for (const grants of Object.values(scopePresets)) expect(grantsSchema.parse(grants)).toEqual(grants);
     expect(scopePresets.owner).toEqual(scopes);
-    expect(scopePresets.coordinator).not.toContain('productions:approve');
+    expect(scopePresets.editor).not.toContain('productions:approve');
     expect(principalSchema.safeParse({ kind: 'agent', name: '', scopes: [] }).success).toBe(false);
   });
 });

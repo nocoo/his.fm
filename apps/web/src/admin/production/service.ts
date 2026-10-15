@@ -1,14 +1,9 @@
-import type { AiStatus, aiUpdateSchema, Scope } from '@his-fm/contracts';
-import type { z } from 'zod';
+import type { Scope } from '@his-fm/contracts';
 import type {
   AgentTokenRecord,
-  AudioGeneration,
-  AudioPreview,
-  AudioPreviewInput,
   Production,
   ProductionAction,
   ProductionBrief,
-  ProductionSettings,
   Publication,
 } from '../../shared/production';
 import { request } from '../service';
@@ -17,9 +12,6 @@ const path = (id: string) => `/productions/${encodeURIComponent(id)}`;
 const json = (method: string, body: unknown): RequestInit => ({ method, body: JSON.stringify(body) });
 type Result = { production: Production };
 export const productionService = {
-  ai: (signal?: AbortSignal) => request<{ config: AiStatus }>('/ai-settings', { signal }),
-  saveAi: (input: z.infer<typeof aiUpdateSchema>) =>
-    request<{ config: AiStatus }>('/ai-settings', json('PUT', input)),
   channel: (signal?: AbortSignal) => request<{ channel: ChannelProfile }>('/channel', { signal }),
   saveChannel: (
     input: Pick<ChannelProfile, 'version'> & Partial<Pick<ChannelProfile, 'content' | 'prompts'>>,
@@ -42,29 +34,19 @@ export const productionService = {
       body: file,
       headers: { 'Content-Type': file.type },
     }),
-  audio: (id: string, input: AudioGeneration) => request<Result>(`${path(id)}/audio`, json('POST', input)),
-  preview: async (input: AudioPreviewInput) => {
-    let result = await request<{ preview?: AudioPreview; jobId?: string }>(
-      '/production-settings/preview',
-      json('POST', input),
-    );
-    const jobId = result.jobId;
-    for (let attempt = 0; !result.preview && jobId && attempt < 300; attempt++) {
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-      result = await request<{ preview?: AudioPreview; jobId?: string }>(
-        `/production-settings/preview/${jobId}`,
-      );
-    }
-    if (!result.preview) throw new Error('主控仍在生成试听，可在对话面板查看进度并稍后重试。');
-    return { preview: result.preview };
-  },
+  audio: (id: string, version: number, file: File) =>
+    request<Result>(`${path(id)}/assets/audio?version=${version}`, {
+      method: 'PUT',
+      body: file,
+      headers: { 'Content-Type': 'audio/wav' },
+    }),
+  detach: (id: string, version: number, asset: 'audio' | 'cover') =>
+    request<Result>(`${path(id)}/assets/${asset}?version=${version}`, { method: 'DELETE' }),
   publish: (
     id: string,
     version: number,
     publication: Pick<Publication, 'platform' | 'url' | 'publishedAt'>,
   ) => request<Result>(`${path(id)}/publications`, json('POST', { ...publication, version })),
-  settings: (signal?: AbortSignal) =>
-    request<{ settings: ProductionSettings }>('/production-settings', { signal }),
   tokens: (signal?: AbortSignal) => request<{ tokens: AgentTokenRecord[] }>('/agent-tokens', { signal }),
   createToken: (name: string, expiresInDays: number, scopes: Scope[]) =>
     request<{ token: string; record: AgentTokenRecord }>(

@@ -4,14 +4,9 @@ import { join } from 'node:path';
 const workspaceLinks = [
   ['web', 'apps/web'],
   ['contracts', 'packages/contracts'],
-  ['agent', 'packages/agent'],
 ];
 
-const workspaceNestedRoots = [
-  'apps/web/node_modules',
-  'packages/agent/node_modules',
-  'packages/contracts/node_modules',
-];
+const workspaceNestedRoots = ['apps/web/node_modules', 'packages/contracts/node_modules'];
 
 /** Link live node_modules into an L1 gate snapshot without mutating the working tree. */
 export function linkSnapshotNodeModules(root, snapshot) {

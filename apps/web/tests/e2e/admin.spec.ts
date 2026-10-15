@@ -9,8 +9,7 @@ async function login(page: Page) {
   await expect(page.getByRole('heading', { name: '欢迎回到工作室' })).toBeVisible();
   await page.getByRole('button', { name: '进入本地工作室' }).click();
   await expect(page).toHaveURL(/\/admin\/?$/);
-  await page.goto('/admin/catalog');
-  await expect(page.getByRole('table', { name: '播客节目列表' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '节目库', exact: true }).last()).toBeVisible();
 }
 
 async function responseStatus(page: Page, path: string, method = 'GET') {
@@ -42,7 +41,8 @@ test('editor can create, edit, publish, delete and log out', async ({ page, brow
   try {
     await publicPage.goto('/');
     await page.screenshot({ path: '.local/admin-desktop.png', fullPage: true, animations: 'disabled' });
-    await page.getByRole('link', { name: '新建节目', exact: true }).click();
+    await page.goto('/admin/productions/new');
+    await page.getByRole('link', { name: '直接录入成品', exact: true }).click();
     await page.getByLabel('节目标题', { exact: true }).fill(title);
     await page.getByLabel('摘要', { exact: true }).fill('端到端验收使用的临时节目，测试结束会自动清理。');
     await page
@@ -89,7 +89,7 @@ test('editor can create, edit, publish, delete and log out', async ({ page, brow
     await expect(publicPage.getByRole('heading', { name: editedTitle, exact: true })).toBeVisible();
     await expect(publicPage.locator('audio')).toHaveCount(0);
 
-    await page.getByRole('link', { name: '节目库', exact: true }).click();
+    await page.getByRole('link', { name: '返回节目库', exact: true }).click();
     await page.getByRole('textbox', { name: '搜索节目' }).fill(slug);
     await expect(page.getByRole('link', { name: editedTitle, exact: true })).toBeVisible();
     await page.getByRole('button', { name: `删除 ${editedTitle}`, exact: true }).click();
@@ -144,7 +144,7 @@ test.describe('phone workspace', () => {
     await menu.click();
     const drawer = page.getByRole('dialog', { name: '工作室导航' });
     await expect(drawer).toBeVisible();
-    await drawer.getByRole('button', { name: '新建制作', exact: true }).click();
+    await drawer.getByRole('button', { name: '新建节目', exact: true }).click();
     await expect(drawer).toBeHidden();
     await expect(page).toHaveURL(/\/admin\/productions\/new$/);
     await expect(menu).toBeFocused();

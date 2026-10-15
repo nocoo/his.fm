@@ -632,7 +632,16 @@ html:has(.public-site) body {
   padding: 4px 10px;
   font-size: 11px;
 }
-.public-site .audio-player,
+.public-site .his-audio-player {
+  --player-surface: var(--well);
+  --player-ink: var(--ink);
+  --player-muted: var(--muted);
+  --player-line: var(--line);
+  --player-accent: var(--accent);
+  --player-on-accent: var(--ink);
+  --player-track: var(--ink);
+  --player-radius: var(--radius);
+}
 .public-site .recording-note {
   display: flex;
   align-items: center;
@@ -640,20 +649,6 @@ html:has(.public-site) body {
   padding: 19px;
   background: var(--well);
   border-radius: var(--radius);
-}
-.public-site .audio-player {
-  flex-direction: column;
-  align-items: stretch;
-}
-.public-site .audio-player > span {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  font-size: 12px;
-}
-.public-site .audio-player audio {
-  width: 100%;
-  height: 42px;
 }
 .public-site .recording-note > div {
   display: grid;

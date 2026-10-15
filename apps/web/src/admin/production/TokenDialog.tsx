@@ -44,10 +44,6 @@ export const scopeLabels: Record<Scope, string> = {
   'prompts:write': '修改提示词',
   'appearance:read': '读取外观',
   'appearance:write': '修改外观',
-  'settings:read': '读取非敏感设置',
-  'settings:write': '修改设置',
-  'credentials:write': '替换提供商密钥（不可读取）',
-  'audio:generate': '请求音频生成（可能产生费用）',
   'bumpers:read': '读取片头片尾',
   'bumpers:write': '上传和编辑片头片尾',
   'bumpers:delete': '删除片头片尾',
@@ -58,17 +54,10 @@ export const scopeLabels: Record<Scope, string> = {
   'tokens:issue': '签发子令牌',
   'tokens:revoke': '撤销令牌',
   'tokens:delete': '删除已撤销令牌',
-  'tasks:read': '读取主控任务',
-  'tasks:submit': '提交主控任务',
-  'tasks:cancel': '取消主控任务',
-  'tasks:manage': '管理全站任务并访问共享主控历史（高风险）',
-  'runtime:connect': '连接本机执行主控',
-  'runtime:manage': '绑定执行工作站',
 };
 const presetOptions = [
   { value: 'reader', label: '只读（默认）' },
   { value: 'editor', label: '内容编辑' },
-  { value: 'coordinator', label: '本机主控' },
   { value: 'owner', label: '完全控制（高风险）' },
   { value: 'custom', label: '自定义权限' },
 ];
@@ -76,10 +65,9 @@ const presetOptions = [
 const scopeGroups = [
   { label: '制作与发布', prefixes: ['productions', 'publications', 'episodes'] },
   { label: '分类与提示词', prefixes: ['categories', 'prompts'] },
-  { label: '素材与音频', prefixes: ['audio', 'bumpers', 'storage'] },
-  { label: '站点设置', prefixes: ['appearance', 'settings', 'credentials'] },
+  { label: '素材与音频', prefixes: ['bumpers', 'storage'] },
+  { label: '站点设置', prefixes: ['appearance'] },
   { label: '令牌管理', prefixes: ['tokens'] },
-  { label: '主控与任务', prefixes: ['tasks', 'runtime'] },
 ];
 
 export function TokenDialog({ onCreated }: { onCreated: (record: AgentTokenRecord) => void }) {
@@ -127,7 +115,7 @@ export function TokenDialog({ onCreated }: { onCreated: (record: AgentTokenRecor
         </DialogHeader>
         {token ? (
           <div className="studio-stack">
-            <InputArea aria-label="新建助手令牌" readOnly value={token} rows={3} />
+            <InputArea aria-label="新建访问令牌" readOnly value={token} rows={3} />
             <DialogFooter>
               <CopyButton label="复制新令牌" read={() => token} />
               <DialogClose asChild>
@@ -152,7 +140,7 @@ export function TokenDialog({ onCreated }: { onCreated: (record: AgentTokenRecor
                 );
                 onCreated(result.record);
                 setToken(result.token);
-                toast.success('助手令牌已创建');
+                toast.success('访问令牌已创建');
               } catch (cause) {
                 setError(errorMessage(cause));
               } finally {
@@ -162,13 +150,13 @@ export function TokenDialog({ onCreated }: { onCreated: (record: AgentTokenRecor
           >
             <fieldset disabled={pending} className="studio-fieldset studio-stack">
               <div className="studio-token-form">
-                <Field label="助手名称" htmlFor="token-name" required>
+                <Field label="令牌名称" htmlFor="token-name" required>
                   <Input
                     id="token-name"
                     name="name"
                     required
                     maxLength={100}
-                    placeholder="例如：工作室主控"
+                    placeholder="例如：外部内容编辑"
                   />
                 </Field>
                 <Field label="有效天数" htmlFor="token-days" required>
@@ -243,14 +231,8 @@ export function TokenDialog({ onCreated }: { onCreated: (record: AgentTokenRecor
                   <strong>{grants.length === scopes.length ? '完全控制授权' : '额外授权确认'}</strong>
                   <p className="admin-muted">
                     包含 {highRisk.length}{' '}
-                    项高风险权限，可能改变站点、删除数据、产生费用或扩大访问权限；设置和密钥由 Local / Prod
-                    共享。
+                    项高风险权限，可能改变站点、删除数据或扩大访问权限。令牌仅用于当前环境。
                   </p>
-                  {grants.includes('tasks:manage') && (
-                    <p className="admin-muted">
-                      主控会话和执行者可能保留其他任务的历史。此授权允许访问全站任务及共享历史，不提供令牌间会话隔离。
-                    </p>
-                  )}
                   <details>
                     <summary>查看高风险权限</summary>
                     <p className="admin-muted">{highRisk.map((scope) => scopeLabels[scope]).join('、')}</p>
@@ -284,7 +266,7 @@ export function TokenDialog({ onCreated }: { onCreated: (record: AgentTokenRecor
                 loading={pending}
                 disabled={!grants.length || (highRisk.length > 0 && !confirmed)}
               >
-                创建助手令牌
+                创建访问令牌
               </Button>
             </DialogFooter>
           </form>

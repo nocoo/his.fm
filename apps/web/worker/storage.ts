@@ -7,15 +7,15 @@ import {
   storageKind,
 } from '../src/shared/storage';
 import { parseWav } from './audio';
-import type { AudioSnapshot } from './audio-store';
 import { requireScope } from './authorization';
 import { HttpError, json } from './http';
+import { streamMedia } from './media';
 import { rasterType } from './media-validation';
 import { readBytes, readJson } from './production-body';
 import { mediaUrl } from './production-store';
 
 const retentionMs = 24 * 60 * 60 * 1000;
-type References = { keys: Map<string, Set<string>>; prefixes: string[] };
+type References = { keys: Map<string, Set<string>> };
 
 function collect(value: unknown, label: string, keys: References['keys'], property = '') {
   if (typeof value === 'string') {
@@ -46,35 +46,26 @@ function collect(value: unknown, label: string, keys: References['keys'], proper
 }
 
 async function references(db: D1Database): Promise<References> {
-  const [productions, episodes, settings, jobs, channel, bumpers, speech, categories] = await db.batch<
+  const [productions, episodes, provenance, channel, bumpers, categories] = await db.batch<
     Record<string, unknown>
   >([
     db.prepare('SELECT data FROM productions'),
     db.prepare('SELECT title, cover_url, audio_url, transcript, show_notes, summary FROM episodes'),
-    db.prepare('SELECT data FROM production_settings'),
-    db.prepare('SELECT snapshot, status FROM audio_jobs'),
+    db.prepare('SELECT data FROM media_provenance'),
     db.prepare('SELECT content, prompts FROM channel_profile'),
     db.prepare('SELECT name, data FROM bumpers'),
-    db.prepare('SELECT snapshot FROM speech_jobs'),
     db.prepare('SELECT name, prompt FROM categories'),
   ]);
-  const refs: References = { keys: new Map(), prefixes: [] };
+  const refs: References = { keys: new Map() };
   for (const row of productions.results) {
     const data = JSON.parse(String(row.data));
     collect(data, `制作：${data.title}`, refs.keys);
   }
   for (const row of episodes.results) collect(row, `节目：${row.title}`, refs.keys);
-  for (const row of settings.results) collect(JSON.parse(String(row.data)), '工作室贴片设置', refs.keys);
+  for (const row of provenance.results) collect(JSON.parse(String(row.data)), '历史音频素材', refs.keys);
   for (const row of bumpers.results) collect(JSON.parse(String(row.data)), `贴片：${row.name}`, refs.keys);
   for (const row of channel.results) collect(row, '频道定位', refs.keys);
   for (const row of categories.results) collect(row.prompt, `栏目：${row.name}`, refs.keys);
-  for (const row of jobs.results) {
-    const snapshot: AudioSnapshot = JSON.parse(String(row.snapshot));
-    if (row.status === 'queued' || row.status === 'running')
-      refs.prefixes.push(`audio/${snapshot.productionId}/${snapshot.scriptVersion}/${snapshot.jobId}/`);
-    collect(snapshot, '音频任务使用的贴片', refs.keys);
-  }
-  for (const row of speech.results) collect(JSON.parse(String(row.snapshot)), '语音任务快照', refs.keys);
   return refs;
 }
 
@@ -88,9 +79,6 @@ function describe(object: R2Object, refs: References): StorageObject {
   } else if (object.key.startsWith('images/') || object.key.startsWith('reference/')) {
     state = 'protected';
     reasons = ['品牌图片与音色参考'];
-  } else if (refs.prefixes.some((prefix) => object.key.startsWith(prefix))) {
-    state = 'protected';
-    reasons = ['音频任务尚未结束'];
   } else if (Date.now() - object.uploaded.getTime() < retentionMs) {
     state = 'recent';
     reasons = ['上传未满 24 小时'];
@@ -138,15 +126,6 @@ async function cleanup(env: Env, items: { key: string; version: string }[]) {
   return json({ results } satisfies StorageCleanupResult);
 }
 
-function byteRange(header: string, size: number) {
-  const match = /^bytes=(\d*)-(\d*)$/.exec(header);
-  if (!match || (!match[1] && !match[2])) return null;
-  const start = match[1] ? Number(match[1]) : Math.max(0, size - Number(match[2]));
-  const end = match[1] && match[2] ? Math.min(size - 1, Number(match[2])) : size - 1;
-  if (!Number.isSafeInteger(start) || !Number.isSafeInteger(end) || start < 0 || start > end) return null;
-  return { offset: start, length: end - start + 1 };
-}
-
 async function preview(request: Request, env: Env) {
   const parsed = storageKeySchema.safeParse(new URL(request.url).searchParams.get('key'));
   if (!parsed.success) throw new HttpError(400, '请选择一个资源');
@@ -163,23 +142,7 @@ async function preview(request: Request, env: Env) {
     'Accept-Ranges': 'bytes',
     ETag: object.httpEtag,
   });
-  const rangeHeader =
-    request.method === 'GET' &&
-    (!request.headers.has('If-Range') || request.headers.get('If-Range') === object.httpEtag)
-      ? request.headers.get('Range')
-      : null;
-  const range = rangeHeader ? byteRange(rangeHeader, object.size) : undefined;
-  if (range === null) {
-    headers.set('Content-Range', `bytes */${object.size}`);
-    return new Response(null, { status: 416, headers });
-  }
-  headers.set('Content-Length', String(range?.length ?? object.size));
-  if (range)
-    headers.set('Content-Range', `bytes ${range.offset}-${range.offset + range.length - 1}/${object.size}`);
-  if (request.method === 'HEAD') return new Response(null, { headers });
-  const content = await env.MEDIA.get(object.key, { range, onlyIf: { etagMatches: object.etag } });
-  if (!content || !('body' in content)) throw new HttpError(409, '资源已变化，请重新打开');
-  return new Response(content.body, { status: range ? 206 : 200, headers });
+  return streamMedia(request, env.MEDIA, object, headers);
 }
 
 async function upload(request: Request, env: Env) {
@@ -207,7 +170,7 @@ async function upload(request: Request, env: Env) {
     onlyIf: { etagDoesNotMatch: '*' },
   });
   if (!object) throw new HttpError(409, '资源路径已存在，请重试');
-  return json({ object: describe(object, { keys: new Map(), prefixes: [] }), url: mediaUrl(env, key) }, 201);
+  return json({ object: describe(object, { keys: new Map() }), url: mediaUrl(env, key) }, 201);
 }
 
 export async function routeStorage(request: Request, env: Env, actor: Actor) {

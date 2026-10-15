@@ -1,4 +1,3 @@
-import { defaultSpeechSettings } from '@his-fm/contracts';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { brief, fixture } from '../../../tests/worker/production-fixture';
 import { productionService as service } from './service';
@@ -17,41 +16,11 @@ function lastRequest() {
 }
 
 describe('production service contracts', () => {
-  it('reads and saves versioned AI settings and polls native preview receipts', async () => {
-    const config = { version: '0'.repeat(64), settings: defaultSpeechSettings };
-    response({ config });
-    expect(await service.ai()).toEqual({ config });
-    response({ config });
-    expect(await service.saveAi(config)).toEqual({ config });
-    expect(lastRequest()).toMatchObject({ url: '/admin/api/ai-settings', method: 'PUT' });
-    vi.useFakeTimers();
-    try {
-      response({ jobId: 'job' }, 202);
-      response({ jobId: 'job' }, 202);
-      response({ preview: { url: '/media/test.wav' } });
-      const pending = service.preview({
-        provider: 'gemini',
-        voice: 'Kore',
-        speakingStyle: 'calm',
-        text: 'Hello',
-      });
-      await vi.runAllTimersAsync();
-      expect(await pending).toEqual({ preview: { url: '/media/test.wav' } });
-      expect(lastRequest().url).toBe('/admin/api/production-settings/preview/job');
-      response({});
-      await expect(
-        service.preview({ provider: 'gemini', voice: 'Kore', speakingStyle: 'calm', text: 'Hello' }),
-      ).rejects.toThrow('仍在');
-    } finally {
-      vi.useRealTimers();
-    }
-  });
   it('loads production data and settings with cancellation', async () => {
     const signal = new AbortController().signal;
     for (const [call, url, body] of [
       [() => service.list(signal), '/productions', { productions: [fixture()] }],
       [() => service.get('a/b', signal), '/productions/a%2Fb', { production: fixture() }],
-      [() => service.settings(signal), '/production-settings', { settings: { voice: 'Kore' } }],
       [() => service.tokens(signal), '/agent-tokens', { tokens: [] }],
       [() => service.channel(signal), '/channel', { channel: { version: 1, content: '定位' } }],
     ] as const) {
@@ -62,7 +31,7 @@ describe('production service contracts', () => {
     expect(fetchMock.mock.calls[0][1]?.signal).toBe(signal);
     expect(fetchMock.mock.calls[1][1]?.signal).toBe(signal);
     expect(fetchMock.mock.calls[3][1]?.signal).toBe(signal);
-    expect(fetchMock.mock.calls[4][1]?.signal).toBe(signal);
+    expect(fetchMock.mock.calls[2][1]?.signal).toBe(signal);
   });
   it('sends expected versions for mutations, publication and deletion', async () => {
     response({ channel: { version: 2, content: '新定位' } });
@@ -92,27 +61,6 @@ describe('production service contracts', () => {
       method: 'POST',
       body: JSON.stringify(action),
     });
-    response({ production }, 202);
-    await service.audio('a/b', { version: 5, voice: 'Sulafat', introId: null, outroId: null });
-    expect(lastRequest()).toMatchObject({
-      url: '/admin/api/productions/a%2Fb/audio',
-      method: 'POST',
-      body: '{"version":5,"voice":"Sulafat","introId":null,"outroId":null}',
-    });
-    response({ preview: { url: '/media/preview.wav' } });
-    await service.preview({
-      provider: 'gemini',
-      voice: 'Sulafat',
-      speakingStyle: '自然',
-      text: '这里是 his.fm。',
-    });
-    expect(lastRequest()).toMatchObject({ url: '/admin/api/production-settings/preview', method: 'POST' });
-    expect(JSON.parse(String(lastRequest().body))).toEqual({
-      provider: 'gemini',
-      voice: 'Sulafat',
-      speakingStyle: '自然',
-      text: '这里是 his.fm。',
-    });
     const publication = {
       platform: 'wechat' as const,
       url: 'https://mp.weixin.qq.com/s/test',
@@ -136,6 +84,25 @@ describe('production service contracts', () => {
       body: cover,
       headers: { 'Content-Type': 'image/webp' },
     });
+  });
+  it('uploads raw WAV and detaches immutable asset references with exact versions', async () => {
+    const file = new File(['wav'], 'episode.wav', { type: 'application/octet-stream' });
+    response({ production: fixture() });
+    await service.audio('a/b', 9, file);
+    expect(lastRequest()).toMatchObject({
+      url: '/admin/api/productions/a%2Fb/assets/audio?version=9',
+      method: 'PUT',
+      body: file,
+      headers: { 'Content-Type': 'audio/wav' },
+    });
+    for (const asset of ['audio', 'cover'] as const) {
+      response({ production: fixture() });
+      await service.detach('a/b', 10, asset);
+      expect(lastRequest()).toMatchObject({
+        url: `/admin/api/productions/a%2Fb/assets/${asset}?version=10`,
+        method: 'DELETE',
+      });
+    }
   });
   it('creates tokens with exactly the selected grants and revokes them', async () => {
     response({ token: 'one-time-token', record: { id: 'one' } }, 201);

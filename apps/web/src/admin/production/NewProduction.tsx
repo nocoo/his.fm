@@ -1,5 +1,6 @@
 import { Button } from '@nocoo/basalt';
 import { PageHeader } from '@nocoo/basalt/components/page-header';
+import { ArrowLeft } from 'lucide-react';
 import { useLayoutEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router';
 import { errorMessage } from '../model';
@@ -26,10 +27,19 @@ export function NewProduction() {
     <div className="admin-page" ref={view}>
       {source === null && (
         <PageHeader
-          title="新建制作"
+          title={
+            <span className="studio-title-group">
+              <Button asChild variant="ghost" size="icon">
+                <Link to="/admin" aria-label="返回节目库">
+                  <ArrowLeft size={18} />
+                </Link>
+              </Button>
+              <span>新建节目</span>
+            </span>
+          }
           actions={
-            <Button variant="ghost" asChild>
-              <Link to="/admin">返回制作列表</Link>
+            <Button asChild variant="outline">
+              <Link to="/admin/episodes/new">直接录入成品</Link>
             </Button>
           }
         />

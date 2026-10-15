@@ -1,6 +1,7 @@
-import { defaultPrompts } from '@frogie/core/hisfm/prompts';
 import { expect, it } from 'vitest';
-import { promptKeys, promptLimit, promptSetSchema } from './prompts.ts';
+import { type PromptSet, promptKeys, promptLimit, promptSetSchema } from './prompts.ts';
+
+const defaultPrompts = Object.fromEntries(promptKeys.map((key) => [key, '外部创作要求'])) as PromptSet;
 
 it('validates the complete Chinese prompt catalogue and rejects missing, unknown or oversized instructions', () => {
   expect(promptSetSchema.parse(defaultPrompts)).toEqual(defaultPrompts);

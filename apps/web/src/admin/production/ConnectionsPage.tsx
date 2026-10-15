@@ -7,11 +7,13 @@ import { useCallback, useEffect, useState } from 'react';
 import type { AgentTokenRecord } from '../../shared/production';
 import { getEnvironment } from '../environment';
 import { errorMessage } from '../model';
-import { request } from '../service';
 import { Confirm, CopyButton } from './controls';
 import { dateLabel } from './model';
 import { productionService } from './service';
 import { scopeLabels, TokenDialog } from './TokenDialog';
+
+const grantIssue = (record: AgentTokenRecord) =>
+  record.invalidScopes?.length ? '权限已失效' : record.scopes.length ? null : '无授权';
 
 export function ConnectionsPage() {
   const base = getEnvironment() === 'production' ? 'https://his.fm' : window.location.origin;
@@ -19,25 +21,12 @@ export function ConnectionsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [target, setTarget] = useState<AgentTokenRecord | null>(null);
-  const [station, setStation] = useState<{ tokenId: string; stationId: string; version: number } | null>(
-    null,
-  );
-  const [online, setOnline] = useState(false);
   const load = useCallback(async (signal?: AbortSignal) => {
     setLoading(true);
     setError('');
     try {
-      const [result, binding, snapshot] = await Promise.all([
-        productionService.tokens(signal),
-        request<{ station: { tokenId: string; stationId: string; version: number } | null }>(
-          '/agent/station',
-          { signal },
-        ),
-        request<{ online: boolean }>('/agent/snapshot', { signal }),
-      ]);
-      setTokens(result.tokens);
-      setStation(binding.station ?? null);
-      setOnline(snapshot.online === true);
+      const result = await productionService.tokens(signal);
+      if (!signal?.aborted) setTokens(result.tokens);
     } catch (cause) {
       if (!signal?.aborted) setError(errorMessage(cause));
     } finally {
@@ -75,6 +64,8 @@ export function ConnectionsPage() {
         <div className="studio-stack studio-gap-sm studio-token-validity">
           {record.revokedAt ? (
             <TagBadge name="已撤销" color="slate" />
+          ) : grantIssue(record) ? (
+            <TagBadge name={grantIssue(record) ?? ''} color="amber" />
           ) : Date.parse(record.expiresAt) <= Date.now() ? (
             <TagBadge name="已过期" color="amber" />
           ) : (
@@ -102,14 +93,33 @@ export function ConnectionsPage() {
             <Button
               variant="ghost"
               size="sm"
-              aria-label={`${record.name}：已授权 ${record.scopes.length} 项权限`}
+              aria-label={
+                grantIssue(record)
+                  ? `${record.name}：${grantIssue(record)}，需要重新签发`
+                  : `${record.name}：已授权 ${record.scopes.length} 项权限`
+              }
             >
-              {record.scopes.length} 项权限
+              {grantIssue(record) ? '需重新签发' : `${record.scopes.length} 项权限`}
             </Button>
           </PopoverTrigger>
           <PopoverContent className="studio-token-scopes" align="start" aria-label={`${record.name}的权限`}>
-            <strong>{record.name} · 已授权权限</strong>
-            {record.scopes.length ? (
+            <strong>
+              {record.name} · {grantIssue(record) ?? '已授权权限'}
+            </strong>
+            {record.invalidScopes?.length ? (
+              <div className="studio-stack studio-gap-sm">
+                <p className="admin-muted">
+                  包含已移除或未知权限，此令牌无法通过认证。请撤销后按当前权限重新签发；不会自动扩大授权。
+                </p>
+                <ul className="studio-token-grants">
+                  {record.invalidScopes.map((scope) => (
+                    <li key={scope}>
+                      <code className="studio-scope-code">{scope}</code>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : record.scopes.length ? (
               <ul className="studio-token-grants">
                 {record.scopes.map((scope) => (
                   <li key={scope}>
@@ -119,7 +129,7 @@ export function ConnectionsPage() {
                 ))}
               </ul>
             ) : (
-              <p className="admin-muted">无授权，此令牌不可用于访问，请重新签发。</p>
+              <p className="admin-muted">无授权，此令牌无法通过认证。请撤销后按当前权限重新签发。</p>
             )}
           </PopoverContent>
         </Popover>
@@ -178,7 +188,7 @@ export function ConnectionsPage() {
           <strong>API 接入</strong>
           <code className="studio-wrap">{base}/api/agent</code>
           <span className="admin-muted">
-            使用当前环境的令牌，通过 /me 验证权限；普通 API 调用无需绑定工作站。
+            使用当前环境的令牌，通过 /me 验证权限；按已授予的有限权限访问 REST API。
           </span>
         </div>
         <div className="studio-actions">
@@ -193,11 +203,6 @@ export function ConnectionsPage() {
               OpenAPI
             </a>
           </Button>
-        </div>
-        <div className="studio-row studio-connection-runtime">
-          <TagBadge name={getEnvironment() === 'production' ? 'Prod' : 'Local'} color="slate" />
-          <span>原生主控 · {loading ? '正在查询' : error ? '状态未知' : online ? '在线' : '离线'}</span>
-          <span className="admin-muted studio-wrap">{station?.stationId ?? '尚未绑定工作站'}</span>
         </div>
       </LayerCard>
       <LayerCard padding="none">

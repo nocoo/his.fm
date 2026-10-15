@@ -173,6 +173,7 @@ describe('local production proxy', () => {
     expect(init?.method).toBe('PUT');
     expect(new Headers(init?.headers).get('Origin')).toBe('https://his.fm');
     expect(new Headers(init?.headers).get('Content-Type')).toBe('application/json');
+    expect(new Headers(init?.headers).get('Content-Length')).toBe('19');
     expect(Buffer.from(init?.body as Uint8Array).toString()).toBe('{"title":"example"}');
   });
 
@@ -290,6 +291,106 @@ describe('local production proxy', () => {
     expect(remoteFetch.mock.calls[0]?.[1]?.body).toHaveLength(limit);
   });
 
+  it.each([
+    ['/productions/example/assets/audio?version=2', 'PUT', 86465536],
+    ['/storage', 'POST', 25 * 1024 * 1024],
+  ])('bounds larger media uploads for %s only', async (path, method, limit) => {
+    expect(
+      (
+        await send(`/admin/remote-api${path}`, {
+          method,
+          headers: { 'Content-Length': String(limit + 1), Connection: 'close' },
+        })
+      ).status,
+    ).toBe(413);
+    expect(run).not.toHaveBeenCalled();
+    const body = Buffer.alloc(10 * 1024 * 1024);
+    expect(
+      (await send(`/admin/remote-api${path}`, { method, headers: { 'Content-Type': 'audio/wav' }, body }))
+        .status,
+    ).toBe(200);
+    const init = remoteFetch.mock.calls[0]?.[1];
+    expect(init?.body).toHaveLength(body.byteLength);
+    expect(new Headers(init?.headers).get('Content-Length')).toBe(String(body.byteLength));
+  });
+
+  it.each([
+    ['/productions/example/assets/audio/extra', 'PUT'],
+    ['/productions/example/assets/audio', 'POST'],
+    ['/storage/cleanup', 'POST'],
+    ['/storage', 'PUT'],
+  ])('keeps the default upload bound for %s %s', async (path, method) => {
+    expect(
+      (
+        await send(`/admin/remote-api${path}`, {
+          method,
+          headers: { 'Content-Length': String(9 * 1024 * 1024 + 1) },
+        })
+      ).status,
+    ).toBe(413);
+    expect(run).not.toHaveBeenCalled();
+  });
+
+  it('preserves byte ranges and validators without leaking upstream cookies', async () => {
+    remoteFetch.mockResolvedValueOnce(
+      new Response('wav', {
+        status: 206,
+        headers: {
+          'Content-Type': 'audio/wav',
+          'Content-Length': '3',
+          'Content-Range': 'bytes 44-46/100',
+          'Accept-Ranges': 'bytes',
+          ETag: '"media-version"',
+          'Last-Modified': 'Wed, 14 Oct 2026 00:00:00 GMT',
+          'Content-Disposition': 'inline',
+          'Set-Cookie': 'secret=upstream',
+        },
+      }),
+    );
+    const response = await send('/admin/remote-api/storage/object?key=audio.wav', {
+      headers: { Range: 'bytes=44-46', 'If-Range': '"media-version"' },
+    });
+    expect(response).toMatchObject({
+      status: 206,
+      body: 'wav',
+      headers: {
+        'content-length': '3',
+        'content-range': 'bytes 44-46/100',
+        'accept-ranges': 'bytes',
+        etag: '"media-version"',
+        'last-modified': 'Wed, 14 Oct 2026 00:00:00 GMT',
+        'content-disposition': 'inline',
+      },
+    });
+    expect(response.headers['set-cookie']).toBeUndefined();
+    const headers = new Headers(remoteFetch.mock.calls[0]?.[1]?.headers);
+    expect(headers.get('Range')).toBe('bytes=44-46');
+    expect(headers.get('If-Range')).toBe('"media-version"');
+    remoteFetch.mockResolvedValueOnce(
+      new Response(null, { status: 304, headers: { ETag: '"media-version"' } }),
+    );
+    expect(
+      (
+        await send('/admin/remote-api/storage/object?key=audio.wav', {
+          headers: { 'If-None-Match': '"media-version"' },
+        })
+      ).status,
+    ).toBe(304);
+    expect(new Headers(remoteFetch.mock.calls[1]?.[1]?.headers).get('If-None-Match')).toBe('"media-version"');
+  });
+
+  it('does not advertise compressed upstream lengths after fetch decompression', async () => {
+    remoteFetch.mockResolvedValueOnce(
+      new Response('decoded body', {
+        headers: { 'Content-Encoding': 'gzip', 'Content-Length': '40' },
+      }),
+    );
+    const response = await send('/admin/remote-api/storage/object?key=text.txt');
+    expect(response.body).toBe('decoded body');
+    expect(response.headers['content-length']).toBeUndefined();
+    expect(response.headers['content-encoding']).toBeUndefined();
+  });
+
   it('maps all upstream redirects to reauthentication without exposing the redirect', async () => {
     remoteFetch.mockResolvedValueOnce(
       new Response(null, {
@@ -401,15 +502,15 @@ describe('proxy lifecycle protections', () => {
     expect(upload.status).toBe(504);
   });
 
-  it('proxies cloud previews with a longer provider deadline', async () => {
-    const response = await send('/admin/remote-api/production-settings/preview', {
-      method: 'POST',
-      body: JSON.stringify({ voice: 'Kore', text: '试听' }),
+  it('allows a longer deadline for bounded full audio uploads', async () => {
+    const timer = vi.spyOn(globalThis, 'setTimeout');
+    const response = await send('/admin/remote-api/productions/example/assets/audio?version=1', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'audio/wav' },
+      body: 'test wav',
     });
     expect(response.status).toBe(200);
-    expect(remoteFetch.mock.calls[0][0].toString()).toBe(
-      'https://his.fm/admin/api/production-settings/preview',
-    );
+    expect(timer).toHaveBeenCalledWith(expect.any(Function), 120000);
   });
 
   it('cancels an upstream request when the browser disconnects', async () => {

@@ -1,151 +1,95 @@
-# his.fm API onboarding
+# his.fm external API onboarding
 
-Use this document for scoped REST access. It is public documentation, not proof
-of authentication. Base URL: `https://his.fm/api/agent`. Local development uses
-the explicitly selected local origin; never reuse production tokens locally.
+his.fm is a podcast content-management site. External clients create text, artwork and recordings outside the site, then use scoped REST to manage content. There is no embedded agent, native station, task queue, generation endpoint, MCP or A2A service.
 
-## 1. Obtain the smallest useful token
+## Connect
 
-The owner opens `/admin/connections`, selects a preset, reviews individual grants
-and issues a token. The default preset is read-only. Full control expands to an
-explicit list and needs high-risk acknowledgement; it is not a wildcard.
-A complete token is shown once. Save it in private local configuration, never in
-a URL, browser storage, Git or a copied diagnostic transcript.
-
-The resident runtime stores its website token in
-`~/.config/his.fm/config.json`, under `websites.<environment>.token`. Other API
-clients should use their own private secret storage. A website token is not a
-Cloudflare Access credential. The API supports neither OAuth nor MCP/A2A.
-
-Read the service manifest at `/api/agent`, OpenAPI at `/api/agent/openapi.json`
-and the RFC catalog at `/.well-known/api-catalog`. Schemas contain no private
-prompt bodies or provider keys. Each operation declares its required grants in
-`x-required-scopes`; extra conditional grants are documented on the operation.
-
-## 2. Verify identity and effective permissions
-
-The following examples use environment placeholders. Do not paste a real token
-into shell history or include expanded authorization headers in logs.
+- API base: `https://his.fm/api/agent`.
+- Public discovery: `/api/agent`, `/.well-known/api-catalog`, `/llms.txt`.
+- OpenAPI 3.1: `/api/agent/openapi.json`. Read actual paths and `x-required-scopes`; do not guess endpoints.
+- Obtain a token from the owner at `/admin/connections`; send `Authorization: Bearer <token>` over HTTPS. Never put it in a URL, prompt, log, source file or browser bundle.
+- Verify with `GET /me`, then `GET /capabilities`. Discovery being reachable does not prove authentication.
 
 ```sh
-curl --fail-with-body "$HISFM_ORIGIN/api/agent/me" \
-  -H "Authorization: Bearer $HISFM_TOKEN"
-curl --fail-with-body "$HISFM_ORIGIN/api/agent/capabilities" \
+curl --fail-with-body https://his.fm/api/agent/me \
   -H "Authorization: Bearer $HISFM_TOKEN"
 ```
 
-`/me` returns `{actor}` with the agent's name, token ID, explicit scopes and expiry
-(Unix milliseconds). `/capabilities` returns effective scopes, allowed submission
-actions and limits. A public discovery response does not verify the token.
-Expired, revoked and legacy unscoped tokens fail closed. A `403` means required
-grants are absent, not that a station connection must be established.
+Use only the environment explicitly authorized by the owner. Local and production tokens/data are separate. Technical permission is not approval to incur external cost, publish real content or delete media.
 
-Token revocation and deletion are separate: `POST /agent-tokens/:id/revoke`
-requires `tokens:revoke` and revokes descendants too. `DELETE /agent-tokens/:id`
-requires `tokens:delete` and only removes already revoked tokens from management
-lists; active or merely expired tokens return `409`. Security tombstones,
-delegation and station references remain. Both operations require the target's
-grants to be a subset of the caller's. New grants are never added to existing tokens.
+## Scopes
 
-A write grant never implies a read grant. Private prompts require `prompts:read`;
-publication details require `publications:read`. Read projections also apply to
-mutation responses. Do not overwrite omitted fields with guessed empty values.
-Bumper uploads/updates without `bumpers:read` return only
-`{bumper:{id,version}}`, not the saved media key, URL or other metadata.
+| Module | Finite grants |
+| --- | --- |
+| Productions | `productions:read`, `productions:write`, `productions:delete`, `productions:submit`, `productions:approve`, `productions:reopen` |
+| Publication records | `publications:read`, `publications:write`, `publications:delete` |
+| Standalone episodes | `episodes:read`, `episodes:write`, `episodes:delete`, `episodes:publish` |
+| Categories | `categories:read`, `categories:write`, `categories:delete` |
+| Prompts | `prompts:read`, `prompts:write` |
+| Appearance | `appearance:read`, `appearance:write` |
+| Bumpers | `bumpers:read`, `bumpers:write`, `bumpers:delete` |
+| Media storage | `storage:read`, `storage:write`, `storage:delete` |
+| Tokens | `tokens:read`, `tokens:issue`, `tokens:revoke`, `tokens:delete` |
 
-## 3. Use REST for site business operations
+There is no wildcard. Reader/editor/owner presets expand to explicit grants; the owner preset selects all current grants. Approval does not imply reopening; writes do not imply reads. No grant bypasses version checks, linked snapshot protection, media validation or reference-safe cleanup.
 
-No station enrollment or WebSocket is required for ordinary REST production,
-category, episode, appearance, token or storage operations. Use only the exact
-methods and bodies in OpenAPI. Do not write raw database fields, fabricate IDs,
-approvals/versions or transport receipts.
+## Editorial preparation
 
-For example, a `productions:read` token can list saved work:
+Read `GET /channel` with `prompts:read` before creative work. It returns current global policy and the editable prompt bundle, including `narration`. Read the selected category or a production's private prompt bundle as authorized. Priority is **global prompt -> category prompt -> episode intent -> sources**; facts and permissions are not overridden by prose.
+
+Saved workflow/voice/compaction prompt keys are templates for external use, not executable site features. Internal editorial policy should guide writing without being recited as a public slogan. Sources must be verified externally; the website stores references and does not fetch arbitrary URLs.
+
+## Versioned production workflow
+
+1. `POST /productions` creates a validated brief with `productions:write`. Read `/productions/:id` and `/productions/:id/capabilities` using `productions:read`.
+2. `PUT /productions/:id` updates permitted fields with the current `version`. `GET /productions/:id/prompts` requires both `productions:read` and `prompts:read`.
+3. `POST /productions/:id/actions` accepts `{version, action, feedback?, changes?}`. Submitting needs `productions:submit`; `approve_*` needs `productions:approve`; `revise_*` and `reopen_*` need `productions:reopen`. Atomic `changes` also require edit authority.
+4. Save the externally written transcript; approve the current script before attaching its recording.
+5. Upload clean cover and finished WAV, then save summary/description. Submit and approve final material after validating the exact assets.
+6. Publish manually on the external platform and record the real URL/time through the publication API with `publications:write`.
+
+Stored stages are `draft`, `brief_review`, `scripting`, `script_review`, `production`, `final_review`, `ready`. Reopening invalidates dependent approvals without deleting assets or history. IDs, timestamps, versions and audit/approval records are server-owned; never fabricate a completed state or overwrite a linked episode to bypass review.
+
+## Media
+
+- `PUT /productions/:id/assets/cover?version=N`: raw PNG/JPEG/WebP, matching Content-Type, at most 8 MiB. Source artwork must not contain text, branding, frames or overlays.
+- `PUT /productions/:id/assets/audio?version=N`: raw `audio/wav`, Content-Length required, 24 kHz mono PCM16, positive duration up to 1,800 seconds and 86,465,536 bytes. The server derives duration; no multipart or duration metadata. It requires an approved current script.
+- Both uploads and `DELETE /productions/:id/assets/{cover|audio}?version=N` require `productions:write` plus `storage:write` and the applicable stage policy. Changing reviewed assets requires `productions:reopen`. Detach retains immutable R2 bytes.
+- `POST /storage` uploads safe raster/PCM WAV up to 25 MiB to a server-chosen immutable key, without attaching it to a production.
+- `POST /bumpers?name=...&position=intro|outro` accepts PCM WAV up to 30 seconds/3 MiB with `bumpers:write`. Metadata updates use PUT plus version; deletion uses `?version=N` and retains physical media.
 
 ```sh
-curl --fail-with-body "$HISFM_ORIGIN/api/agent/productions" \
-  -H "Authorization: Bearer $HISFM_TOKEN"
+curl --fail-with-body -X PUT \
+  "https://his.fm/api/agent/productions/$PRODUCTION_ID/assets/audio?version=$VERSION" \
+  -H "Authorization: Bearer $HISFM_TOKEN" \
+  -H 'Content-Type: audio/wav' --data-binary @finished.wav
 ```
 
-Before editing existing work, read its version and
-`/productions/:id/capabilities`. Use only currently editable fields and authorized
-stage actions. Submit/approve/reopen grants are independent: both `revise_*` and
-`reopen_*` require `productions:reopen`, which approval does not imply. API approvals retain
-an agent audit identity, never a fabricated human identity. A `409` requires a
-fresh read and reassessment, not a blind retry.
+Fetch the new version after every successful mutation. Never blindly retry a body after a conflict.
 
-Cover/audio assets use validated byte-upload endpoints and immutable R2 keys.
-Keep covers clean and unframed. Publishing means recording an actual external
-publication URL and updating the site snapshot; his.fm does not publish to
-WeChat or Xiaoyuzhou for you. Correction/withdrawal uses explicit publication
-operations, not raw episode snapshot editing.
+## Publication and episodes
 
-AI/narration settings depend on the native host and are shared across Local and
-Prod. Existing provider keys are never readable. Replacing or clearing a key is
-write-only and requires `credentials:write`; supplying noncredential settings
-separately requires `settings:write`. Send null to clear a saved key. A caller
-without `settings:read` receives only the new configuration version after a save.
-Full site control grants no arbitrary filesystem, deployment, Cloudflare or
-external-platform access.
+`POST /productions/:id/publications` records `{version, platform, url, publishedAt}`. Platforms are `wechat` and `xiaoyuzhou`, with matching HTTPS hostnames and an actual non-future time. Current final approval/assets are required. This records publication; it does not post to the external platform.
 
-## 4. Delegate tasks only to the product runtime
+`PATCH /productions/:id/publications/:platform` corrects the record using the same complete body, including the matching platform. `DELETE .../:platform?version=N` withdraws it with `publications:delete`. Events remain in the audit. The last withdrawal makes the linked website episode draft; it does not expose an in-progress revision. `GET /productions/:id/publications` requires `publications:read`.
 
-Creative work belongs to the his.fm product coordinator. An agent-origin request
-needs `tasks:submit`, `tasks:manage` and `prompts:read` to submit an outcome and
-acceptance criteria to `POST /tasks`:
+Standalone `/episodes` supports POST/GET and `/:id` GET/PUT/DELETE. PUT includes version; DELETE uses `?version=N`. Publishing/changing published standalone content additionally requires `episodes:publish`. Linked production snapshots reject standalone content writes/deletion. `PATCH /episodes/:id` permits only `{version, featured}` display metadata.
 
-```json
-{
-  "id": "client-generated-stable-task-id",
-  "text": "Inspect the selected material and report source-quality gaps; do not generate paid media or publish.",
-  "context": null
-}
-```
+## Other modules and safe deletion
 
-A production-specific task carries the exact typed `PageContext` from the shared
-contract and additionally needs `productions:read`. Never add a client principal
-or another token's identity. Inspect `GET /tasks/:id` with `tasks:read`; cancel
-with `POST /tasks/:id/cancel` and `tasks:cancel`. Bearer callers can inspect/cancel
-only their own tasks unless also granted `tasks:manage` for all-site administration.
-The coordinator and reusable executors retain shared history from other tasks.
-`tasks:manage` authorizes that shared task/coordinator history; token-isolated
-sessions are not implemented. A `tasks:submit`-only caller cannot invoke the
-native coordinator. Fine-grained REST CRUD does not require this broad grant.
-Audio/preview requests similarly need `audio:generate`, `tasks:manage` and
-`prompts:read`; production audio also needs `productions:read` for task preparation.
-Effects remain bounded by the originator's current grants
-and the execution token's grants, including later revocation or expiry.
+- Categories: GET/POST `/categories`, GET/PUT/DELETE `/categories/:id`. Private reads need `categories:read`; prompts additionally need `prompts:read`. PUT is partial plus version and preserves omitted prompt. Changing a prompt additionally needs `prompts:write`; referenced categories cannot be deleted.
+- Channel: GET/PUT `/channel`; PUT accepts version plus content and/or the complete known prompt bundle. Writes need `prompts:write`; write-only responses return only version.
+- Appearance: GET/PUT `/appearance`; PUT uses current version and a known theme ID.
+- Storage: GET `/storage?cursor=...` must follow all cursors. GET/HEAD `/storage/object?key=...` streams single byte ranges. DELETE `/storage/object?key=...&version=...` or POST `/storage/cleanup` with `{items:[{key,version}]}` needs `storage:delete` and reports per-object results, not unconditional deletion.
 
-A queued receipt is not completion. A configured, enrolled, online native station
-must execute the task or narration. Check terminal task state, artifacts and
-successful website receipts. Do not substitute a manual generation/provider call
-when the product pipeline is unavailable. Do not retry completed paid generation.
+Cleanup protects current references, retained media provenance, `images/`, `reference/` and uploads younger than 24 hours. It cannot prove an object has no external users or atomically coordinate arbitrary R2 overwrites with D1; avoid concurrent reference changes. Deletion does not purge CDN caches.
 
-For editorial work, an authorized runtime reads the latest global and selected
-category prompts. Priority is global prompt, category prompt, intent, sources.
-Private policy does not grant permission or override factual truth.
+## Delegation and response privacy
 
-## 5. Enroll only when running a native coordinator
+`POST /agent-tokens` requires `tokens:issue` and `{name, expiresInDays, scopes}`: 1-365 days, explicit nonempty unique grants. A machine issuer cannot grant beyond its own scopes or expiry; a live DB fence rechecks this at insertion. The raw token is shown once.
 
-General REST clients skip this step. A native coordinator needs a token including
-`runtime:connect` and an explicit station binding managed by `runtime:manage`
-(or the owner at the protected studio endpoint). Read the current binding version
-before posting `{tokenId,stationId,version}` to `/api/agent/agent/station`.
+`POST /agent-tokens/:id/revoke` requires `tokens:revoke` and revokes descendants. `DELETE /agent-tokens/:id` needs `tokens:delete` and prior revocation, preserving a tombstone/ancestry. Machines cannot manage targets outside their grants. GET requires `tokens:read` and never reveals hashes or raw values. Unknown/empty grants cannot authenticate; invalid stored metadata may be shown only to facilitate cleanup.
 
-The enrolled host upgrades `GET /api/agent/runtime/connect` using Bearer and
-`X-Hisfm-Station`; never send secrets in URL query parameters. Runtime frame
-schemas are published in OpenAPI. Stable operation IDs, expected versions,
-heartbeat/expiry and durable receipts fence transport execution. A healthy station
-is not replaced implicitly. Read `/runtime/receipts/:id` for an exact outcome;
-`202` still means unknown/pending, not success.
+Write-only production, episode and bumper calls acknowledge `{id, version}` inside their resource envelope. Publication arrays/events and category prompt bodies are projected by their independent read grants. Do not assume write responses contain existing private data.
 
-Runtime station credentials do not expand the initiating caller's authority.
-Task reads send both `X-Hisfm-Station` and the actual originating
-`X-Hisfm-Command`; the server revalidates the originator and executor rather than
-using the station token's grants alone. Do not send a fabricated command ID.
-The resident coordinator's typed actions remain submission-only. Speech transport
-is limited to the assigned job and does not expose provider credentials.
-
-For full endpoint semantics and failure handling, read
-[the site API reference](https://github.com/nocoo/his.fm/blob/main/docs/agent-api.md)
-and [native runtime details](https://github.com/nocoo/his.fm/blob/main/docs/native-agent.md).
+Errors use HTTP status and `{error, code, documentation}`: 401 invalid/expired/revoked token, 403 missing authority, 409 changed version or invalid business state, 413/415 invalid media size/type. Read the error and latest authorized state; do not escalate grants, forge a version or retry destructive writes automatically.

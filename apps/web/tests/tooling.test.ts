@@ -1,20 +1,23 @@
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import config from '../cloudflare.config';
 
 describe('Cloudflare configuration', () => {
-  it('uses one root version and includes the local agent workspace', () => {
+  it('uses one root version and only web and shared-contract workspaces', () => {
     const root = JSON.parse(readFileSync(new URL('../../../package.json', import.meta.url), 'utf8'));
     const app = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
     expect(root.workspaces).toEqual(['apps/*', 'packages/*']);
     expect(root.scripts.build).toBe('npm run build --workspace @his-fm/web');
     expect(root.version).toMatch(/^\d+\.\d+\.\d+$/);
     expect(app.version).toBeUndefined();
-    expect(readdirSync(new URL('../../../packages/agent/', import.meta.url))).toContain('package.json');
+    expect(existsSync(new URL('../../../packages/contracts/package.json', import.meta.url))).toBe(true);
+    expect(existsSync(new URL('../../../packages/agent/package.json', import.meta.url))).toBe(false);
+    expect(root.scripts).not.toHaveProperty('agent');
+    expect(root.scripts).not.toHaveProperty('dev:all');
   });
 
   it('checks the installed CLI before delegating deployment to the web workspace', () => {
@@ -37,6 +40,9 @@ describe('Cloudflare configuration', () => {
     const lock = JSON.parse(readFileSync(new URL('../../../package-lock.json', import.meta.url), 'utf8'));
     expect(lock.packages['apps/web'].devDependencies.cf).toBe('1.0.0-beta.12');
     expect(Object.keys(lock.packages).filter((path) => path.endsWith('/wrangler'))).toEqual([]);
+    expect(
+      Object.keys(lock.packages).filter((path) => /frogie|pi-durable|packages\/agent/.test(path)),
+    ).toEqual([]);
   });
 
   it('isolates local login, resources and domains from production', () => {
@@ -53,6 +59,7 @@ describe('Cloudflare configuration', () => {
       expect(worker.workersDev).toBe(false);
       expect(worker.previewUrls).toBe(false);
       expect(worker.env).not.toHaveProperty('AUDIO_WORKFLOW');
+      expect(worker.env).not.toHaveProperty('AGENT_HUB');
       expect(worker.env).not.toHaveProperty('GEMINI_API_KEY');
       expect(worker.assets.runWorkerFirst).toEqual([
         '/api/*',

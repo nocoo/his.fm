@@ -8,7 +8,6 @@ import { useSearchParams } from 'react-router';
 import { CategoryEditor } from '../categories/CategoryPage';
 import { useCategories } from '../categories/useCategories';
 import { MarkdownEditor } from '../markdown/MarkdownEditor';
-import { AiSettings } from '../production/AiSettings';
 import { Choice, Confirm, CopyButton, Failure } from '../production/controls';
 import { dateLabel } from '../production/model';
 import { ReadingText } from '../production/ReadingText';
@@ -25,16 +24,15 @@ export default function ChannelPage() {
       label,
       group: ['editorial', 'boundary', 'brief', 'script', 'cover', 'description'].includes(value)
         ? '内容制作'
-        : ['speech', 'voiceComparison'].includes(value)
+        : ['speech', 'voiceComparison', 'narration'].includes(value)
           ? '声音制作'
-          : '主控与运行',
+          : '外部工作流程',
     })),
     ...categories.categories.map((category) => ({
       value: `category:${category.id}`,
       label: `栏目 · ${category.name}`,
       group: '栏目风格',
     })),
-    { value: 'narration', label: '旁白讲述风格', group: '声音制作' },
   ];
   const requested = params.get('prompt') ?? 'content';
   const selected =
@@ -69,9 +67,7 @@ export default function ChannelPage() {
       {categories.error && <Failure error={categories.error} retry={() => void categories.load()} />}
       {panels.map((key) => (
         <div key={key} hidden={key !== selected}>
-          {key === 'narration' ? (
-            <AiSettings styleOnly actionsTarget={key === selected ? actionsTarget : null} />
-          ) : key.startsWith('category:') ? (
+          {key.startsWith('category:') ? (
             <CategoryEditor
               id={key.slice(9)}
               promptOnly
@@ -120,7 +116,7 @@ function PromptEditor({
         <span role="status" className={vm.dirty ? 'channel-unsaved' : 'admin-muted'}>
           {vm.channel ? (vm.dirty ? '有未保存改动' : `已保存 · v${vm.channel.version}`) : '正在读取'}
         </span>
-        <span className="admin-muted">仅影响后续任务 · 不改写已有内容</span>
+        <span className="admin-muted">供外部创作使用 · 不改写已有内容</span>
       </div>
       {vm.error && <Failure error={vm.error} retry={!vm.channel ? () => void vm.load() : undefined} />}
       {!vm.channel && !vm.error && <LayerCard.Loading label="正在读取提示词" />}
@@ -183,7 +179,7 @@ function PromptEditor({
           <details className="channel-help admin-muted">
             <summary>提示词的生效范围</summary>
             <p>
-              已派发任务保留原提示词快照。提示词是内部工作要求，不直接进入公开成品；权限、工具协议和人工审批仍由代码控制。
+              提示词是外部创作的内部工作要求，不直接进入公开成品；保存提示词不会重写已有内容，授权与人工审批仍由服务端控制。
             </p>
           </details>
         </>

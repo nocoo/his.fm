@@ -1,113 +1,69 @@
 import { randomUUID } from 'node:crypto';
 import { mkdir, readFile } from 'node:fs/promises';
-import { defaultPrompts } from '@frogie/core/hisfm/prompts';
-import { defaultSpeechSettings, scopePresets, scopes, wavHeader } from '@his-fm/contracts';
+import { scopePresets, scopes, wavHeader } from '@his-fm/contracts';
 import { expect, type Page, test } from '@playwright/test';
-import type { AgentTokenRecord, ProductionAction, ProductionSettings } from '../../src/shared/production';
-import {
-  archivedVoiceComparisonStyle,
-  voiceComparisonPairs,
-  voiceSampleTranscript,
-} from '../../src/shared/voice-samples';
+import type { Episode } from '../../src/shared/episode';
+import type { AgentTokenRecord, BumperRecord, ProductionAction } from '../../src/shared/production';
 import { applyAction, applyPatch } from '../../worker/production-model';
 import { fixture, human, readyFixture } from '../worker/production-fixture';
 
 async function studio(page: Page, initial = fixture()) {
   let production = initial;
+  let episodes: Episode[] = [];
   let conflict = false;
   let failUpload = false;
-  let failPreview = false;
   let failSave = false;
-  let audioPolls = 0;
-  let settings: ProductionSettings = {
-    voice: 'Kore',
-    speakingStyle: '自然地讲述',
-    provider: 'gemini',
-    version: '0'.repeat(64),
-    bumpers: [],
-    providers: { gemini: false, elevenlabs: false },
-    voices: { gemini: 'Kore', elevenlabs: 'kLhAstPcnnPxqzk6gS5i' },
-    ttsConfigured: false,
-  };
+  let bumpers: BumperRecord[] = [];
   let tokens: AgentTokenRecord[] = [];
   let failTokenDelete = false;
   let failTokenLoad = false;
-  let ai = {
-    version: '0'.repeat(64),
-    settings: structuredClone(defaultSpeechSettings),
-    providers: { gemini: false, elevenlabs: false, raven: true, decision: true },
-    coordinator: { provider: 'raven', model: 'gpt-6-astra', thinkingLevel: 'high' },
-    executor: { provider: 'raven', model: 'gpt-6.1-sol', thinkingLevels: ['low', 'medium', 'high'] },
-    decision: { model: 'jev-latest', maxInputBytes: 16384, maxBatchQuestions: 12 },
-  };
+  let failLibrary = false;
   const actions: ProductionAction[] = [];
+  const uploads: { path: string; type: string; bytes: number }[] = [];
+  const requests: string[] = [];
+  await page.route('https://f.no.mt/audio.wav', (route) =>
+    route.fulfill({
+      contentType: 'audio/wav',
+      body: Buffer.concat([Buffer.from(wavHeader(48000)), Buffer.alloc(48000)]),
+    }),
+  );
   await page.route('**/admin/api/**', async (route) => {
     const request = route.request();
-    const path = new URL(request.url()).pathname.slice('/admin/api'.length);
-    if (path === '/channel')
-      return route.fulfill({
-        json: {
-          channel: {
-            version: 1,
-            content: 'Test policy',
-            prompts: { ...defaultPrompts, voiceComparison: archivedVoiceComparisonStyle },
-          },
-        },
-      });
+    const url = new URL(request.url());
+    const path = url.pathname.slice('/admin/api'.length);
     const method = request.method();
+    requests.push(`${method} ${path}`);
     const send = (body: unknown, status = 200) =>
       route.fulfill({
         status,
         contentType: 'application/json',
         body: status === 204 ? '' : JSON.stringify(body),
       });
-    if (path.endsWith('/categories'))
+    if (path === '/session') return send({ mode: 'local', user: { email: 'editor@his.fm' } });
+    if (path === '/categories')
       return send({
         categories: [
           { id: 'work', name: '工作之间', icon: 'briefcase-business', color: 'blue' },
-          { id: 'learning', name: '慢慢学会', icon: 'book-open', color: 'teal' },
           { id: 'life', name: '生活留白', icon: 'leaf', color: 'amber' },
-          { id: 'conversations', name: '一起聊聊', icon: 'messages-square', color: 'rose' },
         ],
       });
-    if (path === '/session') return send({ mode: 'local', user: { email: 'editor@his.fm' } });
-    if (path === '/ai-settings') {
-      if (method === 'PUT') {
-        const input = request.postDataJSON();
-        ai = {
-          ...ai,
-          version: String(Number.parseInt(ai.version, 16) + 1).padStart(64, '0'),
-          settings: input.settings,
-        };
-        settings = {
-          ...settings,
-          provider: ai.settings.defaultProvider,
-          voice: ai.settings[ai.settings.defaultProvider].voice,
-          speakingStyle: ai.settings.speakingStyle,
-          voices: { gemini: ai.settings.gemini.voice, elevenlabs: ai.settings.elevenlabs.voice },
-        };
-      }
-      return send({ config: ai });
-    }
-    if (path === '/production-settings/previews') return send({ previews: [] });
     if (path === '/bumpers') {
-      if (method === 'GET') return send({ bumpers: settings.bumpers });
+      if (method === 'GET') return send({ bumpers });
       if (failUpload) {
         failUpload = false;
         return send({ error: '上传失败，请重试' }, 503);
       }
-      const params = new URL(request.url()).searchParams;
-      const bumper = {
+      const bumper: BumperRecord = {
         id: 'bumper-one',
-        name: params.get('name') ?? '',
-        position: 'intro' as const,
+        name: url.searchParams.get('name') ?? '',
+        position: 'intro',
         version: 1,
         key: 'intro',
         url: '/media/intro.wav',
         durationSeconds: 2,
         size: 96044,
       };
-      settings = { ...settings, bumpers: [bumper] };
+      bumpers = [bumper];
       return send({ bumper }, 201);
     }
     if (path === '/agent-tokens') {
@@ -134,11 +90,11 @@ async function studio(page: Page, initial = fixture()) {
     }
     if (path.startsWith('/agent-tokens/')) {
       const id = decodeURIComponent(path.split('/')[2]);
-      if (path.endsWith('/revoke') && method === 'POST') {
+      if (path.endsWith('/revoke') && method === 'POST')
         tokens = tokens.map((record) =>
           record.id === id ? { ...record, revokedAt: new Date().toISOString() } : record,
         );
-      } else if (method === 'DELETE') {
+      else if (method === 'DELETE') {
         if (failTokenDelete) {
           failTokenDelete = false;
           return send({ error: '删除失败，请重试' }, 503);
@@ -149,90 +105,45 @@ async function studio(page: Page, initial = fixture()) {
       } else return send({ error: '不支持这个请求方式' }, 405);
       return send(null, 204);
     }
-    if (path === '/production-settings') {
-      if (method === 'PUT') settings = { ...settings, ...request.postDataJSON() };
-      return send({ settings });
-    }
-    if (path === '/production-settings/preview') {
-      if (failPreview) {
-        failPreview = false;
-        return send({ error: '试听生成暂时失败，请重试' }, 502);
-      }
-      const input = request.postDataJSON();
-      return send({ preview: { ...input, url: '/media/preview.wav', durationSeconds: 18, cached: false } });
-    }
+    if (path === '/episodes') return send({ episodes });
     if (path === '/productions') {
       if (method === 'POST') {
         production = fixture({ ...request.postDataJSON(), id: 'new-production' });
         return send({ production }, 201);
       }
+      if (failLibrary) {
+        failLibrary = false;
+        return send({ error: '节目库加载失败' }, 503);
+      }
       return send({ productions: [production] });
     }
-    if (path.endsWith('/prompts'))
-      return send({
-        brief: '核实素材并保留我的创作意图',
-        script: '根据已经批准的选题编写逐字稿',
-        cover: '绘制节目封面',
-        description: '整理发布简介',
-      });
-    if (path === '/episodes')
-      return send({
-        episodes: [
-          {
-            ...production,
-            status: 'published',
-            durationSeconds: 600,
-            coverUrl: '/media/cover.png',
-            audioUrl: '/media/audio.wav',
-            showNotes: production.description,
-            featured: false,
-            publishedAt: production.updatedAt,
-            sourceProductionId: production.id,
-          },
-        ],
-      });
-    if (path.startsWith('/episodes/'))
-      return send({
-        episode: {
-          ...production,
-          status: 'published',
-          durationSeconds: 600,
-          coverUrl: '/media/cover.png',
-          audioUrl: '/media/audio.wav',
-          showNotes: production.description,
-          featured: false,
-          publishedAt: production.updatedAt,
-          sourceProductionId: production.id,
-        },
-      });
-    if (method === 'GET') {
-      if (production.audioJob?.status === 'queued' && ++audioPolls >= 1) {
-        const ready = readyFixture();
-        production = {
-          ...production,
-          version: production.version + 1,
-          assets: { ...production.assets, audio: ready.assets.audio },
-          audioJob: ready.audioJob,
-        };
-      }
-      return send({ production });
-    }
-    if (method === 'DELETE') {
-      expect(new URL(request.url()).searchParams.get('version')).toBe(String(production.version));
-      return send(null, 204);
-    }
-    if (path.endsWith('/assets/cover')) {
-      expect(new URL(request.url()).searchParams.get('version')).toBe(String(production.version));
+    if (!path.startsWith('/productions/')) return send({ error: 'Unexpected retired API' }, 404);
+    if (method === 'GET') return send({ production });
+    if (path.includes('/assets/')) {
+      expect(url.searchParams.get('version')).toBe(String(production.version));
       if (failUpload) {
         failUpload = false;
         return send({ error: '上传失败，请重试' }, 503);
       }
+      const asset = path.endsWith('/audio') ? 'audio' : 'cover';
+      if (method === 'PUT')
+        uploads.push({
+          path,
+          type: request.headers()['content-type'],
+          bytes: request.postDataBuffer()?.length ?? 0,
+        });
       production = {
         ...production,
         version: production.version + 1,
-        assets: { ...production.assets, cover: readyFixture().assets.cover },
+        stage: production.stage === 'ready' ? 'production' : production.stage,
+        approvals: { ...production.approvals, final: null },
+        assets: { ...production.assets, [asset]: method === 'DELETE' ? null : readyFixture().assets[asset] },
       };
       return send({ production });
+    }
+    if (method === 'DELETE') {
+      expect(url.searchParams.get('version')).toBe(String(production.version));
+      return send(null, 204);
     }
     const input = request.postDataJSON();
     if (failSave) {
@@ -248,30 +159,15 @@ async function studio(page: Page, initial = fixture()) {
     if (path.endsWith('/actions')) {
       actions.push(input);
       const action = input as ProductionAction;
-      production = applyAction(
-        action.changes ? applyPatch(production, action.changes, human) : production,
-        action,
-        human,
-      );
-      production = { ...production, version: production.version + 1 };
-      return send({ production });
-    }
-    if (path.endsWith('/audio')) {
       production = {
-        ...production,
+        ...applyAction(
+          action.changes ? applyPatch(production, action.changes, human) : production,
+          action,
+          human,
+        ),
         version: production.version + 1,
-        audioJob: {
-          ...readyFixture().audioJob,
-          id: 'test-job',
-          status: 'queued',
-          scriptVersion: 1,
-          createdAt: new Date().toISOString(),
-          error: null,
-        },
       };
-      return send({ production }, 202);
-    }
-    if (path.endsWith('/publications')) {
+    } else if (path.endsWith('/publications'))
       production = {
         ...production,
         version: production.version + 1,
@@ -280,28 +176,19 @@ async function studio(page: Page, initial = fixture()) {
           { ...input, confirmedAt: new Date().toISOString(), confirmedBy: 'editor@his.fm' },
         ],
       };
-      return send({ production });
+    else {
+      const { version: _, ...fields } = input;
+      production = { ...applyPatch(production, fields, human), version: production.version + 1 };
     }
-    const { version: _, ...fields } = input;
-    production = { ...applyPatch(production, fields, human), version: production.version + 1 };
     return send({ production });
   });
   return {
     get production() {
       return production;
     },
-    get actions() {
-      return actions;
-    },
-    configureTts: () => {
-      settings.ttsConfigured = true;
-      settings.providers = { gemini: true, elevenlabs: true };
-      ai.providers.gemini = true;
-      ai.providers.elevenlabs = true;
-    },
-    failPreview: () => {
-      failPreview = true;
-    },
+    actions,
+    uploads,
+    requests,
     conflict: () => {
       conflict = true;
     },
@@ -320,8 +207,242 @@ async function studio(page: Page, initial = fixture()) {
     failTokenLoad: () => {
       failTokenLoad = true;
     },
+    setEpisodes: (records: Episode[]) => {
+      episodes = records;
+    },
+    failLibrary: () => {
+      failLibrary = true;
+    },
   };
 }
+
+function snapshot(sourceProductionId: string | null): Episode {
+  const production = readyFixture();
+  return {
+    id: sourceProductionId ? 'linked' : 'standalone',
+    version: 1,
+    title: production.title,
+    slug: production.slug,
+    episodeNumber: 8,
+    category: 'life',
+    tags: [],
+    summary: '已发布节目',
+    transcript: production.transcript,
+    showNotes: production.description,
+    coverUrl: '/media/cover.png',
+    audioUrl: '/media/audio.wav',
+    durationSeconds: 600,
+    featured: false,
+    status: 'published',
+    publishedAt: production.updatedAt,
+    sourceProductionId,
+    createdAt: production.createdAt,
+    updatedAt: production.updatedAt,
+  };
+}
+
+test('library defaults to covers, deduplicates explicit snapshots and preserves grid/list filters', async ({
+  page,
+}) => {
+  const state = await studio(page, readyFixture());
+  state.setEpisodes([snapshot('production-test'), snapshot(null)]);
+  await page.goto('/admin');
+  const grid = page.getByRole('region', { name: '节目封面网格' });
+  await expect(grid.locator('.library-card')).toHaveCount(2);
+  await expect(page.getByRole('radio', { name: '封面网格', exact: true })).toBeChecked();
+  await expect(page.getByRole('complementary', { name: '主控对话' })).toHaveCount(0);
+  await page.getByRole('radio', { name: '列表', exact: true }).click();
+  const table = page.getByRole('table', { name: '节目库列表' });
+  await expect(table.getByRole('row')).toHaveCount(3);
+  await expect(table.locator('.library-thumbnail')).toHaveCount(2);
+  await page.getByRole('combobox', { name: '节目状态' }).click();
+  await page.getByRole('option', { name: '草稿', exact: true }).click();
+  await expect(page.getByText('没有符合条件的节目', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: '清除筛选', exact: true }).click();
+  await expect(table.getByRole('row')).toHaveCount(3);
+  await page.getByRole('radio', { name: '封面网格', exact: true }).click();
+  await page.getByRole('textbox', { name: '搜索节目', exact: true }).fill('不匹配');
+  await expect(page.getByText('没有符合条件的节目', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: '清除筛选', exact: true }).click();
+  state.failLibrary();
+  await page.getByRole('button', { name: '刷新节目库', exact: true }).click();
+  await expect(page.getByRole('alert')).toContainText('节目库加载失败');
+  await expect(grid.locator('.library-card')).toHaveCount(2);
+  await page.getByRole('button', { name: '重新加载', exact: true }).click();
+  await expect(page.getByText('节目库加载失败', { exact: true })).toHaveCount(0);
+  expect(state.requests.some((request) => /agent\/|ai-settings|production-settings/.test(request))).toBe(
+    false,
+  );
+});
+
+test('detail sections keep drafts and Markdown undo while saves and approvals remain explicit', async ({
+  page,
+}) => {
+  const state = await studio(page);
+  await page.goto('/admin/productions/production-test');
+  await expect(page.getByRole('tablist', { name: '节目详情分区' })).toBeVisible();
+  await expect(page.getByRole('tab')).toHaveCount(4);
+  await page.getByLabel('节目标题', { exact: true }).fill('尚未保存的节目标题');
+  await page.getByRole('tab', { name: '逐字稿', exact: true }).click();
+  const manuscript = page.getByRole('textbox', { name: '完整逐字稿', exact: true });
+  await manuscript.fill('# 逐字稿草稿\n\n保留这个具体的细节。');
+  await page.getByRole('tab', { name: '封面与音频', exact: true }).click();
+  await page.getByLabel('节目摘要', { exact: true }).fill('尚未保存的摘要');
+  await page.getByRole('tab', { name: /资料与素材/ }).click();
+  await expect(page.getByLabel('节目标题', { exact: true })).toHaveValue('尚未保存的节目标题');
+  expect(state.actions).toHaveLength(0);
+  state.failSave();
+  await page.getByRole('button', { name: '保存选题', exact: true }).click();
+  await expect(page.getByRole('alert').first()).toContainText('保存失败');
+  await page.getByRole('button', { name: '保存选题', exact: true }).click();
+  await expect.poll(() => state.production.title).toBe('尚未保存的节目标题');
+  await page.getByRole('button', { name: '标记选题完成', exact: true }).click();
+  await expect.poll(() => state.production.approvals.brief).not.toBeNull();
+  await page.getByRole('tab', { name: /逐字稿/ }).click();
+  await expect(manuscript).toContainText('保留这个具体的细节');
+  await page.locator('.studio-section:visible').getByRole('button', { name: '撤销', exact: true }).click();
+  await expect(manuscript).not.toContainText('保留这个具体的细节');
+  await page.locator('.studio-section:visible').getByRole('button', { name: '重做', exact: true }).click();
+  state.conflict();
+  await page.getByRole('button', { name: '保存逐字稿', exact: true }).click();
+  await expect(page.getByRole('alert').first()).toContainText('内容已更新');
+  await expect(manuscript).toContainText('保留这个具体的细节');
+  await page.getByRole('button', { name: '刷新内容', exact: true }).click();
+  const confirmation = page.getByRole('alertdialog');
+  await expect(confirmation).toContainText('未保存输入会被替换');
+  await confirmation.getByRole('button', { name: '取消', exact: true }).click();
+  await expect(manuscript).toContainText('保留这个具体的细节');
+  await page.getByRole('tab', { name: /封面与音频/ }).click();
+  await expect(page.getByLabel('节目摘要', { exact: true })).toHaveValue('尚未保存的摘要');
+});
+
+test('manual cover and WAV uploads retain failures and detach only after explicit confirmation', async ({
+  page,
+}) => {
+  const state = await studio(
+    page,
+    readyFixture({
+      stage: 'production',
+      assets: { cover: null, audio: null },
+      approvals: { ...readyFixture().approvals, final: null },
+    }),
+  );
+  await page.goto('/admin/productions/production-test?section=assets');
+  const section = page.locator('.studio-section:visible');
+  const cover = section.locator('input[type=file]').nth(0);
+  const audio = section.locator('input[type=file]').nth(1);
+  await cover.setInputFiles({
+    name: 'cover.png',
+    mimeType: 'image/png',
+    buffer: Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
+  });
+  state.failUpload();
+  await page.getByRole('button', { name: '上传封面', exact: true }).click();
+  await expect(page.getByRole('alert').first()).toContainText('上传失败');
+  await page.getByRole('button', { name: '上传封面', exact: true }).click();
+  await expect(section.locator('.studio-cover')).toHaveAttribute('src', 'https://f.no.mt/cover.png');
+  const wav = Buffer.concat([Buffer.from(wavHeader(48000)), Buffer.alloc(48000)]);
+  await audio.setInputFiles({ name: 'episode.wav', mimeType: 'audio/wav', buffer: wav });
+  await page.getByRole('button', { name: '上传音频', exact: true }).click();
+  await expect(section.locator('.his-audio-player')).toBeVisible();
+  expect(state.uploads).toContainEqual({
+    path: '/productions/production-test/assets/audio',
+    type: 'audio/wav',
+    bytes: wav.length,
+  });
+  await page.getByRole('button', { name: '解除音频关联', exact: true }).click();
+  await page.getByRole('alertdialog').getByRole('button', { name: '取消', exact: true }).click();
+  expect(state.production.assets.audio).not.toBeNull();
+  await page.getByRole('button', { name: '解除音频关联', exact: true }).click();
+  await page.getByRole('alertdialog').getByRole('button', { name: '解除音频关联', exact: true }).click();
+  await expect(section.locator('.his-audio-player')).toHaveCount(0);
+  expect(state.production.assets.audio).toBeNull();
+  expect(state.requests.some((request) => /\/audio$/.test(request) && request.startsWith('POST'))).toBe(
+    false,
+  );
+});
+
+test('publication keeps current asset, final approval and explicit record gates', async ({ page }) => {
+  const state = await studio(
+    page,
+    readyFixture({ stage: 'production', approvals: { ...readyFixture().approvals, final: null } }),
+  );
+  await page.goto('/admin/productions/production-test?section=publication');
+  await expect(page.getByRole('button', { name: '记录已发布', exact: true })).toBeDisabled();
+  await expect(page.getByRole('button', { name: '批准成品', exact: true })).toBeDisabled();
+  await page.getByRole('button', { name: '提交最终检查', exact: true }).click();
+  await expect.poll(() => state.production.stage).toBe('final_review');
+  await page.getByRole('button', { name: '批准成品', exact: true }).click();
+  await expect.poll(() => state.production.stage).toBe('ready');
+  await expect(page.getByRole('button', { name: '记录已发布', exact: true })).toBeEnabled();
+  await page.getByLabel('已发布的节目链接', { exact: true }).fill('https://mp.weixin.qq.com/s/verified');
+  await page.getByLabel('实际发布时间', { exact: true }).fill('2026-09-25T12:30');
+  await page.getByRole('button', { name: '记录已发布', exact: true }).click();
+  expect(state.production.publications).toHaveLength(0);
+  await page.getByRole('alertdialog').getByRole('button', { name: '确认记录此次发布', exact: true }).click();
+  await expect.poll(() => state.production.publications.length).toBe(1);
+});
+
+test('cover grid and detail sections fit desktop and phone in both themes without native UI', async ({
+  page,
+}) => {
+  const state = await studio(page, readyFixture());
+  state.setEpisodes([snapshot('production-test'), snapshot(null)]);
+  const cover = await readFile('public/images/episode-01.webp');
+  await page.route('**/cover.png', (route) => route.fulfill({ contentType: 'image/webp', body: cover }));
+  for (const theme of ['light', 'dark']) {
+    await page.addInitScript((value) => localStorage.setItem('hisfm-theme', value), theme);
+    for (const width of [1440, 393]) {
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto('/admin');
+      await expect(page.getByRole('region', { name: '节目封面网格' })).toBeVisible();
+      const loaded = (selector: string) =>
+        page.locator(selector).evaluateAll((images) =>
+          images.every((image) => {
+            const img = image as HTMLImageElement;
+            return img.complete && img.naturalWidth > 0;
+          }),
+        );
+      await expect(page.locator('.library-cover img')).toHaveCount(2);
+      await expect.poll(() => loaded('.library-cover img')).toBe(true);
+      if (width === 1440) {
+        const tops = await page
+          .locator('.library-filters > input, .library-filters > button')
+          .evaluateAll((controls) =>
+            controls.map((control) => Math.round(control.getBoundingClientRect().top)),
+          );
+        expect(new Set(tops).size).toBe(1);
+      }
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      await page.screenshot({ path: `.local/admin-library-grid-${theme}-${width}.png`, fullPage: true });
+      const list = page.getByRole('radio', { name: '列表', exact: true });
+      await list.click();
+      await expect(list).toBeChecked();
+      await expect
+        .poll(() =>
+          page
+            .getByRole('radiogroup', { name: '节目显示方式' })
+            .locator('[data-slot="selection-indicator"]')
+            .evaluate((indicator) => (indicator as HTMLElement).offsetLeft),
+        )
+        .toBe(await list.evaluate((control) => (control as HTMLElement).offsetLeft));
+      await expect(page.getByRole('table', { name: '节目库列表' })).toBeVisible();
+      await expect(page.locator('.library-thumbnail img')).toHaveCount(2);
+      await expect.poll(() => loaded('.library-thumbnail img')).toBe(true);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      await page.screenshot({ path: `.local/admin-library-list-${theme}-${width}.png`, fullPage: true });
+      await page.goto('/admin/productions/production-test?section=assets');
+      await expect(page.locator('.studio-section:visible .his-audio-player')).toBeVisible();
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      expect(await page.locator('.admin-shell').evaluate((element) => element.scrollTop)).toBe(0);
+      await expect(page.getByRole('button', { name: /生成/ })).toHaveCount(0);
+      await page.screenshot({ path: `.local/admin-detail-assets-${theme}-${width}.png`, fullPage: true });
+      await page.getByRole('tab', { name: /逐字稿/ }).click();
+      await expect(page.getByRole('region', { name: '完整逐字稿预览', exact: true })).toBeVisible();
+      await page.screenshot({ path: `.local/admin-detail-manuscript-${theme}-${width}.png`, fullPage: true });
+    }
+  }
+});
 
 test('only a finished download receives branding and the original is never rewritten', async ({ page }) => {
   const production = readyFixture();
@@ -348,10 +469,13 @@ test('only a finished download receives branding and the original is never rewri
     }),
   );
   const state = await studio(page, production);
-  await page.goto(`/admin/productions/${production.id}?step=review`);
-  await expect(page.locator('.studio-cover')).toHaveAttribute('src', production.assets.cover?.url ?? '');
+  await page.goto(`/admin/productions/${production.id}?section=assets`);
+  await expect(page.locator('.studio-section:visible .studio-cover')).toHaveAttribute(
+    'src',
+    production.assets.cover?.url ?? '',
+  );
   const downloadPromise = page.waitForEvent('download');
-  await page.getByRole('button', { name: '下载封面成品' }).click();
+  await page.locator('.studio-section:visible').getByRole('button', { name: '下载封面成品' }).click();
   const download = await downloadPromise;
   expect(download.suggestedFilename()).toBe(
     `his-fm-ep-${String(production.episodeNumber).padStart(3, '0')}.png`,
@@ -385,132 +509,14 @@ test('only a finished download receives branding and the original is never rewri
     subject: [200, 100, 50, 255],
     margin: [245, 244, 238, 255],
   });
-  await expect(page.getByRole('status')).toContainText('原图保持不变');
+  await expect(page.getByText('成品已生成，原图保持不变。', { exact: true })).toBeVisible();
   expect(state.production).toEqual(before);
   expect(writes).toEqual([]);
   await page.route('**/brand/cover-frame.svg', (route) => route.fulfill({ status: 503, body: '' }));
   await page.reload();
-  await page.getByRole('button', { name: '下载封面成品' }).click();
-  await expect(page.getByRole('alert')).toContainText('封面或品牌框架未能加载');
+  await page.locator('.studio-section:visible').getByRole('button', { name: '下载封面成品' }).click();
+  await expect(page.getByText('封面或品牌框架未能加载，请稍后重试。', { exact: true })).toBeVisible();
   expect(state.production).toEqual(before);
-});
-
-test('five stages preserve failed edits and advance with owner completion', async ({ page, context }) => {
-  const state = await studio(page);
-  state.configureTts();
-  const errors: string[] = [];
-  page.on('pageerror', (error) => errors.push(error.message));
-  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
-  await page.goto('/admin');
-  await page.getByRole('link', { name: '新建制作', exact: true }).click();
-  await page.getByLabel('节目标题', { exact: true }).fill('制作工作台完整验收');
-  await page.getByLabel('链接名称', { exact: true }).fill('studio-acceptance');
-  await page.getByLabel('创作意图', { exact: true }).fill('讲清楚工作与生活的边界');
-  await page.getByRole('button', { name: '添加素材' }).click();
-  await page.getByRole('combobox', { name: '素材 1 类型' }).click();
-  await page.getByRole('option', { name: '文本素材', exact: true }).click();
-  await page.getByLabel('素材正文', { exact: true }).fill('一份经过核实的真实素材');
-  await page.getByRole('button', { name: '完成编辑', exact: true }).click();
-  await page.getByRole('button', { name: '保存选题', exact: true }).click();
-  await expect(page).toHaveURL(/\/productions\/new-production$/);
-  await page.getByRole('button', { name: '标记选题完成', exact: true }).click();
-  await expect(page.getByRole('tab', { name: '选题，已完成', exact: true })).toHaveAttribute(
-    'data-complete',
-    'true',
-  );
-  await expect(page.getByRole('complementary', { name: '主控对话' })).toBeVisible();
-  await page
-    .getByRole('textbox', { name: '完整逐字稿', exact: true })
-    .fill('这份逐字稿在版本冲突时应该保留。');
-  state.conflict();
-  await page.getByRole('button', { name: '保存逐字稿', exact: true }).click();
-  await expect(page.getByText('内容已更新，请刷新后重试', { exact: true })).toBeVisible();
-  await expect(page.getByRole('textbox', { name: '完整逐字稿', exact: true })).toContainText(
-    '这份逐字稿在版本冲突时应该保留。',
-  );
-  await page.getByRole('button', { name: '刷新内容' }).click();
-  await page.getByRole('alertdialog').getByRole('button', { name: '确认加载最新版本' }).click();
-  await expect(page.getByRole('alertdialog')).toBeHidden();
-  await page
-    .getByRole('textbox', { name: '完整逐字稿', exact: true })
-    .fill('## 晚饭之前\n\n你好，欢迎收听 his.fm。\n\n今晚先吃饭。');
-  await page.getByRole('button', { name: '标记逐字稿完成', exact: true }).click();
-  await expect(page.getByRole('tab', { name: '逐字稿，已完成', exact: true })).toHaveAttribute(
-    'data-complete',
-    'true',
-  );
-  await expect(page.getByRole('textbox', { name: '完整逐字稿', exact: true })).toBeHidden();
-  await page.getByRole('tab', { name: '发布文案', exact: true }).click();
-  await page.getByLabel('节目摘要', { exact: true }).fill('一次关于工作边界的对话');
-  await page.getByLabel('发布简介', { exact: true }).fill('## 本期内容\n\n**先吃饭**，再继续工作。');
-  await page.getByRole('button', { name: '保存发布文案' }).click();
-  const cover = {
-    name: 'cover.png',
-    mimeType: 'image/png',
-    buffer: Buffer.from(
-      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jh14AAAAASUVORK5CYII=',
-      'base64',
-    ),
-  };
-  await page.getByRole('tab', { name: '封面', exact: true }).click();
-  await expect(page.getByRole('button', { name: '选择封面: 上传节目封面' })).toBeEnabled();
-  await page.locator('input[type=file]').setInputFiles(cover);
-  state.failUpload();
-  await page.getByRole('button', { name: '上传封面', exact: true }).click();
-  await expect(page.getByText('上传失败，请重试', { exact: true })).toBeVisible();
-  await expect(page.getByText('cover.png', { exact: true })).toBeVisible();
-  await page.getByRole('button', { name: '上传封面', exact: true }).click();
-  await page.getByRole('tab', { name: '音频', exact: true }).click();
-  await page.getByRole('button', { name: '生成正文音频', exact: true }).click();
-  await expect(page.getByText('音频制作完成', { exact: true })).toBeVisible();
-  await page.getByRole('button', { name: '标记成品制作完成', exact: true }).click();
-  await expect(page.locator('audio:visible')).toHaveCount(1);
-  await expect(page.getByText('一次关于工作边界的对话', { exact: true })).toBeVisible();
-  await page.getByRole('button', { name: '标记最终检查完成', exact: true }).click();
-  await expect(page.getByText('展开公众号正文预览', { exact: true })).toBeVisible();
-  await page.getByRole('button', { name: '复制微信公众号格式' }).click();
-  await expect
-    .poll(() => page.evaluate(async () => (await navigator.clipboard.read())[0].types))
-    .toContain('text/html');
-  await page.getByRole('tab', { name: '小宇宙', exact: true }).click();
-  await page.getByRole('button', { name: '复制小宇宙纯文本' }).click();
-  await expect
-    .poll(() => page.evaluate(() => navigator.clipboard.readText()))
-    .toBe('本期内容\n\n先吃饭，再继续工作。');
-  await page.getByLabel('已发布的节目链接').fill('https://mp.weixin.qq.com/s/studio-acceptance');
-  await page.getByRole('button', { name: '记录已发布', exact: true }).click();
-  await page.getByRole('alertdialog').getByRole('button', { name: '确认记录此次发布' }).click();
-  await expect(page.getByRole('alertdialog')).toBeHidden();
-  expect(state.production.publications).toHaveLength(1);
-  await expect(page.locator('.studio-step-nav [data-complete=true]')).toHaveCount(5);
-  await mkdir('.local', { recursive: true });
-  await page.getByRole('heading', { name: '制作工作台完整验收', exact: true }).scrollIntoViewIfNeeded();
-  await page.screenshot({ path: '.local/studio-ready.png', fullPage: true });
-  await page.getByRole('tab', { name: '逐字稿，已完成', exact: true }).click();
-  await page.getByRole('button', { name: '重新打开本阶段', exact: true }).click();
-  await page.getByRole('alertdialog').getByRole('button', { name: '重新打开本阶段', exact: true }).click();
-  await expect(page.getByRole('alertdialog')).toBeHidden();
-  await expect(page.getByRole('tab', { name: '逐字稿', exact: true })).toHaveAttribute(
-    'data-complete',
-    'false',
-  );
-  expect(state.production.stage).toBe('scripting');
-  expect(state.production.assets.audio).not.toBeNull();
-  const scriptPanel = page.getByRole('tabpanel', { name: '逐字稿', exact: true });
-  const manuscript = scriptPanel.getByRole('textbox', { name: '完整逐字稿', exact: true });
-  const savedScript = '## 晚饭之前\n\n你好，欢迎收听 his.fm。\n\n今晚先吃饭。';
-  await expect(scriptPanel).toBeVisible();
-  await expect(scriptPanel.getByRole('radio', { name: '编辑', exact: true })).toHaveAttribute(
-    'aria-checked',
-    'true',
-  );
-  await expect(manuscript).toBeVisible();
-  await expect.poll(() => manuscript.locator('.cm-line').allTextContents()).toEqual(savedScript.split('\n'));
-  await scriptPanel.getByRole('button', { name: '撤销', exact: true }).click();
-  await expect(manuscript).not.toContainText('今晚先吃饭');
-  await scriptPanel.getByRole('button', { name: '重做', exact: true }).click();
-  await expect.poll(() => manuscript.locator('.cm-line').allTextContents()).toEqual(savedScript.split('\n'));
-  expect(errors).toEqual([]);
 });
 
 test('separate bumper and connection pages preserve failed uploads and transient tokens', async ({
@@ -526,31 +532,31 @@ test('separate bumper and connection pages preserve failed uploads and transient
   await page.getByRole('button', { name: '加入贴片库', exact: true }).click();
   await expect(page.getByText('上传失败，请重试', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: '加入贴片库', exact: true }).click();
-  await expect(page.locator('audio[src="/media/intro.wav"]')).toBeVisible();
+  await expect(page.locator('audio[src="/media/intro.wav"]')).toHaveCount(1);
   await page.goto('/admin/connections');
   const origin = new URL(page.url()).origin;
   await expect(page.getByRole('link', { name: '接入说明', exact: true })).toHaveAttribute(
     'href',
     `${origin}/api/agent/instructions`,
   );
-  await expect(page.getByLabel('助手名称')).toHaveCount(0);
+  await expect(page.getByLabel('令牌名称')).toHaveCount(0);
   await page.getByRole('button', { name: '创建令牌', exact: true }).click();
-  await page.getByLabel('助手名称').fill('Hermes');
+  await page.getByLabel('令牌名称').fill('Hermes');
   await page.getByLabel('有效天数').fill('7');
   await expect(page.getByRole('combobox', { name: '权限预设' })).toContainText('只读（默认）');
   const creation = page.waitForRequest(
     (request) => request.url().endsWith('/agent-tokens') && request.method() === 'POST',
   );
-  await page.getByRole('button', { name: '创建助手令牌', exact: true }).click();
+  await page.getByRole('button', { name: '创建访问令牌', exact: true }).click();
   expect((await creation).postDataJSON()).toEqual({
     name: 'Hermes',
     expiresInDays: 7,
     scopes: scopePresets.reader,
   });
-  await expect(page.getByLabel('新建助手令牌')).toHaveValue('hisfm_one_time_plaintext_for_test');
+  await expect(page.getByLabel('新建访问令牌')).toHaveValue('hisfm_one_time_plaintext_for_test');
   expect(await page.evaluate(() => JSON.stringify(localStorage))).not.toContain('hisfm_one_time');
   await page.reload();
-  await expect(page.getByLabel('新建助手令牌')).toHaveCount(0);
+  await expect(page.getByLabel('新建访问令牌')).toHaveCount(0);
   await page
     .getByRole('button', { name: `Hermes：已授权 ${scopePresets.reader.length} 项权限`, exact: true })
     .click();
@@ -569,15 +575,14 @@ test('token grants require explicit high-risk consent and reset it after grant c
   await studio(page);
   await page.goto('/admin/connections');
   await page.getByRole('button', { name: '创建令牌', exact: true }).click();
-  await page.getByLabel('助手名称').fill('Scoped agent');
-  const create = page.getByRole('button', { name: '创建助手令牌', exact: true });
+  await page.getByLabel('令牌名称').fill('Scoped agent');
+  const create = page.getByRole('button', { name: '创建访问令牌', exact: true });
   await page.getByRole('combobox', { name: '权限预设' }).click();
   await page.getByRole('option', { name: '完全控制（高风险）', exact: true }).click();
   await expect(create).toBeDisabled();
   const risk = page.getByRole('region', { name: '高风险授权确认' });
-  await expect(risk).toContainText('不提供令牌间会话隔离');
   await expect(risk).toContainText('完全控制授权');
-  await expect(risk).toContainText('Local / Prod 共享');
+  await expect(risk).toContainText('令牌仅用于当前环境');
   const consent = page.getByRole('checkbox', { name: '我确认授予以上高风险权限' });
   await consent.check();
   await expect(create).toBeEnabled();
@@ -594,7 +599,7 @@ test('token grants require explicit high-risk consent and reset it after grant c
   expect((await creation).postDataJSON().scopes).toEqual(
     scopes.filter((scope) => scope !== 'productions:delete'),
   );
-  await expect(page.getByLabel('新建助手令牌')).toBeVisible();
+  await expect(page.getByLabel('新建访问令牌')).toBeVisible();
   await expect(create).toHaveCount(0);
   await page.getByRole('button', { name: '我已保存，关闭', exact: true }).click();
   await expect(page.getByRole('button', { name: '创建令牌', exact: true })).toBeFocused();
@@ -714,58 +719,6 @@ test('token table and creation dialog stay usable on desktop and phone in both t
   }
 });
 
-test('catalog snapshots expose production links and never expose editing or deletion', async ({ page }) => {
-  await studio(page, readyFixture());
-  await page.goto('/admin/catalog');
-  await expect(page.getByRole('button', { name: /^删除 / })).toHaveCount(0);
-  await expect(page.getByRole('link', { name: /^打开制作 / })).toHaveAttribute(
-    'href',
-    '/admin/productions/production-test',
-  );
-  await page.goto('/admin/episodes/production-test');
-  await expect(page.getByRole('link', { name: '打开制作记录' })).toBeVisible();
-  await expect(page.getByRole('button', { name: '保存节目' })).toHaveCount(0);
-  await expect(page.getByRole('textbox')).toHaveCount(1);
-  await expect(page.getByRole('textbox', { name: '给主控的消息' })).toBeVisible();
-});
-
-test('stage changes keep the shell fixed and reset only the content island', async ({ page }) => {
-  const state = await studio(page, fixture({ transcript: '先放下屏幕，好好吃一顿饭。\n\n'.repeat(180) }));
-  for (const viewport of [
-    { width: 1512, height: 982 },
-    { width: 393, height: 852 },
-  ]) {
-    await page.setViewportSize(viewport);
-    await page.goto('/admin/productions/production-test?step=script');
-    const steps = page.getByRole('tablist', { name: '节目制作阶段' });
-    const island = page.locator('.admin-content-island');
-    const header = page.locator('#main-content > header');
-    await expect(steps).toBeVisible();
-    const initialHeader = await header.boundingBox();
-    const initialIsland = await island.boundingBox();
-    for (const name of ['选题', '成品制作', '最终检查', '发布', '逐字稿']) {
-      await steps.getByRole('tab', { name, exact: true }).click();
-      await expect(steps.getByRole('tab', { name, exact: true })).toHaveAttribute('aria-current', 'step');
-      expect(await header.boundingBox()).toEqual(initialHeader);
-      expect(await island.boundingBox()).toEqual(initialIsland);
-      expect(await page.locator('.admin-shell').evaluate((element) => element.scrollTop)).toBe(0);
-      expect(await page.evaluate(() => window.scrollY)).toBe(0);
-    }
-    await island.evaluate((element) => element.scrollTo({ top: 800 }));
-    await expect.poll(() => island.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
-    await page.goBack();
-    await expect(steps.getByRole('tab', { name: '发布', exact: true })).toHaveAttribute(
-      'aria-current',
-      'step',
-    );
-    await expect.poll(() => island.evaluate((element) => element.scrollTop)).toBe(0);
-    expect(await header.boundingBox()).toEqual(initialHeader);
-    expect(await island.boundingBox()).toEqual(initialIsland);
-    expect(await page.evaluate(() => document.documentElement.scrollHeight <= innerHeight)).toBe(true);
-  }
-  expect(state.actions).toEqual([]);
-});
-
 test('source subpages preserve brief drafts and keep long materials out of the overview', async ({
   page,
 }) => {
@@ -786,8 +739,8 @@ test('source subpages preserve brief drafts and keep long materials out of the o
       ],
     }),
   );
-  await page.goto('/admin/productions/production-test?step=brief');
-  await expect(page.getByRole('complementary', { name: '主控对话' })).toBeVisible();
+  await page.goto('/admin/productions/production-test?section=metadata');
+  await expect(page.getByRole('complementary', { name: '主控对话' })).toHaveCount(0);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   const list = page.getByRole('list', { name: '原始素材', exact: true });
   await expect(list.getByRole('listitem')).toHaveCount(3);
@@ -798,8 +751,8 @@ test('source subpages preserve brief drafts and keep long materials out of the o
   await list.getByRole('button', { name: '打开素材 1：生活记录', exact: true }).click();
   await expect(page).toHaveURL(/source=source-1/);
   await expect(page.getByLabel('节目标题', { exact: true })).toBeHidden();
-  await expect(page.getByRole('tablist', { name: '节目制作阶段' })).toHaveCount(0);
-  await expect(page.getByRole('link', { name: '选题', exact: true })).toBeVisible();
+  await expect(page.getByRole('tablist', { name: '节目详情分区' })).toHaveCount(0);
+  await expect(page.getByRole('link', { name: '资料与素材', exact: true })).toBeVisible();
   const content = page.getByRole('textbox', { name: '素材正文', exact: true });
   const expectDraft = async () => {
     const detail = page.locator('.studio-source-editor');
@@ -841,351 +794,23 @@ test('source subpages preserve brief drafts and keep long materials out of the o
   await expect(page.getByRole('alert').first()).toContainText('保存失败');
   await list.getByRole('button', { name: '打开素材 1：生活记录', exact: true }).click();
   await expectDraft();
-  await page.getByRole('button', { name: '返回选题', exact: true }).click();
+  await page.getByRole('button', { name: '返回资料与素材', exact: true }).click();
   await page.getByRole('button', { name: '保存选题', exact: true }).click();
   await expect.poll(() => state.production.sources.length).toBe(2);
   expect(state.production.title).toBe('保留选题的未保存标题');
   expect(state.production.intent).toBe('保留正在思考的切入点');
   expect(state.production.sources[0].content).toBe(edited);
-  await page.goto('/admin/productions/production-test?step=brief&source=source-1');
+  await page.goto('/admin/productions/production-test?section=metadata&source=source-1');
   await expectDraft();
   expect(await page.locator('.admin-shell').evaluate((el) => el.scrollTop)).toBe(0);
-  await page.goto('/admin/productions/production-test?step=brief&source=missing-source');
+  await page.goto('/admin/productions/production-test?section=metadata&source=missing-source');
   await expect(page.getByText('这份素材尚未保存或已被移除，请返回选题查看素材列表。')).toBeVisible();
-  await page.getByRole('button', { name: '返回选题', exact: true }).click();
+  await page.getByRole('button', { name: '返回资料与素材', exact: true }).click();
   await expect(list.getByRole('listitem')).toHaveCount(2);
-});
-
-test('phone studio navigation, dark theme and settings remain usable', async ({ page }) => {
-  await page.setViewportSize({ width: 393, height: 852 });
-  await studio(page, readyFixture());
-  await page.goto('/admin');
-  const menu = page.getByRole('button', { name: '打开导航', exact: true });
-  await menu.click();
-  const drawer = page.getByRole('dialog', { name: '工作室导航' });
-  await expect(drawer.getByRole('region', { name: '节目制作', exact: true })).toBeVisible();
-  await expect(drawer.getByRole('region', { name: '素材与声音', exact: true })).toBeVisible();
-  await expect(drawer.getByRole('region', { name: '工作室', exact: true })).toBeVisible();
-  await drawer.getByRole('button', { name: 'AI 设置', exact: true }).click();
-  await expect(drawer).toBeHidden();
-  await expect(menu).toBeFocused();
-  await menu.click();
-  await page.keyboard.press('Escape');
-  await expect(drawer).toBeHidden();
-  await expect(menu).toBeFocused();
-  await page.getByRole('button', { name: '切换主题', exact: true }).click();
-  await page.getByRole('button', { name: '切换主题', exact: true }).click();
-  await expect(page.locator('html')).toHaveClass(/dark/);
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-  await mkdir('.local', { recursive: true });
-  await page.screenshot({ path: '.local/studio-mobile-dark.png', fullPage: true });
-});
-
-test('provider cards use distinct tints and local SVG marks in both themes and viewports', async ({
-  page,
-}) => {
-  await studio(page);
-  await page.routeWebSocket('**/admin/api/agent/live?protocol=1', () => {});
-  await page.goto('/admin/ai');
-  for (const theme of ['light', 'dark']) {
-    await page.evaluate((theme) => localStorage.setItem('hisfm-theme', theme), theme);
-    for (const width of [1440, 390]) {
-      await page.setViewportSize({ width, height: 1000 });
-      for (const route of ['ai', 'voices']) {
-        await page.goto(`/admin/${route}`);
-        const cards = page.locator('.studio-provider-card');
-        await expect(cards).toHaveCount(route === 'ai' ? 2 : 12);
-        for (const grid of await page
-          .locator(route === 'ai' ? '.studio-grid' : '.studio-voice-pair .studio-grid')
-          .all()) {
-          const pair = grid.locator(':scope > .studio-provider-card');
-          const bounds = await pair.evaluateAll((elements) =>
-            elements.map((element) => element.getBoundingClientRect().toJSON()),
-          );
-          expect(bounds).toHaveLength(2);
-          if (width > 767) {
-            expect(bounds[0].height).toBeCloseTo(bounds[1].height, 0);
-            expect(bounds[0].top).toBeCloseTo(bounds[1].top, 0);
-            expect(bounds[0].right).toBeLessThan(bounds[1].left);
-          } else expect(bounds[0].bottom).toBeLessThanOrEqual(bounds[1].top);
-        }
-        const gemini = cards.filter({ has: page.locator('.studio-provider-mark[data-provider="gemini"]') });
-        const elevenlabs = cards.filter({
-          has: page.locator('.studio-provider-mark[data-provider="elevenlabs"]'),
-        });
-        await expect(gemini.first()).toContainText('Gemini');
-        await expect(elevenlabs.first()).toContainText('ElevenLabs');
-        const tint = (provider: typeof cards) =>
-          provider.first().evaluate((element) => getComputedStyle(element).backgroundImage);
-        expect(await tint(gemini)).not.toBe(await tint(elevenlabs));
-        expect(await tint(gemini)).toContain('linear-gradient');
-        for (const provider of [gemini, elevenlabs]) {
-          expect(
-            await provider.first().evaluate((element) => {
-              const style = getComputedStyle(element);
-              const rgb = (value: string) => (value.match(/[\d.]+/g) ?? []).map(Number);
-              const base = rgb(style.backgroundColor);
-              const accent = rgb(style.backgroundImage.match(/rgba?\([^)]+\)/)?.[0] ?? '');
-              const background = base.map(
-                (channel, index) => channel * (1 - accent[3]) + accent[index] * accent[3],
-              );
-              const foreground = rgb(
-                getComputedStyle(element.querySelector('.admin-muted') ?? element).color,
-              );
-              const luminance = (channels: number[]) =>
-                channels.reduce((sum, channel, index) => {
-                  const value = channel / 255;
-                  return (
-                    sum +
-                    (value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4) *
-                      [0.2126, 0.7152, 0.0722][index]
-                  );
-                }, 0);
-              const values = [luminance(background), luminance(foreground)].sort((a, b) => a - b);
-              return (values[1] + 0.05) / (values[0] + 0.05);
-            }),
-          ).toBeGreaterThanOrEqual(4.5);
-          const mark = provider.first().locator('.studio-provider-mark > span');
-          expect(
-            await mark.evaluate(async (element) => {
-              const source = getComputedStyle(element).maskImage.match(/^url\("?(.*?)"?\)$/)?.[1];
-              if (
-                !source ||
-                (!source.startsWith('data:image/svg+xml') && new URL(source).origin !== location.origin)
-              )
-                return false;
-              const image = new Image();
-              image.src = source;
-              await image.decode();
-              return image.naturalWidth > 0;
-            }),
-          ).toBe(true);
-        }
-        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-      }
-    }
-  }
-});
-
-test('voice references use six CDN samples and selecting a voice preserves speaking style', async ({
-  page,
-}) => {
-  await studio(page);
-  await page.goto('/admin/voices');
-  await page.getByText('历史 Gemini 样片 · 6 段，非本轮配对', { exact: true }).click();
-  const samples = page.locator('.studio-voice-history audio');
-  await expect(samples).toHaveCount(6);
-  for (const voice of ['Kore', 'Zephyr', 'Puck', 'Charon', 'Aoede', 'Orus']) {
-    const sample = page.getByLabel(`${voice} 音色样片`, { exact: true });
-    await expect(sample).toHaveAttribute('src', `https://f.no.mt/reference/voices/${voice}.wav`);
-    await expect(sample).toHaveAttribute('preload', 'none');
-  }
-  const pauses = await page.evaluate(() => {
-    const samples = [...document.querySelectorAll<HTMLAudioElement>('.studio-voice-history audio')];
-    let pauses = 0;
-    samples[0].pause = () => {
-      pauses++;
-    };
-    samples[0].dispatchEvent(new Event('play'));
-    samples[1].dispatchEvent(new Event('play'));
-    return pauses;
-  });
-  expect(pauses).toBe(1);
-  const request = page.waitForRequest(
-    (request) => request.url().endsWith('/ai-settings') && request.method() === 'PUT',
-  );
-  await page.getByRole('button', { name: '使用 Puck 音色', exact: true }).click();
-  expect((await request).postDataJSON()).toMatchObject({
-    settings: { gemini: { voice: 'Puck' }, speakingStyle: defaultSpeechSettings.speakingStyle },
-  });
-  await expect(page.getByRole('button', { name: '使用 Kore 音色', exact: true })).toBeEnabled();
-  await mkdir('.local', { recursive: true });
-  await page.screenshot({ path: '.local/studio-voices.png', fullPage: true });
-});
-
-test('voice comparisons pair similar descriptions and align playback and actions across providers', async ({
-  page,
-}) => {
-  await studio(page);
-  await page.routeWebSocket('**/admin/api/agent/live?protocol=1', () => {});
-  const previews = voiceComparisonPairs.flatMap((pair) =>
-    (['gemini', 'elevenlabs'] as const).map((provider) => ({
-      provider,
-      voice: pair[provider].voice,
-      speakingStyle: archivedVoiceComparisonStyle,
-      text: voiceSampleTranscript,
-      url: `/media/${provider}-${pair.id}.wav`,
-      durationSeconds: 1,
-      cached: true,
-    })),
-  );
-  await page.route('**/admin/api/production-settings/previews', (route) =>
-    route.fulfill({ json: { previews } }),
-  );
-  const bytes = Buffer.concat([wavHeader(48000), new Uint8Array(48000)]);
-  await page.route('**/media/*.wav', (route) => route.fulfill({ contentType: 'audio/wav', body: bytes }));
-  await page.route('https://f.no.mt/reference/voices/*.wav', (route) =>
-    route.fulfill({ contentType: 'audio/wav', body: bytes }),
-  );
-  for (const width of [1440, 1024, 390]) {
-    await page.setViewportSize({ width, height: 1000 });
-    await page.goto('/admin/voices');
-    await expect(page.getByLabel('Gemini · Charon 同文稿试听', { exact: true })).toBeVisible();
-    await expect(page.locator('.studio-voice-pair audio')).toHaveCount(6);
-    await expect(
-      page.locator('.studio-voice-pair').getByRole('button', { name: /生成 .* 示例/ }),
-    ).toHaveCount(0);
-    for (const pair of voiceComparisonPairs) {
-      const group = page.getByRole('region', { name: pair.label, exact: true });
-      const cards = group.locator('.studio-voice-card');
-      await expect(cards.nth(0)).toHaveAttribute('data-provider', 'gemini');
-      await expect(cards.nth(1)).toHaveAttribute('data-provider', 'elevenlabs');
-      await expect(cards.nth(0)).toContainText(pair.gemini.name);
-      await expect(cards.nth(1)).toContainText(pair.elevenlabs.name);
-      if (width > 767) {
-        for (const selector of ['.studio-provider-heading', '.studio-voice-media', '.studio-voice-actions']) {
-          const tops = await group
-            .locator(selector)
-            .evaluateAll((elements) => elements.map((element) => element.getBoundingClientRect().top));
-          expect(tops[0]).toBeCloseTo(tops[1], 0);
-        }
-      }
-    }
-  }
-  const pauses = await page.locator('.studio-voice-pair audio').evaluateAll((elements) => {
-    let count = 0;
-    const left = elements[0] as HTMLAudioElement;
-    left.pause = () => {
-      count++;
-    };
-    left.dispatchEvent(new Event('play'));
-    elements[1].dispatchEvent(new Event('play'));
-    return count;
-  });
-  expect(pauses).toBe(1);
-  const save = page.waitForRequest(
-    (request) => request.url().endsWith('/ai-settings') && request.method() === 'PUT',
-  );
-  await page.getByRole('button', { name: '使用 ElevenLabs · Sarah', exact: true }).click();
-  expect((await save).postDataJSON()).toMatchObject({
-    settings: {
-      defaultProvider: 'elevenlabs',
-      elevenlabs: { voice: 'EXAVITQu4vr4xnSDxMaL' },
-      speakingStyle: defaultSpeechSettings.speakingStyle,
-    },
-  });
-  await page.route('**/admin/api/production-settings/previews', (route) =>
-    route.fulfill({
-      json: { previews: previews.map((preview) => ({ ...preview, speakingStyle: 'Different style' })) },
-    }),
-  );
-  await page.goto('/admin/voices');
-  await expect(page.locator('.studio-voice-pair audio')).toHaveCount(3);
-  await expect(
-    page.getByRole('button', { name: '生成 ElevenLabs · George 示例', exact: true }),
-  ).toBeVisible();
-});
-
-test('missing comparison samples use the fixed benchmark style without changing studio defaults', async ({
-  page,
-}) => {
-  const state = await studio(page);
-  state.configureTts();
-  await page.routeWebSocket('**/admin/api/agent/live?protocol=1', () => {});
-  await page.goto('/admin/voices');
-  state.failPreview();
-  const generate = page.getByRole('button', { name: '生成 ElevenLabs · George 示例', exact: true });
-  await generate.click();
-  await expect(page.getByText('试听生成暂时失败，请重试', { exact: true })).toBeVisible();
-  await expect(page.getByLabel('Gemini · Charon 同文稿试听', { exact: true })).toBeVisible();
-  const request = page.waitForRequest(
-    (request) => request.url().endsWith('/production-settings/preview') && request.method() === 'POST',
-  );
-  await generate.click();
-  expect((await request).postDataJSON()).toEqual({
-    provider: 'elevenlabs',
-    voice: 'JBFqnCBsd6RMkjVDRZzb',
-    speakingStyle: archivedVoiceComparisonStyle,
-    text: voiceSampleTranscript,
-  });
-  await expect(page.getByLabel('ElevenLabs · George 同文稿试听', { exact: true })).toBeVisible();
-  await expect(generate).toHaveCount(0);
-  const settings = await page.evaluate(
-    async () =>
-      ((await (await fetch('/admin/api/production-settings')).json()) as { settings: ProductionSettings })
-        .settings,
-  );
-  expect(settings.speakingStyle).toBe('自然地讲述');
-  expect(settings.voice).toBe('Kore');
-});
-
-test('real local API persists a production through human review and cleans it up', async ({ page }) => {
-  const slug = `studio-e2e-${randomUUID()}`;
-  let id = '';
-  await page.goto('/login');
-  await page.getByRole('button', { name: '进入本地工作室' }).click();
-  await expect(page).toHaveURL(/\/admin\/?$/);
-  try {
-    await page.locator('header').getByRole('link', { name: '新建制作', exact: true }).click();
-    await page.getByLabel('节目标题', { exact: true }).fill('真实接口制作流程验收');
-    await page.getByLabel('链接名称', { exact: true }).fill(slug);
-    await page.getByLabel('期数', { exact: true }).fill('99008');
-    await page.getByLabel('创作意图', { exact: true }).fill('验证人工审阅与创作流程，测试后清理。');
-    await page.getByRole('button', { name: '添加素材' }).click();
-    await page.getByLabel('HTTPS 链接', { exact: true }).fill('https://example.com/reference');
-    await page.getByRole('button', { name: '完成编辑', exact: true }).click();
-    const creation = page.waitForResponse(
-      (response) =>
-        response.url().endsWith('/admin/api/productions') && response.request().method() === 'POST',
-    );
-    await page.getByRole('button', { name: '保存选题', exact: true }).click();
-    const created = await creation;
-    expect(created.status()).toBe(201);
-    id = (await created.json()).production.id;
-    await expect(page).toHaveURL(new RegExp(`/admin/productions/${id}$`));
-    await page.getByRole('button', { name: '标记选题完成', exact: true }).click();
-    await page
-      .getByRole('textbox', { name: '完整逐字稿', exact: true })
-      .fill('你好，这是本地工作室的真实接口验收稿。');
-    await page.getByRole('button', { name: '标记逐字稿完成', exact: true }).click();
-    await page.getByRole('tab', { name: '选题，已完成', exact: true }).click();
-    await page.getByLabel('创作意图', { exact: true }).fill('调整选题，已有逐字稿必须保留。');
-    await page.getByRole('button', { name: '保存选题', exact: true }).click();
-    await expect(page.getByRole('tab', { name: '选题', exact: true })).toHaveAttribute(
-      'data-complete',
-      'false',
-    );
-    await expect(page.getByRole('tab', { name: '逐字稿', exact: true })).toHaveAttribute(
-      'data-complete',
-      'false',
-    );
-    await page.getByRole('tab', { name: '逐字稿', exact: true }).click();
-    await page.reload();
-    await expect(page.locator('.studio-transcript:visible')).toHaveText(
-      '你好，这是本地工作室的真实接口验收稿。',
-    );
-    await expect(page.getByRole('button', { name: '标记逐字稿完成', exact: true })).toBeDisabled();
-    await mkdir('.local', { recursive: true });
-    await page.getByRole('heading', { name: '真实接口制作流程验收', exact: true }).scrollIntoViewIfNeeded();
-    await page.screenshot({ path: '.local/studio-real-api.png', fullPage: true });
-  } finally {
-    if (id) {
-      const status = await page.evaluate(async (id) => {
-        const { production } = (await (await fetch(`/admin/api/productions/${id}`)).json()) as {
-          production: { version: number };
-        };
-        return (
-          await fetch(`/admin/api/productions/${id}?version=${production.version}`, { method: 'DELETE' })
-        ).status;
-      }, id);
-      expect(status).toBe(204);
-    }
-  }
 });
 
 test('environment switch retains Basalt segment typography on desktop and phone', async ({ page }) => {
   await studio(page);
-  await page.routeWebSocket('**/admin/api/agent/live?protocol=1', () => {});
   await page.goto('/admin/productions/production-test');
   const environment = page.getByRole('radiogroup', { name: '工作室数据环境' });
   for (const viewport of [
@@ -1206,6 +831,115 @@ test('environment switch retains Basalt segment typography on desktop and phone'
     }
   }
   await expect(environment.getByRole('radio', { name: 'Local', exact: true })).toBeChecked();
+});
+
+test('publication copies WeChat formatting with the same cover and references as its preview', async ({
+  page,
+  context,
+}) => {
+  const transcript =
+    '## 一个具体的问题\n\n**生活细节**，参考[项目文档](https://example.com/docs)。\n\n> 留下自己的时间。';
+  await studio(page, readyFixture({ transcript }));
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+  await page.goto('/admin/productions/production-test?section=publication');
+  await page.getByText('展开公众号正文预览', { exact: true }).click();
+  const preview = page.locator('.studio-wechat-preview');
+  await expect(preview.locator('img')).toHaveAttribute('src', 'https://f.no.mt/cover.png');
+  await expect(preview.locator('strong')).toHaveText('生活细节');
+  await expect(preview).toContainText('参考资料');
+  await expect(preview).toContainText('[1] https://example.com/docs');
+  await page.getByRole('button', { name: '复制微信公众号格式', exact: true }).click();
+  await expect(page.getByText('已复制', { exact: true })).toBeVisible();
+  const clipboard = await page.evaluate(async () => {
+    const [item] = await navigator.clipboard.read();
+    const [html, text] = await Promise.all([
+      item.getType('text/html').then((blob) => blob.text()),
+      item.getType('text/plain').then((blob) => blob.text()),
+    ]);
+    return { html, text };
+  });
+  expect(clipboard.html).toContain('<strong>生活细节</strong>');
+  expect(clipboard.html).toContain('https://f.no.mt/cover.png');
+  expect(clipboard.html).toContain('[1] https://example.com/docs');
+  expect(clipboard.html).toMatch(/line-height:\s*1\.9/);
+  expect(clipboard.text).toContain('生活细节');
+  expect(clipboard.text).not.toContain('**');
+  await page.getByRole('button', { name: '复制 Markdown', exact: true }).click();
+  await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toBe(transcript);
+});
+
+test('retired token grants fail closed visibly and require explicit revoke before deletion', async ({
+  page,
+}) => {
+  const state = await studio(page);
+  state.setTokens([
+    {
+      id: 'legacy',
+      name: 'Legacy token',
+      prefix: 'hisfm_old',
+      scopes: [],
+      invalidScopes: ['runtime:connect', 'unknown:write'],
+      createdAt: '2026-01-01T00:00:00Z',
+      expiresAt: '2099-01-01T00:00:00Z',
+      revokedAt: null,
+      lastUsedAt: null,
+    },
+  ]);
+  await page.goto('/admin/connections');
+  const row = page
+    .getByRole('table', { name: '访问令牌列表' })
+    .getByRole('row')
+    .filter({ hasText: 'Legacy token' });
+  await expect(row).toContainText('权限已失效');
+  await expect(row).not.toContainText('有效');
+  await expect(row.getByRole('button', { name: '删除 Legacy token' })).toHaveCount(0);
+  await row.getByRole('button', { name: 'Legacy token：权限已失效，需要重新签发' }).click();
+  const scopes = page.getByRole('dialog', { name: 'Legacy token的权限' });
+  await expect(scopes).toContainText('无法通过认证');
+  await expect(scopes).toContainText('runtime:connect');
+  await expect(scopes).toContainText('unknown:write');
+  await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: '撤销 Legacy token', exact: true }).click();
+  await page.getByRole('alertdialog').getByRole('button', { name: '确认撤销令牌', exact: true }).click();
+  await expect(row).toContainText('已撤销');
+  await expect(row.getByRole('button', { name: '删除 Legacy token' })).toBeVisible();
+  await row.getByRole('button', { name: '删除 Legacy token' }).click();
+  await page.getByRole('alertdialog').getByRole('button', { name: '确认删除令牌', exact: true }).click();
+  await expect(row).toHaveCount(0);
+});
+
+test('migrated tokens with no remaining grants are not marked active and can be revoked then deleted', async ({
+  page,
+}) => {
+  const state = await studio(page);
+  state.setTokens([
+    {
+      id: 'empty',
+      name: 'Migrated token',
+      prefix: 'hisfm_old',
+      scopes: [],
+      createdAt: '2026-01-01T00:00:00Z',
+      expiresAt: '2099-01-01T00:00:00Z',
+      revokedAt: null,
+      lastUsedAt: null,
+    },
+  ]);
+  await page.goto('/admin/connections');
+  const row = page.getByRole('row').filter({ hasText: 'Migrated token' });
+  await expect(row).toContainText('无授权');
+  await expect(row).toContainText('需重新签发');
+  await expect(row).not.toContainText('有效');
+  await expect(row.getByRole('button', { name: '删除 Migrated token' })).toHaveCount(0);
+  await row.getByRole('button', { name: 'Migrated token：无授权，需要重新签发' }).click();
+  await expect(page.getByRole('dialog', { name: 'Migrated token的权限' })).toContainText('无法通过认证');
+  await page.screenshot({ path: '.local/admin-token-empty-grants.png', fullPage: true });
+  await page.keyboard.press('Escape');
+  await row.getByRole('button', { name: '撤销 Migrated token' }).click();
+  await page.getByRole('alertdialog').getByRole('button', { name: '确认撤销令牌', exact: true }).click();
+  await expect(row).toContainText('已撤销');
+  await row.getByRole('button', { name: '删除 Migrated token' }).click();
+  await page.getByRole('alertdialog').getByRole('button', { name: '确认删除令牌', exact: true }).click();
+  await expect(row).toHaveCount(0);
 });
 
 test('environment switching confirms unsaved edits, recovers login errors and resets data on reload', async ({
@@ -1230,7 +964,11 @@ test('environment switching confirms unsaved edits, recovers login errors and re
           ? { error: '生产认证已失效' }
           : path.endsWith('/session')
             ? { mode: 'access', user: { email: 'editor@his.fm' } }
-            : { productions: [fixture({ title: '生产环境参考节目' })] },
+            : path.endsWith('/episodes')
+              ? { episodes: [] }
+              : path.endsWith('/categories')
+                ? { categories: [] }
+                : { productions: [fixture({ title: '生产环境参考节目' })] },
       ),
     });
   });
@@ -1279,7 +1017,7 @@ test('environment switching confirms unsaved edits, recovers login errors and re
   await mkdir('.local', { recursive: true });
   await page.screenshot({ path: '.local/studio-production-environment.png', fullPage: true });
   authorized = false;
-  await page.getByRole('button', { name: '刷新制作列表' }).click();
+  await page.getByRole('button', { name: '刷新节目库' }).click();
   await expect(page.getByText('生产认证已失效', { exact: true })).toBeVisible();
   await expect(page.getByRole('radio', { name: 'Local', exact: true })).toBeVisible();
   await page.getByRole('radio', { name: 'Local', exact: true }).click();
@@ -1303,217 +1041,64 @@ test('environment switching confirms unsaved edits, recovers login errors and re
   expect(connectCalls).toBe(4);
 });
 
-test('imported draft materials are readable before approval and platform timestamps are independent', async ({
+test('real local production saves, approves and reopens without navigation side effects', async ({
   page,
 }) => {
-  const publication = {
-    platform: 'wechat' as const,
-    url: 'https://mp.weixin.qq.com/s/reference',
-    publishedAt: '2026-09-25T07:00:00.000Z',
-    confirmedAt: '2026-09-25T08:00:00.000Z',
-    confirmedBy: 'editor',
-    version: 1,
-  };
-  await studio(
-    page,
-    fixture({
-      transcript: '已导入的真实逐字稿，可在选题阶段阅读。',
-      summary: '已导入的节目摘要',
-      description: '已导入的研究与发布简介',
-      publications: [publication, { ...publication, publishedAt: '2026-09-24T07:00:00.000Z', version: 2 }],
-    }),
-  );
-  await page.goto('/admin');
-  const table = page.getByRole('table', { name: '节目制作列表' });
-  await expect(table.getByText('小宇宙 · 未发布', { exact: true })).toBeVisible();
-  await expect(table.locator('time')).toHaveAttribute('datetime', publication.publishedAt);
-  await page.getByRole('link', { name: '下一条提示之前，先吃饭', exact: true }).click();
-  await expect(page.getByText('已导入的真实逐字稿，可在选题阶段阅读。', { exact: true })).toHaveCount(0);
-  await page.getByRole('tab', { name: '逐字稿', exact: true }).click();
-  await expect(page.locator('.studio-transcript:visible')).toHaveText(
-    '已导入的真实逐字稿，可在选题阶段阅读。',
-  );
-  await expect(page.getByRole('textbox', { name: '完整逐字稿', exact: true })).toBeHidden();
-  await page.getByRole('tab', { name: '成品制作', exact: true }).click();
-  await page.getByRole('tab', { name: '发布文案', exact: true }).click();
-  await expect(page.getByLabel('节目摘要', { exact: true })).toHaveValue('已导入的节目摘要');
-  await expect(page.getByRole('region', { name: '发布简介预览' })).toHaveText('已导入的研究与发布简介');
-  await page.getByRole('tab', { name: '发布', exact: true }).click();
-  await expect(page.getByRole('button', { name: '记录已发布', exact: true })).toBeDisabled();
-});
-
-test('phone stages preserve drafts on canceled navigation and grow long text without nested scrolling', async ({
-  page,
-}) => {
-  await page.setViewportSize({ width: 393, height: 852 });
-  const text = `# 今晚先吃饭\n\n${'工作结束之后，给自己留下一段散步的时间。\n\n'.repeat(60)}`;
-  const state = await studio(page, readyFixture({ transcript: text }));
-  await page.goto('/admin/productions/production-test?step=script');
-  await expect(page.locator('.studio-transcript h1')).toHaveText('今晚先吃饭');
-  const reader = await page.locator('.studio-transcript:visible').evaluate(async (element) => {
-    await document.fonts.ready;
-    return {
-      font: getComputedStyle(element).fontFamily,
-      loaded: document.fonts.check('18px TsangerJinKai02', '今晚先吃饭'),
-      height: element.clientHeight,
-      scroll: element.scrollHeight,
-    };
-  });
-  expect(reader.font).toContain('TsangerJinKai02');
-  expect(reader.loaded).toBe(true);
-  expect(reader.scroll).toBeLessThanOrEqual(reader.height + 1);
-  await page.locator('.studio-stage:visible').getByRole('radio', { name: '编辑', exact: true }).click();
-  const input = page.getByRole('textbox', { name: '完整逐字稿', exact: true });
-  await input.fill(`${text}留下这个未保存的结尾。`);
-  const size = await input.evaluate((element) => ({
-    height: element.clientHeight,
-    scroll: element.scrollHeight,
-  }));
-  expect(size.height).toBeGreaterThan(1000);
-  expect(size.scroll).toBeLessThanOrEqual(size.height + 1);
-  await page.getByRole('tab', { name: '成品制作，已完成', exact: true }).click();
-  const dialog = page.getByRole('alertdialog');
-  await expect(dialog).toHaveCount(0);
-  await expect(input).toBeHidden();
-  await page.getByRole('tab', { name: '逐字稿，已完成', exact: true }).click();
-  await page.locator('.studio-stage:visible').getByRole('radio', { name: '预览', exact: true }).click();
-  await expect(page.locator('.studio-transcript:visible')).toContainText('留下这个未保存的结尾。');
-  expect(state.actions).toHaveLength(0);
-  await page.getByRole('tab', { name: '成品制作，已完成', exact: true }).click();
-  await expect(dialog).toHaveCount(0);
-  await expect(input).toBeHidden();
-  await page.getByRole('tab', { name: '发布文案', exact: true }).click();
-  await page.locator('.studio-stage:visible').getByRole('radio', { name: '编辑', exact: true }).click();
-  await page.getByLabel('节目摘要', { exact: true }).fill('跨素材切换仍然保留的摘要');
-  await page.getByRole('tab', { name: '封面', exact: true }).click();
-  await page.getByRole('tab', { name: '发布文案', exact: true }).click();
-  await expect(page.getByLabel('节目摘要', { exact: true })).toHaveValue('跨素材切换仍然保留的摘要');
-  await page.getByRole('button', { name: '保存发布文案', exact: true }).click();
-  await expect(page.getByRole('tab', { name: '最终检查', exact: true })).toHaveAttribute(
-    'data-complete',
-    'false',
-  );
-  await page.getByRole('tab', { name: '逐字稿，已完成', exact: true }).click();
-  await expect(page.locator('.studio-transcript:visible')).toContainText('留下这个未保存的结尾');
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-  const nested = await page
-    .locator('.studio-stage:visible')
-    .evaluate(
-      (element) =>
-        [...element.querySelectorAll('*')].filter(
-          (node) =>
-            /auto|scroll/.test(getComputedStyle(node).overflowY) && node.scrollHeight > node.clientHeight + 1,
-        ).length,
+  await page.request.post('/admin/api/dev-login', { headers: { Origin: 'https://hisfm.dev.hexly.ai' } });
+  const slug = `cms-e2e-${randomUUID()}`;
+  let id = '';
+  try {
+    await page.goto('/admin/productions/new');
+    await page.getByLabel('节目标题', { exact: true }).fill('真实接口节目管理验收');
+    await page.getByLabel('链接名称', { exact: true }).fill(slug);
+    await page.getByLabel('期数', { exact: true }).fill('99002');
+    await page.getByLabel('创作意图', { exact: true }).fill('验证保存、审批和重开均为显式操作。');
+    await page.getByRole('button', { name: '添加素材', exact: true }).click();
+    await page.getByRole('combobox', { name: '素材 1 类型' }).click();
+    await page.getByRole('option', { name: '文本素材', exact: true }).click();
+    await page
+      .getByRole('textbox', { name: '素材正文', exact: true })
+      .fill('这是本地接口验收的临时测试素材。');
+    await page.getByRole('button', { name: '完成编辑', exact: true }).click();
+    const creation = page.waitForResponse(
+      (response) =>
+        response.url().endsWith('/admin/api/productions') && response.request().method() === 'POST',
     );
-  expect(nested).toBe(0);
-  await page.screenshot({ path: '.local/studio-mobile-reader.png' });
-});
-
-test('voice settings and per-generation choices offer optional previews without changing defaults', async ({
-  page,
-}) => {
-  await page.setViewportSize({ width: 393, height: 852 });
-  const state = await studio(
-    page,
-    readyFixture({ stage: 'production', assets: { cover: null, audio: null }, audioJob: null }),
-  );
-  state.configureTts();
-  await page.goto('/admin/channel?prompt=narration');
-  await page.getByRole('combobox', { name: '讲述声音', exact: true }).click();
-  await expect(page.getByRole('option')).toHaveCount(30);
-  await page.getByRole('option', { name: 'Sulafat · 温暖', exact: true }).click();
-  await page.getByLabel('讲述风格', { exact: true }).fill('平静、自然的普通话');
-  state.failPreview();
-  await page.getByRole('button', { name: '生成试听预览', exact: true }).click();
-  await expect(page.getByText('试听生成暂时失败，请重试', { exact: true })).toBeVisible();
-  await expect(page.getByLabel('讲述风格', { exact: true })).toHaveValue('平静、自然的普通话');
-  await page.getByRole('button', { name: '生成试听预览', exact: true }).click();
-  await expect(page.getByLabel('本次生成的试听预览')).toHaveAttribute('src', '/media/preview.wav');
-  await page.getByRole('button', { name: '保存旁白风格', exact: true }).click();
-  await expect(page.getByRole('button', { name: '保存旁白风格', exact: true })).toBeEnabled();
-  await page.goto('/admin/productions/production-test?step=assets');
-  await page.getByRole('tab', { name: '音频', exact: true }).click();
-  await expect(page.getByRole('combobox', { name: '讲述声音', exact: true })).toContainText('Sulafat');
-  await expect(page.getByRole('combobox', { name: '片头', exact: true })).toContainText('不添加');
-  await expect(page.getByRole('button', { name: '生成正文音频', exact: true })).toBeEnabled();
-  await page.getByRole('button', { name: '生成试听预览', exact: true }).click();
-  await expect(page.getByLabel('本次生成的试听预览')).toBeVisible();
-  await page.getByRole('combobox', { name: '讲述声音', exact: true }).click();
-  await page.getByRole('option', { name: 'Vindemiatrix · 温柔', exact: true }).click();
-  await expect(page.getByLabel('本次生成的试听预览')).toHaveCount(0);
-  const generated = page.waitForRequest(
-    (request) => request.url().endsWith('/audio') && request.method() === 'POST',
-  );
-  await page.getByRole('button', { name: '生成正文音频', exact: true }).click();
-  expect((await generated).postDataJSON()).toMatchObject({
-    voice: 'Vindemiatrix',
-    speakingStyle: '平静、自然的普通话',
-    introId: null,
-    outroId: null,
-  });
-  await expect(page.getByText('音频制作完成', { exact: true })).toBeVisible();
-  await page.goto('/admin/channel?prompt=narration');
-  await expect(page.getByRole('combobox', { name: '讲述声音', exact: true })).toContainText('Sulafat');
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-  await page.screenshot({ path: '.local/audio-settings-mobile.png', fullPage: true });
-});
-
-test('publication copies WeChat formatting with the same cover and references as its preview', async ({
-  page,
-  context,
-}) => {
-  const transcript =
-    '## 一个具体的问题\n\n**生活细节**，参考[项目文档](https://example.com/docs)。\n\n> 留下自己的时间。';
-  await studio(page, readyFixture({ transcript }));
-  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
-  await page.goto('/admin/productions/production-test?step=publish');
-  await page.getByText('展开公众号正文预览', { exact: true }).click();
-  const preview = page.locator('.studio-wechat-preview');
-  await expect(preview.locator('img')).toHaveAttribute('src', 'https://f.no.mt/cover.png');
-  await expect(preview.locator('strong')).toHaveText('生活细节');
-  await expect(preview).toContainText('参考资料');
-  await expect(preview).toContainText('[1] https://example.com/docs');
-  await page.getByRole('button', { name: '复制微信公众号格式', exact: true }).click();
-  await expect(page.getByText('已复制', { exact: true })).toBeVisible();
-  const clipboard = await page.evaluate(async () => {
-    const [item] = await navigator.clipboard.read();
-    const [html, text] = await Promise.all([
-      item.getType('text/html').then((blob) => blob.text()),
-      item.getType('text/plain').then((blob) => blob.text()),
-    ]);
-    return { html, text };
-  });
-  expect(clipboard.html).toContain('<strong>生活细节</strong>');
-  expect(clipboard.html).toContain('https://f.no.mt/cover.png');
-  expect(clipboard.html).toContain('[1] https://example.com/docs');
-  expect(clipboard.html).toMatch(/line-height:\s*1\.9/);
-  expect(clipboard.text).toContain('生活细节');
-  expect(clipboard.text).not.toContain('**');
-  await page.getByRole('button', { name: '复制 Markdown', exact: true }).click();
-  await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toBe(transcript);
-});
-
-test('voice comparisons use the saved Chinese prompt and never relabel archived samples', async ({
-  page,
-}) => {
-  const mock = await studio(page);
-  mock.configureTts();
-  await page.routeWebSocket('**/admin/api/agent/live?protocol=1', () => {});
-  await page.route('**/admin/api/channel', (route) =>
-    route.fulfill({
-      json: { channel: { prompts: { ...defaultPrompts, voiceComparison: '中文自定义对比风格' } } },
-    }),
-  );
-  await page.goto('/admin/voices');
-  await page.getByText('共同文稿与当前对比风格', { exact: true }).click();
-  await expect(page.getByText('中文自定义对比风格', { exact: true })).toBeVisible();
-  await expect(page.getByRole('button', { name: '生成 Gemini · Charon 示例', exact: true })).toBeVisible();
-  await expect(
-    page.getByRole('button', { name: '生成 ElevenLabs · George 示例', exact: true }),
-  ).toBeVisible();
-  const request = page.waitForRequest(
-    (request) => request.url().endsWith('/production-settings/preview') && request.method() === 'POST',
-  );
-  await page.getByRole('button', { name: '生成 ElevenLabs · George 示例', exact: true }).click();
-  expect((await request).postDataJSON()).toMatchObject({ speakingStyle: '中文自定义对比风格' });
+    await page.getByRole('button', { name: '保存选题', exact: true }).click();
+    const created = await creation;
+    expect(created.status()).toBe(201);
+    id = (await created.json()).production.id;
+    await expect(page).toHaveURL(new RegExp(`/admin/productions/${id}$`));
+    await page.getByRole('tab', { name: '发布', exact: true }).click();
+    await expect(page.getByRole('button', { name: '记录已发布', exact: true })).toBeDisabled();
+    await page.getByRole('tab', { name: '资料与素材', exact: true }).click();
+    await page.getByRole('button', { name: '标记选题完成', exact: true }).click();
+    await expect(page.getByRole('tab', { name: '资料与素材', exact: true })).toHaveAttribute(
+      'data-state',
+      'active',
+    );
+    await page.getByRole('tab', { name: '逐字稿', exact: true }).click();
+    await page
+      .getByRole('textbox', { name: '完整逐字稿', exact: true })
+      .fill('你好，这是本地工作室真实接口验收的完整文稿。');
+    await page.getByRole('button', { name: '标记逐字稿完成', exact: true }).click();
+    await expect(page.getByRole('button', { name: '逐字稿已确认', exact: true })).toBeDisabled();
+    await page.getByRole('button', { name: '重新打开逐字稿', exact: true }).click();
+    await page
+      .getByRole('alertdialog')
+      .getByRole('button', { name: '重新打开已批准内容', exact: true })
+      .click();
+    await page.reload();
+    await expect(page.locator('.studio-transcript:visible')).toContainText('真实接口验收的完整文稿');
+    await expect(page.getByRole('button', { name: '标记逐字稿完成', exact: true })).toBeEnabled();
+  } finally {
+    if (id) {
+      const status = await page.evaluate(async (id) => {
+        const path = `/admin/api/productions/${id}`;
+        const { production } = (await (await fetch(path)).json()) as { production: { version: number } };
+        return (await fetch(`${path}?version=${production.version}`, { method: 'DELETE' })).status;
+      }, id);
+      expect(status).toBe(204);
+    }
+  }
 });
