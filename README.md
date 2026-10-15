@@ -29,7 +29,7 @@ his.fm 是一档面向年轻程序员的中文播客，关注 AI 带来的企业
 
 ## Website
 
-his.fm is a podcast content-management site built with React 19, Vite 8, TypeScript 7.0.2 and one Cloudflare Worker. The public listening room keeps the Open Interval identity; the private studio uses Basalt 2.2.0 and Cloudflare Access.
+his.fm is a podcast content-management site built with React 19, Vite 8, TypeScript 7.0.2 and one Cloudflare Worker. The public listening room keeps the Open Interval identity; the private studio uses Basalt 3.1.0 and Cloudflare Access.
 
 - Public pages: searchable episodes, summaries, transcripts and a custom accessible audio player. A written episode without a recording is never presented as playable.
 - Studio: one cover-first library at `/admin`, grid/list views, metadata and source editing, manuscripts, uploaded artwork/recordings, explicit reviews and publication records. Existing standalone episodes remain editable.
