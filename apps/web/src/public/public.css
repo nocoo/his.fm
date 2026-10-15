@@ -726,15 +726,50 @@ html:has(.public-site) body {
   line-height: 2.05;
   overflow-wrap: anywhere;
 }
-.public-site .readable-text > p {
-  white-space: pre-line;
-  margin-bottom: 23px;
+.public-site .readable-text p,
+.public-site .readable-text ul,
+.public-site .readable-text ol,
+.public-site .readable-text blockquote,
+.public-site .readable-text pre {
+  margin-block: 0 23px;
 }
-.public-site .readable-text > h3 {
+.public-site .readable-text p {
+  white-space: pre-line;
+}
+.public-site .readable-text h1,
+.public-site .readable-text h2,
+.public-site .readable-text h3,
+.public-site .readable-text h4 {
   font-size: 22px;
   font-weight: 500;
   line-height: 1.6;
   margin-block: 28px 18px;
+}
+.public-site .readable-text ul,
+.public-site .readable-text ol {
+  padding-left: 1.35em;
+}
+.public-site .readable-text ul {
+  list-style: disc;
+}
+.public-site .readable-text ol {
+  list-style: decimal;
+}
+.public-site .readable-text li + li {
+  margin-top: 0.35em;
+}
+.public-site .readable-text a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
+}
+.public-site .readable-text a:hover {
+  opacity: 0.72;
+}
+.public-site .readable-text blockquote {
+  border-left: 2px solid var(--line);
+  padding-left: 1em;
+  color: var(--muted);
 }
 .public-site .readable-text hr {
   border: 0;
