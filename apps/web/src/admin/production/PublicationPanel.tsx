@@ -10,6 +10,8 @@ import { Choice, Confirm, CopyButton } from './controls';
 import { dateLabel } from './model';
 import { productionService } from './service';
 
+type PublicationDraft = Pick<Publication, 'platform' | 'publishedAt'> & { url?: string };
+
 export function PublicationPanel({
   production,
   pending,
@@ -22,7 +24,7 @@ export function PublicationPanel({
   onDirty: (dirty: boolean) => void;
 }) {
   const [saved, setSaved] = useState({
-    platform: 'wechat' as Publication['platform'],
+    platform: 'site' as Publication['platform'],
     url: '',
     publishedAt: toLocalDateTime(new Date().toISOString()),
   });
@@ -31,7 +33,9 @@ export function PublicationPanel({
   useEffect(() => {
     onDirty(draft.dirty);
   }, [onDirty, draft.dirty]);
-  const [confirm, setConfirm] = useState<Pick<Publication, 'platform' | 'url' | 'publishedAt'> | null>(null);
+  const [confirm, setConfirm] = useState<PublicationDraft | null>(null);
+  const platformLabel = (value: Publication['platform']) =>
+    value === 'wechat' ? '微信公众号' : value === 'xiaoyuzhou' ? '小宇宙' : 'his.fm 本站';
   const [error, setError] = useState('');
   const wechat = formatWechat(production);
   const xiaoyuzhou = formatXiaoyuzhou(production);
@@ -42,7 +46,8 @@ export function PublicationPanel({
       </LayerCard.Header>
       <LayerCard.Body className="studio-stack studio-padding">
         <p className="admin-muted">
-          复制内容，在平台完成手动发布后，回来记录真实链接和时间。确认发布会同步更新 his.fm 节目页。
+          仅发布到 his.fm 时，选择「his.fm
+          本站」并确认发布时间即可。若也在微信或小宇宙上线，复制内容完成手动发布后，回来记录真实链接和时间。确认发布会同步更新公开节目页。
         </p>
         {production.assets.cover && (
           <CoverDownload source={production.assets.cover.url} episodeNumber={production.episodeNumber} />
@@ -95,14 +100,24 @@ export function PublicationPanel({
             event.preventDefault();
             const form = new FormData(event.currentTarget);
             const date = new Date(String(form.get('publishedAt')));
-            const parsed = publicationSchema.safeParse({
-              version: production.version,
-              platform,
-              url: String(form.get('url')),
-              publishedAt: Number.isFinite(date.getTime()) ? date.toISOString() : '',
-            });
+            const payload =
+              platform === 'site'
+                ? {
+                    version: production.version,
+                    platform,
+                    publishedAt: Number.isFinite(date.getTime()) ? date.toISOString() : '',
+                  }
+                : {
+                    version: production.version,
+                    platform,
+                    url: String(form.get('url')),
+                    publishedAt: Number.isFinite(date.getTime()) ? date.toISOString() : '',
+                  };
+            const parsed = publicationSchema.safeParse(payload);
             if (!parsed.success) {
-              setError('请填写有效的 HTTPS 发布链接和发布时间。');
+              setError(
+                platform === 'site' ? '请填写有效的发布时间。' : '请填写有效的 HTTPS 发布链接和发布时间。',
+              );
               return;
             }
             setError('');
@@ -120,6 +135,7 @@ export function PublicationPanel({
                   value={platform}
                   onChange={(next) => draft.change('platform', next as Publication['platform'])}
                   options={[
+                    { value: 'site', label: 'his.fm 本站' },
                     { value: 'wechat', label: '微信公众号' },
                     { value: 'xiaoyuzhou', label: '小宇宙' },
                   ]}
@@ -136,18 +152,20 @@ export function PublicationPanel({
                 />
               </Field>
             </div>
-            <Field label="已发布的节目链接" htmlFor="publication-url" required>
-              <Input
-                id="publication-url"
-                name="url"
-                value={url}
-                onChange={(event) => draft.change('url', event.target.value)}
-                type="url"
-                required
-                maxLength={2048}
-                placeholder="https://"
-              />
-            </Field>
+            {platform !== 'site' && (
+              <Field label="已发布的节目链接" htmlFor="publication-url" required>
+                <Input
+                  id="publication-url"
+                  name="url"
+                  value={url}
+                  onChange={(event) => draft.change('url', event.target.value)}
+                  type="url"
+                  required
+                  maxLength={2048}
+                  placeholder="https://"
+                />
+              </Field>
+            )}
             {error && (
               <p className="admin-error" role="alert">
                 {error}
@@ -166,8 +184,14 @@ export function PublicationPanel({
                 key={`${publication.platform}-${publication.version}`}
                 className="studio-padding"
               >
-                <a className="studio-link" href={publication.url} target="_blank" rel="noopener noreferrer">
-                  {publication.platform === 'wechat' ? '微信公众号' : '小宇宙'} ↗
+                <a
+                  className="studio-link"
+                  href={publication.platform === 'site' ? `/episodes/${production.slug}` : publication.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  {platformLabel(publication.platform)}
+                  {publication.platform === 'site' ? '' : ' ↗'}
                 </a>
                 <p className="admin-muted">{dateLabel(publication.publishedAt)} · 已记录</p>
               </LayerCard.Well>
@@ -177,7 +201,11 @@ export function PublicationPanel({
         {confirm && (
           <Confirm
             title="确认记录此次发布"
-            description={`确认内容已在${confirm.platform === 'wechat' ? '微信公众号' : '小宇宙'}发布，链接与时间准确。his.fm 将同步展示本次已批准的节目。`}
+            description={
+              confirm.platform === 'site'
+                ? '确认将本次已批准的节目发布到 his.fm 公开节目页，发布时间准确。'
+                : `确认内容已在${platformLabel(confirm.platform)}发布，链接与时间准确。his.fm 将同步展示本次已批准的节目。`
+            }
             onClose={() => setConfirm(null)}
             onConfirm={async () => {
               const success = await mutate(
@@ -187,7 +215,7 @@ export function PublicationPanel({
               if (success)
                 setSaved({
                   platform: confirm.platform,
-                  url: confirm.url,
+                  url: confirm.url ?? '',
                   publishedAt: toLocalDateTime(confirm.publishedAt),
                 });
               return success;

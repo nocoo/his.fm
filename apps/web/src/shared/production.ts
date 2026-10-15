@@ -105,14 +105,27 @@ export type AudioJob = {
   createdAt: string;
   error: string | null;
 };
+export const publicationPlatforms = ['wechat', 'xiaoyuzhou', 'site'] as const;
+export type PublicationPlatform = (typeof publicationPlatforms)[number];
 export type Publication = {
-  platform: 'wechat' | 'xiaoyuzhou';
+  platform: PublicationPlatform;
   url: string;
   publishedAt: string;
   confirmedAt: string;
   confirmedBy: string;
   version: number;
 };
+const publicationPublishedAt = z.iso
+  .datetime({ offset: true })
+  .transform((value) => new Date(value).toISOString());
+const publicationExternalUrl = z
+  .string()
+  .url()
+  .max(2048)
+  .refine((value) => {
+    const url = new URL(value);
+    return url.protocol === 'https:' && !url.username && !url.password;
+  });
 export type ProductionEvent = { id: string; at: string; actor: Actor; action: string; feedback: string };
 export type Production = ProductionBrief & {
   id: string;
@@ -130,19 +143,19 @@ export type Production = ProductionBrief & {
   createdAt: string;
   updatedAt: string;
 };
-export const publicationSchema = z.strictObject({
-  version: z.number().int().min(1),
-  platform: z.enum(['wechat', 'xiaoyuzhou']),
-  url: z
-    .string()
-    .url()
-    .max(2048)
-    .refine((value) => {
-      const url = new URL(value);
-      return url.protocol === 'https:' && !url.username && !url.password;
-    }),
-  publishedAt: z.iso.datetime({ offset: true }).transform((value) => new Date(value).toISOString()),
-});
+export const publicationSchema = z.union([
+  z.strictObject({
+    version: z.number().int().min(1),
+    platform: z.literal('site'),
+    publishedAt: publicationPublishedAt,
+  }),
+  z.strictObject({
+    version: z.number().int().min(1),
+    platform: z.enum(['wechat', 'xiaoyuzhou']),
+    url: publicationExternalUrl,
+    publishedAt: publicationPublishedAt,
+  }),
+]);
 export const productionSettingsSchema = z.strictObject({
   provider: z.enum(['gemini', 'elevenlabs']),
   voice: z.string().trim().min(1).max(160),

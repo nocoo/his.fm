@@ -157,11 +157,13 @@ PCM16 WAV after script approval. Native generation remains a separate queued
 job path. Asset detachment requires the expected production version and does not
 destroy referenced R2 objects or silently rewrite published snapshots.
 
-`POST /productions/:id/publications` records an actual completed publication with
-`{version,platform,url,publishedAt}`. The production must be ready with current
-final assets/approval. `wechat` URLs use `mp.weixin.qq.com`; `xiaoyuzhou` URLs use
-`xiaoyuzhoufm.com` (their subdomains are accepted). Future timestamps are rejected.
-This records a fact; it never calls either platform's publishing API.
+`POST /productions/:id/publications` records an actual completed publication.
+The production must be ready with current final assets/approval. Future timestamps
+are rejected. `platform: "site"` publishes the approved snapshot to the public
+his.fm episode page and does not require an external URL (`{version,platform,publishedAt}`).
+`wechat` and `xiaoyuzhou` still require `{version,platform,url,publishedAt}`; their
+URLs must use `mp.weixin.qq.com` or `xiaoyuzhoufm.com` (subdomains accepted). This
+records a fact; it never calls either platform's publishing API.
 
 `PATCH /productions/:id/publications/:platform` corrects an existing record;
 `DELETE` withdraws it with an expected version. Snapshot changes and publication

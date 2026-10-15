@@ -471,6 +471,29 @@ describe('scope-authorized publication snapshots', () => {
     url: 'https://mp.weixin.qq.com/s/test',
     publishedAt: '2026-09-24T00:00:00.000Z',
   };
+  it('publishes to his.fm without an external URL and links the production snapshot', async () => {
+    const production = await insert(readyFixture());
+    const path = `/productions/${production.id}/publications`;
+    const response = await call(
+      path,
+      'POST',
+      { version: 1, platform: 'site', publishedAt: '2026-09-24T00:00:00.000Z' },
+      human,
+    );
+    expect(response.status).toBe(200);
+    const published = ((await response.json()) as { production: Production }).production;
+    expect(published.publications).toHaveLength(1);
+    expect(published.publications[0]).toMatchObject({
+      platform: 'site',
+      url: '',
+      confirmedBy: human.name,
+    });
+    const snapshot = await env.DB.prepare('SELECT * FROM episodes WHERE source_production_id = ?')
+      .bind(production.id)
+      .first();
+    expect(snapshot).toMatchObject({ id: production.id, status: 'published' });
+  });
+
   it('publishes atomically only after final approval and preserves history across platforms', async () => {
     let production = await insert(readyFixture());
     const path = `/productions/${production.id}`;
