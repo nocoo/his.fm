@@ -2,6 +2,32 @@
 
 All notable changes to his.fm are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions use the owner’s patch-only deployment policy in `AGENTS.md`, with the authoritative version in `package.json`.
 
+## 2.4.0 - 2026-10-16
+
+The owner explicitly requested this minor release (Y+1). The comparison baseline is the deployed release v2.3.3, merged before release preparation.
+
+### Changed
+
+- Make his.fm a podcast CMS for external content-generation clients. Remove the embedded native agent, coordinator transport, task queues, provider settings and audio-generation endpoints without reintroducing compatibility paths. Retain scoped REST discovery, shared business controllers and manually uploaded media.
+- Unify the programme library with cover/list views, explicit linked-snapshot deduplication, freely navigable production sections and stable-ID source detail pages. Preserve drafts and Markdown undo across navigation, compact studio controls and the shared accessible custom audio player.
+- Organize token management by status and require revocation before list deletion, preserving delegation ancestry and authorization tombstones. Keep saved editorial prompts, including ordinary narration guidance, independent of retired execution code.
+- Upgrade Basalt to 3.1.0, React/React DOM to 19.3.1, Lucide React to 1.57.0, Playwright to 1.64.1, and Vitest/coverage-v8 to 5.0.5. Replace Motion with native CSS and IntersectionObserver reveals, preserving reduced-motion and keyboard behavior. Remove the unused TypeSafe SDK and TypeBox with the retired runtime.
+
+### Fixed
+
+- Preserve v2.3.3's out-of-band R2 audio binding while applying the shared 1,800-second/86,465,536-byte WAV limits, explicit grants, script approval, reopening and optimistic-version checks. Retain original staging media on successful or failed binding and delete only newly created failed copies. Reject non-POST binding methods rather than falling through to audio detachment.
+- Match browser assertions to rendered Basalt geometry and public Markdown semantics. Wait for the destination episode form during lazy navigation instead of filling the previous screen's identically labelled field. Bound isolated Vitest runtime concurrency without reducing coverage floors or timeouts.
+
+### Validation
+
+- Local unit coverage runs 278 web tests and 7 shared-contract tests; all four workspace coverage metrics exceed 95%. Strict type checking, warning-free lint, production build and staged-index checks are required before publication.
+- Browser acceptance covers 57 scenarios across public pages, studio workflows, Markdown, themes, tokens, storage and custom playback. Local verification uses synthetic media and does not authorize production content changes or paid generation.
+
+### Deployment Notes
+
+- Apply migrations 0014 and 0015 before deploying: add token deletion tombstones, retain allowlisted media provenance, append missing narration guidance and retire operational runtime/generation tables. Preserve programme content, assets, approvals, publication audit and R2 bytes.
+- The owner authorized permanent deletion of the production AgentHub Durable Object namespace. A production-only export tombstone performs the deletion; local state and unrelated remote resources remain untouched. Record a D1 Time Travel recovery bookmark before cutover. It does not restore deleted Durable Object data; recovery after this lifecycle transition uses a forward CMS deployment, not a Worker-only rollback.
+
 ## 2.3.3 - 2026-10-16
 
 ### Added
