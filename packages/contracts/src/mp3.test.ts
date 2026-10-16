@@ -1,0 +1,554 @@
+import { describe, expect, it } from 'vitest';
+import {
+  isMp3Container,
+  MP3_STREAM_SCAN_CHUNK_BYTES,
+  measureMp3Duration,
+  mp3AudioStartOffset,
+  parseMp3,
+} from './mp3.ts';
+import { mpeg2Mp3Bytes, mpeg25Mp3Bytes, tinyMp3Bytes } from './mp3-fixtures.ts';
+import { AudioError } from './wav.ts';
+
+const tinyMp3 = tinyMp3Bytes;
+
+function encodeSynchsafe(size: number) {
+  return Uint8Array.from([(size >> 21) & 0x7f, (size >> 14) & 0x7f, (size >> 7) & 0x7f, size & 0x7f]);
+}
+
+function wrapWithId3Padding(audio: Uint8Array, paddingBodyBytes: number) {
+  const header = new Uint8Array(10);
+  header.set([0x49, 0x44, 0x33, 4, 0, 0]);
+  header.set(encodeSynchsafe(paddingBodyBytes), 6);
+  const file = new Uint8Array(10 + paddingBodyBytes + audio.length);
+  file.set(header);
+  file.set(audio, 10 + paddingBodyBytes);
+  return file;
+}
+
+function stripEncoderTagsInFirstFrame(source: Uint8Array) {
+  const bytes = source.slice();
+  const start = mp3AudioStartOffset(bytes, bytes.length);
+  const frameEnd = start + 417;
+  for (let j = start; j + 4 <= frameEnd && j + 4 <= bytes.length; j++) {
+    const label = String.fromCharCode(bytes[j], bytes[j + 1], bytes[j + 2], bytes[j + 3]);
+    if (label === 'LAME' || label === 'Lavc' || label === 'Lavf') {
+      bytes.fill(0, j, j + 24);
+    }
+  }
+  return bytes;
+}
+
+function withEncoderGaplessTag(
+  source: Uint8Array,
+  tag: [number, number, number, number],
+  delayHigh: number,
+  delayLowPaddingHigh: number,
+  paddingLow: number,
+) {
+  const bytes = source.slice();
+  const start = mp3AudioStartOffset(bytes, bytes.length);
+  const xing = start + 4 + 17;
+  const flags = (bytes[xing + 4] << 24) | (bytes[xing + 5] << 16) | (bytes[xing + 6] << 8) | bytes[xing + 7];
+  let insert = xing + 12;
+  if (flags & 0x02) insert += 4;
+  if (flags & 0x04) insert += 100;
+  if (flags & 0x08) insert += 4;
+  const searchEnd = Math.min(bytes.length, start + 4 + 417);
+  for (let j = insert; j + 4 <= searchEnd; j++) {
+    const label = String.fromCharCode(bytes[j], bytes[j + 1], bytes[j + 2], bytes[j + 3]);
+    if (label === 'LAME' || label === 'Lavc' || label === 'Lavf') {
+      bytes.fill(0, j, j + 24);
+    }
+  }
+  bytes[insert] = tag[0];
+  bytes[insert + 1] = tag[1];
+  bytes[insert + 2] = tag[2];
+  bytes[insert + 3] = tag[3];
+  bytes[insert + 21] = delayHigh;
+  bytes[insert + 22] = delayLowPaddingHigh;
+  bytes[insert + 23] = paddingLow;
+  return bytes;
+}
+
+describe('parseMp3', () => {
+  it('detects MP3 containers and rejects empty input', () => {
+    expect(isMp3Container(tinyMp3)).toBe(true);
+    expect(isMp3Container(new Uint8Array([0x49]))).toBe(false);
+    expect(isMp3Container(new Uint8Array([0x49, 0x44, 0x33, 0x04]))).toBe(true);
+    expect(isMp3Container(new Uint8Array([0x00, 0xff, 0xfb, 0x90, 0x00]))).toBe(true);
+    expect(isMp3Container(new Uint8Array([0x52, 0x49, 0x46, 0x46]))).toBe(false);
+    expect(() => parseMp3(new Uint8Array(2))).toThrow('有效的 MP3');
+    const id3Only = new Uint8Array([0x49, 0x44, 0x33, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+    expect(() => parseMp3(id3Only)).toThrow('有效的 MP3');
+  });
+
+  it('reads duration from a short CBR file', () => {
+    const info = parseMp3(tinyMp3);
+    expect(info.durationSeconds).toBeGreaterThan(0.2);
+    expect(info.durationSeconds).toBeLessThan(0.35);
+    expect(info.sampleRate).toBe(44100);
+    expect(info.channels).toBe(1);
+  });
+
+  it('rejects partial buffers shorter than the declared file size', () => {
+    const prefix = tinyMp3.subarray(0, 512);
+    expect(() => parseMp3(prefix, tinyMp3.byteLength)).toThrow('不完整');
+  });
+
+  it('rejects bytes without a valid MPEG frame', () => {
+    expect(() => parseMp3(new Uint8Array([0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]), 8)).toThrow(
+      '有效的 MP3',
+    );
+  });
+
+  it('rejects truncated ID3 tags and non-container prefixes', () => {
+    const id3 = new Uint8Array(12);
+    id3.set([0x49, 0x44, 0x33, 4, 0, 0, 0x7f, 0x7f, 0x7f, 0x7f]);
+    expect(() => parseMp3(id3, 12)).toThrow('ID3');
+    expect(isMp3Container(new Uint8Array([0x00, 0xff, 0xfb, 0x90]))).toBe(true);
+    expect(() => parseMp3(tinyMp3.subarray(0, 48), 48)).toThrow('不完整');
+  });
+
+  it('rejects header-only sync words without a complete first frame', () => {
+    expect(() => parseMp3(Uint8Array.from([0xff, 0xfb, 0x90, 0xc0]), 4)).toThrow('不完整');
+    expect(() => parseMp3(Uint8Array.from([0xff, 0xfb, 0x00, 0xc0]), 4)).toThrow('帧头');
+  });
+
+  it('rejects a complete first frame followed by truncated next-frame bytes', () => {
+    const frame1 = tinyMp3.subarray(45, 45 + 417);
+    for (const extra of [4, 64, 128]) {
+      const buf = new Uint8Array(frame1.length + extra);
+      buf.set(frame1, 0);
+      buf.set([0xff, 0xfb, 0x90, 0xc0], frame1.length);
+      expect(() => parseMp3(buf)).toThrow('不完整');
+    }
+  });
+
+  it('sums back-to-back frames in a contiguous excerpt', () => {
+    const frame1 = tinyMp3.subarray(45, 45 + 417);
+    const frame2 = tinyMp3.subarray(462, 462 + 417);
+    const buf = new Uint8Array(frame1.length + frame2.length);
+    buf.set(frame1, 0);
+    buf.set(frame2, frame1.length);
+    const xing = 4 + 17;
+    buf[xing + 7] = 14;
+    const parsed = parseMp3(buf);
+    expect(parsed.durationSeconds).toBeCloseTo((1152 * 2) / 44100, 2);
+  });
+
+  it('rejects truncated audio when Xing declares more frames than were scanned', () => {
+    const frame1 = tinyMp3.subarray(45, 45 + 417);
+    expect(() => parseMp3(frame1)).toThrow('不完整');
+  });
+
+  it('rejects files missing the last complete audio frame when Xing excludes the info frame', () => {
+    const audioStart = mp3AudioStartOffset(tinyMp3, tinyMp3.length);
+    let cursor = audioStart;
+    let lastFrameStart = audioStart;
+    while (cursor + 4 <= tinyMp3.length) {
+      const headerByte = tinyMp3[cursor + 1];
+      if (tinyMp3[cursor] !== 0xff || (headerByte & 0xe0) !== 0xe0) break;
+      lastFrameStart = cursor;
+      const h = (tinyMp3[cursor + 1] << 16) | (tinyMp3[cursor + 2] << 8) | tinyMp3[cursor + 3];
+      const versionBits = (h >> 19) & 0x3;
+      const bitrateIndex = (h >> 12) & 0xf;
+      const sampleRateIndex = (h >> 10) & 0x3;
+      const padding = (h >> 9) & 0x1;
+      const mpeg1 = versionBits === 3;
+      const bitrates = mpeg1
+        ? [0, 32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320]
+        : [0, 8, 16, 24, 32, 40, 48, 56, 64, 80, 96, 112, 128, 144, 160];
+      const sampleRates = mpeg1
+        ? [44100, 48000, 32000]
+        : versionBits === 2
+          ? [22050, 24000, 16000]
+          : [11025, 12000, 8000];
+      const frameLength =
+        Math.floor((144 * bitrates[bitrateIndex] * 1000) / sampleRates[sampleRateIndex]) + padding;
+      cursor += mpeg1
+        ? frameLength
+        : Math.floor((72 * bitrates[bitrateIndex] * 1000) / sampleRates[sampleRateIndex]) + padding;
+    }
+    const truncated = tinyMp3.subarray(0, lastFrameStart);
+    expect(() => parseMp3(truncated)).toThrow('不完整');
+  });
+
+  it('parses MPEG2 sample-rate files', () => {
+    expect(parseMp3(mpeg2Mp3Bytes).sampleRate).toBe(24000);
+  });
+
+  it('parses MPEG-2.5 eight-kilohertz audio from fixture', () => {
+    const info = parseMp3(mpeg25Mp3Bytes);
+    expect(info.sampleRate).toBe(8000);
+    expect(info.durationSeconds).toBeGreaterThan(0.5);
+    expect(info.durationSeconds).toBeLessThan(0.85);
+  });
+
+  it('derives duration from frame scan when no Xing header is present', () => {
+    const info = parseMp3(mpeg2Mp3Bytes);
+    expect(info.durationSeconds).toBeGreaterThan(0);
+    expect(Number.isFinite(info.durationSeconds)).toBe(true);
+  });
+
+  it('rejects streams that change MPEG version between frames', () => {
+    const twin = tinyMp3.slice(45, 45 + 417 * 2);
+    twin[418] = 0xf3;
+    expect(() => parseMp3(twin)).toThrow('无效数据');
+  });
+
+  it('rejects when the declared object size exceeds the buffered bytes', () => {
+    expect(() => parseMp3(tinyMp3, tinyMp3.length + 1)).toThrow('不完整');
+  });
+
+  it('rejects objects truncated before the first frame ends', () => {
+    const buf = new Uint8Array(100);
+    buf.set([0xff, 0xfb, 0x90, 0xc0], 0);
+    expect(() => parseMp3(buf)).toThrow('不完整');
+    expect(() => parseMp3(tinyMp3, tinyMp3.length - 200)).toThrow('不完整');
+  });
+
+  it('reports ID3 audio offsets and invalid tags', () => {
+    expect(mp3AudioStartOffset(tinyMp3, tinyMp3.length)).toBeGreaterThan(0);
+    const shortId3 = new Uint8Array(10);
+    shortId3.set([0x49, 0x44, 0x33, 4, 0, 0, 0, 0, 0, 0]);
+    expect(() => mp3AudioStartOffset(shortId3, 5)).toThrow('ID3');
+    expect(isMp3Container(new Uint8Array([0x49]))).toBe(false);
+    expect(isMp3Container(new Uint8Array([0x00, 0xff, 0xfb, 0x90, 0x00]))).toBe(true);
+    expect(() => parseMp3(Uint8Array.from([0xff, 0xfb, 0xff, 0xc0, 0, 0, 0, 0]), 8)).toThrow(AudioError);
+    const reserved = new Uint8Array(500);
+    reserved.set([0xff, 0xea, 0x90, 0xc0], 0);
+    expect(() => parseMp3(reserved)).toThrow('有效的 MP3');
+  });
+
+  it('rejects trailing bytes that are not a valid ID3v1 tag', () => {
+    const padded = new Uint8Array(tinyMp3.length + 64);
+    padded.set(tinyMp3);
+    expect(() => parseMp3(padded)).toThrow('无效数据');
+  });
+
+  it('accepts up to two trailing MPEG frames beyond the Xing-declared total', () => {
+    const bytes = tinyMp3.slice();
+    const xing = mp3AudioStartOffset(bytes, bytes.length) + 4 + 17;
+    bytes[xing + 11] = 9;
+    const parsed = parseMp3(bytes);
+    expect(parsed.durationSeconds).toBeCloseTo(0.19775510204081634, 6);
+  });
+
+  it('falls back to the frame scan when scanned MPEG frames exceed Xing by more than two', () => {
+    const bytes = tinyMp3.slice();
+    const xing = mp3AudioStartOffset(bytes, bytes.length) + 4 + 17;
+    bytes[xing + 8] = 0;
+    bytes[xing + 9] = 0;
+    bytes[xing + 10] = 0;
+    bytes[xing + 11] = 5;
+    const parsed = parseMp3(bytes);
+    expect(parsed.durationSeconds).toBeCloseTo(0.313469387755102, 6);
+    expect(parsed.durationSeconds).toBeGreaterThan(parseMp3(tinyMp3).durationSeconds);
+  });
+
+  it('falls back to frame scan when Xing omits a frame count', () => {
+    const bytes = tinyMp3.slice();
+    const xing = mp3AudioStartOffset(bytes, bytes.length) + 4 + 17;
+    bytes[xing + 7] = 14;
+    expect(parseMp3(bytes).durationSeconds).toBeGreaterThan(0.2);
+  });
+
+  it('ignores LAME gapless when delay equals the Xing sample budget', () => {
+    const frame1 = tinyMp3.subarray(45, 45 + 417);
+    const frame2 = tinyMp3.subarray(462, 462 + 417);
+    const twin = new Uint8Array(frame1.length + frame2.length);
+    twin.set(frame1);
+    twin.set(frame2, frame1.length);
+    const bytes = withEncoderGaplessTag(twin, [0x4c, 0x41, 0x4d, 0x45], 72, 0, 0);
+    const xing = 4 + 17;
+    bytes[xing + 8] = 0;
+    bytes[xing + 9] = 0;
+    bytes[xing + 10] = 0;
+    bytes[xing + 11] = 1;
+    expect(parseMp3(bytes).durationSeconds).toBeCloseTo(1152 / 44100, 6);
+  });
+
+  it('ignores Lavc gapless when delay equals the Xing sample budget', () => {
+    const frame1 = tinyMp3.subarray(45, 45 + 417);
+    const frame2 = tinyMp3.subarray(462, 462 + 417);
+    const twin = new Uint8Array(frame1.length + frame2.length);
+    twin.set(frame1);
+    twin.set(frame2, frame1.length);
+    const bytes = withEncoderGaplessTag(twin, [0x4c, 0x61, 0x76, 0x63], 72, 0, 0);
+    const xing = 4 + 17;
+    bytes[xing + 8] = 0;
+    bytes[xing + 9] = 0;
+    bytes[xing + 10] = 0;
+    bytes[xing + 11] = 1;
+    expect(parseMp3(bytes).durationSeconds).toBeCloseTo(1152 / 44100, 6);
+  });
+
+  it('rejects zero-length Xing durations', () => {
+    const bytes = tinyMp3.slice();
+    const xing = mp3AudioStartOffset(bytes, bytes.length) + 4 + 17;
+    bytes[xing + 8] = 0;
+    bytes[xing + 9] = 0;
+    bytes[xing + 10] = 0;
+    bytes[xing + 11] = 0;
+    expect(() => parseMp3(bytes)).toThrow('无法从 MP3 文件读取时长');
+  });
+
+  it('parses Xing headers that only include a frame count', () => {
+    const bytes = tinyMp3.slice();
+    const xing = mp3AudioStartOffset(bytes, bytes.length) + 4 + 17;
+    bytes[xing + 4] = 0;
+    bytes[xing + 5] = 0;
+    bytes[xing + 6] = 0;
+    bytes[xing + 7] = 1;
+    expect(parseMp3(bytes).durationSeconds).toBeGreaterThan(0.2);
+  });
+
+  it('applies LAME encoder delay inside the first frame', () => {
+    const cleared = stripEncoderTagsInFirstFrame(tinyMp3);
+    const bytes = withEncoderGaplessTag(cleared, [0x4c, 0x41, 0x4d, 0x45], 36, 0x10, 8);
+    const baseline = parseMp3(cleared).durationSeconds;
+    expect(parseMp3(bytes).durationSeconds).toBeLessThan(baseline);
+  });
+
+  it('applies Lavc encoder delay and padding at tag+21 like LAME', () => {
+    const cleared = stripEncoderTagsInFirstFrame(tinyMp3);
+    const bytes = withEncoderGaplessTag(cleared, [0x4c, 0x61, 0x76, 0x63], 36, 0x10, 8);
+    const baseline = parseMp3(cleared).durationSeconds;
+    expect(parseMp3(bytes).durationSeconds).toBeLessThan(baseline);
+  });
+
+  it('applies Lavf encoder delay and padding at tag+21 like LAME', () => {
+    const cleared = stripEncoderTagsInFirstFrame(tinyMp3);
+    const bytes = withEncoderGaplessTag(cleared, [0x4c, 0x61, 0x76, 0x66], 36, 0x10, 8);
+    const baseline = parseMp3(cleared).durationSeconds;
+    expect(parseMp3(bytes).durationSeconds).toBeLessThan(baseline);
+  });
+
+  it('ignores Lavc gapless fields when delay and padding exhaust the Xing sample budget', () => {
+    const frame1 = tinyMp3.subarray(45, 45 + 417);
+    const frame2 = tinyMp3.subarray(462, 462 + 417);
+    const twin = new Uint8Array(frame1.length + frame2.length);
+    twin.set(frame1);
+    twin.set(frame2, frame1.length);
+    const cleared = stripEncoderTagsInFirstFrame(twin);
+    const xing = 4 + 17;
+    cleared[xing + 8] = 0;
+    cleared[xing + 9] = 0;
+    cleared[xing + 10] = 0;
+    cleared[xing + 11] = 1;
+    const bytes = withEncoderGaplessTag(cleared, [0x4c, 0x61, 0x76, 0x63], 255, 0xff, 255);
+    expect(parseMp3(bytes).durationSeconds).toBe(parseMp3(cleared).durationSeconds);
+  });
+
+  it('ignores ID3v1 trailers shorter than 128 bytes', () => {
+    const short = tinyMp3.subarray(0, 120);
+    expect(() => parseMp3(short)).toThrow();
+  });
+
+  it('rejects a single-byte trailer after the frame scan', () => {
+    const padded = new Uint8Array(tinyMp3.length + 1);
+    padded.set(tinyMp3);
+    expect(() => parseMp3(padded)).toThrow('无效数据');
+    return measureMp3Duration(padded.length, async (offset, length) =>
+      padded.subarray(offset, offset + length),
+    ).then(
+      () => {
+        throw new Error('expected rejection');
+      },
+      (error) => expect(error).toBeInstanceOf(AudioError),
+    );
+  });
+
+  it('excludes a trailing ID3v1 tag from the frame scan', () => {
+    const tag = new Uint8Array(128);
+    tag.set([0x54, 0x41, 0x47], 0);
+    const withTag = new Uint8Array(tinyMp3.length + 128);
+    withTag.set(tinyMp3);
+    withTag.set(tag, tinyMp3.length);
+    const tagged = parseMp3(withTag);
+    const plain = parseMp3(tinyMp3);
+    expect(tagged.durationSeconds).toBeCloseTo(plain.durationSeconds, 3);
+  });
+
+  it('parses audio after a 64 KiB ID3v2 padding block', () => {
+    const audioStart = mp3AudioStartOffset(tinyMp3, tinyMp3.length);
+    const audio = tinyMp3.subarray(audioStart);
+    const padded = wrapWithId3Padding(audio, 64 * 1024 - 10);
+    const info = parseMp3(padded);
+    expect(info.durationSeconds).toBeGreaterThan(0.2);
+    expect(info.durationSeconds).toBeLessThan(0.35);
+  });
+});
+
+describe('measureMp3Duration', () => {
+  const readFrom = (bytes: Uint8Array) => async (offset: number, length: number) => {
+    if (offset + length > bytes.length) {
+      throw new Error('read past buffer');
+    }
+    return bytes.subarray(offset, offset + length);
+  };
+
+  it('works without optional stats', async () => {
+    const measured = await measureMp3Duration(tinyMp3.length, readFrom(tinyMp3));
+    expect(measured.durationSeconds).toBeGreaterThan(0);
+  });
+
+  it('streams MPEG-2 Layer III clips', async () => {
+    const measured = await measureMp3Duration(mpeg2Mp3Bytes.length, readFrom(mpeg2Mp3Bytes));
+    expect(measured.sampleRate).toBe(24000);
+  });
+
+  it('streams MPEG-2.5 eight-kilohertz clips', async () => {
+    const measured = await measureMp3Duration(mpeg25Mp3Bytes.length, readFrom(mpeg25Mp3Bytes));
+    expect(measured.sampleRate).toBe(8000);
+    expect(measured.durationSeconds).toBeCloseTo(parseMp3(mpeg25Mp3Bytes).durationSeconds, 6);
+  });
+
+  it('matches parseMp3 on a complete file', async () => {
+    const parsed = parseMp3(tinyMp3);
+    const measured = await measureMp3Duration(tinyMp3.length, readFrom(tinyMp3));
+    expect(measured.durationSeconds).toBeCloseTo(parsed.durationSeconds, 6);
+    expect(measured.sampleRate).toBe(parsed.sampleRate);
+  });
+
+  it('streams past a large ID3v2 prefix', async () => {
+    const audioStart = mp3AudioStartOffset(tinyMp3, tinyMp3.length);
+    const padded = wrapWithId3Padding(tinyMp3.subarray(audioStart), 64 * 1024 - 10);
+    const parsed = parseMp3(padded);
+    const measured = await measureMp3Duration(padded.length, readFrom(padded));
+    expect(measured.durationSeconds).toBeCloseTo(parsed.durationSeconds, 6);
+  });
+
+  it('rejects truncated objects during streaming scan', async () => {
+    const truncated = tinyMp3.subarray(0, tinyMp3.length - 200);
+    await expect(measureMp3Duration(truncated.length, readFrom(truncated))).rejects.toThrow('不完整');
+  });
+
+  it('streams past an ID3v1 trailer', async () => {
+    const tag = new Uint8Array(128);
+    tag.set([0x54, 0x41, 0x47], 0);
+    const withTag = new Uint8Array(tinyMp3.length + 128);
+    withTag.set(tinyMp3);
+    withTag.set(tag, tinyMp3.length);
+    const measured = await measureMp3Duration(withTag.length, readFrom(withTag));
+    expect(measured.durationSeconds).toBeCloseTo(parseMp3(withTag).durationSeconds, 6);
+  });
+
+  it('rejects streaming audio truncated after the last complete audio frame', async () => {
+    const audioStart = mp3AudioStartOffset(tinyMp3, tinyMp3.length);
+    let cursor = audioStart;
+    let lastFrameStart = audioStart;
+    while (cursor + 4 <= tinyMp3.length) {
+      if (tinyMp3[cursor] !== 0xff || (tinyMp3[cursor + 1] & 0xe0) !== 0xe0) break;
+      lastFrameStart = cursor;
+      const h = (tinyMp3[cursor + 1] << 16) | (tinyMp3[cursor + 2] << 8) | tinyMp3[cursor + 3];
+      const versionBits = (h >> 19) & 0x3;
+      const bitrateIndex = (h >> 12) & 0xf;
+      const sampleRateIndex = (h >> 10) & 0x3;
+      const padding = (h >> 9) & 0x1;
+      const mpeg1 = versionBits === 3;
+      const bitrates = mpeg1
+        ? [0, 32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320]
+        : [0, 8, 16, 24, 32, 40, 48, 56, 64, 80, 96, 112, 128, 144, 160];
+      const sampleRates = mpeg1
+        ? [44100, 48000, 32000]
+        : versionBits === 2
+          ? [22050, 24000, 16000]
+          : [11025, 12000, 8000];
+      const frameLength = mpeg1
+        ? Math.floor((144 * bitrates[bitrateIndex] * 1000) / sampleRates[sampleRateIndex]) + padding
+        : Math.floor((72 * bitrates[bitrateIndex] * 1000) / sampleRates[sampleRateIndex]) + padding;
+      cursor += frameLength;
+    }
+    const truncated = tinyMp3.subarray(0, lastFrameStart);
+    await expect(
+      measureMp3Duration(truncated.length, async (offset, length) =>
+        truncated.subarray(offset, offset + length),
+      ),
+    ).rejects.toThrow('不完整');
+  });
+
+  it('rejects streaming truncated audio when Xing declares more frames than were scanned', async () => {
+    const frame1 = tinyMp3.subarray(45, 45 + 417);
+    await expect(measureMp3Duration(frame1.length, readFrom(frame1))).rejects.toThrow('不完整');
+  });
+
+  it('rejects corrupt trailing bytes during streaming scan', async () => {
+    const padded = new Uint8Array(tinyMp3.length + 64);
+    padded.set(tinyMp3);
+    await expect(measureMp3Duration(padded.length, readFrom(padded))).rejects.toThrow('无效数据');
+  });
+
+  it('loads the first frame when it spans the streaming probe window', async () => {
+    const audioStart = mp3AudioStartOffset(tinyMp3, tinyMp3.length);
+    const audio = tinyMp3.subarray(audioStart);
+    const lead = new Uint8Array(256 * 1024 - 100);
+    const audioBody = new Uint8Array(lead.length + audio.length);
+    audioBody.set(lead);
+    audioBody.set(audio, lead.length);
+    const padded = wrapWithId3Padding(audioBody, 64);
+    const measured = await measureMp3Duration(padded.length, readFrom(padded));
+    expect(measured.durationSeconds).toBeCloseTo(parseMp3(padded).durationSeconds, 6);
+  });
+
+  it('rejects MPEG version changes during streaming scan', async () => {
+    const twin = tinyMp3.slice(45, 45 + 417 * 2);
+    twin[418] = 0xf3;
+    await expect(measureMp3Duration(twin.length, readFrom(twin))).rejects.toThrow('无效数据');
+  });
+
+  it('rejects objects shorter than four bytes', async () => {
+    const bytes = new Uint8Array([0x49, 0x44, 0x33]);
+    await expect(measureMp3Duration(bytes.length, readFrom(bytes))).rejects.toThrow('有效的 MP3');
+  });
+
+  it('rejects ID3-only objects without MPEG frames', async () => {
+    const id3Only = new Uint8Array([0x49, 0x44, 0x33, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+    await expect(measureMp3Duration(id3Only.length, readFrom(id3Only))).rejects.toThrow('有效的 MP3');
+  });
+
+  it('rejects streaming objects whose audio region is shorter than four bytes', async () => {
+    const id3 = new Uint8Array(19);
+    id3.set([0x49, 0x44, 0x33, 4, 0, 0, 0, 0, 0, 9]);
+    await expect(measureMp3Duration(id3.length, readFrom(id3))).rejects.toThrow('有效的 MP3');
+  });
+
+  it('scans short clips without an ID3v1 trailer', async () => {
+    const measured = await measureMp3Duration(tinyMp3.length, readFrom(tinyMp3));
+    expect(measured.durationSeconds).toBeCloseTo(parseMp3(tinyMp3).durationSeconds, 6);
+  });
+
+  it('streams objects shorter than 128 bytes without ID3v1 handling', async () => {
+    const small = tinyMp3.subarray(0, 120);
+    await expect(measureMp3Duration(120, readFrom(small))).rejects.toThrow('不完整');
+  });
+
+  it('rejects ranged reads that return fewer bytes than requested', async () => {
+    await expect(
+      measureMp3Duration(tinyMp3.length, async (offset, length) =>
+        tinyMp3.subarray(offset, offset + length - 1),
+      ),
+    ).rejects.toThrow('不完整');
+  });
+
+  it('reuses one buffered window for many frames in a single chunk', async () => {
+    const stats = { readCount: 0 };
+    await measureMp3Duration(tinyMp3.length, readFrom(tinyMp3), { stats, chunkBytes: 64 * 1024 });
+    expect(stats.readCount).toBeLessThan(8);
+  });
+
+  it('uses bounded 128 KiB ranged reads for multi-minute-sized scans', async () => {
+    const frame = tinyMp3.subarray(45, 45 + 417);
+    const targetBytes = 5 * MP3_STREAM_SCAN_CHUNK_BYTES;
+    const reps = Math.ceil(targetBytes / frame.length);
+    const body = new Uint8Array(reps * frame.length);
+    for (let i = 0; i < reps; i++) body.set(frame, i * frame.length);
+    const stats = { readCount: 0 };
+    const measured = await measureMp3Duration(body.length, readFrom(body), { stats });
+    const parsed = parseMp3(body);
+    expect(measured.durationSeconds).toBeCloseTo(parsed.durationSeconds, 4);
+    const expectedReads = Math.ceil(body.length / MP3_STREAM_SCAN_CHUNK_BYTES) + 6;
+    expect(stats.readCount).toBeLessThanOrEqual(expectedReads);
+    expect(stats.readCount).toBeLessThan(64);
+  });
+});

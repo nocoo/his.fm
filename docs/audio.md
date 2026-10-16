@@ -7,11 +7,14 @@ Content generation and audio composition happen outside his.fm. The site stores 
 `PUT /api/agent/productions/:id/assets/audio?version=N`
 
 - Requires `productions:write` and `storage:write`, the current optimistic version and an approved current script.
-- Body is raw `audio/wav`, not multipart or JSON. `Content-Length` is required; browsers set it from the selected file.
-- RIFF WAV with PCM16, one channel, 24,000 Hz; duration must be positive and at most 1,800 seconds.
-- Maximum request size: 86,465,536 bytes, including up to 65,536 bytes of header. No duration query/body is accepted; the server derives it from validated audio.
-- Server-chosen unique R2 key, immutable cache policy and conditional creation. The stored asset records size, duration, script version, timestamp and `source: "upload"`.
+- Body is raw `audio/wav` or `audio/mpeg`, not multipart or JSON. `Content-Length` is required; browsers set it from the selected file.
+- **WAV:** RIFF PCM16, one channel, 24,000 Hz; maximum request size 172,865,536 bytes (including up to 65,536 bytes of header).
+- **MP3:** MPEG-1/2/2.5 Layer III with a valid frame sync or ID3 container; maximum request size 144,065,536 bytes (enough for 3,600 seconds at 320 kbps). Mono 96–128 kbps is recommended for narration.
+- Duration must be positive and at most 3,600 seconds for both formats (MP3 near the cap allows a tiny validation slack for frame-scan rounding). No duration query/body is accepted; the server derives it from validated audio (WAV data chunk; MP3 Xing/Info gapless metadata when present (including LAME/Lavc/Lavf encoder delay and padding at tag+21..23), otherwise a streaming MPEG-1/2/2.5 Layer III frame scan).
+- Server-chosen unique R2 key `productions/{id}/audio-{scriptVersion}-{uuid}.wav` or `.mp3`, immutable cache policy and conditional creation. The stored asset records size, duration, script version, timestamp, MIME type and `source: "upload"`.
 - Changed script/production versions fail attachment rather than marking obsolete audio complete. No fabricated generation job is required.
+
+`POST /api/agent/productions/:id/assets/audio/bind` accepts the same formats via allowlisted R2 keys: `uploads/<uuid>.wav|mp3` or `productions/{id}/audio-<scriptVersion>-<uuid>.wav|mp3` for the current production and script.
 
 `DELETE /api/agent/productions/:id/assets/audio?version=N` detaches audio with the same scopes and stage policy. It does not remove immutable bytes. Cover detach follows the same rule. Asset changes after approval additionally need `productions:reopen`; approval scope alone is not enough.
 

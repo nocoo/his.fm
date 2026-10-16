@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { wavHeader } from '@his-fm/contracts';
 import { Miniflare } from 'miniflare';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { tinyMp3Bytes } from '../../../../packages/contracts/src/mp3-fixtures.ts';
 import type { Actor, Production } from '../../src/shared/production';
 import { productionCapabilities } from '../../worker/agent-api';
 import { readStoredWav, storeUploadedWav } from '../../worker/audio';
@@ -25,16 +26,24 @@ const png = Uint8Array.from(
 );
 const wav = new Uint8Array(48);
 wav.set(wavHeader(4));
+const tinyMp3 = tinyMp3Bytes;
 let miniflare: Miniflare;
 let env: Env;
 
-async function call(path: string, method = 'GET', body?: unknown, actor = fullAgent, bindings = env) {
+async function call(
+  path: string,
+  method = 'GET',
+  body?: unknown,
+  actor = fullAgent,
+  bindings = env,
+  binaryContentType?: string,
+) {
   const binary = body instanceof Uint8Array;
   const request = new Request(`${origin}${path}`, {
     method,
     headers: binary
       ? {
-          'Content-Type': path.includes('/audio') ? 'audio/wav' : 'image/png',
+          'Content-Type': binaryContentType ?? (path.includes('/audio') ? 'audio/wav' : 'image/png'),
           'Content-Length': String(body.length),
         }
       : { 'Content-Type': 'application/json' },
@@ -552,6 +561,36 @@ describe('manual assets and safe detach', () => {
     expect((await getProduction(env.DB, production.id)).assets.audio).toEqual(readyFixture().assets.audio);
     await insert(fixture({ id: 'draft' }));
     expect((await call('/productions/draft/assets/audio?version=1', 'PUT', wav)).status).toBe(409);
+  });
+
+  it('accepts MP3 production uploads and binding', async () => {
+    let production = await insert(
+      readyFixture({ stage: 'production', assets: { cover: null, audio: null } }),
+    );
+    const path = `/productions/${production.id}`;
+    production = await result(
+      await call(
+        `${path}/assets/audio?version=${production.version}`,
+        'PUT',
+        tinyMp3,
+        fullAgent,
+        env,
+        'audio/mpeg',
+      ),
+    );
+    expect(production.assets.audio).toMatchObject({
+      mimeType: 'audio/mpeg',
+      key: expect.stringMatching(/\.mp3$/),
+    });
+    const staging = 'uploads/00000000-0000-4000-8000-000000000030.mp3';
+    await env.MEDIA.put(staging, tinyMp3);
+    production = await result(
+      await call(`${path}/assets/audio?version=${production.version}`, 'DELETE', undefined),
+    );
+    production = await result(
+      await call(`${path}/assets/audio/bind`, 'POST', { version: production.version, key: staging }),
+    );
+    expect(production.assets.audio?.mimeType).toBe('audio/mpeg');
   });
 
   it('binds large audio uploaded out-of-band to R2 staging or production keys', async () => {

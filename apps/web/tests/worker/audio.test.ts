@@ -1,12 +1,16 @@
 import { Miniflare } from 'miniflare';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
+import { tinyMp3Bytes } from '../../../../packages/contracts/src/mp3-fixtures.ts';
 import {
   adoptProductionAudioUpload,
   PRODUCTION_AUDIO_MAX_BYTES,
   PRODUCTION_AUDIO_MAX_DURATION_SECONDS,
+  PRODUCTION_AUDIO_MP3_MAX_BYTES,
   parseAllowedProductionAudioKey,
   productionAudioObjectKey,
 } from '../../worker/audio';
+
+const tinyMp3 = tinyMp3Bytes;
 
 const goldenHeader =
   '524946462c00000057415645666d74201000000001000100c05d000080bb0000020010006461746108000000';
@@ -75,13 +79,18 @@ describe('production audio bind helpers', () => {
     const id = 'prod-1';
     expect(parseAllowedProductionAudioKey(id, 'uploads/00000000-0000-4000-8000-000000000001.wav')).toEqual({
       kind: 'staging',
+      extension: 'wav',
+    });
+    expect(parseAllowedProductionAudioKey(id, 'uploads/00000000-0000-4000-8000-000000000001.mp3')).toEqual({
+      kind: 'staging',
+      extension: 'mp3',
     });
     expect(
       parseAllowedProductionAudioKey(
         id,
         productionAudioObjectKey(id, 2, '00000000-0000-4000-8000-000000000002'),
       ),
-    ).toEqual({ kind: 'attached', scriptVersion: 2 });
+    ).toEqual({ kind: 'attached', scriptVersion: 2, extension: 'wav' });
     expect(() => parseAllowedProductionAudioKey(id, 'images/test.wav')).toThrow('路径无效');
     expect(() =>
       parseAllowedProductionAudioKey(
@@ -133,6 +142,17 @@ describe('production audio bind helpers', () => {
   it('uses a one-hour production narration limit', () => {
     expect(PRODUCTION_AUDIO_MAX_DURATION_SECONDS).toBe(3600);
     expect(PRODUCTION_AUDIO_MAX_BYTES).toBe(172_865_536);
+    expect(PRODUCTION_AUDIO_MP3_MAX_BYTES).toBe(144_065_536);
     expect(2259.67).toBeLessThanOrEqual(PRODUCTION_AUDIO_MAX_DURATION_SECONDS);
+  });
+
+  it('copies staging MP3 uploads into immutable production keys', async () => {
+    const id = 'prod-mp3';
+    const staging = 'uploads/00000000-0000-4000-8000-000000000007.mp3';
+    await bucket.put(staging, tinyMp3);
+    const adopted = await adoptProductionAudioUpload(bucket, id, 1, staging);
+    expect(adopted.key).toMatch(new RegExp(`^productions/${id}/audio-1-.*\\.mp3$`));
+    expect(adopted.stored.mimeType).toBe('audio/mpeg');
+    expect(adopted.stored.durationSeconds).toBeGreaterThan(0);
   });
 });

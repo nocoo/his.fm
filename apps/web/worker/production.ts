@@ -11,8 +11,10 @@ import {
 import {
   adoptProductionAudioUpload,
   PRODUCTION_AUDIO_MAX_DURATION_SECONDS,
+  type ProductionAudioMime,
+  productionAudioExtension,
   productionAudioObjectKey,
-  storeUploadedWav,
+  storeUploadedProductionAudio,
 } from './audio';
 import { requireScope } from './authorization';
 import { categoryFence, getCategory } from './categories';
@@ -90,7 +92,7 @@ async function attachProductionAudio(
   actor: Actor,
   expectedVersion: number,
   key: string,
-  stored: { size: number; durationSeconds: number },
+  stored: { size: number; durationSeconds: number; mimeType: ProductionAudioMime },
 ) {
   return updateProduction(
     env.DB,
@@ -104,7 +106,7 @@ async function attachProductionAudio(
         audio: {
           key,
           url: mediaUrl(env, key),
-          mimeType: 'audio/wav',
+          mimeType: stored.mimeType,
           size: stored.size,
           scriptVersion: production.scriptVersion,
           createdAt: new Date().toISOString(),
@@ -127,12 +129,26 @@ async function uploadAudio(request: Request, env: Env, id: string, actor: Actor)
   editAssets(current, actor);
   if (!current.approvals.brief || !current.approvals.script || !current.transcript.trim())
     throw new HttpError(409, '请先确认当前逐字稿');
-  if (request.headers.get('Content-Type')?.split(';')[0] !== 'audio/wav')
-    throw new HttpError(415, '请上传 WAV 音频');
-  const key = productionAudioObjectKey(id, current.scriptVersion);
-  let stored: Awaited<ReturnType<typeof storeUploadedWav>>;
+  const contentType = request.headers.get('Content-Type')?.split(';')[0];
+  if (contentType !== 'audio/wav' && contentType !== 'audio/mpeg') {
+    throw new HttpError(415, '请上传 WAV 或 MP3 音频');
+  }
+  const mimeType = contentType as ProductionAudioMime;
+  const key = productionAudioObjectKey(
+    id,
+    current.scriptVersion,
+    undefined,
+    productionAudioExtension(mimeType),
+  );
+  let stored: Awaited<ReturnType<typeof storeUploadedProductionAudio>>;
   try {
-    stored = await storeUploadedWav(request, env.MEDIA, key, PRODUCTION_AUDIO_MAX_DURATION_SECONDS);
+    stored = await storeUploadedProductionAudio(
+      request,
+      env.MEDIA,
+      key,
+      PRODUCTION_AUDIO_MAX_DURATION_SECONDS,
+      mimeType,
+    );
   } catch (error) {
     if (error instanceof AudioError) throw new HttpError(400, error.message);
     throw error;

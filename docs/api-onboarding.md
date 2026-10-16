@@ -53,8 +53,8 @@ Stored stages are `draft`, `brief_review`, `scripting`, `script_review`, `produc
 ## Media
 
 - `PUT /productions/:id/assets/cover?version=N`: raw PNG/JPEG/WebP, matching Content-Type, at most 8 MiB. Source artwork must not contain text, branding, frames or overlays.
-- `PUT /productions/:id/assets/audio?version=N`: raw `audio/wav`, Content-Length required, 24 kHz mono PCM16, positive duration up to 1,800 seconds and 86,465,536 bytes. The server derives duration; no multipart or duration metadata. It requires an approved current script.
-- `POST /productions/:id/assets/audio/bind`: JSON `{version,key}` attaches a WAV already uploaded to R2, with the same limits, approval and reopening rules. Allowlisted keys are `uploads/<uuid>.wav` or `productions/<id>/audio-<scriptVersion>-<uuid>.wav` for this production and current script. Staging sources are copied and retained; cleanup is a separate authorized action. Uploading out-of-band with the project `cf` CLI requires independently authorized infrastructure access; website tokens cannot upload through Cloudflare's API.
+- `PUT /productions/:id/assets/audio?version=N`: raw `audio/wav` or `audio/mpeg`, Content-Length required, positive duration up to 3,600 seconds. WAV must be 24 kHz mono PCM16 (max 172,865,536 bytes). MP3 must be valid MPEG Layer III (max 144,065,536 bytes; 96–128 kbps mono recommended). The server derives duration; no multipart or duration metadata. It requires an approved current script.
+- `POST /productions/:id/assets/audio/bind`: JSON `{version,key}` attaches WAV or MP3 already uploaded to R2, with the same limits, approval and reopening rules. Allowlisted keys are `uploads/<uuid>.{wav|mp3}` or `productions/<id>/audio-<scriptVersion>-<uuid>.{wav|mp3}` for this production and current script. Staging sources are copied and retained; cleanup is a separate authorized action. Uploading out-of-band with the project `cf` CLI requires independently authorized infrastructure access; website tokens cannot upload through Cloudflare's API.
 - Both uploads and `DELETE /productions/:id/assets/{cover|audio}?version=N` require `productions:write` plus `storage:write` and the applicable stage policy. Changing reviewed assets requires `productions:reopen`. Detach retains immutable R2 bytes.
 - `POST /storage` uploads safe raster/PCM WAV up to 25 MiB to a server-chosen immutable key, without attaching it to a production.
 - `POST /bumpers?name=...&position=intro|outro` accepts PCM WAV up to 30 seconds/3 MiB with `bumpers:write`. Metadata updates use PUT plus version; deletion uses `?version=N` and retains physical media.
@@ -64,6 +64,7 @@ curl --fail-with-body -X PUT \
   "https://his.fm/api/agent/productions/$PRODUCTION_ID/assets/audio?version=$VERSION" \
   -H "Authorization: Bearer $HISFM_TOKEN" \
   -H 'Content-Type: audio/wav' --data-binary @finished.wav
+# MP3 uploads use Content-Type: audio/mpeg and keys ending in .mp3 when binding out-of-band.
 ```
 
 Fetch the new version after every successful mutation. Never blindly retry a body after a conflict.

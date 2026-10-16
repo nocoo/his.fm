@@ -10,6 +10,7 @@ import {
   type Production,
   productionAudioMaxBytes,
   productionAudioMaxDurationSeconds,
+  productionAudioMp3MaxBytes,
   productionPatchSchema,
 } from '../src/shared/production';
 import { agentOpenApi } from './agent-contract';
@@ -205,9 +206,10 @@ export async function routeAgent(request: Request, env: Env): Promise<Response> 
           limits: { jsonBytes: 750000, coverBytes: 8388608, auditEvents: 200 },
           audio: {
             execution: 'external',
-            uploadMimeTypes: ['audio/wav'],
+            uploadMimeTypes: ['audio/wav', 'audio/mpeg'],
             maximumSeconds: productionAudioMaxDurationSeconds,
             maximumBytes: productionAudioMaxBytes,
+            maximumMp3Bytes: productionAudioMp3MaxBytes,
           },
         },
         200,
