@@ -2,6 +2,16 @@
 
 All notable changes to his.fm are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions use the owner’s patch-only deployment policy in `AGENTS.md`, with the authoritative version in `package.json`.
 
+## 2.4.3 - 2026-10-16
+
+### Changed
+
+- Polish the admin studio: denser cover and audio cards with progressive disclosure, aligned asset grids, quieter replace/unlink controls, and metadata behind compact info popovers. Increase shell padding to match sibling Basalt apps, remove container-level focus rings while keeping control focus styles, and show the signed-in author avatar from lizheng.blog on the sidebar footer.
+
+### Added
+
+- Delete standalone programmes and deletable productions from the library detail headers, reusing existing scoped delete APIs and publication/snapshot guards.
+
 ## 2.4.2 - 2026-10-16
 
 ### Added
