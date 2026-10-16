@@ -36,7 +36,7 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--admin-space-4);
-  align-items: start;
+  align-items: stretch;
 }
 .studio-token-form {
   display: grid;
@@ -415,8 +415,93 @@
 .studio-assets-grid > * {
   min-width: 0;
 }
-.studio-asset-info {
+.studio-asset-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--admin-space-3);
+  height: 100%;
+  min-width: 0;
+}
+.studio-asset-card-head {
+  display: flex;
+  align-items: center;
+  gap: var(--admin-space-1);
+  min-width: 0;
+}
+.studio-asset-card-head > strong {
+  flex: 1;
+  min-width: 0;
+}
+.studio-asset-card-tools {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: auto;
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+.studio-asset-card:hover .studio-asset-card-tools,
+.studio-asset-card:focus-within .studio-asset-card-tools {
+  opacity: 1;
+}
+.studio-asset-card-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--admin-space-2);
+  min-height: 0;
+}
+.studio-asset-preview {
+  display: flex;
+  flex-direction: column;
+  gap: var(--admin-space-2);
+  min-width: 0;
+}
+.studio-asset-preview-cover {
+  align-items: center;
+}
+.studio-asset-preview-actions,
+.studio-asset-preview-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--admin-space-2);
+  flex-wrap: wrap;
+}
+.studio-asset-quiet-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--admin-space-1);
   font-size: 12px;
+}
+.studio-asset-upload {
+  display: flex;
+  flex-direction: column;
+  gap: var(--admin-space-2);
+  border-top: 1px solid hsl(var(--basalt-border) / 0.6);
+  padding-top: var(--admin-space-3);
+}
+.studio-asset-upload-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--admin-space-1);
+}
+.studio-info-trigger {
+  width: 26px;
+  height: 26px;
+  color: hsl(var(--basalt-muted-foreground));
+}
+.studio-asset-meta,
+.studio-asset-rules {
+  max-width: min(360px, var(--radix-popover-content-available-width));
+  font-size: 12px;
+  line-height: 1.6;
+  display: flex;
+  flex-direction: column;
+  gap: var(--admin-space-1);
+}
+.studio-asset-meta-key {
+  font-size: 11px;
 }
 .library-filters {
   width: 100%;
