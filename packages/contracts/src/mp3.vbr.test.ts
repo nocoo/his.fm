@@ -3,7 +3,7 @@ import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { parseMp3 } from './mp3.ts';
+import { mp3AudioStartOffset, parseMp3 } from './mp3.ts';
 
 function hasFfmpeg() {
   try {
@@ -124,6 +124,24 @@ describe.runIf(ffmpeg)('parseMp3 VBR regressions', () => {
       rmSync(dir, { recursive: true, force: true });
     }
   });
+
+  it('uses scanned duration when Xing frame count is badly understated on long VBR audio', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'his-mp3-'));
+    const file = join(dir, 'understated-xing.mp3');
+    try {
+      renderVbrMp3(3700.056, file, 8000);
+      const bytes = new Uint8Array(readFileSync(file));
+      const xing = mp3AudioStartOffset(bytes, bytes.length) + 4 + 9;
+      bytes[xing + 8] = 0;
+      bytes[xing + 9] = 0;
+      bytes[xing + 10] = 0;
+      bytes[xing + 11] = 1;
+      const parsed = parseMp3(bytes);
+      expect(parsed.durationSeconds).toBeGreaterThan(3600);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  }, 120_000);
 
   it('reports duration above the one-hour production cap for long VBR narration (regression)', () => {
     const dir = mkdtempSync(join(tmpdir(), 'his-mp3-'));

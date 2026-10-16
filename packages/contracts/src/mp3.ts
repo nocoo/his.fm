@@ -7,6 +7,8 @@ const MPEG2_SAMPLE_RATES = [22050, 24000, 16000];
 const MPEG25_SAMPLE_RATES = [11025, 12000, 8000];
 const ID3V1_TRAILER_BYTES = 128;
 const MP3_PROBE_BYTES = 256 * 1024;
+/** MPEG encoders may append a few bit-reservoir frames after the Xing-declared count. */
+const XING_MAX_TRAILING_PADDING_FRAMES = 2;
 
 /** R2 / Worker scan chunk size: one ranged GET covers ~128 KiB (~hundreds of frames), not one GET per frame. */
 export const MP3_STREAM_SCAN_CHUNK_BYTES = 128 * 1024;
@@ -279,16 +281,22 @@ function resolveMp3Duration(
   xingMeta: XingMeta | null,
   scanned: { durationSeconds: number; sampleRate: number; channels: number; frameCount: number },
 ): Mp3Info {
-  if (xingMeta) {
-    if (xingMeta.frameCount === 0) {
-      throw new AudioError('无法从 MP3 文件读取时长');
-    }
-    if (scanned.frameCount >= xingMeta.frameCount) {
-      return mp3InfoFromXing(xingMeta, header);
-    }
+  const { frameCount: _frames, ...scannedInfo } = scanned;
+  if (!xingMeta) return scannedInfo;
+  if (xingMeta.frameCount === 0) {
+    throw new AudioError('无法从 MP3 文件读取时长');
   }
-  const { frameCount: _frames, ...info } = scanned;
-  return info;
+  if (scanned.frameCount < xingMeta.frameCount) {
+    throw new AudioError('MP3 文件不完整');
+  }
+  if (scanned.frameCount === xingMeta.frameCount) {
+    return mp3InfoFromXing(xingMeta, header);
+  }
+  const paddingFrames = scanned.frameCount - xingMeta.frameCount;
+  if (paddingFrames <= XING_MAX_TRAILING_PADDING_FRAMES) {
+    return mp3InfoFromXing(xingMeta, header);
+  }
+  return scannedInfo;
 }
 
 /**

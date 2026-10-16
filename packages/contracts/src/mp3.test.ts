@@ -82,8 +82,15 @@ describe('parseMp3', () => {
     const buf = new Uint8Array(frame1.length + frame2.length);
     buf.set(frame1, 0);
     buf.set(frame2, frame1.length);
+    const xing = 4 + 17;
+    buf[xing + 7] = 14;
     const parsed = parseMp3(buf);
     expect(parsed.durationSeconds).toBeCloseTo((1152 * 2) / 44100, 2);
+  });
+
+  it('rejects truncated audio when Xing declares more frames than were scanned', () => {
+    const frame1 = tinyMp3.subarray(45, 45 + 417);
+    expect(() => parseMp3(frame1)).toThrow('不完整');
   });
 
   it('parses MPEG2 sample-rate files', () => {
@@ -140,8 +147,9 @@ describe('parseMp3', () => {
   });
 
   it('rejects non-positive durations after LAME gapless trimming', () => {
-    const bytes = tinyMp3.slice();
-    const xing = mp3AudioStartOffset(bytes, bytes.length) + 4 + 17;
+    const frame1 = tinyMp3.subarray(45, 45 + 417);
+    const bytes = frame1.slice();
+    const xing = 4 + 17;
     bytes[xing + 8] = 0;
     bytes[xing + 9] = 0;
     bytes[xing + 10] = 0;
@@ -308,14 +316,9 @@ describe('measureMp3Duration', () => {
     expect(measured.durationSeconds).toBeCloseTo(parseMp3(withTag).durationSeconds, 6);
   });
 
-  it('falls back to frame totals when Xing describes a longer master clip', async () => {
+  it('rejects streaming truncated audio when Xing declares more frames than were scanned', async () => {
     const frame1 = tinyMp3.subarray(45, 45 + 417);
-    const frame2 = tinyMp3.subarray(462, 462 + 417);
-    const buf = new Uint8Array(frame1.length + frame2.length);
-    buf.set(frame1, 0);
-    buf.set(frame2, frame1.length);
-    const measured = await measureMp3Duration(buf.length, readFrom(buf));
-    expect(measured.durationSeconds).toBeCloseTo((1152 * 2) / 44100, 2);
+    await expect(measureMp3Duration(frame1.length, readFrom(frame1))).rejects.toThrow('不完整');
   });
 
   it('rejects corrupt trailing bytes during streaming scan', async () => {
