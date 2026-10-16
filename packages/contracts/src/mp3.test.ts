@@ -25,6 +25,31 @@ function wrapWithId3Padding(audio: Uint8Array, paddingBodyBytes: number) {
   return file;
 }
 
+function withEncoderGaplessTag(
+  source: Uint8Array,
+  tag: [number, number, number, number],
+  delayHigh: number,
+  delayLowPaddingHigh: number,
+  paddingLow: number,
+) {
+  const bytes = source.slice();
+  const start = mp3AudioStartOffset(bytes, bytes.length);
+  const xing = start + 4 + 17;
+  const flags = (bytes[xing + 4] << 24) | (bytes[xing + 5] << 16) | (bytes[xing + 6] << 8) | bytes[xing + 7];
+  let insert = xing + 12;
+  if (flags & 0x02) insert += 4;
+  if (flags & 0x04) insert += 100;
+  if (flags & 0x08) insert += 4;
+  bytes[insert] = tag[0];
+  bytes[insert + 1] = tag[1];
+  bytes[insert + 2] = tag[2];
+  bytes[insert + 3] = tag[3];
+  bytes[insert + 21] = delayHigh;
+  bytes[insert + 22] = delayLowPaddingHigh;
+  bytes[insert + 23] = paddingLow;
+  return bytes;
+}
+
 describe('parseMp3', () => {
   it('detects MP3 containers and rejects empty input', () => {
     expect(isMp3Container(tinyMp3)).toBe(true);
@@ -148,25 +173,23 @@ describe('parseMp3', () => {
 
   it('rejects non-positive durations after LAME gapless trimming', () => {
     const frame1 = tinyMp3.subarray(45, 45 + 417);
-    const bytes = frame1.slice();
+    const bytes = withEncoderGaplessTag(frame1, [0x4c, 0x41, 0x4d, 0x45], 72, 0, 0);
     const xing = 4 + 17;
     bytes[xing + 8] = 0;
     bytes[xing + 9] = 0;
     bytes[xing + 10] = 0;
     bytes[xing + 11] = 1;
-    const flags =
-      (bytes[xing + 4] << 24) | (bytes[xing + 5] << 16) | (bytes[xing + 6] << 8) | bytes[xing + 7];
-    let insert = xing + 12;
-    if (flags & 0x02) insert += 4;
-    if (flags & 0x04) insert += 100;
-    if (flags & 0x08) insert += 4;
-    bytes[insert] = 0x4c;
-    bytes[insert + 1] = 0x41;
-    bytes[insert + 2] = 0x4d;
-    bytes[insert + 3] = 0x45;
-    bytes[insert + 21] = 72;
-    bytes[insert + 22] = 0;
-    bytes[insert + 23] = 0;
+    expect(() => parseMp3(bytes)).toThrow('无法从 MP3 文件读取时长');
+  });
+
+  it('rejects non-positive durations after Lavc gapless trimming', () => {
+    const frame1 = tinyMp3.subarray(45, 45 + 417);
+    const bytes = withEncoderGaplessTag(frame1, [0x4c, 0x61, 0x76, 0x63], 72, 0, 0);
+    const xing = 4 + 17;
+    bytes[xing + 8] = 0;
+    bytes[xing + 9] = 0;
+    bytes[xing + 10] = 0;
+    bytes[xing + 11] = 1;
     expect(() => parseMp3(bytes)).toThrow('无法从 MP3 文件读取时长');
   });
 
@@ -180,22 +203,6 @@ describe('parseMp3', () => {
     expect(() => parseMp3(bytes)).toThrow('无法从 MP3 文件读取时长');
   });
 
-  it('skips Lavf tags when locating LAME gapless fields', () => {
-    const bytes = tinyMp3.slice();
-    const xing = mp3AudioStartOffset(bytes, bytes.length) + 4 + 17;
-    const flags =
-      (bytes[xing + 4] << 24) | (bytes[xing + 5] << 16) | (bytes[xing + 6] << 8) | bytes[xing + 7];
-    let insert = xing + 12;
-    if (flags & 0x02) insert += 4;
-    if (flags & 0x04) insert += 100;
-    if (flags & 0x08) insert += 4;
-    bytes[insert] = 0x4c;
-    bytes[insert + 1] = 0x61;
-    bytes[insert + 2] = 0x76;
-    bytes[insert + 3] = 0x66;
-    expect(parseMp3(bytes).durationSeconds).toBeGreaterThan(0.2);
-  });
-
   it('parses Xing headers that only include a frame count', () => {
     const bytes = tinyMp3.slice();
     const xing = mp3AudioStartOffset(bytes, bytes.length) + 4 + 17;
@@ -207,25 +214,32 @@ describe('parseMp3', () => {
   });
 
   it('applies LAME encoder delay inside the first frame', () => {
-    const bytes = tinyMp3.slice();
-    const start = mp3AudioStartOffset(bytes, bytes.length);
-    const xing = start + 4 + 17;
-    const flags =
-      (bytes[xing + 4] << 24) | (bytes[xing + 5] << 16) | (bytes[xing + 6] << 8) | bytes[xing + 7];
-    let insert = xing + 12;
-    if (flags & 0x02) insert += 4;
-    if (flags & 0x04) insert += 100;
-    if (flags & 0x08) insert += 4;
-    bytes[insert] = 0x4c;
-    bytes[insert + 1] = 0x41;
-    bytes[insert + 2] = 0x4d;
-    bytes[insert + 3] = 0x45;
-    bytes[insert + 21] = 36;
-    bytes[insert + 22] = 0x10;
-    bytes[insert + 23] = 8;
+    const bytes = withEncoderGaplessTag(tinyMp3, [0x4c, 0x41, 0x4d, 0x45], 36, 0x10, 8);
     const baseline = parseMp3(tinyMp3).durationSeconds;
     const adjusted = parseMp3(bytes).durationSeconds;
     expect(adjusted).toBeLessThan(baseline);
+  });
+
+  it('reads Lavc gapless fields at tag+21 but keeps the frame scan when libav overshoots', () => {
+    const bytes = withEncoderGaplessTag(tinyMp3, [0x4c, 0x61, 0x76, 0x63], 36, 0x03, 144);
+    const baseline = parseMp3(tinyMp3).durationSeconds;
+    expect(parseMp3(bytes).durationSeconds).toBe(baseline);
+  });
+
+  it('reads Lavf gapless fields at tag+21 but keeps the frame scan when libav overshoots', () => {
+    const bytes = withEncoderGaplessTag(tinyMp3, [0x4c, 0x61, 0x76, 0x66], 36, 0x03, 144);
+    const baseline = parseMp3(tinyMp3).durationSeconds;
+    expect(parseMp3(bytes).durationSeconds).toBe(baseline);
+  });
+
+  it('honors Lavc gapless Xing metadata when it ties the scanned frame duration', () => {
+    const trailingFrame = tinyMp3.slice(45 + 417, 45 + 417 * 2);
+    const extended = new Uint8Array(tinyMp3.length + trailingFrame.length);
+    extended.set(tinyMp3);
+    extended.set(trailingFrame, tinyMp3.length);
+    const bytes = withEncoderGaplessTag(extended, [0x4c, 0x61, 0x76, 0x63], 0, 0, 0);
+    const baseline = parseMp3(tinyMp3).durationSeconds;
+    expect(parseMp3(bytes).durationSeconds).toBeCloseTo(baseline, 6);
   });
 
   it('ignores ID3v1 trailers shorter than 128 bytes', () => {

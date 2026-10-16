@@ -157,28 +157,29 @@ function gaplessFromEncoderTag(bytes: Uint8Array, tagStart: number) {
   return { delaySamples, paddingSamples };
 }
 
+type EncoderTagKind = 'lame' | 'lavc' | 'lavf';
+
 function encoderGaplessInFrame(bytes: Uint8Array, searchStart: number, searchEnd: number) {
+  let encoderTag: EncoderTagKind | null = null;
   let delaySamples = 0;
   let paddingSamples = 0;
   for (let j = searchStart; j + 24 <= searchEnd; j++) {
     const kind = encoderTagKind(bytes, j);
     if (!kind) continue;
-    if (kind === 'lavc' || kind === 'lavf') {
-      // Lavc/Lavf share the Info extension layout at +21..23; gapless is applied only for LAME.
-      continue;
-    }
+    encoderTag = kind;
     const gapless = gaplessFromEncoderTag(bytes, j);
     delaySamples = gapless.delaySamples;
     paddingSamples = gapless.paddingSamples;
     break;
   }
-  return { delaySamples, paddingSamples };
+  return { encoderTag, delaySamples, paddingSamples };
 }
 
 type XingMeta = {
   frameCount: number;
   delaySamples: number;
   paddingSamples: number;
+  encoderTag: EncoderTagKind | null;
 };
 
 function parseXingMeta(
@@ -198,12 +199,12 @@ function parseXingMeta(
   if (flags & 0x02) pos += 4;
   if (flags & 0x04) pos += 100;
   if (flags & 0x08) pos += 4;
-  const { delaySamples, paddingSamples } = encoderGaplessInFrame(
+  const { encoderTag, delaySamples, paddingSamples } = encoderGaplessInFrame(
     bytes,
     pos,
     Math.min(frameEnd, bytes.length),
   );
-  return { frameCount, delaySamples, paddingSamples };
+  return { frameCount, delaySamples, paddingSamples, encoderTag };
 }
 
 function mp3InfoFromXing(meta: XingMeta, header: FrameHeader): Mp3Info {
@@ -216,6 +217,18 @@ function mp3InfoFromXing(meta: XingMeta, header: FrameHeader): Mp3Info {
     sampleRate: header.sampleRate,
     channels: header.channels,
   };
+}
+
+/** LAME gapless is always applied; Lavc/Lavf use the same +21..23 layout when it matches the frame scan. */
+function xingDurationForScan(meta: XingMeta, header: FrameHeader, scannedDurationSeconds: number): Mp3Info {
+  const raw = mp3InfoFromXing({ ...meta, delaySamples: 0, paddingSamples: 0 }, header);
+  if (meta.delaySamples === 0 && meta.paddingSamples === 0) return raw;
+  const gapless = mp3InfoFromXing(meta, header);
+  if (gapless.durationSeconds <= 0) return gapless;
+  if (meta.encoderTag === 'lame') return gapless;
+  const rawDiff = Math.abs(raw.durationSeconds - scannedDurationSeconds);
+  const gaplessDiff = Math.abs(gapless.durationSeconds - scannedDurationSeconds);
+  return gaplessDiff <= rawDiff ? gapless : raw;
 }
 
 function locateFirstFrame(bytes: Uint8Array, fileSize: number) {
@@ -290,11 +303,11 @@ function resolveMp3Duration(
     throw new AudioError('MP3 文件不完整');
   }
   if (scanned.frameCount === xingMeta.frameCount) {
-    return mp3InfoFromXing(xingMeta, header);
+    return xingDurationForScan(xingMeta, header, scanned.durationSeconds);
   }
   const paddingFrames = scanned.frameCount - xingMeta.frameCount;
   if (paddingFrames <= XING_MAX_TRAILING_PADDING_FRAMES) {
-    return mp3InfoFromXing(xingMeta, header);
+    return xingDurationForScan(xingMeta, header, scanned.durationSeconds);
   }
   return scannedInfo;
 }
