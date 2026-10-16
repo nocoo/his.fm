@@ -118,6 +118,21 @@ describe('program delete policy', () => {
     expect(canDeleteProduction(production)).toBe(true);
     expect(canDeleteProduction(production, { id: 'ep-1' } as never)).toBe(false);
     expect(canDeleteProduction({ ...production, publications: [{} as never] })).toBe(false);
+    expect(
+      canDeleteProduction({
+        ...production,
+        publications: [],
+        events: [
+          {
+            id: 'e1',
+            at: '2026-01-01',
+            actor: { kind: 'human', name: 'a' },
+            action: 'withdraw_publication:wechat',
+            feedback: '',
+          },
+        ],
+      }),
+    ).toBe(false);
   });
 
   it('matches library rows and standalone episodes', () => {

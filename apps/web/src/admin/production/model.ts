@@ -149,8 +149,15 @@ export function programLibrary(productions: Production[], episodes: Episode[]): 
       ),
   ].sort((a, b) => b.episodeNumber - a.episodeNumber || Date.parse(b.updatedAt) - Date.parse(a.updatedAt));
 }
+export function productionHasPublicationHistory(production: Production): boolean {
+  return (
+    production.publications.length > 0 ||
+    production.events.some((event) => event.action.includes('publication:'))
+  );
+}
+
 export function canDeleteProduction(production: Production, linkedSnapshot?: Episode | null): boolean {
-  return production.publications.length === 0 && !linkedSnapshot;
+  return !productionHasPublicationHistory(production) && !linkedSnapshot;
 }
 
 export function canDeleteStandaloneEpisode(episode: Episode): boolean {
@@ -158,7 +165,11 @@ export function canDeleteStandaloneEpisode(episode: Episode): boolean {
 }
 
 export function canDeleteLibraryEntry(row: LibraryEntry): boolean {
-  return !row.snapshot && !row.episode?.sourceProductionId && !row.production?.publications.length;
+  return (
+    !row.snapshot &&
+    !row.episode?.sourceProductionId &&
+    (!row.production || !productionHasPublicationHistory(row.production))
+  );
 }
 
 export function filterLibrary(rows: LibraryEntry[], query: string, status: string, category: string) {
