@@ -4,6 +4,7 @@ const MPEG1_L3_BITRATES = [0, 32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 22
 const MPEG2_L3_BITRATES = [0, 8, 16, 24, 32, 40, 48, 56, 64, 80, 96, 112, 128, 144, 160];
 const MPEG1_SAMPLE_RATES = [44100, 48000, 32000];
 const MPEG2_SAMPLE_RATES = [22050, 24000, 16000];
+const MPEG25_SAMPLE_RATES = [11025, 12000, 8000];
 const ID3V1_TRAILER_BYTES = 128;
 
 export type Mp3Info = {
@@ -34,8 +35,20 @@ function skipId3v2(bytes: Uint8Array, fileSize: number) {
   return mp3AudioStartOffset(bytes, fileSize);
 }
 
+function hasId3v1Trailer(bytes: Uint8Array, fileSize: number) {
+  if (fileSize < ID3V1_TRAILER_BYTES) return false;
+  const start = fileSize - ID3V1_TRAILER_BYTES;
+  return bytes[start] === 0x54 && bytes[start + 1] === 0x41 && bytes[start + 2] === 0x47;
+}
+
 function frameSyncAt(bytes: Uint8Array, offset: number) {
   return offset + 1 < bytes.length && bytes[offset] === 0xff && (bytes[offset + 1] & 0xe0) === 0xe0;
+}
+
+function sampleRatesForVersion(versionBits: number) {
+  if (versionBits === 3) return MPEG1_SAMPLE_RATES;
+  if (versionBits === 2) return MPEG2_SAMPLE_RATES;
+  return MPEG25_SAMPLE_RATES;
 }
 
 function parseFrameHeader(bytes: Uint8Array, offset: number) {
@@ -53,7 +66,7 @@ function parseFrameHeader(bytes: Uint8Array, offset: number) {
   }
   const mpeg1 = versionBits === 3;
   const bitrates = mpeg1 ? MPEG1_L3_BITRATES : MPEG2_L3_BITRATES;
-  const sampleRates = mpeg1 ? MPEG1_SAMPLE_RATES : MPEG2_SAMPLE_RATES;
+  const sampleRates = sampleRatesForVersion(versionBits);
   const bitrateKbps = bitrates[bitrateIndex];
   const sampleRate = sampleRates[sampleRateIndex];
   const frameLength = mpeg1
@@ -61,7 +74,7 @@ function parseFrameHeader(bytes: Uint8Array, offset: number) {
     : Math.floor((72 * bitrateKbps * 1000) / sampleRate) + padding;
   const samplesPerFrame = mpeg1 ? 1152 : 576;
   const channels = channelMode === 3 ? 1 : 2;
-  return { frameLength, sampleRate, samplesPerFrame, channels, bitrateKbps };
+  return { frameLength, sampleRate, samplesPerFrame, channels, bitrateKbps, versionBits };
 }
 
 /** Returns true when bytes look like MP3 (ID3 tag or MPEG frame sync), not RIFF WAV. */
@@ -92,42 +105,39 @@ function locateFirstFrame(bytes: Uint8Array, fileSize: number) {
 }
 
 function durationFromFrames(bytes: Uint8Array, fileSize: number, offset: number) {
+  const audioEnd = hasId3v1Trailer(bytes, fileSize) ? fileSize - ID3V1_TRAILER_BYTES : fileSize;
   let totalSamples = 0;
   let sampleRate = 0;
   let channels = 1;
+  let versionBits = -1;
   let cursor = offset;
   let frames = 0;
-  while (cursor + 4 <= fileSize) {
-    if (fileSize - cursor <= ID3V1_TRAILER_BYTES) break;
+  while (cursor + 4 <= audioEnd) {
     if (!frameSyncAt(bytes, cursor)) {
-      cursor++;
-      continue;
+      throw new AudioError('MP3 文件不完整或包含无效数据');
     }
-    let header: ReturnType<typeof parseFrameHeader>;
-    try {
-      header = parseFrameHeader(bytes, cursor);
-    } catch {
-      cursor++;
-      continue;
-    }
-    if (cursor + header.frameLength > fileSize) {
-      throw new AudioError('MP3 文件不完整');
-    }
-    if (cursor + header.frameLength > bytes.length) {
+    const header = parseFrameHeader(bytes, cursor);
+    if (cursor + header.frameLength > audioEnd) {
       throw new AudioError('MP3 文件不完整');
     }
     if (frames === 0) {
       sampleRate = header.sampleRate;
       channels = header.channels;
-    } else if (header.sampleRate !== sampleRate) {
-      break;
+      versionBits = header.versionBits;
+    } else if (header.sampleRate !== sampleRate || header.versionBits !== versionBits) {
+      throw new AudioError('MP3 文件不完整或包含无效数据');
     }
     totalSamples += header.samplesPerFrame;
     cursor += header.frameLength;
     frames++;
   }
   if (frames === 0) throw new AudioError('无法从 MP3 文件读取时长');
-  return { durationSeconds: totalSamples / sampleRate, sampleRate, channels };
+  if (cursor < audioEnd) {
+    throw new AudioError('MP3 文件不完整或包含无效数据');
+  }
+  const encoderDelaySamples = versionBits === 3 ? 529 : 576;
+  const playableSamples = Math.max(0, totalSamples - encoderDelaySamples);
+  return { durationSeconds: playableSamples / sampleRate, sampleRate, channels };
 }
 
 /**

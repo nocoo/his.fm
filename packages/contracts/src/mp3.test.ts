@@ -58,19 +58,34 @@ describe('parseMp3', () => {
     expect(() => parseMp3(Uint8Array.from([0xff, 0xfb, 0x00, 0xc0]), 4)).toThrow('帧头');
   });
 
-  it('skips false sync bytes while scanning frames', () => {
+  it('rejects a complete first frame followed by truncated next-frame bytes', () => {
+    const frame1 = tinyMp3.subarray(45, 45 + 417);
+    for (const extra of [4, 64, 128]) {
+      const buf = new Uint8Array(frame1.length + extra);
+      buf.set(frame1, 0);
+      buf.set([0xff, 0xfb, 0x90, 0xc0], frame1.length);
+      expect(() => parseMp3(buf)).toThrow('不完整');
+    }
+  });
+
+  it('sums back-to-back frames in a contiguous excerpt', () => {
     const frame1 = tinyMp3.subarray(45, 45 + 417);
     const frame2 = tinyMp3.subarray(462, 462 + 417);
-    const buf = new Uint8Array(frame1.length + 4 + frame2.length);
+    const buf = new Uint8Array(frame1.length + frame2.length);
     buf.set(frame1, 0);
-    buf.set([0xff, 0xff, 0xff, 0xff], frame1.length);
-    buf.set(frame2, frame1.length + 4);
+    buf.set(frame2, frame1.length);
     const parsed = parseMp3(buf);
-    expect(parsed.durationSeconds).toBeCloseTo((1152 * 2) / 44100, 2);
+    expect(parsed.durationSeconds).toBeCloseTo((1152 * 2 - 529) / 44100, 2);
   });
 
   it('parses MPEG2 sample-rate files', () => {
     expect(parseMp3(mpeg2Mp3Bytes).sampleRate).toBe(24000);
+  });
+
+  it('rejects streams that change MPEG version between frames', () => {
+    const twin = tinyMp3.slice(45, 45 + 417 * 2);
+    twin[418] = 0xf3;
+    expect(() => parseMp3(twin)).toThrow('无效数据');
   });
 
   it('rejects when the declared object size exceeds the buffered bytes', () => {
@@ -95,6 +110,23 @@ describe('parseMp3', () => {
     const reserved = new Uint8Array(500);
     reserved.set([0xff, 0xea, 0x90, 0xc0], 0);
     expect(() => parseMp3(reserved)).toThrow('有效的 MP3');
+  });
+
+  it('rejects trailing bytes that are not a valid ID3v1 tag', () => {
+    const padded = new Uint8Array(tinyMp3.length + 64);
+    padded.set(tinyMp3);
+    expect(() => parseMp3(padded)).toThrow('无效数据');
+  });
+
+  it('excludes a trailing ID3v1 tag from the frame scan', () => {
+    const tag = new Uint8Array(128);
+    tag.set([0x54, 0x41, 0x47], 0);
+    const withTag = new Uint8Array(tinyMp3.length + 128);
+    withTag.set(tinyMp3);
+    withTag.set(tag, tinyMp3.length);
+    const tagged = parseMp3(withTag);
+    const plain = parseMp3(tinyMp3);
+    expect(tagged.durationSeconds).toBeCloseTo(plain.durationSeconds, 3);
   });
 
   it('parses audio after a 64 KiB ID3v2 padding block', () => {

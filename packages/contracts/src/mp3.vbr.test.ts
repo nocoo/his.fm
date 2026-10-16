@@ -15,7 +15,7 @@ function hasFfmpeg() {
   }
 }
 
-function renderVbrMp3(durationSeconds: number, output: string) {
+function renderVbrMp3(durationSeconds: number, output: string, sampleRate = 44100) {
   execFileSync(
     'ffmpeg',
     [
@@ -26,6 +26,8 @@ function renderVbrMp3(durationSeconds: number, output: string) {
       `sine=frequency=440:duration=${durationSeconds}`,
       '-ac',
       '1',
+      '-ar',
+      String(sampleRate),
       '-q:a',
       '4',
       output,
@@ -46,6 +48,21 @@ function probeDuration(path: string) {
 const ffmpeg = hasFfmpeg();
 
 describe.runIf(ffmpeg)('parseMp3 VBR regressions', () => {
+  it('parses MPEG-2.5 eight-kHz variable-bitrate audio', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'his-mp3-'));
+    const file = join(dir, 'mpeg25.mp3');
+    try {
+      renderVbrMp3(0.75, file, 8000);
+      const expected = probeDuration(file);
+      const parsed = parseMp3(new Uint8Array(readFileSync(file)));
+      expect(parsed.sampleRate).toBe(8000);
+      expect(parsed.durationSeconds).toBeGreaterThan(expected * 0.97);
+      expect(parsed.durationSeconds).toBeLessThan(expected * 1.03);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it('matches ffprobe on a short variable-bitrate clip', () => {
     const dir = mkdtempSync(join(tmpdir(), 'his-mp3-'));
     const file = join(dir, 'short.mp3');
@@ -65,7 +82,7 @@ describe.runIf(ffmpeg)('parseMp3 VBR regressions', () => {
     const dir = mkdtempSync(join(tmpdir(), 'his-mp3-'));
     const file = join(dir, 'long.mp3');
     try {
-      renderVbrMp3(3700.056, file);
+      renderVbrMp3(3700.056, file, 8000);
       const expected = probeDuration(file);
       expect(expected).toBeGreaterThan(3600);
       const bytes = new Uint8Array(readFileSync(file));
