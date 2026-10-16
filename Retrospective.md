@@ -1,5 +1,11 @@
 # Retrospective
 
+## 2026-10-16 - Verify the v2.4.0 retirement cutover
+
+Release v2.4.0 deployed source revision `ac3dc04fd4cde841e984e1460e1d1157c3cff6e2` through successful CI run `38835389473` and Release run `38835591256`. Migrations 0014/0015 completed and Cloudflare confirmed deletion of AgentHub. Pre/post canonical digests match for preserved productions, episodes, categories, bumpers, saved prompt bodies and appearance. The D1 Time Travel bookmark and verification evidence remain ignored under `.local/releases/v2.4.0/`. Public routes, discovery, exact live revision and anonymous management rejection passed; authenticated production acceptance remains pending because the cached Access session expired.
+
+The first standalone route-probe snippet mixed CommonJS `require` with top-level `await`, so Node rejected it before any request. Rerun with explicit `--input-type=module` and ESM imports, and distinguish a local verifier startup error from a production failure. All twelve corrected read-only probes passed.
+
 ## 2026-10-16 - Wait for the destination form during lazy navigation
 
 The full browser run timed out waiting for episode creation because the title was empty. The trace showed the title fill targeted `#production-title` on the previous brief page after the URL had changed, before the lazy episode editor mounted. Wait for the destination `#episode-form` before filling labels shared by both screens. URL changes and completed clicks do not prove a React transition has replaced its previous view; keep the original timeout and verify the entire workflow instead of retrying around the race.
