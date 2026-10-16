@@ -8,13 +8,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@nocoo/basalt/components/select';
-import { ArrowLeft, ArrowUpRight, Save } from 'lucide-react';
+import { ArrowLeft, ArrowUpRight, Save, Trash2 } from 'lucide-react';
 import { type FormEvent, useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import type { Episode } from '../shared/episode';
 import { CategorySelect } from './categories/CategorySelect';
 import { MarkdownEditor } from './markdown/MarkdownEditor';
 import { emptyEpisode, errorMessage, readEpisodeForm, toLocalDateTime } from './model';
+import { Confirm } from './production/controls';
+import { canDeleteStandaloneEpisode } from './production/model';
 import { useUnsavedChanges } from './production/useUnsavedChanges';
 import { adminService } from './service';
 
@@ -28,6 +30,7 @@ export function EpisodeEditor() {
   const [pending, setPending] = useState(false);
   const [dirty, setDirty] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [deleteOpen, setDeleteOpen] = useState(false);
   useUnsavedChanges(dirty);
   // biome-ignore lint/correctness/useExhaustiveDependencies: The retry key intentionally restarts the request.
   useEffect(() => {
@@ -73,6 +76,7 @@ export function EpisodeEditor() {
     }
   }
   const value = episode ?? emptyEpisode;
+  const deletable = episode ? canDeleteStandaloneEpisode(episode) : false;
   if (episode?.sourceProductionId) {
     return (
       <div className="admin-page">
@@ -121,6 +125,12 @@ export function EpisodeEditor() {
         }
         actions={
           <>
+            {deletable && (
+              <Button variant="ghost" disabled={pending || dirty} onClick={() => setDeleteOpen(true)}>
+                <Trash2 size={16} />
+                删除节目
+              </Button>
+            )}
             {episode?.status === 'published' && (
               <Button variant="outline" asChild>
                 <Link to={`/episodes/${episode.slug}`} target="_blank">
@@ -382,6 +392,19 @@ export function EpisodeEditor() {
             </div>
           </fieldset>
         </form>
+      )}
+      {deleteOpen && episode && (
+        <Confirm
+          title="确认删除节目"
+          description={`「${episode.title}」将被永久删除，关联媒体原件不会删除。此操作无法撤销。`}
+          onClose={() => setDeleteOpen(false)}
+          onConfirm={async () => {
+            await adminService.remove(episode.id, episode.version);
+            toast.success('节目已删除');
+            navigate('/admin');
+            return true;
+          }}
+        />
       )}
     </div>
   );

@@ -71,7 +71,7 @@ export async function localLogin(request: Request, env: Env) {
       Date.now() + sessionLifetime * 1000,
     ),
   ]);
-  return json({ user: { email: 'editor@his.fm' }, mode: 'local' }, 200, {
+  return json({ user: { email: 'editor@his.fm', name: null, avatar: null }, mode: 'local' }, 200, {
     'Set-Cookie': sessionCookie(request, token, sessionLifetime),
   });
 }

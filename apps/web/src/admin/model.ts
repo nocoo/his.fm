@@ -1,4 +1,5 @@
 import { type EpisodeInput, episodeInputSchema } from '../shared/episode';
+import type { Session } from './service';
 
 export const emptyEpisode: EpisodeInput = {
   slug: '',
@@ -58,4 +59,17 @@ export function readEpisodeForm(form: FormData) {
 
 export function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : '暂时无法完成操作，请稍后重试';
+}
+
+export function sessionDisplayName(session: Session): string {
+  return session.user.name?.trim() || session.user.email;
+}
+
+export function sessionInitials(label: string): string {
+  const trimmed = label.trim();
+  if (!trimmed) return '?';
+  const parts = trimmed.split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) return `${parts[0][0] ?? ''}${parts[1][0] ?? ''}`.toUpperCase();
+  const local = trimmed.includes('@') ? trimmed.split('@')[0] : trimmed;
+  return local.slice(0, 2).toUpperCase();
 }

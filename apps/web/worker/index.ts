@@ -7,6 +7,7 @@ import { getEpisode, listEpisodes } from './episodes';
 import { HttpError, json, requireSameOrigin } from './http';
 import { routeManagement } from './management';
 import { streamMedia } from './media';
+import { enrichSession } from './session';
 
 async function media(request: Request, env: Env) {
   if (request.method !== 'GET' && request.method !== 'HEAD') throw new HttpError(405, '不支持这个请求方式');
@@ -69,7 +70,7 @@ async function route(request: Request, env: Env): Promise<Response> {
       });
       if (response) return response;
     }
-    if (path === '/admin/api/session' && request.method === 'GET') return json(session);
+    if (path === '/admin/api/session' && request.method === 'GET') return json(await enrichSession(session));
     if (path === '/admin/api/logout' && request.method === 'POST') return logout(request, env);
     if (api) throw new HttpError(404, '接口不存在');
     const asset = await env.ASSETS.fetch(request);

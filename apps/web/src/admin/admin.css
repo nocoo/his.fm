@@ -47,8 +47,10 @@ html:has(.admin-app) {
 .admin-shell {
   position: relative;
   height: 100dvh;
-  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom)
-    env(safe-area-inset-left);
+  padding: max(env(safe-area-inset-top), var(--admin-space-2))
+    max(env(safe-area-inset-right), var(--admin-space-2))
+    max(env(safe-area-inset-bottom), var(--admin-space-2))
+    max(env(safe-area-inset-left), var(--admin-space-2));
 }
 .admin-island-wrap {
   min-width: 0;
@@ -56,7 +58,7 @@ html:has(.admin-app) {
   flex: 1;
   display: flex;
   flex-direction: column;
-  padding: 0 var(--admin-space-3) var(--admin-space-3);
+  padding: var(--admin-space-4) var(--admin-space-5) var(--admin-space-5);
 }
 .admin-content-island {
   position: relative;
@@ -149,6 +151,35 @@ html:has(.admin-app) {
   display: grid;
   place-items: center;
   font-weight: 700;
+  font-size: 11px;
+}
+.admin-sidebar-footer {
+  padding: var(--admin-space-3) var(--admin-space-4) var(--admin-space-4);
+}
+.admin-sidebar-footer-compact {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--admin-space-2);
+}
+.admin-sidebar-avatar-only {
+  display: inline-flex;
+}
+.admin-user-avatar {
+  width: 30px;
+  height: 30px;
+}
+.admin-app main:focus,
+.admin-app .admin-content-island:focus,
+.admin-app .studio-section:focus,
+.admin-app [role="tabpanel"]:focus {
+  outline: none;
+}
+.admin-app main:focus-visible:not(:has(:focus-visible)),
+.admin-app .admin-content-island:focus-visible:not(:has(:focus-visible)),
+.admin-app .studio-section:focus-visible:not(:has(:focus-visible)),
+.admin-app [role="tabpanel"]:focus-visible:not(:has(:focus-visible)) {
+  outline: none;
 }
 .admin-local {
   font-size: 11px;
@@ -421,7 +452,7 @@ html:has(.admin-app) {
 }
 @media (max-width: 767px) {
   .admin-island-wrap {
-    padding: 0 var(--admin-space-2) var(--admin-space-2);
+    padding: var(--admin-space-3) var(--admin-space-3) var(--admin-space-4);
   }
   .admin-page {
     gap: var(--admin-space-5);

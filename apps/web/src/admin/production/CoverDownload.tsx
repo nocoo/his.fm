@@ -4,7 +4,15 @@ import { useState } from 'react';
 import { errorMessage } from '../model';
 import { exportCover } from './cover-export';
 
-export function CoverDownload({ source, episodeNumber }: { source: string; episodeNumber: number }) {
+export function CoverDownload({
+  source,
+  episodeNumber,
+  compact = false,
+}: {
+  source: string;
+  episodeNumber: number;
+  compact?: boolean;
+}) {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState('');
   const [download, setDownload] = useState('');
@@ -30,12 +38,19 @@ export function CoverDownload({ source, episodeNumber }: { source: string; episo
     }
   }
   return (
-    <div className="studio-stack">
+    <div className={compact ? undefined : 'studio-stack'}>
       <div className="studio-actions">
-        <Button variant="outline" size="sm" loading={pending} onClick={() => void save()}>
-          <Download size={15} /> 下载封面成品
+        <Button
+          variant={compact ? 'ghost' : 'outline'}
+          size={compact ? 'icon' : 'sm'}
+          loading={pending}
+          aria-label="下载含品牌框架的封面成品"
+          onClick={() => void save()}
+        >
+          <Download size={15} />
+          {!compact && ' 下载封面成品'}
         </Button>
-        <span className="admin-muted">PNG · 1600 × 1600 · 含品牌框架</span>
+        {!compact && <span className="admin-muted">PNG · 1600 × 1600 · 含品牌框架</span>}
       </div>
       {error && (
         <p className="admin-error" role="alert">

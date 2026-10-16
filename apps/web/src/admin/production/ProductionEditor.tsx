@@ -1,14 +1,16 @@
-import { Button, LayerCard } from '@nocoo/basalt';
+import { Button, LayerCard, toast } from '@nocoo/basalt';
 import { PageHeader } from '@nocoo/basalt/components/page-header';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@nocoo/basalt/components/tabs';
-import { ArrowLeft } from 'lucide-react';
-import { useLayoutEffect, useRef, useState } from 'react';
-import { Link, useParams, useSearchParams } from 'react-router';
+import { ArrowLeft, Trash2 } from 'lucide-react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
+import type { Episode } from '../../shared/episode';
 import { type ProductionAction, stageLabels } from '../../shared/production';
+import { adminService } from '../service';
 import { Assets, FinalReview } from './Assets';
 import { BriefForm } from './BriefForm';
 import { Confirm, Failure } from './controls';
-import { actionLabels, dateLabel, finalMissing } from './model';
+import { actionLabels, canDeleteProduction, dateLabel, finalMissing } from './model';
 import { PublicationPanel } from './PublicationPanel';
 import { ScriptStage } from './ScriptStage';
 import { productionService } from './service';
@@ -35,10 +37,13 @@ export function ProductionEditor() {
 }
 function Editor({ id }: { id: string }) {
   const vm = useProduction(id);
+  const navigate = useNavigate();
   const [query, setQuery] = useSearchParams();
   const [drafts, setDrafts] = useState<Partial<Record<Section, boolean>>>({});
   const [reload, setReload] = useState(false);
   const [reopen, setReopen] = useState<keyof typeof reopenActions | null>(null);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [linkedSnapshot, setLinkedSnapshot] = useState<Episode | null>(null);
   const [formKey, setFormKey] = useState(0);
   const view = useRef<HTMLDivElement>(null);
   const anyDirty = Object.values(drafts).some(Boolean);
@@ -56,6 +61,16 @@ function Editor({ id }: { id: string }) {
   useLayoutEffect(() => {
     view.current?.closest('.admin-content-island')?.scrollTo({ top: 0, behavior: 'instant' });
   }, [section, source]);
+  useEffect(() => {
+    const controller = new AbortController();
+    adminService
+      .list(controller.signal)
+      .then(({ episodes }) =>
+        setLinkedSnapshot(episodes.find((episode) => episode.sourceProductionId === id) ?? null),
+      )
+      .catch(() => setLinkedSnapshot(null));
+    return () => controller.abort();
+  }, [id]);
   if (!production)
     return (
       <div className="admin-page">
@@ -87,6 +102,7 @@ function Editor({ id }: { id: string }) {
     manuscript: Boolean(production.approvals.script),
     assets: ['final_review', 'ready'].includes(production.stage),
   };
+  const deletable = canDeleteProduction(production, linkedSnapshot);
   return (
     <div className="admin-page studio-editor" ref={view}>
       {!sourceOpen && (
@@ -103,9 +119,22 @@ function Editor({ id }: { id: string }) {
           }
           description={`第 ${production.episodeNumber} 期 · ${stageLabels[production.stage]} · ${anyDirty ? '有未保存改动' : `已保存 · v${production.version}`}`}
           actions={
-            <Button variant="outline" disabled={vm.pending} onClick={() => setReload(true)}>
-              刷新内容
-            </Button>
+            <>
+              {deletable && (
+                <Button
+                  variant="ghost"
+                  disabled={vm.pending || anyDirty}
+                  aria-label={`删除 ${production.title}`}
+                  onClick={() => setDeleteOpen(true)}
+                >
+                  <Trash2 size={16} />
+                  删除节目
+                </Button>
+              )}
+              <Button variant="outline" disabled={vm.pending} onClick={() => setReload(true)}>
+                刷新内容
+              </Button>
+            </>
           }
         />
       )}
@@ -272,6 +301,19 @@ function Editor({ id }: { id: string }) {
             if (!(await vm.reload())) return false;
             setDrafts({});
             setFormKey((key) => key + 1);
+            return true;
+          }}
+        />
+      )}
+      {deleteOpen && (
+        <Confirm
+          title="确认删除节目"
+          description={`「${production.title}」及编辑记录将被删除，关联媒体原件不会删除。此操作无法撤销。`}
+          onClose={() => setDeleteOpen(false)}
+          onConfirm={async () => {
+            await productionService.remove(production.id, production.version);
+            toast.success('节目已删除');
+            navigate('/admin');
             return true;
           }}
         />

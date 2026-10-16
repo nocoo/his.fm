@@ -1,6 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { fixture, readyFixture } from '../../../tests/worker/production-fixture';
-import { dateLabel, emptyBrief, finalMissing, latestPublication, readBrief } from './model';
+import {
+  canDeleteLibraryEntry,
+  canDeleteProduction,
+  canDeleteStandaloneEpisode,
+  dateLabel,
+  emptyBrief,
+  finalMissing,
+  latestPublication,
+  readBrief,
+} from './model';
 
 function form(values: Record<string, string>) {
   const result = new FormData();
@@ -100,5 +109,51 @@ describe('final review readiness', () => {
   it('formats absent timestamps honestly', () => {
     expect(dateLabel(null)).toBe('尚无记录');
     expect(dateLabel('2026-09-25T00:00:00Z')).toContain('2026');
+  });
+});
+
+describe('program delete policy', () => {
+  it('blocks production delete when a snapshot or publication exists', () => {
+    const production = readyFixture();
+    expect(canDeleteProduction(production)).toBe(true);
+    expect(canDeleteProduction(production, { id: 'ep-1' } as never)).toBe(false);
+    expect(canDeleteProduction({ ...production, publications: [{} as never] })).toBe(false);
+    expect(
+      canDeleteProduction({
+        ...production,
+        publications: [],
+        events: [
+          {
+            id: 'e1',
+            at: '2026-01-01',
+            actor: { kind: 'human', name: 'a' },
+            action: 'withdraw_publication:wechat',
+            feedback: '',
+          },
+        ],
+      }),
+    ).toBe(false);
+  });
+
+  it('matches library rows and standalone episodes', () => {
+    const production = readyFixture();
+    expect(
+      canDeleteLibraryEntry({
+        id: 'production:1',
+        title: 't',
+        episodeNumber: 1,
+        category: 'work',
+        summary: '',
+        tags: [],
+        coverUrl: null,
+        audioUrl: null,
+        status: 'draft',
+        updatedAt: '2026-01-01',
+        href: '/admin/productions/1',
+        production,
+      }),
+    ).toBe(true);
+    expect(canDeleteStandaloneEpisode({ sourceProductionId: null } as never)).toBe(true);
+    expect(canDeleteStandaloneEpisode({ sourceProductionId: 'prod-1' } as never)).toBe(false);
   });
 });
