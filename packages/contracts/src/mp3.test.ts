@@ -6,7 +6,7 @@ import {
   mp3AudioStartOffset,
   parseMp3,
 } from './mp3.ts';
-import { mpeg2Mp3Bytes, tinyMp3Bytes } from './mp3-fixtures.ts';
+import { mpeg2Mp3Bytes, mpeg25Mp3Bytes, tinyMp3Bytes } from './mp3-fixtures.ts';
 import { AudioError } from './wav.ts';
 
 const tinyMp3 = tinyMp3Bytes;
@@ -73,6 +73,9 @@ function withEncoderGaplessTag(
 describe('parseMp3', () => {
   it('detects MP3 containers and rejects empty input', () => {
     expect(isMp3Container(tinyMp3)).toBe(true);
+    expect(isMp3Container(new Uint8Array([0x49]))).toBe(false);
+    expect(isMp3Container(new Uint8Array([0x49, 0x44, 0x33, 0x04]))).toBe(true);
+    expect(isMp3Container(new Uint8Array([0x00, 0xff, 0xfb, 0x90, 0x00]))).toBe(true);
     expect(isMp3Container(new Uint8Array([0x52, 0x49, 0x46, 0x46]))).toBe(false);
     expect(() => parseMp3(new Uint8Array(2))).toThrow('有效的 MP3');
     const id3Only = new Uint8Array([0x49, 0x44, 0x33, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
@@ -172,6 +175,13 @@ describe('parseMp3', () => {
 
   it('parses MPEG2 sample-rate files', () => {
     expect(parseMp3(mpeg2Mp3Bytes).sampleRate).toBe(24000);
+  });
+
+  it('parses MPEG-2.5 eight-kilohertz audio from fixture', () => {
+    const info = parseMp3(mpeg25Mp3Bytes);
+    expect(info.sampleRate).toBe(8000);
+    expect(info.durationSeconds).toBeGreaterThan(0.5);
+    expect(info.durationSeconds).toBeLessThan(0.85);
   });
 
   it('derives duration from frame scan when no Xing header is present', () => {
@@ -386,6 +396,12 @@ describe('measureMp3Duration', () => {
   it('streams MPEG-2 Layer III clips', async () => {
     const measured = await measureMp3Duration(mpeg2Mp3Bytes.length, readFrom(mpeg2Mp3Bytes));
     expect(measured.sampleRate).toBe(24000);
+  });
+
+  it('streams MPEG-2.5 eight-kilohertz clips', async () => {
+    const measured = await measureMp3Duration(mpeg25Mp3Bytes.length, readFrom(mpeg25Mp3Bytes));
+    expect(measured.sampleRate).toBe(8000);
+    expect(measured.durationSeconds).toBeCloseTo(parseMp3(mpeg25Mp3Bytes).durationSeconds, 6);
   });
 
   it('matches parseMp3 on a complete file', async () => {
