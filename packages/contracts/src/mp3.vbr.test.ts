@@ -63,6 +63,20 @@ describe.runIf(ffmpeg)('parseMp3 VBR regressions', () => {
     }
   });
 
+  it('matches ffprobe on ffmpeg default VBR output at 0.2 seconds', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'his-mp3-'));
+    const file = join(dir, 'ffmpeg-02.mp3');
+    try {
+      renderVbrMp3(0.2, file);
+      const expected = probeDuration(file);
+      const parsed = parseMp3(new Uint8Array(readFileSync(file)));
+      expect(parsed.durationSeconds).toBeGreaterThan(expected * 0.97);
+      expect(parsed.durationSeconds).toBeLessThan(expected * 1.03);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it('reads LAME gapless metadata from libmp3lame output', () => {
     const dir = mkdtempSync(join(tmpdir(), 'his-mp3-'));
     const file = join(dir, 'lame.mp3');

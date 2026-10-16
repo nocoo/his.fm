@@ -8,6 +8,9 @@ const MPEG25_SAMPLE_RATES = [11025, 12000, 8000];
 const ID3V1_TRAILER_BYTES = 128;
 const MP3_PROBE_BYTES = 256 * 1024;
 
+/** R2 / Worker scan chunk size: one ranged GET covers ~128 KiB (~hundreds of frames), not one GET per frame. */
+export const MP3_STREAM_SCAN_CHUNK_BYTES = 128 * 1024;
+
 export type Mp3Info = {
   durationSeconds: number;
   sampleRate: number;
@@ -15,6 +18,10 @@ export type Mp3Info = {
 };
 
 export type Mp3ReadChunk = (offset: number, length: number) => Promise<Uint8Array>;
+
+export type Mp3MeasureStats = {
+  readCount: number;
+};
 
 type FrameHeader = {
   frameLength: number;
@@ -130,15 +137,38 @@ function isXingOrInfoTag(bytes: Uint8Array, offset: number) {
   return xing || info;
 }
 
-function lameGaplessInFrame(bytes: Uint8Array, searchStart: number, searchEnd: number) {
+function encoderTagKind(bytes: Uint8Array, offset: number) {
+  const a = bytes[offset];
+  const b = bytes[offset + 1];
+  const c = bytes[offset + 2];
+  const d = bytes[offset + 3];
+  if (a === 0x4c && b === 0x41 && c === 0x4d && d === 0x45) return 'lame';
+  if (a === 0x4c && b === 0x61 && c === 0x76 && d === 0x63) return 'lavc';
+  if (a === 0x4c && b === 0x61 && c === 0x76 && d === 0x66) return 'lavf';
+  return null;
+}
+
+/** LAME / libavcodec Info extension: 12-bit encoder delay and padding at tag+21..23. */
+function gaplessFromEncoderTag(bytes: Uint8Array, tagStart: number) {
+  const delaySamples = ((bytes[tagStart + 21] & 0xff) << 4) | ((bytes[tagStart + 22] & 0xf0) >> 4);
+  const paddingSamples = ((bytes[tagStart + 22] & 0x0f) << 8) | (bytes[tagStart + 23] & 0xff);
+  return { delaySamples, paddingSamples };
+}
+
+function encoderGaplessInFrame(bytes: Uint8Array, searchStart: number, searchEnd: number) {
   let delaySamples = 0;
   let paddingSamples = 0;
-  for (let j = searchStart; j + 36 <= searchEnd; j++) {
-    if (bytes[j] === 0x4c && bytes[j + 1] === 0x41 && bytes[j + 2] === 0x4d && bytes[j + 3] === 0x45) {
-      delaySamples = ((bytes[j + 27] & 0xff) << 4) | ((bytes[j + 28] & 0xf0) >> 4);
-      paddingSamples = ((bytes[j + 28] & 0x0f) << 8) | (bytes[j + 29] & 0xff);
-      break;
+  for (let j = searchStart; j + 24 <= searchEnd; j++) {
+    const kind = encoderTagKind(bytes, j);
+    if (!kind) continue;
+    if (kind === 'lavc' || kind === 'lavf') {
+      // Lavc/Lavf share the Info extension layout at +21..23; gapless is applied only for LAME.
+      continue;
     }
+    const gapless = gaplessFromEncoderTag(bytes, j);
+    delaySamples = gapless.delaySamples;
+    paddingSamples = gapless.paddingSamples;
+    break;
   }
   return { delaySamples, paddingSamples };
 }
@@ -166,7 +196,11 @@ function parseXingMeta(
   if (flags & 0x02) pos += 4;
   if (flags & 0x04) pos += 100;
   if (flags & 0x08) pos += 4;
-  const { delaySamples, paddingSamples } = lameGaplessInFrame(bytes, pos, Math.min(frameEnd, bytes.length));
+  const { delaySamples, paddingSamples } = encoderGaplessInFrame(
+    bytes,
+    pos,
+    Math.min(frameEnd, bytes.length),
+  );
   return { frameCount, delaySamples, paddingSamples };
 }
 
@@ -240,6 +274,23 @@ function finalizeMp3Info(result: Mp3Info): Mp3Info {
   return result;
 }
 
+function resolveMp3Duration(
+  header: FrameHeader,
+  xingMeta: XingMeta | null,
+  scanned: { durationSeconds: number; sampleRate: number; channels: number; frameCount: number },
+): Mp3Info {
+  if (xingMeta) {
+    if (xingMeta.frameCount === 0) {
+      throw new AudioError('无法从 MP3 文件读取时长');
+    }
+    if (scanned.frameCount >= xingMeta.frameCount) {
+      return mp3InfoFromXing(xingMeta, header);
+    }
+  }
+  const { frameCount: _frames, ...info } = scanned;
+  return info;
+}
+
 /**
  * Derives duration by scanning every MPEG Layer III frame (VBR-safe). The buffer must cover the
  * full object (`bytes.byteLength >= fileSize`); partial prefixes are rejected.
@@ -252,55 +303,97 @@ export function parseMp3(bytes: Uint8Array, fileSize = bytes.byteLength): Mp3Inf
   const { offset, header } = locateFirstFrame(bytes, fileSize);
   const xingMeta = parseXingMeta(bytes, offset, header.frameLength, header);
   const scanned = durationFromFrames(bytes, fileSize, offset);
-  if (xingMeta && scanned.frameCount >= xingMeta.frameCount) {
-    return finalizeMp3Info(mp3InfoFromXing(xingMeta, header));
-  }
-  const { frameCount: _frames, ...info } = scanned;
-  return finalizeMp3Info(info);
+  return finalizeMp3Info(resolveMp3Duration(header, xingMeta, scanned));
 }
 
-async function readId3AudioStart(fileSize: number, read: Mp3ReadChunk) {
-  const head = await read(0, Math.min(10, fileSize));
+class Mp3ChunkReader {
+  private buffer = new Uint8Array(0);
+  private bufferStart = 0;
+  private countedReads = 0;
+  private readonly fileSize: number;
+  private readonly read: Mp3ReadChunk;
+  private readonly chunkBytes: number;
+  private readonly stats?: Mp3MeasureStats;
+
+  constructor(fileSize: number, read: Mp3ReadChunk, chunkBytes: number, stats?: Mp3MeasureStats) {
+    this.fileSize = fileSize;
+    this.read = read;
+    this.chunkBytes = chunkBytes;
+    this.stats = stats;
+  }
+
+  private noteRead() {
+    this.countedReads++;
+    if (this.stats) this.stats.readCount = this.countedReads;
+  }
+
+  async ensureBytes(offset: number, length: number): Promise<Uint8Array> {
+    const end = offset + length;
+    if (end > this.fileSize) throw new AudioError('MP3 文件不完整');
+    if (
+      this.buffer.length > 0 &&
+      offset >= this.bufferStart &&
+      end <= this.bufferStart + this.buffer.length
+    ) {
+      const local = offset - this.bufferStart;
+      return this.buffer.subarray(local, local + length);
+    }
+    const needLen = end - offset;
+    const remaining = this.fileSize - offset;
+    const fetchLen = Math.min(remaining, Math.max(needLen, this.chunkBytes));
+    this.noteRead();
+    this.buffer = new Uint8Array(await this.read(offset, fetchLen));
+    this.bufferStart = offset;
+    const local = offset - this.bufferStart;
+    if (local < 0 || local + length > this.buffer.length) {
+      throw new AudioError('MP3 文件不完整');
+    }
+    return this.buffer.subarray(local, local + length);
+  }
+}
+
+async function readId3AudioStart(reader: Mp3ChunkReader, fileSize: number) {
+  const head = await reader.ensureBytes(0, Math.min(10, fileSize));
   return mp3AudioStartOffset(head, fileSize);
 }
 
-async function readHasId3v1Trailer(fileSize: number, read: Mp3ReadChunk) {
+async function readHasId3v1Trailer(reader: Mp3ChunkReader, fileSize: number) {
   if (fileSize < ID3V1_TRAILER_BYTES) return false;
-  const tail = await read(fileSize - ID3V1_TRAILER_BYTES, ID3V1_TRAILER_BYTES);
+  const tail = await reader.ensureBytes(fileSize - ID3V1_TRAILER_BYTES, ID3V1_TRAILER_BYTES);
   return hasId3v1TrailerAt(tail, 0);
 }
 
-async function locateFirstFrameStreaming(fileSize: number, read: Mp3ReadChunk) {
-  const audioStart = await readId3AudioStart(fileSize, read);
+async function locateFirstFrameStreaming(reader: Mp3ChunkReader, fileSize: number) {
+  const audioStart = await readId3AudioStart(reader, fileSize);
   const probeLength = Math.min(MP3_PROBE_BYTES, fileSize - audioStart);
   if (probeLength < 4) throw new AudioError('音频必须是有效的 MP3 文件');
-  const probe = await read(audioStart, probeLength);
+  const probe = await reader.ensureBytes(audioStart, probeLength);
   const { offset: relative, header } = locateFirstFrame(probe, fileSize);
   const frameOffset = audioStart + relative;
   let frameBytes = probe;
   let frameLocalOffset = relative;
   if (relative + header.frameLength > probe.length) {
-    frameBytes = await read(frameOffset, header.frameLength);
+    frameBytes = await reader.ensureBytes(frameOffset, header.frameLength);
     frameLocalOffset = 0;
   }
   const xingMeta = parseXingMeta(frameBytes, frameLocalOffset, header.frameLength, header);
   return { frameOffset, header, xingMeta };
 }
 
-async function scanMp3FramesStreaming(
+async function scanMp3FramesBuffered(
+  reader: Mp3ChunkReader,
   fileSize: number,
-  read: Mp3ReadChunk,
   startOffset: number,
   firstHeader: FrameHeader,
 ) {
-  const audioEnd = (await readHasId3v1Trailer(fileSize, read)) ? fileSize - ID3V1_TRAILER_BYTES : fileSize;
+  const audioEnd = (await readHasId3v1Trailer(reader, fileSize)) ? fileSize - ID3V1_TRAILER_BYTES : fileSize;
   let totalSamples = 0;
   const sampleRate = firstHeader.sampleRate;
   const versionBits = firstHeader.versionBits;
   let cursor = startOffset;
   let frames = 0;
   while (cursor + 4 <= audioEnd) {
-    const headerBytes = await read(cursor, 4);
+    const headerBytes = await reader.ensureBytes(cursor, 4);
     if (!frameSyncAt(headerBytes, 0)) {
       throw new AudioError('MP3 文件不完整或包含无效数据');
     }
@@ -328,16 +421,19 @@ async function scanMp3FramesStreaming(
 }
 
 /**
- * Derives MP3 duration by streaming frame headers from R2 (or any ranged reader). Only one small
- * chunk is held in memory at a time; Xing/Info gapless metadata is preferred when present.
+ * Derives MP3 duration by scanning MPEG Layer III frames from R2 (or any ranged reader). Uses a
+ * reusable {@link MP3_STREAM_SCAN_CHUNK_BYTES} buffer so long files need ~ceil(bytes/chunk) ranged
+ * GETs (typically dozens for a one-hour file), not one subrequest per frame.
  */
-export async function measureMp3Duration(fileSize: number, read: Mp3ReadChunk): Promise<Mp3Info> {
+export async function measureMp3Duration(
+  fileSize: number,
+  read: Mp3ReadChunk,
+  options?: { stats?: Mp3MeasureStats; chunkBytes?: number },
+): Promise<Mp3Info> {
   if (fileSize < 4) throw new AudioError('音频必须是有效的 MP3 文件');
-  const { frameOffset, header, xingMeta } = await locateFirstFrameStreaming(fileSize, read);
-  const scanned = await scanMp3FramesStreaming(fileSize, read, frameOffset, header);
-  if (xingMeta && scanned.frameCount >= xingMeta.frameCount) {
-    return finalizeMp3Info(mp3InfoFromXing(xingMeta, header));
-  }
-  const { frameCount: _frames, ...info } = scanned;
-  return finalizeMp3Info(info);
+  const chunkBytes = options?.chunkBytes ?? MP3_STREAM_SCAN_CHUNK_BYTES;
+  const reader = new Mp3ChunkReader(fileSize, read, chunkBytes, options?.stats);
+  const { frameOffset, header, xingMeta } = await locateFirstFrameStreaming(reader, fileSize);
+  const scanned = await scanMp3FramesBuffered(reader, fileSize, frameOffset, header);
+  return finalizeMp3Info(resolveMp3Duration(header, xingMeta, scanned));
 }
