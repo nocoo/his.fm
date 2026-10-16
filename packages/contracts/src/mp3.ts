@@ -4,6 +4,7 @@ const MPEG1_L3_BITRATES = [0, 32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 22
 const MPEG2_L3_BITRATES = [0, 8, 16, 24, 32, 40, 48, 56, 64, 80, 96, 112, 128, 144, 160];
 const MPEG1_SAMPLE_RATES = [44100, 48000, 32000];
 const MPEG2_SAMPLE_RATES = [22050, 24000, 16000];
+const ID3V1_TRAILER_BYTES = 128;
 
 export type Mp3Info = {
   durationSeconds: number;
@@ -20,12 +21,17 @@ function readSynchsafeSize(bytes: Uint8Array, offset: number) {
   );
 }
 
-function skipId3v2(bytes: Uint8Array, fileSize: number) {
+/** Audio start offset after a leading ID3v2 tag; requires the 10-byte ID3 header in `bytes`. */
+export function mp3AudioStartOffset(bytes: Uint8Array, fileSize: number) {
   if (bytes.length < 10 || bytes[0] !== 0x49 || bytes[1] !== 0x44 || bytes[2] !== 0x33) return 0;
   const tagSize = readSynchsafeSize(bytes, 6);
   const total = 10 + tagSize;
   if (total > fileSize) throw new AudioError('MP3 ID3 标签不完整');
   return total;
+}
+
+function skipId3v2(bytes: Uint8Array, fileSize: number) {
+  return mp3AudioStartOffset(bytes, fileSize);
 }
 
 function frameSyncAt(bytes: Uint8Array, offset: number) {
@@ -67,49 +73,76 @@ export function isMp3Container(bytes: Uint8Array): boolean {
 
 function locateFirstFrame(bytes: Uint8Array, fileSize: number) {
   let offset = skipId3v2(bytes, fileSize);
-  while (offset < fileSize) {
-    if (frameSyncAt(bytes, offset)) return { offset, header: parseFrameHeader(bytes, offset) };
+  const searchEnd = Math.min(fileSize, bytes.length);
+  while (offset < searchEnd) {
+    if (frameSyncAt(bytes, offset)) {
+      const header = parseFrameHeader(bytes, offset);
+      if (offset + header.frameLength > fileSize) {
+        throw new AudioError('MP3 文件不完整');
+      }
+      if (offset + header.frameLength > bytes.length) {
+        throw new AudioError('MP3 文件不完整');
+      }
+      return { offset, header };
+    }
     offset++;
-    if (offset > fileSize - 4) break;
+    if (offset > searchEnd - 4) break;
   }
   throw new AudioError('音频必须是有效的 MP3 文件');
 }
 
-function durationFromFrames(
-  bytes: Uint8Array,
-  fileSize: number,
-  offset: number,
-  first: ReturnType<typeof parseFrameHeader>,
-) {
+function durationFromFrames(bytes: Uint8Array, fileSize: number, offset: number) {
   let totalSamples = 0;
+  let sampleRate = 0;
+  let channels = 1;
   let cursor = offset;
+  let frames = 0;
   while (cursor + 4 <= fileSize) {
+    if (fileSize - cursor <= ID3V1_TRAILER_BYTES) break;
     if (!frameSyncAt(bytes, cursor)) {
       cursor++;
       continue;
     }
-    const header = parseFrameHeader(bytes, cursor);
-    if (header.sampleRate !== first.sampleRate || header.bitrateKbps !== first.bitrateKbps) break;
+    let header: ReturnType<typeof parseFrameHeader>;
+    try {
+      header = parseFrameHeader(bytes, cursor);
+    } catch {
+      cursor++;
+      continue;
+    }
+    if (cursor + header.frameLength > fileSize) {
+      throw new AudioError('MP3 文件不完整');
+    }
+    if (cursor + header.frameLength > bytes.length) {
+      throw new AudioError('MP3 文件不完整');
+    }
+    if (frames === 0) {
+      sampleRate = header.sampleRate;
+      channels = header.channels;
+    } else if (header.sampleRate !== sampleRate) {
+      break;
+    }
     totalSamples += header.samplesPerFrame;
     cursor += header.frameLength;
+    frames++;
   }
-  if (totalSamples === 0) throw new AudioError('无法从 MP3 文件读取时长');
-  return totalSamples / first.sampleRate;
+  if (frames === 0) throw new AudioError('无法从 MP3 文件读取时长');
+  return { durationSeconds: totalSamples / sampleRate, sampleRate, channels };
 }
 
 /**
- * Derives duration from MP3 bytes. Walks MPEG Layer III frames when the buffer covers the full object;
- * otherwise estimates CBR duration from object size and the first frame header (VBR without a full scan may be approximate).
+ * Derives duration by scanning every MPEG Layer III frame (VBR-safe). The buffer must cover the
+ * full object (`bytes.byteLength >= fileSize`); partial prefixes are rejected.
  */
 export function parseMp3(bytes: Uint8Array, fileSize = bytes.byteLength): Mp3Info {
   if (fileSize < 4) throw new AudioError('音频必须是有效的 MP3 文件');
-  const { offset, header: first } = locateFirstFrame(bytes, fileSize);
-  const durationSeconds =
-    bytes.byteLength >= fileSize
-      ? durationFromFrames(bytes, fileSize, offset, first)
-      : ((fileSize - offset - 128) * 8) / (first.bitrateKbps * 1000);
-  if (!Number.isFinite(durationSeconds) || durationSeconds <= 0) {
+  if (bytes.byteLength < fileSize) {
+    throw new AudioError('MP3 文件不完整');
+  }
+  const { offset } = locateFirstFrame(bytes, fileSize);
+  const result = durationFromFrames(bytes, fileSize, offset);
+  if (!Number.isFinite(result.durationSeconds) || result.durationSeconds <= 0) {
     throw new AudioError('无法从 MP3 文件读取时长');
   }
-  return { durationSeconds, sampleRate: first.sampleRate, channels: first.channels };
+  return result;
 }

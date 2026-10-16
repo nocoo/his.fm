@@ -141,7 +141,7 @@ export async function storeUploadedProductionAudio(
   mimeType: ProductionAudioMime,
 ) {
   const maxBytes = maxBytesForMime(mimeType, maximumSeconds);
-  const minBytes = mimeType === 'audio/wav' ? 44 : 4;
+  const minBytes = mimeType === 'audio/wav' ? 44 : 16;
   const size = Number(request.headers.get('Content-Length'));
   if (!Number.isSafeInteger(size) || size < minBytes || size > maxBytes || !request.body) {
     throw new AudioError('音频上传大小无效');
@@ -172,16 +172,25 @@ export async function storeUploadedProductionAudio(
 export const storeUploadedWav = (request: Request, bucket: R2Bucket, key: string, maximumSeconds: number) =>
   storeUploadedProductionAudio(request, bucket, key, maximumSeconds, 'audio/wav');
 
+async function loadProductionAudioBytes(bucket: R2Bucket, key: string, mimeType: ProductionAudioMime) {
+  if (mimeType === 'audio/wav') {
+    const object = await bucket.get(key, { range: { offset: 0, length: HEADER_SCAN_BYTES } });
+    if (!object) throw new AudioError(`音频素材不存在：${key}`);
+    return { bytes: new Uint8Array(await object.arrayBuffer()), size: object.size, etag: object.etag };
+  }
+  const object = await bucket.get(key);
+  if (!object) throw new AudioError(`音频素材不存在：${key}`);
+  return { bytes: new Uint8Array(await object.arrayBuffer()), size: object.size, etag: object.etag };
+}
+
 export async function readStoredProductionAudio(
   bucket: R2Bucket,
   key: string,
   mimeType: ProductionAudioMime,
 ): Promise<StoredProductionAudio> {
-  const object = await bucket.get(key, { range: { offset: 0, length: HEADER_SCAN_BYTES } });
-  if (!object) throw new AudioError(`音频素材不存在：${key}`);
-  const bytes = new Uint8Array(await object.arrayBuffer());
-  const durationSeconds = parseProductionAudio(bytes, object.size, mimeType);
-  return { key, etag: object.etag, size: object.size, durationSeconds, mimeType };
+  const { bytes, size, etag } = await loadProductionAudioBytes(bucket, key, mimeType);
+  const durationSeconds = parseProductionAudio(bytes, size, mimeType);
+  return { key, etag, size, durationSeconds, mimeType };
 }
 
 export async function readStoredWav(bucket: R2Bucket, key: string): Promise<StoredWav> {
