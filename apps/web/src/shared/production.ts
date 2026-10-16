@@ -1,6 +1,11 @@
-import type { Principal, Scope } from '@his-fm/contracts';
+import { AUDIO_SAMPLE_RATE, type Principal, type Scope } from '@his-fm/contracts';
 import { z } from 'zod';
 import { categoryIdSchema } from './category';
+
+const productionAudioHeaderScanBytes = 64 * 1024;
+export const productionAudioMaxDurationSeconds = 3600;
+export const productionAudioMaxBytes =
+  productionAudioMaxDurationSeconds * AUDIO_SAMPLE_RATE * 2 + productionAudioHeaderScanBytes;
 
 export const productionStages = [
   'draft',
@@ -42,7 +47,7 @@ export const briefSchema = z.strictObject({
   episodeNumber: z.number().int().min(1).max(99999),
   category: categoryIdSchema.default('work'),
   tags: z.array(z.string().trim().min(1).max(30)).max(10).default([]),
-  targetDurationSeconds: z.number().int().min(60).max(1800).default(600),
+  targetDurationSeconds: z.number().int().min(60).max(productionAudioMaxDurationSeconds).default(600),
   sources: z.array(sourceSchema).max(30).default([]),
   intent: z.string().trim().max(12000).default(''),
 });

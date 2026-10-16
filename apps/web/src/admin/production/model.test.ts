@@ -46,7 +46,7 @@ describe('production brief form', () => {
     for (const invalid of [
       new FormData(),
       form({ ...validForm, title: '字'.repeat(161) }),
-      form({ ...validForm, durationMinutes: '31' }),
+      form({ ...validForm, durationMinutes: '61' }),
       form({ ...validForm, tags: '长'.repeat(31) }),
     ]) {
       const result = readBrief(invalid, []);
@@ -89,7 +89,7 @@ describe('final review readiness', () => {
         }),
       ),
     ).toEqual(['当前版本完整音频']);
-    for (const durationSeconds of [NaN, Infinity, -1, 1801]) {
+    for (const durationSeconds of [NaN, Infinity, -1, 3601]) {
       expect(
         finalMissing(
           readyFixture({ assets: { ...ready.assets, audio: { ...ready.assets.audio, durationSeconds } } }),

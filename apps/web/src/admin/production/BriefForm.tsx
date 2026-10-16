@@ -152,7 +152,7 @@ export function BriefForm({
                     name="durationMinutes"
                     type="number"
                     min={1}
-                    max={30}
+                    max={60}
                     step={1}
                     value={draft.value.targetDurationSeconds / 60}
                     onChange={(event) =>

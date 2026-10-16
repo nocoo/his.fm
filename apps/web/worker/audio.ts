@@ -1,9 +1,11 @@
 import { AUDIO_SAMPLE_RATE, AudioError, parseWav, type StoredWav } from '@his-fm/contracts';
+import { productionAudioMaxBytes, productionAudioMaxDurationSeconds } from '../src/shared/production';
 
 export { AUDIO_SAMPLE_RATE, AudioError, parseWav } from '@his-fm/contracts';
 
 const HEADER_SCAN_BYTES = 64 * 1024;
-export const PRODUCTION_AUDIO_MAX_DURATION_SECONDS = 1800;
+export const PRODUCTION_AUDIO_MAX_DURATION_SECONDS = productionAudioMaxDurationSeconds;
+export const PRODUCTION_AUDIO_MAX_BYTES = productionAudioMaxBytes;
 const AUDIO_UPLOAD_ID = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
 const wavObjectMetadata = {
   httpMetadata: { contentType: 'audio/wav', cacheControl: 'public, max-age=31536000, immutable' },

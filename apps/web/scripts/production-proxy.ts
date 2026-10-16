@@ -11,6 +11,7 @@ const remoteOrigin = 'https://his.fm';
 const apiPrefix = '/admin/remote-api';
 const connectPath = '/admin/remote-connect';
 const defaultUploadBytes = 9 * 1024 * 1024;
+const productionAudioMaxBytes = 3600 * 24000 * 2 + 64 * 1024;
 const run = promisify(execFile);
 const localHosts = new Set(['localhost', '127.0.0.1', '[::1]', 'hisfm.dev.hexly.ai']);
 
@@ -191,7 +192,11 @@ export function productionProxy(): Plugin {
       request.method === 'PUT' &&
       /^\/admin\/api\/productions\/[^/]+\/assets\/audio$/.test(destination.pathname);
     const storageUpload = request.method === 'POST' && destination.pathname === '/admin/api/storage';
-    const limit = audioUpload ? 86465536 : storageUpload ? 25 * 1024 * 1024 : defaultUploadBytes;
+    const limit = audioUpload
+      ? productionAudioMaxBytes
+      : storageUpload
+        ? 25 * 1024 * 1024
+        : defaultUploadBytes;
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), audioUpload || storageUpload ? 120000 : 30000);
     const abort = () => controller.abort();

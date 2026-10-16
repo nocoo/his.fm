@@ -3,7 +3,7 @@ import { FileDropzone } from '@nocoo/basalt/components/file-dropzone';
 import { InputArea } from '@nocoo/basalt/components/input-area';
 import { useEffect, useState } from 'react';
 import { AudioPlayer } from '../../components/AudioPlayer';
-import type { Production } from '../../shared/production';
+import { type Production, productionAudioMaxBytes } from '../../shared/production';
 import { DraftConflicts } from '../draft/DraftConflicts';
 import { useDraft } from '../draft/useDraft';
 import { MarkdownEditor } from '../markdown/MarkdownEditor';
@@ -100,7 +100,7 @@ export function Assets({
             description="WAV / 24 kHz / 单声道 / 16-bit PCM，最长 30 分钟、最大 86,465,536 字节。服务器检查格式并读取真实时长。"
             accept="audio/wav,.wav"
             multiple={false}
-            maxSize={86465536}
+            maxSize={productionAudioMaxBytes}
             disabled={pending}
             browseLabel="选择 WAV 音频"
             formatRejection={() => '请选择大小不超过 86,465,536 字节的 WAV 文件。'}

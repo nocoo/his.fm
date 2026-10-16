@@ -5,6 +5,7 @@ import {
   type ProductionAction,
   type ProductionBrief,
   type Publication,
+  productionAudioMaxDurationSeconds,
 } from '../../shared/production';
 
 export const emptyBrief: ProductionBrief = {
@@ -64,7 +65,7 @@ export function finalMissing(production: Production): string[] {
     production.assets.audio.scriptVersion !== production.scriptVersion ||
     !Number.isFinite(production.assets.audio.durationSeconds) ||
     (production.assets.audio.durationSeconds ?? 0) <= 0 ||
-    (production.assets.audio.durationSeconds ?? 0) > 1800
+    (production.assets.audio.durationSeconds ?? 0) > productionAudioMaxDurationSeconds
   )
     missing.push('当前版本完整音频');
   return missing;
