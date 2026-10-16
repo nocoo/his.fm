@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { emptyEpisode, errorMessage, readEpisodeForm, toLocalDateTime } from './model';
+import {
+  emptyEpisode,
+  errorMessage,
+  readEpisodeForm,
+  sessionDisplayName,
+  sessionInitials,
+  toLocalDateTime,
+} from './model';
+import type { Session } from './service';
 
 function validForm() {
   const form = new FormData();
@@ -84,5 +92,18 @@ describe('episode form model', () => {
   it('exposes meaningful errors without stringifying unknown objects', () => {
     expect(errorMessage(new Error('已存在'))).toBe('已存在');
     expect(errorMessage({ secret: true })).toBe('暂时无法完成操作，请稍后重试');
+  });
+});
+
+describe('session display', () => {
+  const session: Session = {
+    mode: 'access',
+    user: { email: 'editor@his.fm', name: 'Zheng Li', avatar: 'https://img.example/a.png' },
+  };
+
+  it('prefers profile name and derives initials', () => {
+    expect(sessionDisplayName(session)).toBe('Zheng Li');
+    expect(sessionInitials('Zheng Li')).toBe('ZL');
+    expect(sessionInitials('editor@his.fm')).toBe('ED');
   });
 });

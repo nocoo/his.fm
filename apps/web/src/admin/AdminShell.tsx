@@ -1,4 +1,7 @@
 import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
   Button,
   ContentIsland,
   DialogDescription,
@@ -39,7 +42,7 @@ import { Link, useLocation, useNavigate } from 'react-router';
 import { version } from '../../../../package.json';
 import { BrandSymbol, Wordmark } from '../brand/Brand';
 import { GithubIcon } from '../components/GithubIcon';
-import { errorMessage } from './model';
+import { errorMessage, sessionDisplayName, sessionInitials } from './model';
 import { EnvironmentSwitch } from './production/EnvironmentSwitch';
 import { adminService, type Session } from './service';
 
@@ -122,6 +125,13 @@ export function AdminShell({ session, children }: { session: Session; children: 
       setLoggingOut(false);
     }
   }
+  const displayName = sessionDisplayName(session);
+  const avatar = (
+    <Avatar className="admin-user-avatar">
+      {session.user.avatar ? <AvatarImage src={session.user.avatar} alt={displayName} /> : null}
+      <AvatarFallback>{sessionInitials(displayName)}</AvatarFallback>
+    </Avatar>
+  );
   const groups = [
     {
       label: '内容制作',
@@ -255,27 +265,42 @@ export function AdminShell({ session, children }: { session: Session; children: 
               </section>
             ))}
           </SidebarNav>
-          <SidebarFooter>
+          <SidebarFooter className="admin-sidebar-footer">
             {iconOnly ? (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    loading={loggingOut}
-                    aria-label="退出登录"
-                    onClick={logout}
-                  >
-                    <LogOut size={16} />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent side="right">退出登录</TooltipContent>
-              </Tooltip>
+              <div className="admin-sidebar-footer-compact">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="admin-sidebar-avatar-only">{avatar}</span>
+                  </TooltipTrigger>
+                  <TooltipContent side="right">{displayName}</TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      loading={loggingOut}
+                      aria-label="退出登录"
+                      onClick={logout}
+                    >
+                      <LogOut size={16} />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="right">退出登录</TooltipContent>
+                </Tooltip>
+              </div>
             ) : (
               <SidebarUser
-                name="his.fm 编辑"
+                name={displayName}
                 email={session.user.email}
-                avatar={<div className="admin-avatar">h.</div>}
+                avatar={
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="admin-sidebar-avatar-only">{avatar}</span>
+                    </TooltipTrigger>
+                    <TooltipContent side="right">{displayName}</TooltipContent>
+                  </Tooltip>
+                }
                 action={
                   <Button
                     size="icon"
