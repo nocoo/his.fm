@@ -1,4 +1,4 @@
-import { bindings, defineConfig } from 'cf/config';
+import { bindings, defineConfig, exports } from 'cf/config';
 
 process.env.MINIFLARE_CACHE_DIR = '.cloudflare/cache';
 
@@ -15,6 +15,7 @@ export default defineConfig(({ mode }) => {
       previewUrls: false,
       domains: local ? [] : ['his.fm'],
       observability: { enabled: !local },
+      exports: local ? undefined : { AgentHub: exports.durableObject({ state: 'deleted' }) },
       assets: {
         notFoundHandling: 'single-page-application',
         runWorkerFirst: ['/api/*', '/.well-known/api-catalog', '/llms.txt', '/admin', '/admin/*', '/media/*'],

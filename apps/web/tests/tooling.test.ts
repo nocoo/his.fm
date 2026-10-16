@@ -53,6 +53,8 @@ describe('Cloudflare configuration', () => {
     expect(production.env.ENVIRONMENT).toEqual({ type: 'text', value: 'production' });
     expect(local.domains).toEqual([]);
     expect(production.domains).toEqual(['his.fm']);
+    expect(local.exports).toBeUndefined();
+    expect(production.exports).toEqual({ AgentHub: { type: 'durable-object', state: 'deleted' } });
     expect(local.env.DB.id).toBe('00000000-0000-4000-8000-000000007056');
     expect(production.env.DB.id).toBe('66f7e201-22a8-450d-838d-ecbc382afbc6');
     for (const worker of [local, production]) {

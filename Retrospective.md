@@ -1,5 +1,13 @@
 # Retrospective
 
+## 2026-10-16 - Validate remote lifecycle before retiring a Worker export
+
+Local build and deploy dry-run passed after removing `AgentHub`, but neither proved that Cloudflare would accept the existing provisioned namespace without an export entry. Read-only production inspection and current platform documentation exposed the missing deletion tombstone before migration or deployment. Obtain explicit deletion authorization, declare the tombstone only for production, and capture a D1 recovery bookmark before cutover. D1 backups cannot restore Durable Object state, and a previous Worker cannot be safely rolled back across a lifecycle deletion or the retired SQL tables.
+
+The follow-up artifact assertion initially guessed a nested `config.json` path. Discover the emitted files and inspect `workers/default/worker.config.json`; the root `config.json` contains only build context. The corrected assertion verified the production deletion tombstone and absence of the runtime binding after the build and dry-run succeeded.
+
+The staged typecheck then rejected `local ? {} : { AgentHub: ... }`: inference added an optional undefined member incompatible with cf's export record. Omit the optional exports field with `undefined` in development instead, without casting away the error, and assert both modes in the existing configuration test. A successful build does not replace strict typechecking of typed configuration.
+
 ## 2026-10-16 - Recheck route fallthrough after merging subresources
 
 The remote audio-binding merge introduced a nested `/assets/audio/bind` route, but the existing broad `assets/` DELETE branch also matched it and could detach audio on a POST-only endpoint. Restrict detachment to the two exact asset paths and assert that other binding methods return 405 without changing the production. Reviewing only the added POST handler misses existing sibling routing behavior. The integration also retains staging source bytes when D1 rejects a binding, rather than deleting the original before the versioned write succeeds.
