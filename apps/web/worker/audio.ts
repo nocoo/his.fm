@@ -2,11 +2,12 @@ import {
   AUDIO_SAMPLE_RATE,
   AudioError,
   isMp3Container,
-  parseMp3,
+  measureMp3Duration,
   parseWav,
   type StoredWav,
 } from '@his-fm/contracts';
 import {
+  productionAudioDurationCapSlackSeconds,
   productionAudioMaxBytes,
   productionAudioMaxDurationSeconds,
   productionAudioMp3MaxBytes,
@@ -73,14 +74,39 @@ function maxBytesForMime(mimeType: ProductionAudioMime, maximumSeconds: number) 
   return maximumSeconds * AUDIO_SAMPLE_RATE * 2 + HEADER_SCAN_BYTES;
 }
 
-function parseProductionAudio(bytes: Uint8Array, fileSize: number, mimeType: ProductionAudioMime) {
-  if (mimeType === 'audio/wav') {
-    const wav = parseWav(bytes, fileSize);
-    if (wav.dataOffset + wav.dataBytes !== fileSize) throw new AudioError('音频时长或数据大小无效');
-    return wav.durationSeconds;
-  }
-  if (!isMp3Container(bytes)) throw new AudioError('音频必须是有效的 MP3 文件');
-  return parseMp3(bytes, fileSize).durationSeconds;
+function exceedsProductionDurationCap(
+  durationSeconds: number,
+  maximumSeconds: number,
+  mimeType: ProductionAudioMime,
+) {
+  const slack =
+    mimeType === 'audio/mpeg' && maximumSeconds === productionAudioMaxDurationSeconds
+      ? productionAudioDurationCapSlackSeconds
+      : 0;
+  return durationSeconds > maximumSeconds + slack;
+}
+
+function parseProductionWav(bytes: Uint8Array, fileSize: number) {
+  const wav = parseWav(bytes, fileSize);
+  if (wav.dataOffset + wav.dataBytes !== fileSize) throw new AudioError('音频时长或数据大小无效');
+  return wav.durationSeconds;
+}
+
+async function r2ReadChunk(bucket: R2Bucket, key: string, offset: number, length: number) {
+  const object = await bucket.get(key, { range: { offset, length } });
+  if (!object) throw new AudioError(`音频素材不存在：${key}`);
+  const bytes = new Uint8Array(await object.arrayBuffer());
+  if (bytes.byteLength !== length) throw new AudioError('MP3 文件不完整');
+  return bytes;
+}
+
+async function parseProductionMp3Duration(bucket: R2Bucket, key: string, fileSize: number) {
+  const head = await r2ReadChunk(bucket, key, 0, Math.min(16, fileSize));
+  if (!isMp3Container(head)) throw new AudioError('音频必须是有效的 MP3 文件');
+  const info = await measureMp3Duration(fileSize, (offset, length) =>
+    r2ReadChunk(bucket, key, offset, length),
+  );
+  return info.durationSeconds;
 }
 
 async function inspectProductionAudio(
@@ -91,7 +117,10 @@ async function inspectProductionAudio(
 ) {
   const stored = await readStoredProductionAudio(bucket, key, mimeType);
   const maxBytes = maxBytesForMime(mimeType, maximumSeconds);
-  if (stored.durationSeconds > maximumSeconds || stored.size > maxBytes) {
+  if (
+    exceedsProductionDurationCap(stored.durationSeconds, maximumSeconds, mimeType) ||
+    stored.size > maxBytes
+  ) {
     throw new AudioError('音频时长或数据大小无效');
   }
   return stored;
@@ -172,25 +201,22 @@ export async function storeUploadedProductionAudio(
 export const storeUploadedWav = (request: Request, bucket: R2Bucket, key: string, maximumSeconds: number) =>
   storeUploadedProductionAudio(request, bucket, key, maximumSeconds, 'audio/wav');
 
-async function loadProductionAudioBytes(bucket: R2Bucket, key: string, mimeType: ProductionAudioMime) {
-  if (mimeType === 'audio/wav') {
-    const object = await bucket.get(key, { range: { offset: 0, length: HEADER_SCAN_BYTES } });
-    if (!object) throw new AudioError(`音频素材不存在：${key}`);
-    return { bytes: new Uint8Array(await object.arrayBuffer()), size: object.size, etag: object.etag };
-  }
-  const object = await bucket.get(key);
-  if (!object) throw new AudioError(`音频素材不存在：${key}`);
-  return { bytes: new Uint8Array(await object.arrayBuffer()), size: object.size, etag: object.etag };
-}
-
 export async function readStoredProductionAudio(
   bucket: R2Bucket,
   key: string,
   mimeType: ProductionAudioMime,
 ): Promise<StoredProductionAudio> {
-  const { bytes, size, etag } = await loadProductionAudioBytes(bucket, key, mimeType);
-  const durationSeconds = parseProductionAudio(bytes, size, mimeType);
-  return { key, etag, size, durationSeconds, mimeType };
+  const head = await bucket.head(key);
+  if (!head) throw new AudioError(`音频素材不存在：${key}`);
+  let durationSeconds: number;
+  if (mimeType === 'audio/wav') {
+    const object = await bucket.get(key, { range: { offset: 0, length: HEADER_SCAN_BYTES } });
+    if (!object) throw new AudioError(`音频素材不存在：${key}`);
+    durationSeconds = parseProductionWav(new Uint8Array(await object.arrayBuffer()), head.size);
+  } else {
+    durationSeconds = await parseProductionMp3Duration(bucket, key, head.size);
+  }
+  return { key, etag: head.etag, size: head.size, durationSeconds, mimeType };
 }
 
 export async function readStoredWav(bucket: R2Bucket, key: string): Promise<StoredWav> {

@@ -10,7 +10,7 @@ Content generation and audio composition happen outside his.fm. The site stores 
 - Body is raw `audio/wav` or `audio/mpeg`, not multipart or JSON. `Content-Length` is required; browsers set it from the selected file.
 - **WAV:** RIFF PCM16, one channel, 24,000 Hz; maximum request size 172,865,536 bytes (including up to 65,536 bytes of header).
 - **MP3:** MPEG-1/2 Layer III with a valid frame sync or ID3 container; maximum request size 144,065,536 bytes (enough for 3,600 seconds at 320 kbps). Mono 96–128 kbps is recommended for narration.
-- Duration must be positive and at most 3,600 seconds for both formats. No duration query/body is accepted; the server derives it from validated audio (WAV data chunk, MP3 frame scan or CBR size estimate from the first frame header).
+- Duration must be positive and at most 3,600 seconds for both formats (MP3 near the cap allows a tiny validation slack for frame-scan rounding). No duration query/body is accepted; the server derives it from validated audio (WAV data chunk; MP3 Xing/Info gapless metadata when present, otherwise a streaming MPEG-1/2/2.5 Layer III frame scan).
 - Server-chosen unique R2 key `productions/{id}/audio-{scriptVersion}-{uuid}.wav` or `.mp3`, immutable cache policy and conditional creation. The stored asset records size, duration, script version, timestamp, MIME type and `source: "upload"`.
 - Changed script/production versions fail attachment rather than marking obsolete audio complete. No fabricated generation job is required.
 

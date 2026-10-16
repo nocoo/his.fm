@@ -6,12 +6,34 @@ const MPEG1_SAMPLE_RATES = [44100, 48000, 32000];
 const MPEG2_SAMPLE_RATES = [22050, 24000, 16000];
 const MPEG25_SAMPLE_RATES = [11025, 12000, 8000];
 const ID3V1_TRAILER_BYTES = 128;
+const MP3_PROBE_BYTES = 256 * 1024;
 
 export type Mp3Info = {
   durationSeconds: number;
   sampleRate: number;
   channels: number;
 };
+
+export type Mp3ReadChunk = (offset: number, length: number) => Promise<Uint8Array>;
+
+type FrameHeader = {
+  frameLength: number;
+  sampleRate: number;
+  samplesPerFrame: number;
+  channels: number;
+  bitrateKbps: number;
+  versionBits: number;
+};
+
+function readU32BE(bytes: Uint8Array, offset: number) {
+  return (
+    (((bytes[offset] & 0xff) << 24) |
+      ((bytes[offset + 1] & 0xff) << 16) |
+      ((bytes[offset + 2] & 0xff) << 8) |
+      (bytes[offset + 3] & 0xff)) >>>
+    0
+  );
+}
 
 function readSynchsafeSize(bytes: Uint8Array, offset: number) {
   return (
@@ -35,10 +57,13 @@ function skipId3v2(bytes: Uint8Array, fileSize: number) {
   return mp3AudioStartOffset(bytes, fileSize);
 }
 
+function hasId3v1TrailerAt(bytes: Uint8Array, trailerStart: number) {
+  return bytes[trailerStart] === 0x54 && bytes[trailerStart + 1] === 0x41 && bytes[trailerStart + 2] === 0x47;
+}
+
 function hasId3v1Trailer(bytes: Uint8Array, fileSize: number) {
-  if (fileSize < ID3V1_TRAILER_BYTES) return false;
-  const start = fileSize - ID3V1_TRAILER_BYTES;
-  return bytes[start] === 0x54 && bytes[start + 1] === 0x41 && bytes[start + 2] === 0x47;
+  if (fileSize < ID3V1_TRAILER_BYTES || bytes.length < fileSize) return false;
+  return hasId3v1TrailerAt(bytes, fileSize - ID3V1_TRAILER_BYTES);
 }
 
 function frameSyncAt(bytes: Uint8Array, offset: number) {
@@ -51,7 +76,7 @@ function sampleRatesForVersion(versionBits: number) {
   return MPEG25_SAMPLE_RATES;
 }
 
-function parseFrameHeader(bytes: Uint8Array, offset: number) {
+function parseFrameHeader(bytes: Uint8Array, offset: number): FrameHeader {
   const h = (bytes[offset + 1] << 16) | (bytes[offset + 2] << 8) | bytes[offset + 3];
   const versionBits = (h >> 19) & 0x3;
   if (versionBits === 1) throw new AudioError('音频必须是有效的 MP3 文件');
@@ -84,6 +109,79 @@ export function isMp3Container(bytes: Uint8Array): boolean {
   return frameSyncAt(bytes, 0) || (bytes.length > 3 && frameSyncAt(bytes, 1));
 }
 
+function sideInfoSize(header: FrameHeader) {
+  const mpeg1 = header.versionBits === 3;
+  const mono = header.channels === 1;
+  if (mpeg1) return mono ? 17 : 32;
+  return mono ? 9 : 17;
+}
+
+function isXingOrInfoTag(bytes: Uint8Array, offset: number) {
+  const xing =
+    bytes[offset] === 0x58 &&
+    bytes[offset + 1] === 0x69 &&
+    bytes[offset + 2] === 0x6e &&
+    bytes[offset + 3] === 0x67;
+  const info =
+    bytes[offset] === 0x49 &&
+    bytes[offset + 1] === 0x6e &&
+    bytes[offset + 2] === 0x66 &&
+    bytes[offset + 3] === 0x6f;
+  return xing || info;
+}
+
+function lameGaplessInFrame(bytes: Uint8Array, searchStart: number, searchEnd: number) {
+  let delaySamples = 0;
+  let paddingSamples = 0;
+  for (let j = searchStart; j + 36 <= searchEnd; j++) {
+    if (bytes[j] === 0x4c && bytes[j + 1] === 0x41 && bytes[j + 2] === 0x4d && bytes[j + 3] === 0x45) {
+      delaySamples = ((bytes[j + 27] & 0xff) << 4) | ((bytes[j + 28] & 0xf0) >> 4);
+      paddingSamples = ((bytes[j + 28] & 0x0f) << 8) | (bytes[j + 29] & 0xff);
+      break;
+    }
+  }
+  return { delaySamples, paddingSamples };
+}
+
+type XingMeta = {
+  frameCount: number;
+  delaySamples: number;
+  paddingSamples: number;
+};
+
+function parseXingMeta(
+  bytes: Uint8Array,
+  frameOffset: number,
+  frameLength: number,
+  header: FrameHeader,
+): XingMeta | null {
+  const xingStart = frameOffset + 4 + sideInfoSize(header);
+  const frameEnd = frameOffset + frameLength;
+  if (xingStart + 12 > bytes.length || xingStart + 12 > frameEnd) return null;
+  if (!isXingOrInfoTag(bytes, xingStart)) return null;
+  const flags = readU32BE(bytes, xingStart + 4);
+  if ((flags & 0x01) === 0) return null;
+  const frameCount = readU32BE(bytes, xingStart + 8);
+  let pos = xingStart + 12;
+  if (flags & 0x02) pos += 4;
+  if (flags & 0x04) pos += 100;
+  if (flags & 0x08) pos += 4;
+  const { delaySamples, paddingSamples } = lameGaplessInFrame(bytes, pos, Math.min(frameEnd, bytes.length));
+  return { frameCount, delaySamples, paddingSamples };
+}
+
+function mp3InfoFromXing(meta: XingMeta, header: FrameHeader): Mp3Info {
+  const samples = Math.max(
+    0,
+    meta.frameCount * header.samplesPerFrame - meta.delaySamples - meta.paddingSamples,
+  );
+  return {
+    durationSeconds: samples / header.sampleRate,
+    sampleRate: header.sampleRate,
+    channels: header.channels,
+  };
+}
+
 function locateFirstFrame(bytes: Uint8Array, fileSize: number) {
   let offset = skipId3v2(bytes, fileSize);
   const searchEnd = Math.min(fileSize, bytes.length);
@@ -91,9 +189,6 @@ function locateFirstFrame(bytes: Uint8Array, fileSize: number) {
     if (frameSyncAt(bytes, offset)) {
       const header = parseFrameHeader(bytes, offset);
       if (offset + header.frameLength > fileSize) {
-        throw new AudioError('MP3 文件不完整');
-      }
-      if (offset + header.frameLength > bytes.length) {
         throw new AudioError('MP3 文件不完整');
       }
       return { offset, header };
@@ -135,9 +230,14 @@ function durationFromFrames(bytes: Uint8Array, fileSize: number, offset: number)
   if (cursor < audioEnd) {
     throw new AudioError('MP3 文件不完整或包含无效数据');
   }
-  const encoderDelaySamples = versionBits === 3 ? 529 : 576;
-  const playableSamples = Math.max(0, totalSamples - encoderDelaySamples);
-  return { durationSeconds: playableSamples / sampleRate, sampleRate, channels };
+  return { durationSeconds: totalSamples / sampleRate, sampleRate, channels, frameCount: frames };
+}
+
+function finalizeMp3Info(result: Mp3Info): Mp3Info {
+  if (!Number.isFinite(result.durationSeconds) || result.durationSeconds <= 0) {
+    throw new AudioError('无法从 MP3 文件读取时长');
+  }
+  return result;
 }
 
 /**
@@ -149,10 +249,95 @@ export function parseMp3(bytes: Uint8Array, fileSize = bytes.byteLength): Mp3Inf
   if (bytes.byteLength < fileSize) {
     throw new AudioError('MP3 文件不完整');
   }
-  const { offset } = locateFirstFrame(bytes, fileSize);
-  const result = durationFromFrames(bytes, fileSize, offset);
-  if (!Number.isFinite(result.durationSeconds) || result.durationSeconds <= 0) {
-    throw new AudioError('无法从 MP3 文件读取时长');
+  const { offset, header } = locateFirstFrame(bytes, fileSize);
+  const xingMeta = parseXingMeta(bytes, offset, header.frameLength, header);
+  const scanned = durationFromFrames(bytes, fileSize, offset);
+  if (xingMeta && scanned.frameCount >= xingMeta.frameCount) {
+    return finalizeMp3Info(mp3InfoFromXing(xingMeta, header));
   }
-  return result;
+  const { frameCount: _frames, ...info } = scanned;
+  return finalizeMp3Info(info);
+}
+
+async function readId3AudioStart(fileSize: number, read: Mp3ReadChunk) {
+  const head = await read(0, Math.min(10, fileSize));
+  return mp3AudioStartOffset(head, fileSize);
+}
+
+async function readHasId3v1Trailer(fileSize: number, read: Mp3ReadChunk) {
+  if (fileSize < ID3V1_TRAILER_BYTES) return false;
+  const tail = await read(fileSize - ID3V1_TRAILER_BYTES, ID3V1_TRAILER_BYTES);
+  return hasId3v1TrailerAt(tail, 0);
+}
+
+async function locateFirstFrameStreaming(fileSize: number, read: Mp3ReadChunk) {
+  const audioStart = await readId3AudioStart(fileSize, read);
+  const probeLength = Math.min(MP3_PROBE_BYTES, fileSize - audioStart);
+  if (probeLength < 4) throw new AudioError('音频必须是有效的 MP3 文件');
+  const probe = await read(audioStart, probeLength);
+  const { offset: relative, header } = locateFirstFrame(probe, fileSize);
+  const frameOffset = audioStart + relative;
+  let frameBytes = probe;
+  let frameLocalOffset = relative;
+  if (relative + header.frameLength > probe.length) {
+    frameBytes = await read(frameOffset, header.frameLength);
+    frameLocalOffset = 0;
+  }
+  const xingMeta = parseXingMeta(frameBytes, frameLocalOffset, header.frameLength, header);
+  return { frameOffset, header, xingMeta };
+}
+
+async function scanMp3FramesStreaming(
+  fileSize: number,
+  read: Mp3ReadChunk,
+  startOffset: number,
+  firstHeader: FrameHeader,
+) {
+  const audioEnd = (await readHasId3v1Trailer(fileSize, read)) ? fileSize - ID3V1_TRAILER_BYTES : fileSize;
+  let totalSamples = 0;
+  const sampleRate = firstHeader.sampleRate;
+  const versionBits = firstHeader.versionBits;
+  let cursor = startOffset;
+  let frames = 0;
+  while (cursor + 4 <= audioEnd) {
+    const headerBytes = await read(cursor, 4);
+    if (!frameSyncAt(headerBytes, 0)) {
+      throw new AudioError('MP3 文件不完整或包含无效数据');
+    }
+    const header = parseFrameHeader(headerBytes, 0);
+    if (cursor + header.frameLength > audioEnd) {
+      throw new AudioError('MP3 文件不完整');
+    }
+    if (frames > 0 && (header.sampleRate !== sampleRate || header.versionBits !== versionBits)) {
+      throw new AudioError('MP3 文件不完整或包含无效数据');
+    }
+    totalSamples += header.samplesPerFrame;
+    cursor += header.frameLength;
+    frames++;
+  }
+  if (frames === 0) throw new AudioError('无法从 MP3 文件读取时长');
+  if (cursor < audioEnd) {
+    throw new AudioError('MP3 文件不完整或包含无效数据');
+  }
+  return {
+    durationSeconds: totalSamples / sampleRate,
+    sampleRate,
+    channels: firstHeader.channels,
+    frameCount: frames,
+  };
+}
+
+/**
+ * Derives MP3 duration by streaming frame headers from R2 (or any ranged reader). Only one small
+ * chunk is held in memory at a time; Xing/Info gapless metadata is preferred when present.
+ */
+export async function measureMp3Duration(fileSize: number, read: Mp3ReadChunk): Promise<Mp3Info> {
+  if (fileSize < 4) throw new AudioError('音频必须是有效的 MP3 文件');
+  const { frameOffset, header, xingMeta } = await locateFirstFrameStreaming(fileSize, read);
+  const scanned = await scanMp3FramesStreaming(fileSize, read, frameOffset, header);
+  if (xingMeta && scanned.frameCount >= xingMeta.frameCount) {
+    return finalizeMp3Info(mp3InfoFromXing(xingMeta, header));
+  }
+  const { frameCount: _frames, ...info } = scanned;
+  return finalizeMp3Info(info);
 }

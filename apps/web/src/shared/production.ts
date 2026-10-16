@@ -4,6 +4,8 @@ import { categoryIdSchema } from './category';
 
 const productionAudioHeaderScanBytes = 64 * 1024;
 export const productionAudioMaxDurationSeconds = 3600;
+/** Small slack so frame-scanned MP3 duration near the cap is not rejected vs ffprobe/Xing rounding. */
+export const productionAudioDurationCapSlackSeconds = 0.25;
 export const productionAudioMaxBytes =
   productionAudioMaxDurationSeconds * AUDIO_SAMPLE_RATE * 2 + productionAudioHeaderScanBytes;
 /** Allows up to 320 kbps mono for the full duration cap; avoids rejecting valid 128 kbps hour-long files. */

@@ -63,6 +63,39 @@ describe.runIf(ffmpeg)('parseMp3 VBR regressions', () => {
     }
   });
 
+  it('reads LAME gapless metadata from libmp3lame output', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'his-mp3-'));
+    const file = join(dir, 'lame.mp3');
+    try {
+      execFileSync(
+        'ffmpeg',
+        [
+          '-y',
+          '-f',
+          'lavfi',
+          '-i',
+          'sine=frequency=440:duration=0.2',
+          '-ac',
+          '1',
+          '-ar',
+          '44100',
+          '-c:a',
+          'libmp3lame',
+          '-q:a',
+          '2',
+          file,
+        ],
+        { stdio: 'ignore' },
+      );
+      const expected = probeDuration(file);
+      const parsed = parseMp3(new Uint8Array(readFileSync(file)));
+      expect(parsed.durationSeconds).toBeGreaterThan(expected * 0.97);
+      expect(parsed.durationSeconds).toBeLessThan(expected * 1.03);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it('matches ffprobe on a short variable-bitrate clip', () => {
     const dir = mkdtempSync(join(tmpdir(), 'his-mp3-'));
     const file = join(dir, 'short.mp3');

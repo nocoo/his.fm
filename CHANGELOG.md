@@ -6,7 +6,7 @@ All notable changes to his.fm are documented here. The format follows [Keep a Ch
 
 ### Added
 
-- Accept `audio/mpeg` for production narration `PUT` uploads and `POST …/assets/audio/bind`, with MP3 magic/frame validation, duration from MPEG frame scan or CBR size estimate when only a header prefix is available, immutable `productions/{id}/audio-<scriptVersion>-<uuid>.mp3` keys, and capabilities/OpenAPI/docs updates. Bumpers and generic storage uploads remain WAV-focused where unchanged.
+- Accept `audio/mpeg` for production narration `PUT` uploads and `POST …/assets/audio/bind`, with MP3 magic/frame validation, duration from Xing/Info gapless metadata (including LAME delay/padding when present) or a streaming MPEG-1/2/2.5 Layer III frame scan, immutable `productions/{id}/audio-<scriptVersion>-<uuid>.mp3` keys, and capabilities/OpenAPI/docs updates. Bumpers and generic storage uploads remain WAV-focused where unchanged.
 
 ## 2.4.1 - 2026-10-16
 
