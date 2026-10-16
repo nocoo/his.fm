@@ -68,6 +68,10 @@ an agent audit identity, never a fabricated human identity. A `409` requires a
 fresh read and reassessment, not a blind retry.
 
 Cover/audio assets use validated byte-upload endpoints and immutable R2 keys.
+Small WAV files use `PUT /productions/:id/assets/audio?version=N`. Larger files
+upload to the `his-fm` bucket with `cf r2 objects put` from `apps/web`
+(`--bucket-name his-fm --mode production`), then attach with
+`POST /productions/:id/assets/audio/bind` and `{version,key}`.
 Keep covers clean and unframed. Publishing means recording an actual external
 publication URL and updating the site snapshot; his.fm does not publish to
 WeChat or Xiaoyuzhou for you. Correction/withdrawal uses explicit publication

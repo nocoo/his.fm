@@ -4,11 +4,12 @@ import {
   briefSchema,
   type Production,
   productionActionSchema,
+  productionAudioBindSchema,
   productionPatchSchema,
   publicationSchema,
 } from '../src/shared/production';
 import { operationFence, operationReceipt } from './agent-runtime-operation';
-import { storeNativeWav } from './audio';
+import { adoptProductionAudioUpload, storeNativeWav } from './audio';
 import { requireScope } from './authorization';
 import { categoryFence, getCategory } from './categories';
 import { getChannel } from './channel';
@@ -84,6 +85,47 @@ function requireIdleAudio(production: Production) {
     throw new HttpError(409, '请等待正在制作的音频完成后再修改素材');
 }
 
+function audioHttpError(error: AudioError) {
+  if (error.message.includes('不存在')) return new HttpError(404, error.message);
+  if (error.message.includes('已存在')) return new HttpError(409, error.message);
+  if (error.message.includes('不匹配')) return new HttpError(409, error.message);
+  return new HttpError(400, error.message);
+}
+
+async function attachProductionAudio(
+  env: Env,
+  id: string,
+  actor: Actor,
+  expectedVersion: number,
+  key: string,
+  stored: { size: number; durationSeconds: number },
+) {
+  return updateProduction(
+    env.DB,
+    id,
+    actor,
+    'upload_audio',
+    (production) => ({
+      ...editAssets(production, actor),
+      audioJob: null,
+      assets: {
+        ...production.assets,
+        audio: {
+          key,
+          url: mediaUrl(env, key),
+          mimeType: 'audio/wav',
+          size: stored.size,
+          scriptVersion: production.scriptVersion,
+          createdAt: new Date().toISOString(),
+          durationSeconds: stored.durationSeconds,
+          source: 'upload',
+        },
+      },
+    }),
+    { expectedVersion },
+  );
+}
+
 async function uploadAudio(request: Request, env: Env, id: string, actor: Actor) {
   requireScope(actor, 'productions:write');
   requireScope(actor, 'storage:write');
@@ -106,32 +148,36 @@ async function uploadAudio(request: Request, env: Env, id: string, actor: Actor)
     throw error;
   }
   try {
-    return await updateProduction(
-      env.DB,
-      id,
-      actor,
-      'upload_audio',
-      (production) => ({
-        ...editAssets(production, actor),
-        audioJob: null,
-        assets: {
-          ...production.assets,
-          audio: {
-            key,
-            url: mediaUrl(env, key),
-            mimeType: 'audio/wav',
-            size: stored.size,
-            scriptVersion: production.scriptVersion,
-            createdAt: new Date().toISOString(),
-            durationSeconds: stored.durationSeconds,
-            source: 'upload',
-          },
-        },
-      }),
-      { expectedVersion },
-    );
+    return await attachProductionAudio(env, id, actor, expectedVersion, key, stored);
   } catch (error) {
     await env.MEDIA.delete(key);
+    throw error;
+  }
+}
+
+async function bindAudio(request: Request, env: Env, id: string, actor: Actor) {
+  requireScope(actor, 'productions:write');
+  requireScope(actor, 'storage:write');
+  const input = await readJson(request, productionAudioBindSchema);
+  const expectedVersion = input.version;
+  const current = await getProduction(env.DB, id);
+  if (current.version !== expectedVersion) throw new HttpError(409, '内容已更新，请刷新后重试');
+  requireStage(current, 'production', 'final_review', 'ready');
+  editAssets(current, actor);
+  requireIdleAudio(current);
+  if (!current.approvals.brief || !current.approvals.script || !current.transcript.trim())
+    throw new HttpError(409, '请先确认当前逐字稿');
+  let adopted: Awaited<ReturnType<typeof adoptProductionAudioUpload>>;
+  try {
+    adopted = await adoptProductionAudioUpload(env.MEDIA, id, current.scriptVersion, input.key);
+  } catch (error) {
+    if (error instanceof AudioError) throw audioHttpError(error);
+    throw error;
+  }
+  try {
+    return await attachProductionAudio(env, id, actor, expectedVersion, adopted.key, adopted.stored);
+  } catch (error) {
+    if (input.key.startsWith('uploads/')) await env.MEDIA.delete(adopted.key);
     throw error;
   }
 }
@@ -350,13 +396,15 @@ export async function routeProductions(
     throw new HttpError(405, '不支持这个请求方式');
   }
   const match = path.match(
-    /^\/productions\/([^/]+)(?:\/(actions|prompts|assets\/(?:cover|audio)|publications(?:\/(?:site|wechat|xiaoyuzhou))?))?$/,
+    /^\/productions\/([^/]+)(?:\/(actions|prompts|assets\/(?:cover|audio(?:\/bind)?)|publications(?:\/(?:site|wechat|xiaoyuzhou))?))?$/,
   );
   if (!match) return null;
   const id = match[1];
   const operation = match[2];
   if (operation === 'assets/cover' && request.method === 'PUT')
     return respond(await uploadCover(request, env, id, actor));
+  if (operation === 'assets/audio/bind' && request.method === 'POST')
+    return respond(await bindAudio(request, env, id, actor));
   if (operation === 'assets/audio' && request.method === 'PUT')
     return respond(await uploadAudio(request, env, id, actor));
   if (operation?.startsWith('assets/') && request.method === 'DELETE')
