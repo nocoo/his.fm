@@ -43,6 +43,7 @@ test('editor can create, edit, publish, delete and log out', async ({ page, brow
     await page.screenshot({ path: '.local/admin-desktop.png', fullPage: true, animations: 'disabled' });
     await page.goto('/admin/productions/new');
     await page.getByRole('link', { name: '直接录入成品', exact: true }).click();
+    await expect(page.locator('#episode-form')).toBeVisible();
     await page.getByLabel('节目标题', { exact: true }).fill(title);
     await page.getByLabel('摘要', { exact: true }).fill('端到端验收使用的临时节目，测试结束会自动清理。');
     await page

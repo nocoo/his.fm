@@ -1,5 +1,9 @@
 # Retrospective
 
+## 2026-10-16 - Wait for the destination form during lazy navigation
+
+The full browser run timed out waiting for episode creation because the title was empty. The trace showed the title fill targeted `#production-title` on the previous brief page after the URL had changed, before the lazy episode editor mounted. Wait for the destination `#episode-form` before filling labels shared by both screens. URL changes and completed clicks do not prove a React transition has replaced its previous view; keep the original timeout and verify the entire workflow instead of retrying around the race.
+
 ## 2026-10-16 - Validate remote lifecycle before retiring a Worker export
 
 Local build and deploy dry-run passed after removing `AgentHub`, but neither proved that Cloudflare would accept the existing provisioned namespace without an export entry. Read-only production inspection and current platform documentation exposed the missing deletion tombstone before migration or deployment. Obtain explicit deletion authorization, declare the tombstone only for production, and capture a D1 recovery bookmark before cutover. D1 backups cannot restore Durable Object state, and a previous Worker cannot be safely rolled back across a lifecycle deletion or the retired SQL tables.
