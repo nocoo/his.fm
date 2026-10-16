@@ -420,7 +420,7 @@ describe('editor CRUD', () => {
 describe('local login boundaries', () => {
   it('uses revocable hashed sessions and secure cookies', async () => {
     expect(await (await call('/admin/api/session')).json()).toEqual({
-      user: { email: 'editor@his.fm' },
+      user: { email: 'editor@his.fm', name: null, avatar: null },
       mode: 'local',
     });
     const rawToken = cookie.split('=')[1];
@@ -480,7 +480,10 @@ describe('Cloudflare Access verification', () => {
     const production = { ...env, ENVIRONMENT: 'production' };
     const headers = { 'Cf-Access-Jwt-Assertion': await token() };
     const session = await call('/admin/api/session', { headers }, production);
-    expect(await session.json()).toEqual({ user: { email: 'editor@example.com' }, mode: 'access' });
+    expect(await session.json()).toEqual({
+      user: { email: 'editor@example.com', name: null, avatar: null },
+      mode: 'access',
+    });
     expect(await (await call('/admin/api/logout', { method: 'POST', headers }, production)).json()).toEqual({
       redirect: '/cdn-cgi/access/logout',
     });

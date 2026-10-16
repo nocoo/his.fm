@@ -1,7 +1,10 @@
 import type { Episode, EpisodeInput } from '../shared/episode';
 import { getEnvironment } from './environment';
 
-export type Session = { user: { email: string }; mode: 'local' | 'access' };
+export type Session = {
+  user: { email: string; name: string | null; avatar: string | null };
+  mode: 'local' | 'access';
+};
 
 export class ApiError extends Error {
   constructor(
