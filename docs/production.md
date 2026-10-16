@@ -28,7 +28,7 @@ The assets section organizes a clean cover, full recording, short summary and pu
 
 Cover originals must have no text, logos, borders or overlays. Only the finished-cover download composes the independent Open Interval frame into a 1600x1600 PNG; it never replaces the stored original. See [appearance](appearance.md).
 
-Recording uploads accept 24 kHz mono PCM16 WAV, up to 30 minutes. There is no in-site TTS, mixing, paid generation, task queue or voice comparison. Bumpers remain an independent downloadable/uploadable library for external composition. See [audio](audio.md).
+Recording uploads accept 24 kHz mono PCM16 WAV or MP3 (`audio/mpeg`), up to one hour. There is no in-site TTS, mixing, paid generation, task queue or voice comparison. Bumpers remain an independent downloadable/uploadable library for external composition. See [audio](audio.md).
 
 ## Publication
 

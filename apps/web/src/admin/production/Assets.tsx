@@ -3,7 +3,11 @@ import { FileDropzone } from '@nocoo/basalt/components/file-dropzone';
 import { InputArea } from '@nocoo/basalt/components/input-area';
 import { useEffect, useState } from 'react';
 import { AudioPlayer } from '../../components/AudioPlayer';
-import { type Production, productionAudioMaxBytes } from '../../shared/production';
+import {
+  type Production,
+  productionAudioMaxBytes,
+  productionAudioMp3MaxBytes,
+} from '../../shared/production';
 import { DraftConflicts } from '../draft/DraftConflicts';
 import { useDraft } from '../draft/useDraft';
 import { MarkdownEditor } from '../markdown/MarkdownEditor';
@@ -97,13 +101,13 @@ export function Assets({
           <AudioPreview production={production} />
           <FileDropzone
             label={production.assets.audio ? '替换节目音频' : '上传节目音频'}
-            description="WAV / 24 kHz / 单声道 / 16-bit PCM，最长 30 分钟、最大 86,465,536 字节。服务器检查格式并读取真实时长。"
-            accept="audio/wav,.wav"
+            description="WAV（24 kHz / 单声道 / 16-bit PCM，最大 172,865,536 字节）或 MP3（audio/mpeg，推荐 96–128 kbps 单声道，最大 144,065,536 字节），最长 3600 秒。服务器检查格式并读取真实时长。"
+            accept="audio/wav,.wav,audio/mpeg,.mp3"
             multiple={false}
-            maxSize={productionAudioMaxBytes}
+            maxSize={Math.max(productionAudioMaxBytes, productionAudioMp3MaxBytes)}
             disabled={pending}
-            browseLabel="选择 WAV 音频"
-            formatRejection={() => '请选择大小不超过 86,465,536 字节的 WAV 文件。'}
+            browseLabel="选择 WAV 或 MP3 音频"
+            formatRejection={() => '请选择符合大小与格式要求的 WAV 或 MP3 文件。'}
             onFilesAccepted={([file]) => {
               setAudio(file);
               setError('');

@@ -34,12 +34,15 @@ export const productionService = {
       body: file,
       headers: { 'Content-Type': file.type },
     }),
-  audio: (id: string, version: number, file: File) =>
-    request<Result>(`${path(id)}/assets/audio?version=${version}`, {
+  audio: (id: string, version: number, file: File) => {
+    const type =
+      file.type === 'audio/mpeg' || file.name.toLowerCase().endsWith('.mp3') ? 'audio/mpeg' : 'audio/wav';
+    return request<Result>(`${path(id)}/assets/audio?version=${version}`, {
       method: 'PUT',
       body: file,
-      headers: { 'Content-Type': 'audio/wav' },
-    }),
+      headers: { 'Content-Type': type },
+    });
+  },
   detach: (id: string, version: number, asset: 'audio' | 'cover') =>
     request<Result>(`${path(id)}/assets/${asset}?version=${version}`, { method: 'DELETE' }),
   publish: (

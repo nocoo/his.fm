@@ -6,6 +6,11 @@ const productionAudioHeaderScanBytes = 64 * 1024;
 export const productionAudioMaxDurationSeconds = 3600;
 export const productionAudioMaxBytes =
   productionAudioMaxDurationSeconds * AUDIO_SAMPLE_RATE * 2 + productionAudioHeaderScanBytes;
+/** Allows up to 320 kbps mono for the full duration cap; avoids rejecting valid 128 kbps hour-long files. */
+export const productionAudioMp3MaxBytes =
+  Math.ceil((productionAudioMaxDurationSeconds * 320_000) / 8) + productionAudioHeaderScanBytes;
+const productionAudioBindKey =
+  /^(?:uploads\/[0-9a-f-]{36}\.(?:wav|mp3)|productions\/[^/]+\/audio-\d+-[0-9a-f-]{36}\.(?:wav|mp3))$/;
 
 export const productionStages = [
   'draft',
@@ -158,12 +163,7 @@ export const publicationSchema = z.union([
 ]);
 export const productionAudioBindSchema = z.strictObject({
   version: z.number().int().min(1),
-  key: z
-    .string()
-    .trim()
-    .min(1)
-    .max(320)
-    .regex(/^(?:uploads\/[0-9a-f-]{36}\.wav|productions\/[^/]+\/audio-\d+-[0-9a-f-]{36}\.wav)$/),
+  key: z.string().trim().min(1).max(320).regex(productionAudioBindKey),
 });
 export type ProductionAudioBind = z.infer<typeof productionAudioBindSchema>;
 export type Bumper = { key: string; url: string; durationSeconds: number; size: number };

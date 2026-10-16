@@ -809,9 +809,10 @@ describe('agent discovery and real bearer routing', () => {
     const capabilities = serviceCapabilitiesSchema.parse(await (await agentCall('/capabilities')).json());
     expect(capabilities.audio).toEqual({
       execution: 'external',
-      uploadMimeTypes: ['audio/wav'],
+      uploadMimeTypes: ['audio/wav', 'audio/mpeg'],
       maximumSeconds: 3600,
       maximumBytes: 172865536,
+      maximumMp3Bytes: 144065536,
     });
     expect((await agentCall('/me', { method: 'POST' })).status).toBe(405);
     expect((await agentCall('/me', { method: 'POST' })).headers.get('Allow')).toBe('GET');
