@@ -157,29 +157,24 @@ function gaplessFromEncoderTag(bytes: Uint8Array, tagStart: number) {
   return { delaySamples, paddingSamples };
 }
 
-type EncoderTagKind = 'lame' | 'lavc' | 'lavf';
-
 function encoderGaplessInFrame(bytes: Uint8Array, searchStart: number, searchEnd: number) {
-  let encoderTag: EncoderTagKind | null = null;
   let delaySamples = 0;
   let paddingSamples = 0;
   for (let j = searchStart; j + 24 <= searchEnd; j++) {
     const kind = encoderTagKind(bytes, j);
     if (!kind) continue;
-    encoderTag = kind;
     const gapless = gaplessFromEncoderTag(bytes, j);
     delaySamples = gapless.delaySamples;
     paddingSamples = gapless.paddingSamples;
     break;
   }
-  return { encoderTag, delaySamples, paddingSamples };
+  return { delaySamples, paddingSamples };
 }
 
 type XingMeta = {
   frameCount: number;
   delaySamples: number;
   paddingSamples: number;
-  encoderTag: EncoderTagKind | null;
 };
 
 function parseXingMeta(
@@ -199,12 +194,12 @@ function parseXingMeta(
   if (flags & 0x02) pos += 4;
   if (flags & 0x04) pos += 100;
   if (flags & 0x08) pos += 4;
-  const { encoderTag, delaySamples, paddingSamples } = encoderGaplessInFrame(
+  const { delaySamples, paddingSamples } = encoderGaplessInFrame(
     bytes,
     pos,
     Math.min(frameEnd, bytes.length),
   );
-  return { frameCount, delaySamples, paddingSamples, encoderTag };
+  return { frameCount, delaySamples, paddingSamples };
 }
 
 function mp3InfoFromXing(meta: XingMeta, header: FrameHeader): Mp3Info {
@@ -219,16 +214,15 @@ function mp3InfoFromXing(meta: XingMeta, header: FrameHeader): Mp3Info {
   };
 }
 
-/** LAME gapless is always applied; Lavc/Lavf use the same +21..23 layout when it matches the frame scan. */
-function xingDurationForScan(meta: XingMeta, header: FrameHeader, scannedDurationSeconds: number): Mp3Info {
+/** LAME/Lavc/Lavf share tag+21..23; apply trim when present and it leaves a positive sample count. */
+function xingDurationForScan(meta: XingMeta, header: FrameHeader): Mp3Info {
   const raw = mp3InfoFromXing({ ...meta, delaySamples: 0, paddingSamples: 0 }, header);
   if (meta.delaySamples === 0 && meta.paddingSamples === 0) return raw;
+  const totalSamples = meta.frameCount * header.samplesPerFrame;
+  if (meta.delaySamples + meta.paddingSamples > totalSamples) return raw;
   const gapless = mp3InfoFromXing(meta, header);
   if (gapless.durationSeconds <= 0) return gapless;
-  if (meta.encoderTag === 'lame') return gapless;
-  const rawDiff = Math.abs(raw.durationSeconds - scannedDurationSeconds);
-  const gaplessDiff = Math.abs(gapless.durationSeconds - scannedDurationSeconds);
-  return gaplessDiff <= rawDiff ? gapless : raw;
+  return gapless;
 }
 
 function locateFirstFrame(bytes: Uint8Array, fileSize: number) {
@@ -303,11 +297,11 @@ function resolveMp3Duration(
     throw new AudioError('MP3 文件不完整');
   }
   if (scanned.frameCount === xingMeta.frameCount) {
-    return xingDurationForScan(xingMeta, header, scanned.durationSeconds);
+    return xingDurationForScan(xingMeta, header);
   }
   const paddingFrames = scanned.frameCount - xingMeta.frameCount;
   if (paddingFrames <= XING_MAX_TRAILING_PADDING_FRAMES) {
-    return xingDurationForScan(xingMeta, header, scanned.durationSeconds);
+    return xingDurationForScan(xingMeta, header);
   }
   return scannedInfo;
 }
@@ -325,6 +319,19 @@ export function parseMp3(bytes: Uint8Array, fileSize = bytes.byteLength): Mp3Inf
   const xingMeta = parseXingMeta(bytes, offset, header.frameLength, header);
   const scanned = durationFromFrames(bytes, fileSize, offset);
   return finalizeMp3Info(resolveMp3Duration(header, xingMeta, scanned));
+}
+
+/** Xing/Info catalog seconds with encoder gapless trim when valid; null when no frame-count tag. */
+export function mp3XingCatalogDuration(bytes: Uint8Array, fileSize = bytes.byteLength): number | null {
+  if (fileSize < 4 || bytes.byteLength < fileSize) return null;
+  try {
+    const { offset, header } = locateFirstFrame(bytes, fileSize);
+    const xingMeta = parseXingMeta(bytes, offset, header.frameLength, header);
+    if (!xingMeta || xingMeta.frameCount === 0) return null;
+    return xingDurationForScan(xingMeta, header).durationSeconds;
+  } catch {
+    return null;
+  }
 }
 
 class Mp3ChunkReader {

@@ -3,7 +3,7 @@ import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { mp3AudioStartOffset, parseMp3 } from './mp3.ts';
+import { mp3AudioStartOffset, mp3XingCatalogDuration, parseMp3 } from './mp3.ts';
 
 function hasFfmpeg() {
   try {
@@ -37,6 +37,9 @@ function renderVbrMp3(durationSeconds: number, output: string, sampleRate = 4410
 }
 
 function probeDuration(path: string) {
+  const bytes = new Uint8Array(readFileSync(path));
+  const catalog = mp3XingCatalogDuration(bytes);
+  if (catalog !== null) return catalog;
   const out = execFileSync(
     'ffprobe',
     ['-v', 'error', '-show_entries', 'format=duration', '-of', 'default=noprint_wrappers=1:nokey=1', path],
