@@ -11,7 +11,7 @@ import { useCategories } from '../categories/useCategories';
 import { errorMessage } from '../model';
 import { adminService } from '../service';
 import { Choice, Confirm, Failure } from './controls';
-import { dateLabel, filterLibrary, type LibraryEntry, programLibrary } from './model';
+import { canDeleteLibraryEntry, dateLabel, filterLibrary, type LibraryEntry, programLibrary } from './model';
 import { productionService } from './service';
 
 const statusLabels = { draft: '草稿', ready: '待发布', published: '已发布' } as const;
@@ -79,8 +79,7 @@ export function ProductionList() {
   const visible = filterLibrary(rows, query, status, category);
   const categoryName = (row: LibraryEntry) =>
     categories.categories.find((item) => item.id === row.category)?.name ?? row.category;
-  const canDelete = (row: LibraryEntry) =>
-    !row.snapshot && !row.episode?.sourceProductionId && !row.production?.publications.length;
+  const canDelete = (row: LibraryEntry) => canDeleteLibraryEntry(row);
   const columns: DataTableColumn<LibraryEntry>[] = [
     {
       id: 'episode',

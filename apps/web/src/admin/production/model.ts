@@ -149,6 +149,18 @@ export function programLibrary(productions: Production[], episodes: Episode[]): 
       ),
   ].sort((a, b) => b.episodeNumber - a.episodeNumber || Date.parse(b.updatedAt) - Date.parse(a.updatedAt));
 }
+export function canDeleteProduction(production: Production, linkedSnapshot?: Episode | null): boolean {
+  return production.publications.length === 0 && !linkedSnapshot;
+}
+
+export function canDeleteStandaloneEpisode(episode: Episode): boolean {
+  return !episode.sourceProductionId;
+}
+
+export function canDeleteLibraryEntry(row: LibraryEntry): boolean {
+  return !row.snapshot && !row.episode?.sourceProductionId && !row.production?.publications.length;
+}
+
 export function filterLibrary(rows: LibraryEntry[], query: string, status: string, category: string) {
   const search = query.trim().toLocaleLowerCase();
   return rows.filter(
