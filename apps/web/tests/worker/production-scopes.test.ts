@@ -679,7 +679,7 @@ describe('manual assets and safe detach', () => {
 });
 
 it('bounds uploaded WAV streams and removes only newly stored invalid audio', async () => {
-  for (const size of ['0', '43', 'invalid', '86465537', '44.5']) {
+  for (const size of ['0', '43', 'invalid', '172865537', '44.5']) {
     const request = new Request(origin, { method: 'PUT', headers: { 'Content-Length': size }, body: wav });
     await expect(storeUploadedWav(request, env.MEDIA, `invalid-${size}.wav`, 1800)).rejects.toThrow('大小');
   }

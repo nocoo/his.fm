@@ -810,8 +810,8 @@ describe('agent discovery and real bearer routing', () => {
     expect(capabilities.audio).toEqual({
       execution: 'external',
       uploadMimeTypes: ['audio/wav'],
-      maximumSeconds: 1800,
-      maximumBytes: 86465536,
+      maximumSeconds: 3600,
+      maximumBytes: 172865536,
     });
     expect((await agentCall('/me', { method: 'POST' })).status).toBe(405);
     expect((await agentCall('/me', { method: 'POST' })).headers.get('Allow')).toBe('GET');

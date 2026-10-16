@@ -556,7 +556,7 @@ export function agentOpenApi(origin: string) {
         put: {
           ...operation(
             'uploadProductionAudio',
-            'Attach complete mono 24 kHz PCM16 WAV after script approval, at most 1800 seconds and 86465536 bytes. Content-Length is required; duration is derived from validated bytes. Final-approved assets require productions:reopen.',
+            'Attach complete mono 24 kHz PCM16 WAV after script approval, at most 3600 seconds and 172865536 bytes. Content-Length is required; duration is derived from validated bytes. Final-approved assets require productions:reopen.',
             wrappedProduction,
             ['productions:write', 'storage:write'],
           ),
@@ -574,7 +574,7 @@ export function agentOpenApi(origin: string) {
         post: {
           ...operation(
             'bindProductionAudio',
-            'Attach a mono 24 kHz PCM16 WAV already stored in the his-fm R2 bucket. Requires current script approval, at most 1800 seconds and 86465536 bytes; reviewed assets require productions:reopen. Upload out-of-band only with separate infrastructure authorization, then bind by key. Staging sources are retained. Keys must be uploads/<uuid>.wav or productions/{id}/audio-<scriptVersion>-<uuid>.wav for this production.',
+            'Attach a mono 24 kHz PCM16 WAV already stored in the his-fm R2 bucket. Requires current script approval, at most 3600 seconds and 172865536 bytes; reviewed assets require productions:reopen. Upload out-of-band only with separate infrastructure authorization, then bind by key. Staging sources are retained. Keys must be uploads/<uuid>.wav or productions/{id}/audio-<scriptVersion>-<uuid>.wav for this production.',
             wrappedProduction,
             ['productions:write', 'storage:write'],
           ),

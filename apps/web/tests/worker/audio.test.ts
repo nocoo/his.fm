@@ -2,6 +2,8 @@ import { Miniflare } from 'miniflare';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import {
   adoptProductionAudioUpload,
+  PRODUCTION_AUDIO_MAX_BYTES,
+  PRODUCTION_AUDIO_MAX_DURATION_SECONDS,
   parseAllowedProductionAudioKey,
   productionAudioObjectKey,
 } from '../../worker/audio';
@@ -118,7 +120,7 @@ describe('production audio bind helpers', () => {
     const cancel = vi.fn();
     const put = vi.fn();
     const oversized = {
-      get: async () => ({ size: 86465537, body: { cancel } }),
+      get: async () => ({ size: PRODUCTION_AUDIO_MAX_BYTES + 1, body: { cancel } }),
       put,
     } as unknown as R2Bucket;
     await expect(
@@ -126,5 +128,11 @@ describe('production audio bind helpers', () => {
     ).rejects.toThrow('大小');
     expect(cancel).toHaveBeenCalledOnce();
     expect(put).not.toHaveBeenCalled();
+  });
+
+  it('uses a one-hour production narration limit', () => {
+    expect(PRODUCTION_AUDIO_MAX_DURATION_SECONDS).toBe(3600);
+    expect(PRODUCTION_AUDIO_MAX_BYTES).toBe(172_865_536);
+    expect(2259.67).toBeLessThanOrEqual(PRODUCTION_AUDIO_MAX_DURATION_SECONDS);
   });
 });

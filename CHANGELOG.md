@@ -2,6 +2,12 @@
 
 All notable changes to his.fm are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions use the owner’s patch-only deployment policy in `AGENTS.md`, with the authoritative version in `package.json`.
 
+## 2.4.1 - 2026-10-16
+
+### Fixed
+
+- Raise production narration limits to one hour (3600 seconds / 172,865,536 bytes) for manual `PUT` uploads, out-of-band R2 bind, brief `targetDurationSeconds`, and final-asset validation so ~38-minute WAV files bind successfully.
+
 ## 2.4.0 - 2026-10-16
 
 The owner explicitly requested this minor release (Y+1). The comparison baseline is the deployed release v2.3.3, merged before release preparation.

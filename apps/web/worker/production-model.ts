@@ -5,6 +5,7 @@ import {
   type Production,
   type ProductionAction,
   type ProductionBrief,
+  productionAudioMaxDurationSeconds,
 } from '../src/shared/production';
 import { requireScope } from './authorization';
 import { HttpError } from './http';
@@ -30,7 +31,7 @@ export function requireFinalAssets(production: Production) {
   if (
     !Number.isFinite(production.assets.audio.durationSeconds) ||
     (production.assets.audio.durationSeconds ?? 0) <= 0 ||
-    (production.assets.audio.durationSeconds ?? 0) > 1800
+    (production.assets.audio.durationSeconds ?? 0) > productionAudioMaxDurationSeconds
   )
     throw new HttpError(409, '请上传有效的成品音频');
 }

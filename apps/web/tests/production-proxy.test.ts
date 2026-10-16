@@ -292,7 +292,7 @@ describe('local production proxy', () => {
   });
 
   it.each([
-    ['/productions/example/assets/audio?version=2', 'PUT', 86465536],
+    ['/productions/example/assets/audio?version=2', 'PUT', 172865536],
     ['/storage', 'POST', 25 * 1024 * 1024],
   ])('bounds larger media uploads for %s only', async (path, method, limit) => {
     expect(
