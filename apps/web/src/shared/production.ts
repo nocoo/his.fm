@@ -177,6 +177,16 @@ export const audioPreviewSchema = productionSettingsSchema
   .strict();
 export type AudioPreviewInput = z.infer<typeof audioPreviewSchema>;
 export type AudioPreview = AudioPreviewInput & { url: string; durationSeconds: number; cached: boolean };
+export const productionAudioBindSchema = z.strictObject({
+  version: z.number().int().min(1),
+  key: z
+    .string()
+    .trim()
+    .min(1)
+    .max(320)
+    .regex(/^(?:uploads\/[0-9a-f-]{36}\.wav|productions\/[^/]+\/audio-\d+-[0-9a-f-]{36}\.wav)$/),
+});
+export type ProductionAudioBind = z.infer<typeof productionAudioBindSchema>;
 export type Bumper = { key: string; url: string; durationSeconds: number; size: number };
 export type ProductionSettings = z.infer<typeof productionSettingsSchema> & {
   version: string;

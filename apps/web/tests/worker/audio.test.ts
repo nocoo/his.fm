@@ -1,6 +1,13 @@
 import { Miniflare } from 'miniflare';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
-import { composeWav, readStoredWav, wavStream } from '../../worker/audio';
+import {
+  adoptProductionAudioUpload,
+  composeWav,
+  parseAllowedProductionAudioKey,
+  productionAudioObjectKey,
+  readStoredWav,
+  wavStream,
+} from '../../worker/audio';
 
 const goldenHeader =
   '524946462c00000057415645666d74201000000001000100c05d000080bb0000020010006461746108000000';
@@ -71,6 +78,38 @@ afterEach(() => {
 });
 afterAll(async () => {
   await miniflare.dispose();
+});
+
+describe('production audio bind helpers', () => {
+  it('accepts staging and attached keys for the same production', () => {
+    const id = 'prod-1';
+    expect(parseAllowedProductionAudioKey(id, 'uploads/00000000-0000-4000-8000-000000000001.wav')).toEqual({
+      kind: 'staging',
+    });
+    expect(
+      parseAllowedProductionAudioKey(
+        id,
+        productionAudioObjectKey(id, 2, '00000000-0000-4000-8000-000000000002'),
+      ),
+    ).toEqual({ kind: 'attached', scriptVersion: 2 });
+    expect(() => parseAllowedProductionAudioKey(id, 'images/test.wav')).toThrow('路径无效');
+    expect(() =>
+      parseAllowedProductionAudioKey(
+        id,
+        productionAudioObjectKey('other', 2, '00000000-0000-4000-8000-000000000002'),
+      ),
+    ).toThrow('路径无效');
+  });
+
+  it('copies staging uploads into immutable production keys', async () => {
+    const id = 'prod-copy';
+    const staging = 'uploads/00000000-0000-4000-8000-000000000003.wav';
+    await bucket.put(staging, fixture());
+    const adopted = await adoptProductionAudioUpload(bucket, id, 1, staging);
+    expect(adopted.key).toMatch(new RegExp(`^productions/${id}/audio-1-`));
+    expect(await bucket.head(staging)).toBeNull();
+    expect(adopted.stored.size).toBe(52);
+  });
 });
 
 describe('R2 streaming composition', () => {

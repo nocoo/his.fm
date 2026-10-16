@@ -162,6 +162,12 @@ export function productionCapabilities(production: Production, actor: Actor, ori
       hasScope(actor, 'productions:write') &&
       hasScope(actor, 'storage:write') &&
       (canReopen || production.stage === 'production'),
+    canUploadAudio:
+      hasScope(actor, 'productions:write') &&
+      hasScope(actor, 'storage:write') &&
+      (canReopen || ['production', 'final_review', 'ready'].includes(production.stage)) &&
+      Boolean(production.approvals.brief && production.approvals.script && production.transcript.trim()) &&
+      !['queued', 'running'].includes(production.audioJob?.status ?? ''),
     canGenerateAudio:
       hasScope(actor, 'audio:generate') &&
       hasScope(actor, 'tasks:manage') &&
@@ -176,6 +182,8 @@ export function productionCapabilities(production: Production, actor: Actor, ori
       prompts: `${base}/prompts`,
       actions: `${base}/actions`,
       cover: `${base}/assets/cover?version=${production.version}`,
+      uploadAudio: `${base}/assets/audio?version=${production.version}`,
+      bindAudio: `${base}/assets/audio/bind`,
       audio: `${base}/audio`,
       review: `${origin}/admin/productions/${encodeURIComponent(production.id)}`,
     },

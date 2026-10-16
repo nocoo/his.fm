@@ -2,6 +2,12 @@
 
 All notable changes to his.fm are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions use the owner’s patch-only deployment policy in `AGENTS.md`, with the authoritative version in `package.json`.
 
+## 2.3.3 - 2026-10-16
+
+### Added
+
+- Agent API `POST /productions/:id/assets/audio/bind` attaches mono 24 kHz PCM16 WAV files already uploaded to the `his-fm` R2 bucket (via the project `cf` CLI), for narration larger than the Worker `PUT` body limit. Staging keys under `uploads/` copy into immutable `productions/{id}/audio-<scriptVersion>-<uuid>.wav` keys; direct production keys bind in place. Duration limit is 3600 seconds.
+
 ## 2.3.2 - 2026-10-15
 
 ### Fixed

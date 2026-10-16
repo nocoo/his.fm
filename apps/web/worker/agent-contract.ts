@@ -25,6 +25,7 @@ import {
   briefSchema,
   type Production,
   productionActionSchema,
+  productionAudioBindSchema,
   productionPatchSchema,
   productionSettingsSchema,
   productionStages,
@@ -135,6 +136,7 @@ export const productionCapabilitiesSchema = z.object({
   blockedActions: z.record(z.string(), z.string()),
   canDelete: z.boolean(),
   canUploadCover: z.boolean(),
+  canUploadAudio: z.boolean(),
   canGenerateAudio: z.boolean(),
   links: z.object({
     self: z.string(),
@@ -142,6 +144,8 @@ export const productionCapabilitiesSchema = z.object({
     prompts: z.string(),
     actions: z.string(),
     cover: z.string(),
+    uploadAudio: z.string(),
+    bindAudio: z.string(),
     audio: z.string(),
     review: z.string(),
   }),
@@ -603,6 +607,18 @@ export function agentOpenApi(origin: string) {
           wrappedProduction,
           ['productions:write', 'storage:write'],
         ),
+      },
+      '/productions/{id}/assets/audio/bind': {
+        parameters: [idParameter],
+        post: {
+          ...operation(
+            'bindProductionAudio',
+            'Attach a mono 24 kHz PCM16 WAV already stored in the his-fm R2 bucket. Upload large files out-of-band with the project cf CLI, then bind by key. Keys must be uploads/<uuid>.wav or productions/{id}/audio-<scriptVersion>-<uuid>.wav for this production.',
+            wrappedProduction,
+            ['productions:write', 'storage:write'],
+          ),
+          requestBody: body(productionAudioBindSchema),
+        },
       },
       '/productions/{id}/audio': {
         parameters: [idParameter],
@@ -1143,6 +1159,7 @@ export function agentOpenApi(origin: string) {
         AgentAction: schema(agentActionSchema, 'input'),
         ProductionAction: schema(productionActionSchema, 'input'),
         GenerateAudio: schema(audioGenerationSchema, 'input'),
+        BindProductionAudio: schema(productionAudioBindSchema, 'input'),
         Production: schema(productionResponseSchema),
         Publication: schema(productionResponseSchema.shape.publications.element),
         ProductionCapabilities: schema(productionCapabilitiesSchema),

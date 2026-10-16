@@ -153,9 +153,37 @@ server verifies signatures and bounded bytes, not visual content. Each upload
 uses an immutable key; arbitrary external asset URLs cannot bypass this path.
 
 `PUT /productions/:id/assets/audio?version=N` attaches a validated mono 24 kHz
-PCM16 WAV after script approval. Native generation remains a separate queued
-job path. Asset detachment requires the expected production version and does not
-destroy referenced R2 objects or silently rewrite published snapshots.
+PCM16 WAV after script approval for files that fit the Worker request limit
+(roughly up to ~90 MiB). For larger narration (up to one hour / ~175 MiB), upload
+the WAV out-of-band to the `his-fm` R2 bucket from the Studio machine with the
+project `cf` CLI, then bind it:
+
+```sh
+cd apps/web
+UPLOAD_ID="$(uuidgen | tr '[:upper:]' '[:lower:]')"
+KEY="productions/${PRODUCTION_ID}/audio-${SCRIPT_VERSION}-${UPLOAD_ID}.wav"
+cf r2 objects put "$KEY" \
+  --bucket-name his-fm \
+  --file /path/to/narration.wav \
+  --content-type audio/wav \
+  --mode production
+```
+
+```http
+POST /productions/:id/assets/audio/bind
+Authorization: Bearer …
+Content-Type: application/json
+
+{"version": <current production version>, "key": "<KEY>"}
+```
+
+Staging keys `uploads/<uuid>.wav` are also accepted; binding copies them into an
+immutable `productions/{id}/audio-<scriptVersion>-<uuid>.wav` key. Direct
+production keys must match the current `scriptVersion`. Both paths validate mono
+24 kHz PCM16 WAV, duration ≤ 3600 s, and require `productions:write` and
+`storage:write`. Native generation remains a separate queued job path. Asset
+detachment requires the expected production version and does not destroy
+referenced R2 objects or silently rewrite published snapshots.
 
 `POST /productions/:id/publications` records an actual completed publication.
 The production must be ready with current final assets/approval. Future timestamps
