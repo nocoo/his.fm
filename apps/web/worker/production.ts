@@ -382,7 +382,7 @@ export async function routeProductions(
     return respond(await bindAudio(request, env, id, actor));
   if (operation === 'assets/audio' && request.method === 'PUT')
     return respond(await uploadAudio(request, env, id, actor));
-  if (operation?.startsWith('assets/') && request.method === 'DELETE')
+  if ((operation === 'assets/cover' || operation === 'assets/audio') && request.method === 'DELETE')
     return respond(
       await detachAsset(request, env, id, operation === 'assets/cover' ? 'cover' : 'audio', actor),
     );

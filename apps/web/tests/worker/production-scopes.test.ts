@@ -619,6 +619,9 @@ describe('manual assets and safe detach', () => {
     const direct = `productions/${production.id}/audio-1-00000000-0000-4000-8000-000000000021.wav`;
     for (const key of [staging, direct]) await env.MEDIA.put(key, wav);
     const editor: Actor = { ...agent, scopes: ['productions:write', 'storage:write'] };
+    for (const method of ['GET', 'PUT', 'DELETE'])
+      expect((await call(`${path}?version=1`, method)).status).toBe(405);
+    expect(await getProduction(env.DB, production.id)).toEqual(production);
     expect((await call(path, 'POST', { version: 99, key: staging })).status).toBe(409);
     expect((await call(path, 'POST', { version: 1, key: staging }, editor)).status).toBe(409);
     const conflictDb = new Proxy(env.DB, {

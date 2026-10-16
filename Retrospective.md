@@ -1,5 +1,9 @@
 # Retrospective
 
+## 2026-10-16 - Recheck route fallthrough after merging subresources
+
+The remote audio-binding merge introduced a nested `/assets/audio/bind` route, but the existing broad `assets/` DELETE branch also matched it and could detach audio on a POST-only endpoint. Restrict detachment to the two exact asset paths and assert that other binding methods return 405 without changing the production. Reviewing only the added POST handler misses existing sibling routing behavior. The integration also retains staging source bytes when D1 rejects a binding, rather than deleting the original before the versioned write succeeds.
+
 ## 2026-10-01 - Avoid zsh's reserved path variable in smoke checks
 
 The post-release route probe used `path` as a loop variable, which overwrote zsh's command-search array and prevented curl and Git from running. The exact-revision health verifier had already passed; rerunning the route probes with `route` confirmed the public pages and agent discovery return 200 and anonymous studio access redirects to Access. Use non-reserved variable names in shell probes, and distinguish a local probe failure from a deployment failure.
