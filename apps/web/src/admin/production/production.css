@@ -444,6 +444,11 @@
 .studio-asset-card:focus-within .studio-asset-card-tools {
   opacity: 1;
 }
+@media (hover: none), (pointer: coarse) {
+  .studio-asset-card-tools {
+    opacity: 1;
+  }
+}
 .studio-asset-card-body {
   display: flex;
   flex: 1;
