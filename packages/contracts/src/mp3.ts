@@ -219,10 +219,8 @@ function xingDurationForScan(meta: XingMeta, header: FrameHeader): Mp3Info {
   const raw = mp3InfoFromXing({ ...meta, delaySamples: 0, paddingSamples: 0 }, header);
   if (meta.delaySamples === 0 && meta.paddingSamples === 0) return raw;
   const totalSamples = meta.frameCount * header.samplesPerFrame;
-  if (meta.delaySamples + meta.paddingSamples > totalSamples) return raw;
-  const gapless = mp3InfoFromXing(meta, header);
-  if (gapless.durationSeconds <= 0) return gapless;
-  return gapless;
+  if (meta.delaySamples + meta.paddingSamples >= totalSamples) return raw;
+  return mp3InfoFromXing(meta, header);
 }
 
 function locateFirstFrame(bytes: Uint8Array, fileSize: number) {
@@ -283,6 +281,11 @@ function finalizeMp3Info(result: Mp3Info): Mp3Info {
   return result;
 }
 
+/** Xing/Info `frameCount` is audio frames only; the carrier MPEG frame is extra. */
+function xingDeclaredMpegFrameCount(xingMeta: XingMeta) {
+  return xingMeta.frameCount + 1;
+}
+
 function resolveMp3Duration(
   header: FrameHeader,
   xingMeta: XingMeta | null,
@@ -293,13 +296,14 @@ function resolveMp3Duration(
   if (xingMeta.frameCount === 0) {
     throw new AudioError('无法从 MP3 文件读取时长');
   }
-  if (scanned.frameCount < xingMeta.frameCount) {
+  const declaredMpegFrames = xingDeclaredMpegFrameCount(xingMeta);
+  if (scanned.frameCount < declaredMpegFrames) {
     throw new AudioError('MP3 文件不完整');
   }
-  if (scanned.frameCount === xingMeta.frameCount) {
+  if (scanned.frameCount === declaredMpegFrames) {
     return xingDurationForScan(xingMeta, header);
   }
-  const paddingFrames = scanned.frameCount - xingMeta.frameCount;
+  const paddingFrames = scanned.frameCount - declaredMpegFrames;
   if (paddingFrames <= XING_MAX_TRAILING_PADDING_FRAMES) {
     return xingDurationForScan(xingMeta, header);
   }
@@ -319,19 +323,6 @@ export function parseMp3(bytes: Uint8Array, fileSize = bytes.byteLength): Mp3Inf
   const xingMeta = parseXingMeta(bytes, offset, header.frameLength, header);
   const scanned = durationFromFrames(bytes, fileSize, offset);
   return finalizeMp3Info(resolveMp3Duration(header, xingMeta, scanned));
-}
-
-/** Xing/Info catalog seconds with encoder gapless trim when valid; null when no frame-count tag. */
-export function mp3XingCatalogDuration(bytes: Uint8Array, fileSize = bytes.byteLength): number | null {
-  if (fileSize < 4 || bytes.byteLength < fileSize) return null;
-  try {
-    const { offset, header } = locateFirstFrame(bytes, fileSize);
-    const xingMeta = parseXingMeta(bytes, offset, header.frameLength, header);
-    if (!xingMeta || xingMeta.frameCount === 0) return null;
-    return xingDurationForScan(xingMeta, header).durationSeconds;
-  } catch {
-    return null;
-  }
 }
 
 class Mp3ChunkReader {

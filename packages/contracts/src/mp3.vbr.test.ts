@@ -3,7 +3,7 @@ import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { mp3AudioStartOffset, mp3XingCatalogDuration, parseMp3 } from './mp3.ts';
+import { mp3AudioStartOffset, parseMp3 } from './mp3.ts';
 
 function hasFfmpeg() {
   try {
@@ -36,17 +36,29 @@ function renderVbrMp3(durationSeconds: number, output: string, sampleRate = 4410
   );
 }
 
+/** Decoded PCM length (not container format duration) tracks libav gapless MP3 playback time. */
 function probeDuration(path: string) {
-  const bytes = new Uint8Array(readFileSync(path));
-  // libav MP3 stores gapless trim in Xing/Lavc; format duration often includes encoder delay.
-  const catalog = mp3XingCatalogDuration(bytes);
-  if (catalog !== null) return catalog;
-  const out = execFileSync(
-    'ffprobe',
-    ['-v', 'error', '-show_entries', 'format=duration', '-of', 'default=noprint_wrappers=1:nokey=1', path],
-    { encoding: 'utf8' },
-  ).trim();
-  return Number(out);
+  const sampleRate = Number(
+    execFileSync(
+      'ffprobe',
+      [
+        '-v',
+        'error',
+        '-select_streams',
+        'a:0',
+        '-show_entries',
+        'stream=sample_rate',
+        '-of',
+        'default=noprint_wrappers=1:nokey=1',
+        path,
+      ],
+      { encoding: 'utf8' },
+    ).trim(),
+  );
+  const pcm = execFileSync('ffmpeg', ['-v', 'error', '-i', path, '-ac', '1', '-f', 's16le', 'pipe:1'], {
+    maxBuffer: 256 * 1024 * 1024,
+  });
+  return pcm.length / 2 / sampleRate;
 }
 
 const ffmpeg = hasFfmpeg();

@@ -138,6 +138,38 @@ describe('parseMp3', () => {
     expect(() => parseMp3(frame1)).toThrow('不完整');
   });
 
+  it('rejects files missing the last complete audio frame when Xing excludes the info frame', () => {
+    const audioStart = mp3AudioStartOffset(tinyMp3, tinyMp3.length);
+    let cursor = audioStart;
+    let lastFrameStart = audioStart;
+    while (cursor + 4 <= tinyMp3.length) {
+      const headerByte = tinyMp3[cursor + 1];
+      if (tinyMp3[cursor] !== 0xff || (headerByte & 0xe0) !== 0xe0) break;
+      lastFrameStart = cursor;
+      const h = (tinyMp3[cursor + 1] << 16) | (tinyMp3[cursor + 2] << 8) | tinyMp3[cursor + 3];
+      const versionBits = (h >> 19) & 0x3;
+      const bitrateIndex = (h >> 12) & 0xf;
+      const sampleRateIndex = (h >> 10) & 0x3;
+      const padding = (h >> 9) & 0x1;
+      const mpeg1 = versionBits === 3;
+      const bitrates = mpeg1
+        ? [0, 32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320]
+        : [0, 8, 16, 24, 32, 40, 48, 56, 64, 80, 96, 112, 128, 144, 160];
+      const sampleRates = mpeg1
+        ? [44100, 48000, 32000]
+        : versionBits === 2
+          ? [22050, 24000, 16000]
+          : [11025, 12000, 8000];
+      const frameLength =
+        Math.floor((144 * bitrates[bitrateIndex] * 1000) / sampleRates[sampleRateIndex]) + padding;
+      cursor += mpeg1
+        ? frameLength
+        : Math.floor((72 * bitrates[bitrateIndex] * 1000) / sampleRates[sampleRateIndex]) + padding;
+    }
+    const truncated = tinyMp3.subarray(0, lastFrameStart);
+    expect(() => parseMp3(truncated)).toThrow('不完整');
+  });
+
   it('parses MPEG2 sample-rate files', () => {
     expect(parseMp3(mpeg2Mp3Bytes).sampleRate).toBe(24000);
   });
@@ -184,6 +216,26 @@ describe('parseMp3', () => {
     expect(() => parseMp3(padded)).toThrow('无效数据');
   });
 
+  it('accepts up to two trailing MPEG frames beyond the Xing-declared total', () => {
+    const bytes = tinyMp3.slice();
+    const xing = mp3AudioStartOffset(bytes, bytes.length) + 4 + 17;
+    bytes[xing + 11] = 9;
+    const parsed = parseMp3(bytes);
+    expect(parsed.durationSeconds).toBeCloseTo(0.19775510204081634, 6);
+  });
+
+  it('falls back to the frame scan when scanned MPEG frames exceed Xing by more than two', () => {
+    const bytes = tinyMp3.slice();
+    const xing = mp3AudioStartOffset(bytes, bytes.length) + 4 + 17;
+    bytes[xing + 8] = 0;
+    bytes[xing + 9] = 0;
+    bytes[xing + 10] = 0;
+    bytes[xing + 11] = 5;
+    const parsed = parseMp3(bytes);
+    expect(parsed.durationSeconds).toBeCloseTo(0.313469387755102, 6);
+    expect(parsed.durationSeconds).toBeGreaterThan(parseMp3(tinyMp3).durationSeconds);
+  });
+
   it('falls back to frame scan when Xing omits a frame count', () => {
     const bytes = tinyMp3.slice();
     const xing = mp3AudioStartOffset(bytes, bytes.length) + 4 + 17;
@@ -191,26 +243,34 @@ describe('parseMp3', () => {
     expect(parseMp3(bytes).durationSeconds).toBeGreaterThan(0.2);
   });
 
-  it('rejects non-positive durations after LAME gapless trimming', () => {
+  it('ignores LAME gapless when delay equals the Xing sample budget', () => {
     const frame1 = tinyMp3.subarray(45, 45 + 417);
-    const bytes = withEncoderGaplessTag(frame1, [0x4c, 0x41, 0x4d, 0x45], 72, 0, 0);
+    const frame2 = tinyMp3.subarray(462, 462 + 417);
+    const twin = new Uint8Array(frame1.length + frame2.length);
+    twin.set(frame1);
+    twin.set(frame2, frame1.length);
+    const bytes = withEncoderGaplessTag(twin, [0x4c, 0x41, 0x4d, 0x45], 72, 0, 0);
     const xing = 4 + 17;
     bytes[xing + 8] = 0;
     bytes[xing + 9] = 0;
     bytes[xing + 10] = 0;
     bytes[xing + 11] = 1;
-    expect(() => parseMp3(bytes)).toThrow('无法从 MP3 文件读取时长');
+    expect(parseMp3(bytes).durationSeconds).toBeCloseTo(1152 / 44100, 6);
   });
 
-  it('rejects non-positive durations after Lavc gapless trimming', () => {
+  it('ignores Lavc gapless when delay equals the Xing sample budget', () => {
     const frame1 = tinyMp3.subarray(45, 45 + 417);
-    const bytes = withEncoderGaplessTag(frame1, [0x4c, 0x61, 0x76, 0x63], 72, 0, 0);
+    const frame2 = tinyMp3.subarray(462, 462 + 417);
+    const twin = new Uint8Array(frame1.length + frame2.length);
+    twin.set(frame1);
+    twin.set(frame2, frame1.length);
+    const bytes = withEncoderGaplessTag(twin, [0x4c, 0x61, 0x76, 0x63], 72, 0, 0);
     const xing = 4 + 17;
     bytes[xing + 8] = 0;
     bytes[xing + 9] = 0;
     bytes[xing + 10] = 0;
     bytes[xing + 11] = 1;
-    expect(() => parseMp3(bytes)).toThrow('无法从 MP3 文件读取时长');
+    expect(parseMp3(bytes).durationSeconds).toBeCloseTo(1152 / 44100, 6);
   });
 
   it('rejects zero-length Xing durations', () => {
@@ -256,7 +316,11 @@ describe('parseMp3', () => {
 
   it('ignores Lavc gapless fields when delay and padding exhaust the Xing sample budget', () => {
     const frame1 = tinyMp3.subarray(45, 45 + 417);
-    const cleared = stripEncoderTagsInFirstFrame(frame1);
+    const frame2 = tinyMp3.subarray(462, 462 + 417);
+    const twin = new Uint8Array(frame1.length + frame2.length);
+    twin.set(frame1);
+    twin.set(frame2, frame1.length);
+    const cleared = stripEncoderTagsInFirstFrame(twin);
     const xing = 4 + 17;
     cleared[xing + 8] = 0;
     cleared[xing + 9] = 0;
@@ -352,6 +416,40 @@ describe('measureMp3Duration', () => {
     withTag.set(tag, tinyMp3.length);
     const measured = await measureMp3Duration(withTag.length, readFrom(withTag));
     expect(measured.durationSeconds).toBeCloseTo(parseMp3(withTag).durationSeconds, 6);
+  });
+
+  it('rejects streaming audio truncated after the last complete audio frame', async () => {
+    const audioStart = mp3AudioStartOffset(tinyMp3, tinyMp3.length);
+    let cursor = audioStart;
+    let lastFrameStart = audioStart;
+    while (cursor + 4 <= tinyMp3.length) {
+      if (tinyMp3[cursor] !== 0xff || (tinyMp3[cursor + 1] & 0xe0) !== 0xe0) break;
+      lastFrameStart = cursor;
+      const h = (tinyMp3[cursor + 1] << 16) | (tinyMp3[cursor + 2] << 8) | tinyMp3[cursor + 3];
+      const versionBits = (h >> 19) & 0x3;
+      const bitrateIndex = (h >> 12) & 0xf;
+      const sampleRateIndex = (h >> 10) & 0x3;
+      const padding = (h >> 9) & 0x1;
+      const mpeg1 = versionBits === 3;
+      const bitrates = mpeg1
+        ? [0, 32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320]
+        : [0, 8, 16, 24, 32, 40, 48, 56, 64, 80, 96, 112, 128, 144, 160];
+      const sampleRates = mpeg1
+        ? [44100, 48000, 32000]
+        : versionBits === 2
+          ? [22050, 24000, 16000]
+          : [11025, 12000, 8000];
+      const frameLength = mpeg1
+        ? Math.floor((144 * bitrates[bitrateIndex] * 1000) / sampleRates[sampleRateIndex]) + padding
+        : Math.floor((72 * bitrates[bitrateIndex] * 1000) / sampleRates[sampleRateIndex]) + padding;
+      cursor += frameLength;
+    }
+    const truncated = tinyMp3.subarray(0, lastFrameStart);
+    await expect(
+      measureMp3Duration(truncated.length, async (offset, length) =>
+        truncated.subarray(offset, offset + length),
+      ),
+    ).rejects.toThrow('不完整');
   });
 
   it('rejects streaming truncated audio when Xing declares more frames than were scanned', async () => {
