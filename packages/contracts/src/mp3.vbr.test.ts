@@ -38,6 +38,7 @@ function renderVbrMp3(durationSeconds: number, output: string, sampleRate = 4410
 
 function probeDuration(path: string) {
   const bytes = new Uint8Array(readFileSync(path));
+  // libav MP3 stores gapless trim in Xing/Lavc; format duration often includes encoder delay.
   const catalog = mp3XingCatalogDuration(bytes);
   if (catalog !== null) return catalog;
   const out = execFileSync(
