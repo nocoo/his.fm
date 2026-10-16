@@ -12,6 +12,7 @@ import {
   briefSchema,
   type Production,
   productionActionSchema,
+  productionAudioBindSchema,
   productionPatchSchema,
   productionStages,
   publicationPlatforms,
@@ -115,7 +116,8 @@ export const productionCapabilitiesSchema = z.object({
     prompts: z.string(),
     actions: z.string(),
     cover: z.string(),
-    audio: z.string(),
+    uploadAudio: z.string(),
+    bindAudio: z.string(),
     review: z.string(),
   }),
 });
@@ -567,6 +569,18 @@ export function agentOpenApi(origin: string) {
           ['productions:write', 'storage:write'],
         ),
       },
+      '/productions/{id}/assets/audio/bind': {
+        parameters: [idParameter],
+        post: {
+          ...operation(
+            'bindProductionAudio',
+            'Attach a mono 24 kHz PCM16 WAV already stored in the his-fm R2 bucket. Requires current script approval, at most 1800 seconds and 86465536 bytes; reviewed assets require productions:reopen. Upload out-of-band only with separate infrastructure authorization, then bind by key. Staging sources are retained. Keys must be uploads/<uuid>.wav or productions/{id}/audio-<scriptVersion>-<uuid>.wav for this production.',
+            wrappedProduction,
+            ['productions:write', 'storage:write'],
+          ),
+          requestBody: body(productionAudioBindSchema),
+        },
+      },
       '/productions/{id}/publications': {
         parameters: [idParameter],
         get: operation(
@@ -882,6 +896,7 @@ export function agentOpenApi(origin: string) {
         UpdateProduction: schema(productionPatchSchema, 'input'),
         AgentAction: schema(agentActionSchema, 'input'),
         ProductionAction: schema(productionActionSchema, 'input'),
+        BindProductionAudio: schema(productionAudioBindSchema, 'input'),
         Production: schema(productionResponseSchema),
         Publication: schema(productionResponseSchema.shape.publications.element),
         ProductionCapabilities: schema(productionCapabilitiesSchema),

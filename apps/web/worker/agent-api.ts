@@ -165,7 +165,8 @@ export function productionCapabilities(production: Production, actor: Actor, ori
       prompts: `${base}/prompts`,
       actions: `${base}/actions`,
       cover: `${base}/assets/cover?version=${production.version}`,
-      audio: `${base}/assets/audio?version=${production.version}`,
+      uploadAudio: `${base}/assets/audio?version=${production.version}`,
+      bindAudio: `${base}/assets/audio/bind`,
       review: `${origin}/admin/productions/${encodeURIComponent(production.id)}`,
     },
   };

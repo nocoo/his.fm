@@ -26,6 +26,14 @@ describe('scoped OpenAPI contract', () => {
       'productions:write',
       'storage:write',
     ]);
+    expect(contract.paths['/productions/{id}/assets/audio/bind'].post['x-required-scopes']).toEqual([
+      'productions:write',
+      'storage:write',
+    ]);
+    expect(
+      contract.paths['/productions/{id}/assets/audio/bind'].post.requestBody.content['application/json']
+        .schema.required,
+    ).toEqual(['version', 'key']);
     expect(contract.paths['/agent-tokens/{id}/revoke'].post['x-required-scopes']).toEqual(['tokens:revoke']);
     expect(contract.paths['/agent-tokens/{id}'].delete['x-required-scopes']).toEqual(['tokens:delete']);
     expect(contract.paths['/agent-tokens/{id}'].delete.summary).toContain('409');

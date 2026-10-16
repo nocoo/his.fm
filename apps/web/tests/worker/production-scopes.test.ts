@@ -226,6 +226,11 @@ describe('production scope enforcement and projections', () => {
       [`${path}/prompts`, 'GET', undefined],
       [`${path}/assets/cover?version=1`, 'PUT', png],
       [`${path}/assets/audio?version=1`, 'PUT', wav],
+      [
+        `${path}/assets/audio/bind`,
+        'POST',
+        { version: 1, key: 'uploads/00000000-0000-4000-8000-000000000001.wav' },
+      ],
       [`${path}/assets/audio?version=1`, 'DELETE', undefined],
     ] as const)
       expect((await call(url, method, body, unscoped)).status).toBe(403);
@@ -243,6 +248,19 @@ describe('production scope enforcement and projections', () => {
     expect((await call(path, 'PUT', { version: 1, category: 'work' }, agent)).status).toBe(403);
     expect((await call(`${path}/assets/cover?version=1`, 'PUT', png, agent)).status).toBe(403);
     expect((await call(`${path}/assets/audio?version=1`, 'PUT', wav, agent)).status).toBe(403);
+    expect(
+      (
+        await call(
+          `${path}/assets/audio/bind`,
+          'POST',
+          {
+            version: 1,
+            key: 'uploads/00000000-0000-4000-8000-000000000001.wav',
+          },
+          agent,
+        )
+      ).status,
+    ).toBe(403);
     expect((await call(`${path}/assets/audio?version=1`, 'DELETE', undefined, agent)).status).toBe(403);
     expect((await getProduction(env.DB, production.id)).version).toBe(1);
   });
@@ -534,6 +552,104 @@ describe('manual assets and safe detach', () => {
     expect((await getProduction(env.DB, production.id)).assets.audio).toEqual(readyFixture().assets.audio);
     await insert(fixture({ id: 'draft' }));
     expect((await call('/productions/draft/assets/audio?version=1', 'PUT', wav)).status).toBe(409);
+  });
+
+  it('binds large audio uploaded out-of-band to R2 staging or production keys', async () => {
+    let production = await insert(
+      readyFixture({
+        stage: 'production',
+        assets: { cover: readyFixture().assets.cover, audio: null },
+      }),
+    );
+    const path = `/productions/${production.id}`;
+    const staging = 'uploads/00000000-0000-4000-8000-000000000010.wav';
+    await env.MEDIA.put(staging, wav);
+    production = await result(
+      await call(`${path}/assets/audio/bind`, 'POST', { version: production.version, key: staging }),
+    );
+    expect(production.assets.audio).toMatchObject({
+      source: 'upload',
+      mimeType: 'audio/wav',
+      scriptVersion: production.scriptVersion,
+      durationSeconds: 4 / 48000,
+    });
+    expect(production.assets.audio?.key).toMatch(
+      new RegExp(`^productions/${production.id}/audio-${production.scriptVersion}-`),
+    );
+    expect(await env.MEDIA.head(staging)).not.toBeNull();
+    const directKey = `productions/${production.id}/audio-${production.scriptVersion}-00000000-0000-4000-8000-000000000011.wav`;
+    await env.MEDIA.put(directKey, wav);
+    production = await result(
+      await call(`${path}/assets/audio?version=${production.version}`, 'DELETE', undefined),
+    );
+    production = await result(
+      await call(`${path}/assets/audio/bind`, 'POST', { version: production.version, key: directKey }),
+    );
+    expect(production.assets.audio?.key).toBe(directKey);
+    expect(
+      (
+        await call(`${path}/assets/audio/bind`, 'POST', {
+          version: production.version,
+          key: `productions/${production.id}/audio-99-00000000-0000-4000-8000-000000000012.wav`,
+        })
+      ).status,
+    ).toBe(409);
+    expect(
+      (
+        await call(`${path}/assets/audio/bind`, 'POST', {
+          version: production.version,
+          key: 'uploads/not-a-uuid.wav',
+        })
+      ).status,
+    ).toBe(400);
+    expect(
+      (
+        await call(`${path}/assets/audio/bind`, 'POST', {
+          version: production.version,
+          key: 'uploads/00000000-0000-4000-8000-000000000099.wav',
+        })
+      ).status,
+    ).toBe(404);
+  });
+
+  it('fences audio binding by grants, approval and version without losing source media', async () => {
+    const production = await insert(readyFixture());
+    const path = `/productions/${production.id}/assets/audio/bind`;
+    const staging = 'uploads/00000000-0000-4000-8000-000000000020.wav';
+    const direct = `productions/${production.id}/audio-1-00000000-0000-4000-8000-000000000021.wav`;
+    for (const key of [staging, direct]) await env.MEDIA.put(key, wav);
+    const editor: Actor = { ...agent, scopes: ['productions:write', 'storage:write'] };
+    expect((await call(path, 'POST', { version: 99, key: staging })).status).toBe(409);
+    expect((await call(path, 'POST', { version: 1, key: staging }, editor)).status).toBe(409);
+    const conflictDb = new Proxy(env.DB, {
+      get(target, key, receiver) {
+        if (key === 'prepare')
+          return (sql: string) =>
+            target.prepare(sql.startsWith('UPDATE productions SET') ? `${sql} AND version = -1` : sql);
+        return Reflect.get(target, key, receiver);
+      },
+    });
+    const before = (await env.MEDIA.list()).objects.length;
+    for (const key of [staging, direct]) {
+      expect(
+        (await call(path, 'POST', { version: 1, key }, fullAgent, { ...env, DB: conflictDb })).status,
+      ).toBe(409);
+      expect(await env.MEDIA.head(key)).not.toBeNull();
+      expect((await env.MEDIA.list()).objects).toHaveLength(before);
+    }
+    const writeOnly: Actor = { ...editor, scopes: [...(editor.scopes ?? []), 'productions:reopen'] };
+    const response = await call(path, 'POST', { version: 1, key: staging }, writeOnly);
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ production: { id: production.id, version: 2 } });
+    const changed = await getProduction(env.DB, production.id);
+    expect(changed).toMatchObject({ stage: 'production', approvals: { final: null } });
+    const unapproved = await saveProduction(
+      env.DB,
+      { ...changed, approvals: { ...changed.approvals, script: null } },
+      changed.version,
+    );
+    expect((await call(path, 'POST', { version: unapproved.version, key: staging })).status).toBe(409);
+    expect(await env.MEDIA.head(staging)).not.toBeNull();
   });
 
   it('cleans only the newly uploaded audio on a production conflict and keeps existing immutable keys', async () => {

@@ -4,10 +4,16 @@ import {
   briefSchema,
   type Production,
   productionActionSchema,
+  productionAudioBindSchema,
   productionPatchSchema,
   publicationSchema,
 } from '../src/shared/production';
-import { storeUploadedWav } from './audio';
+import {
+  adoptProductionAudioUpload,
+  PRODUCTION_AUDIO_MAX_DURATION_SECONDS,
+  productionAudioObjectKey,
+  storeUploadedWav,
+} from './audio';
 import { requireScope } from './authorization';
 import { categoryFence, getCategory } from './categories';
 import { getChannel } from './channel';
@@ -78,6 +84,39 @@ async function uploadCover(request: Request, env: Env, id: string, actor: Actor)
   }
 }
 
+async function attachProductionAudio(
+  env: Env,
+  id: string,
+  actor: Actor,
+  expectedVersion: number,
+  key: string,
+  stored: { size: number; durationSeconds: number },
+) {
+  return updateProduction(
+    env.DB,
+    id,
+    actor,
+    'upload_audio',
+    (production) => ({
+      ...editAssets(production, actor),
+      assets: {
+        ...production.assets,
+        audio: {
+          key,
+          url: mediaUrl(env, key),
+          mimeType: 'audio/wav',
+          size: stored.size,
+          scriptVersion: production.scriptVersion,
+          createdAt: new Date().toISOString(),
+          durationSeconds: stored.durationSeconds,
+          source: 'upload',
+        },
+      },
+    }),
+    { expectedVersion },
+  );
+}
+
 async function uploadAudio(request: Request, env: Env, id: string, actor: Actor) {
   requireScope(actor, 'productions:write');
   requireScope(actor, 'storage:write');
@@ -90,40 +129,48 @@ async function uploadAudio(request: Request, env: Env, id: string, actor: Actor)
     throw new HttpError(409, '请先确认当前逐字稿');
   if (request.headers.get('Content-Type')?.split(';')[0] !== 'audio/wav')
     throw new HttpError(415, '请上传 WAV 音频');
-  const key = `productions/${id}/audio-${current.scriptVersion}-${crypto.randomUUID()}.wav`;
+  const key = productionAudioObjectKey(id, current.scriptVersion);
   let stored: Awaited<ReturnType<typeof storeUploadedWav>>;
   try {
-    stored = await storeUploadedWav(request, env.MEDIA, key, 1800);
+    stored = await storeUploadedWav(request, env.MEDIA, key, PRODUCTION_AUDIO_MAX_DURATION_SECONDS);
   } catch (error) {
     if (error instanceof AudioError) throw new HttpError(400, error.message);
     throw error;
   }
   try {
-    return await updateProduction(
-      env.DB,
-      id,
-      actor,
-      'upload_audio',
-      (production) => ({
-        ...editAssets(production, actor),
-        assets: {
-          ...production.assets,
-          audio: {
-            key,
-            url: mediaUrl(env, key),
-            mimeType: 'audio/wav',
-            size: stored.size,
-            scriptVersion: production.scriptVersion,
-            createdAt: new Date().toISOString(),
-            durationSeconds: stored.durationSeconds,
-            source: 'upload',
-          },
-        },
-      }),
-      { expectedVersion },
-    );
+    return await attachProductionAudio(env, id, actor, expectedVersion, key, stored);
   } catch (error) {
     await env.MEDIA.delete(key);
+    throw error;
+  }
+}
+
+async function bindAudio(request: Request, env: Env, id: string, actor: Actor) {
+  requireScope(actor, 'productions:write');
+  requireScope(actor, 'storage:write');
+  const input = await readJson(request, productionAudioBindSchema);
+  const expectedVersion = input.version;
+  const current = await getProduction(env.DB, id);
+  if (current.version !== expectedVersion) throw new HttpError(409, '内容已更新，请刷新后重试');
+  requireStage(current, 'production', 'final_review', 'ready');
+  editAssets(current, actor);
+  if (!current.approvals.brief || !current.approvals.script || !current.transcript.trim())
+    throw new HttpError(409, '请先确认当前逐字稿');
+  let adopted: Awaited<ReturnType<typeof adoptProductionAudioUpload>>;
+  try {
+    adopted = await adoptProductionAudioUpload(env.MEDIA, id, current.scriptVersion, input.key);
+  } catch (error) {
+    if (error instanceof AudioError)
+      throw new HttpError(
+        error.message.includes('不存在') ? 404 : /已存在|不匹配/.test(error.message) ? 409 : 400,
+        error.message,
+      );
+    throw error;
+  }
+  try {
+    return await attachProductionAudio(env, id, actor, expectedVersion, adopted.key, adopted.stored);
+  } catch (error) {
+    if (input.key.startsWith('uploads/')) await env.MEDIA.delete(adopted.key);
     throw error;
   }
 }
@@ -324,13 +371,15 @@ export async function routeProductions(
     throw new HttpError(405, '不支持这个请求方式');
   }
   const match = path.match(
-    /^\/productions\/([^/]+)(?:\/(actions|prompts|assets\/(?:cover|audio)|publications(?:\/(?:site|wechat|xiaoyuzhou))?))?$/,
+    /^\/productions\/([^/]+)(?:\/(actions|prompts|assets\/(?:cover|audio(?:\/bind)?)|publications(?:\/(?:site|wechat|xiaoyuzhou))?))?$/,
   );
   if (!match) return null;
   const id = match[1];
   const operation = match[2];
   if (operation === 'assets/cover' && request.method === 'PUT')
     return respond(await uploadCover(request, env, id, actor));
+  if (operation === 'assets/audio/bind' && request.method === 'POST')
+    return respond(await bindAudio(request, env, id, actor));
   if (operation === 'assets/audio' && request.method === 'PUT')
     return respond(await uploadAudio(request, env, id, actor));
   if (operation?.startsWith('assets/') && request.method === 'DELETE')

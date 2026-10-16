@@ -22,6 +22,7 @@ Paths are relative to `/api/agent`:
 | `/productions/:id/actions` | POST explicit submission, approval or reopening |
 | `/productions/:id/assets/cover` | PUT raw safe raster; DELETE detach; query version |
 | `/productions/:id/assets/audio` | PUT raw validated PCM WAV; DELETE detach; query version |
+| `/productions/:id/assets/audio/bind` | POST `{version,key}` to attach an existing validated R2 WAV |
 | `/productions/:id/publications` | GET current records; POST actual publication |
 | `/productions/:id/publications/:platform` | PATCH correction; DELETE withdrawal |
 | `/episodes[/:id]` | GET; POST create; PUT existing; DELETE existing |
@@ -50,6 +51,7 @@ no endpoint posts to an external platform.
 - Existing-resource mutations use optimistic versions; production/episode/category/bumper versions are integers, storage versions are opaque R2 strings.
 - `approve_*` requires `productions:approve`; `revise_*` and `reopen_*` require `productions:reopen`. Atomic action changes additionally obey edit scopes.
 - Upload/detach requires `productions:write` and `storage:write`; WAV attaches only to an approved current script. No synthetic completed job is needed.
+- Audio binding uses the same approval, reopening and 1,800-second/86,465,536-byte limits as raw uploads. Accept only `uploads/<uuid>.wav` or this production's `productions/<id>/audio-<scriptVersion>-<uuid>.wav`. Staging uploads are copied to immutable production keys and retained even if binding fails; removal requires separate reference-safe storage cleanup. Out-of-band R2 uploads require separate infrastructure authorization, not a website token.
 - Publication/correction updates the current platform record and appends audit history. Withdrawal preserves the audit, immutable media and last reviewed snapshot content.
 - Linked episodes cannot be edited/deleted through standalone CRUD. Their independently versioned featured flag remains editable and survives republication.
 - Write does not grant read: production/episode/bumper receipts may be only resource `{id, version}`; channel may be `{version}`. Prompt and publication projections are independent.
