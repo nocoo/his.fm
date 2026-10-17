@@ -345,7 +345,14 @@ test('manual cover and WAV uploads retain failures and detach only after explici
   await page.getByRole('button', { name: '上传封面', exact: true }).click();
   await expect(page.getByRole('alert').first()).toContainText('上传失败');
   await page.getByRole('button', { name: '上传封面', exact: true }).click();
-  await expect(section.locator('.studio-cover')).toHaveAttribute('src', 'https://f.no.mt/cover.png');
+  await expect(section.locator('.studio-cover .framed-cover-image')).toHaveAttribute(
+    'src',
+    'https://f.no.mt/cover.png',
+  );
+  await expect(section.locator('.studio-cover .framed-cover-overlay')).toHaveAttribute(
+    'src',
+    /\/brand\/frames\/.+\.svg$/,
+  );
   const wav = Buffer.concat([Buffer.from(wavHeader(48000)), Buffer.alloc(48000)]);
   await audio.setInputFiles({ name: 'episode.wav', mimeType: 'audio/wav', buffer: wav });
   await page.getByRole('button', { name: '上传音频', exact: true }).click();
@@ -434,8 +441,8 @@ test('cover grid and detail sections fit desktop and phone in both themes withou
             return img.complete && img.naturalWidth > 0;
           }),
         );
-      await expect(page.locator('.library-cover img')).toHaveCount(2);
-      await expect.poll(() => loaded('.library-cover img')).toBe(true);
+      await expect(page.locator('.library-cover .framed-cover-image')).toHaveCount(2);
+      await expect.poll(() => loaded('.library-cover .framed-cover-image')).toBe(true);
       if (width === 1440) {
         const tops = await page
           .locator('.library-filters > input, .library-filters > button')
@@ -509,12 +516,12 @@ test('only a finished download receives branding and the original is never rewri
   );
   const state = await studio(page, production);
   await page.goto(`/admin/productions/${production.id}?section=assets`);
-  await expect(page.locator('.studio-section:visible .studio-cover')).toHaveAttribute(
+  await expect(page.locator('.studio-section:visible .studio-cover .framed-cover-image')).toHaveAttribute(
     'src',
     production.assets.cover?.url ?? '',
   );
   const downloadPromise = page.waitForEvent('download');
-  await page.locator('.studio-section:visible').getByRole('button', { name: '下载封面成品' }).click();
+  await page.getByRole('button', { name: /下载含品牌框架的封面成品/ }).click();
   const download = await downloadPromise;
   expect(download.suggestedFilename()).toBe(
     `his-fm-ep-${String(production.episodeNumber).padStart(3, '0')}.png`,
@@ -551,9 +558,9 @@ test('only a finished download receives branding and the original is never rewri
   await expect(page.getByText('成品已生成，原图保持不变。', { exact: true })).toBeVisible();
   expect(state.production).toEqual(before);
   expect(writes).toEqual([]);
-  await page.route('**/brand/cover-frame.svg', (route) => route.fulfill({ status: 503, body: '' }));
+  await page.route('**/brand/frames/*.svg', (route) => route.fulfill({ status: 503, body: '' }));
   await page.reload();
-  await page.locator('.studio-section:visible').getByRole('button', { name: '下载封面成品' }).click();
+  await page.getByRole('button', { name: /下载含品牌框架的封面成品/ }).click();
   await expect(page.getByText('封面或品牌框架未能加载，请稍后重试。', { exact: true })).toBeVisible();
   expect(state.production).toEqual(before);
 });
