@@ -31,6 +31,7 @@ export default defineConfig({
         '**/*.tsx',
         'src/**/views/**',
         'src/**/*View.ts',
+        'src/shared/useResolvedThemeId.ts',
         'worker/episode-public.ts',
         'worker/episode-numbering.ts',
         'worker/public-redirects.ts',
