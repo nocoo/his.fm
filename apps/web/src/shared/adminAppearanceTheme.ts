@@ -45,6 +45,11 @@ export function loadAdminAppearanceTheme(): void {
     });
 }
 
+export function publishAdminAppearanceTheme(theme: ThemeId): void {
+  snapshot = { status: 'ready', theme, error: null };
+  notify();
+}
+
 export function retryAdminAppearanceTheme(): void {
   generation++;
   snapshot = { status: 'idle', theme: null, error: null };

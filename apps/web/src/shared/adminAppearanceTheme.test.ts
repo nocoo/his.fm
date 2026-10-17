@@ -2,9 +2,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   getAdminAppearanceThemeSnapshot,
   loadAdminAppearanceTheme,
+  publishAdminAppearanceTheme,
   resetAdminAppearanceThemeForTests,
   retryAdminAppearanceTheme,
+  subscribeAdminAppearanceTheme,
 } from './adminAppearanceTheme';
+import { buildResolvedThemeState } from './resolvedThemeState';
 
 const read = vi.fn();
 
@@ -43,5 +46,33 @@ describe('adminAppearanceTheme', () => {
     await vi.waitUntil(() => getAdminAppearanceThemeSnapshot().status === 'ready');
     expect(read).toHaveBeenCalledTimes(2);
     expect(getAdminAppearanceThemeSnapshot().theme).toBe('stillwood');
+  });
+
+  it('publishes an in-session appearance save without refetching', async () => {
+    read.mockResolvedValue({ appearance: { theme: 'interval' } });
+    loadAdminAppearanceTheme();
+    await vi.waitUntil(() => getAdminAppearanceThemeSnapshot().status === 'ready');
+    const seen: string[] = [];
+    const unsubscribe = subscribeAdminAppearanceTheme(() => {
+      const theme = getAdminAppearanceThemeSnapshot().theme;
+      if (theme) seen.push(theme);
+    });
+    publishAdminAppearanceTheme('grove');
+    unsubscribe();
+    expect(read).toHaveBeenCalledTimes(1);
+    expect(getAdminAppearanceThemeSnapshot().theme).toBe('grove');
+    expect(seen).toContain('grove');
+    expect(
+      buildResolvedThemeState({
+        adminStatus: getAdminAppearanceThemeSnapshot().status,
+        adminTheme: getAdminAppearanceThemeSnapshot().theme,
+        adminErrorMessage: null,
+      }),
+    ).toEqual({
+      themeId: 'grove',
+      loading: false,
+      resolved: true,
+      error: null,
+    });
   });
 });
