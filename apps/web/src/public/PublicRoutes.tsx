@@ -12,7 +12,7 @@ import {
   X,
 } from 'lucide-react';
 import { createContext, type ReactNode, useContext, useEffect, useState } from 'react';
-import { Outlet, Route, Routes, useLocation, useParams } from 'react-router';
+import { Outlet, Route, Routes, useLocation, useParams, useSearchParams } from 'react-router';
 import { BrandSymbol, Wordmark } from '../brand/Brand';
 import { themeMedia } from '../brand/themes';
 import { AudioPlayer } from '../components/AudioPlayer';
@@ -289,8 +289,13 @@ function Catalogue() {
   const { episodes, categories } = useLibrary();
   const site = usePublicSiteSeo();
   const origin = window.location.origin;
+  const [searchParams] = useSearchParams();
   const [category, setCategory] = useState('all');
   const [query, setQuery] = useState('');
+  useEffect(() => {
+    const fromQuery = searchParams.get('category');
+    if (fromQuery) setCategory(fromQuery);
+  }, [searchParams]);
   const filtered = filterEpisodes(episodes, category, query);
   const activeCategory = category === 'all' ? undefined : categories.find((item) => item.id === category);
   useEffect(() => {

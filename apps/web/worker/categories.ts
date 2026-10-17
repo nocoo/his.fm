@@ -26,6 +26,14 @@ export async function assertCategoryIdAvailable(db: D1Database, nextId: string, 
   if (!currentId) {
     const alias = await db.prepare('SELECT 1 FROM category_id_aliases WHERE alias = ?').bind(nextId).first();
     if (alias) throw new HttpError(409, '栏目 ID 已被占用，请换一个标识');
+    return;
+  }
+  const reclaim = await db
+    .prepare('SELECT 1 FROM category_id_aliases WHERE alias = ?')
+    .bind(nextId)
+    .first();
+  if (reclaim) {
+    await db.prepare('DELETE FROM category_id_aliases WHERE alias = ?').bind(nextId).run();
   }
 }
 
@@ -76,7 +84,7 @@ export async function renameCategoryId(
       db
         .prepare(
           `INSERT INTO categories (id,name,icon,color,prompt,seo,version,updated_at,updated_by)
-         SELECT ?,?,?,?,?,seo,version+1,?,?
+         SELECT ?,?,?,?,?,?,version+1,?,?
          FROM categories WHERE id=? AND version=?`,
         )
         .bind(
@@ -85,6 +93,7 @@ export async function renameCategoryId(
           merged.icon,
           merged.color,
           merged.prompt,
+          JSON.stringify(merged.seo ?? {}),
           now,
           actor.name,
           id,

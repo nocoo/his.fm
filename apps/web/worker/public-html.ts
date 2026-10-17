@@ -77,7 +77,11 @@ export async function maybeServePublicHtml(request: Request, env: Env): Promise<
         podcastEpisodeJsonLd(
           origin,
           episode,
-          episode.audioUrl ? `${mediaBase}${episode.audioUrl.replace(/^\/media/, '')}` : null,
+          episode.audioUrl
+            ? /^https?:\/\//i.test(episode.audioUrl)
+              ? episode.audioUrl
+              : `${mediaBase}${episode.audioUrl.replace(/^\/media/, '')}`
+            : null,
         ),
         episodeBreadcrumbs(origin, category, episode),
       ];

@@ -29,6 +29,20 @@ export function seoHeadTags(seo: ResolvedPageSeo) {
   return tags.join('\n');
 }
 
+const managedHeadPatterns = [
+  /<title>[\s\S]*?<\/title>\s*/gi,
+  /<meta name="description"[^>]*>\s*/gi,
+  /<meta name="robots"[^>]*>\s*/gi,
+  /<link rel="canonical"[^>]*>\s*/gi,
+  /<meta property="og:[^"]+"[^>]*>\s*/gi,
+  /<meta name="twitter:[^"]+"[^>]*>\s*/gi,
+  /<script type="application\/ld\+json">[\s\S]*?<\/script>\s*/gi,
+];
+
+function stripManagedHead(html: string) {
+  return managedHeadPatterns.reduce((next, pattern) => next.replace(pattern, ''), html);
+}
+
 export function injectSeoIntoHtml(html: string, seo: ResolvedPageSeo, jsonLd?: unknown[]) {
   const head = seoHeadTags(seo);
   const jsonLdBlocks = jsonLd?.length
@@ -40,8 +54,9 @@ export function injectSeoIntoHtml(html: string, seo: ResolvedPageSeo, jsonLd?: u
         .join('\n')
     : '';
   const injection = `${head}\n${jsonLdBlocks}`;
-  if (html.includes('</head>')) {
-    return html.replace('</head>', `${injection}\n</head>`);
+  const stripped = stripManagedHead(html);
+  if (stripped.includes('</head>')) {
+    return stripped.replace('</head>', `${injection}\n</head>`);
   }
-  return `${injection}\n${html}`;
+  return `${injection}\n${stripped}`;
 }

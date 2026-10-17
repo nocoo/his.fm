@@ -60,9 +60,6 @@ const rawEpisodes: Episode[] = [
 ];
 const episodes = rawEpisodes.map((episode) => projectPublicEpisode(episode, 'https://his.fm.test'));
 
-const origin = 'https://hisfm.dev.hexly.ai';
-const publicEpisodes = episodes.map((episode) => projectPublicEpisode(episode, origin));
-
 afterEach(() => {
   vi.unstubAllGlobals();
 });
@@ -114,11 +111,11 @@ describe('website appearance', () => {
 
 describe('listening room', () => {
   it('combines category and case-insensitive title, summary and tag search', () => {
-    expect(filterEpisodes(publicEpisodes, 'all', '')).toHaveLength(2);
-    expect(filterEpisodes(publicEpisodes, 'manager-notes', '  ai ')).toEqual([publicEpisodes[0]]);
-    expect(filterEpisodes(publicEpisodes, 'all', '路边')).toEqual([publicEpisodes[1]]);
-    expect(filterEpisodes(publicEpisodes, 'all', '开发者')).toEqual([publicEpisodes[0]]);
-    expect(filterEpisodes(publicEpisodes, 'life', 'AI')).toEqual([]);
+    expect(filterEpisodes(episodes, 'all', '')).toHaveLength(2);
+    expect(filterEpisodes(episodes, 'manager-notes', '  ai ')).toEqual([episodes[0]]);
+    expect(filterEpisodes(episodes, 'all', '路边')).toEqual([episodes[1]]);
+    expect(filterEpisodes(episodes, 'all', '开发者')).toEqual([episodes[0]]);
+    expect(filterEpisodes(episodes, 'life', 'AI')).toEqual([]);
   });
   it('formats dates consistently in Shanghai and represents unfinished media honestly', () => {
     expect(dateLabel('2026-09-24T22:00:00Z')).toBe('2026.09.25');

@@ -25,7 +25,7 @@ export async function findPublishedEpisodeBySlug(
 ): Promise<{ category: string; slug: string } | null> {
   const row = await db
     .prepare(
-      "SELECT category, slug FROM episodes WHERE slug = ? AND status = 'published' AND published_at <= ? ORDER BY published_at DESC LIMIT 1",
+      "SELECT category, slug FROM episodes WHERE slug = ? AND status = 'published' AND published_at <= ? ORDER BY published_at ASC LIMIT 1",
     )
     .bind(slug, new Date().toISOString())
     .first<EpisodeRow>();

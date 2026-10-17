@@ -24,4 +24,16 @@ describe('seo-head', () => {
     expect(html).toContain('PodcastSeries');
     expect(injectSeoIntoHtml('<html></html>', seo)).toContain('<title>');
   });
+
+  it('replaces managed head tags instead of appending duplicates', () => {
+    const seo = resolveSiteDefaults(siteSeoSchema.parse({ defaultTitle: 'First' }), 'https://his.fm');
+    const shell =
+      '<html><head><title>Old</title><meta name="description" content="old" /><link rel="canonical" href="https://old.example/" /></head><body></body></html>';
+    const html = injectSeoIntoHtml(shell, { ...seo, title: 'Second', description: 'new' });
+    expect(html.match(/<title>/g)?.length).toBe(1);
+    expect(html).toContain('<title>Second</title>');
+    expect(html).not.toContain('Old</title>');
+    expect(html).not.toContain('content="old"');
+    expect(html).not.toContain('https://old.example/');
+  });
 });

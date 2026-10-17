@@ -2,6 +2,17 @@
 
 All notable changes to his.fm are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions use the owner’s patch-only deployment policy in `AGENTS.md`, with the authoritative version in `package.json`.
 
+## 2.4.8 - 2026-10-17
+
+### Added
+
+- Site-wide and per-resource **SEO** defaults with admin editing, Worker-rendered HTML head tags, JSON-LD, `robots.txt`, `sitemap.xml`, category RSS feeds, and client-side head updates on navigation.
+
+### Changed
+
+- Category renames preserve the full **alias chain** and reclaim alias IDs when renaming back; SEO overrides persist across renames.
+- Legacy `/episodes/<slug>` resolves to the **earliest** published match; managed head tags are **replaced** (not duplicated); client navigation clears server JSON-LD; absolute audio URLs skip CDN prefixing; `/episodes?category=` filters the catalogue.
+
 ## 2.4.7 - 2026-10-17
 
 ### Added

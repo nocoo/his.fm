@@ -16,7 +16,7 @@ export function applyClientSeo(seo: ResolvedPageSeo, jsonLd?: unknown[]) {
   setMeta('meta[name="twitter:title"]', 'content', seo.title);
   setMeta('meta[name="twitter:description"]', 'content', seo.description);
   setMeta('meta[name="twitter:image"]', 'content', seo.ogImageUrl);
-  document.getElementById('page-jsonld')?.remove();
+  for (const node of document.querySelectorAll('script[type="application/ld+json"]')) node.remove();
   if (jsonLd?.length) {
     const script = document.createElement('script');
     script.id = 'page-jsonld';
