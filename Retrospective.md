@@ -754,3 +754,7 @@ states. Test failure followed by recovery, not just the successful initial rende
 The browser recovery test additionally caught the failed selector's missing form
 entry clearing the preview category during an unrelated title edit. Preserve the
 current category when its input is temporarily absent; absence is not an edit.
+
+Herdr's split ratio describes the leading pane, not the new worker pane. Verify
+the returned layout rather than inferring geometry: the controller must use
+0.33 on the left, with workers on the right. The initial 0.67 split was corrected.
