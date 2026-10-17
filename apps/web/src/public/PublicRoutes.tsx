@@ -18,6 +18,7 @@ import { themeMedia } from '../brand/themes';
 import { AudioPlayer } from '../components/AudioPlayer';
 import type { PublicEpisode } from '../shared/episode';
 import { episodePublicPath } from '../shared/episode-url';
+import { pickLegacyPublishedEpisode } from '../shared/legacy-episode-slug';
 import { ReadingText } from '../shared/ReadingText';
 import { applyClientSeo } from '../shared/seo-client';
 import { episodeBreadcrumbs, podcastEpisodeJsonLd, podcastSeriesJsonLd } from '../shared/seo-jsonld';
@@ -391,9 +392,11 @@ function EpisodeDetail() {
   const { categoryId, slug } = useParams();
   const { episodes, categories, loading, error } = useLibrary();
   const site = usePublicSiteSeo();
-  const episode = episodes.find(
-    (item) => item.slug === slug && (!categoryId || item.category === categoryId),
-  );
+  const episode = categoryId
+    ? episodes.find((item) => item.slug === slug && item.category === categoryId)
+    : slug
+      ? pickLegacyPublishedEpisode(episodes, slug)
+      : undefined;
   const [copyState, setCopyState] = useState('');
   const origin = window.location.origin;
   useEffect(() => {

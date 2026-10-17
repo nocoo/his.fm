@@ -22,7 +22,7 @@ import {
   episodeClaimReplaceStatements,
   resolveEpisodePatchEpisodeNumber,
 } from './episode-numbering';
-import { resolveCategoryAlias } from './episode-public';
+import { findPublishedEpisodeBySlug, resolveCategoryAlias } from './episode-public';
 import { HttpError, json } from './http';
 import { readJson } from './production-body';
 import { getSiteSeo } from './seo-store';
@@ -122,11 +122,13 @@ async function fetchPublishedRow(db: D1Database, lookup: EpisodeLookup) {
       .first<EpisodeRow>();
   }
   if (lookup.slug) {
+    const hit = await findPublishedEpisodeBySlug(db, lookup.slug);
+    if (!hit) return null;
     return db
       .prepare(
-        "SELECT * FROM episodes WHERE slug = ? AND status = 'published' AND published_at <= ? ORDER BY published_at DESC LIMIT 1",
+        "SELECT * FROM episodes WHERE category = ? AND slug = ? AND status = 'published' AND published_at <= ?",
       )
-      .bind(lookup.slug, now)
+      .bind(hit.category, hit.slug, now)
       .first<EpisodeRow>();
   }
   return null;

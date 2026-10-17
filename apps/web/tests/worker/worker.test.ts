@@ -368,6 +368,30 @@ describe('public podcast catalog', () => {
     expect(((await nested.json()) as { episode: Episode }).episode.slug).toBe(episode.slug);
   });
 
+  it('uses the same legacy slug winner for API, redirects and ambiguous slugs', async () => {
+    const sharedSlug = 'shared-legacy-slug';
+    const older = await create({
+      slug: sharedSlug,
+      category: 'life',
+      episodeNumber: 1,
+      publishedAt: '2026-01-01T08:00:00.000Z',
+      title: '较早的一期',
+    });
+    const newer = await create({
+      slug: sharedSlug,
+      category: 'manager-notes',
+      episodeNumber: 2,
+      publishedAt: '2026-06-01T08:00:00.000Z',
+      title: '较晚的一期',
+    });
+    const legacyApi = (await (await call(`/api/episodes/${sharedSlug}`)).json()) as { episode: Episode };
+    expect(legacyApi.episode.id).toBe(older.id);
+    const redirect = await call(`/episodes/${sharedSlug}`);
+    expect(redirect.status).toBe(301);
+    expect(redirect.headers.get('Location')).toBe(`${origin}/episodes/${older.category}/${older.slug}`);
+    expect(newer.id).not.toBe(older.id);
+  });
+
   it('exposes mentions on public episode JSON without transcript', async () => {
     const episode = await create();
     const listed = (await (await call('/api/episodes')).json()) as { episodes: Episode[] };

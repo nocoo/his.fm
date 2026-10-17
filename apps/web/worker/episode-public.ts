@@ -1,5 +1,6 @@
 import type { Episode, PublicEpisode } from '../src/shared/episode';
 import { episodeCanonicalUrl } from '../src/shared/episode-url';
+import { legacyPublishedSlugOrderSql } from '../src/shared/legacy-episode-slug';
 import { parseSeoOverride } from '../src/shared/seo';
 import { HttpError } from './http';
 
@@ -30,7 +31,7 @@ export async function findPublishedEpisodeBySlug(
 ): Promise<{ category: string; slug: string } | null> {
   const row = await db
     .prepare(
-      "SELECT category, slug FROM episodes WHERE slug = ? AND status = 'published' AND published_at <= ? ORDER BY published_at ASC LIMIT 1",
+      `SELECT category, slug FROM episodes WHERE slug = ? AND status = 'published' AND published_at <= ? ORDER BY ${legacyPublishedSlugOrderSql} LIMIT 1`,
     )
     .bind(slug, new Date().toISOString())
     .first<EpisodeRow>();
