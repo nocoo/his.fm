@@ -1,7 +1,25 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { Miniflare } from 'miniflare';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { buildImportExampleStatements } from '../../scripts/import-example-sql.mjs';
 import { nextEpisodeNumberInCategory, reserveEpisodeNumberClaim } from '../../worker/episode-numbering';
+
+const exampleImportProduction = {
+  id: 'example-how-to-live-better',
+  slug: 'how-to-live-better',
+  category: 'manager-notes',
+  title: '示例',
+};
+
+async function runImportExampleSql(
+  production: Record<string, unknown>,
+  options: { mode: '--local' | '--remote'; now: string; importWriteId: string },
+) {
+  for (const statement of buildImportExampleStatements(production, options)) {
+    const sql = statement.trim().replace(/;+$/, '');
+    if (sql) await db.prepare(sql).run();
+  }
+}
 
 let mf: Miniflare;
 let db: D1Database;
@@ -62,15 +80,37 @@ describe('local seed episode number claims', () => {
     expect(await nextEpisodeNumberInCategory(db, 'life')).toBe(1);
   });
 
-  it('skips import claims when the example production already exists', async () => {
-    const productionId = 'example-how-to-live-better';
+  it('runs import-example SQL on D1 and writes a production claim only on new insert', async () => {
+    const productionId = exampleImportProduction.id as string;
     const now = '2026-09-24T08:00:00.000Z';
-    const payload = JSON.stringify({
-      category: 'manager-notes',
-      slug: 'how-to-live-better',
-      title: '示例',
-      episodeNumber: 1,
+    await runImportExampleSql(exampleImportProduction, {
+      mode: '--remote',
+      now,
+      importWriteId: 'a'.repeat(32),
     });
+    expect(
+      await db
+        .prepare('SELECT holder_kind AS holderKind FROM episode_number_claims WHERE holder_id = ?')
+        .bind(productionId)
+        .first<{ holderKind: string }>(),
+    ).toEqual({ holderKind: 'production' });
+    await runImportExampleSql(exampleImportProduction, {
+      mode: '--remote',
+      now,
+      importWriteId: 'b'.repeat(32),
+    });
+    expect(
+      await db
+        .prepare('SELECT COUNT(*) AS n FROM episode_number_claims WHERE holder_id = ?')
+        .bind(productionId)
+        .first<{ n: number }>(),
+    ).toEqual({ n: 1 });
+  });
+
+  it('skips import claims when the example production already exists with an episode claim', async () => {
+    const productionId = exampleImportProduction.id as string;
+    const now = '2026-09-24T08:00:00.000Z';
+    const payload = JSON.stringify({ ...exampleImportProduction, episodeNumber: 1 });
     await db
       .prepare(
         'INSERT INTO productions (id, version, stage, data, created_at, updated_at, write_id) VALUES (?, 1, ?, ?, ?, ?, ?)',
@@ -83,24 +123,17 @@ describe('local seed episode number claims', () => {
       )
       .bind('manager-notes', 1, productionId, 'episode')
       .run();
-    await db
-      .prepare(
-        `WITH new_production AS (
-           SELECT id, data FROM productions WHERE id = ?
-         )
-         INSERT INTO episode_number_claims (category, episode_number, holder_id, holder_kind)
-         SELECT json_extract(data, '$.category'), CAST(json_extract(data, '$.episodeNumber') AS INTEGER), id, 'production'
-         FROM new_production`,
-      )
-      .bind(productionId)
-      .run()
-      .catch(() => undefined);
+    await runImportExampleSql(exampleImportProduction, {
+      mode: '--remote',
+      now,
+      importWriteId: 'c'.repeat(32),
+    });
     expect(
       await db
-        .prepare('SELECT COUNT(*) AS n FROM episode_number_claims WHERE holder_id = ?')
+        .prepare('SELECT holder_kind AS holderKind FROM episode_number_claims WHERE holder_id = ?')
         .bind(productionId)
-        .first<{ n: number }>(),
-    ).toEqual({ n: 1 });
+        .first<{ holderKind: string }>(),
+    ).toEqual({ holderKind: 'episode' });
   });
 
   it('allocates seed episode numbers from existing claims in the category', async () => {
@@ -146,30 +179,13 @@ describe('local seed episode number claims', () => {
         .bind('manager-notes', episodeNumber, holderId, 'episode')
         .run();
     }
-    const productionId = 'example-how-to-live-better';
-    const payload = JSON.stringify({
-      category: 'manager-notes',
-      slug: 'how-to-live-better',
-      title: '示例',
-    });
+    const productionId = exampleImportProduction.id as string;
     const now = '2026-09-24T08:00:00.000Z';
-    await db
-      .prepare(
-        `INSERT INTO productions (id, version, stage, data, created_at, updated_at, write_id)
-         SELECT ?, 1, 'draft', json_set(?, '$.episodeNumber', (
-           SELECT COALESCE(MAX(episode_number), 0) + 1 FROM episode_number_claims WHERE category = 'manager-notes'
-         )), ?, ?, ?`,
-      )
-      .bind(productionId, payload, now, now, crypto.randomUUID())
-      .run();
-    await db
-      .prepare(
-        `INSERT INTO episode_number_claims (category, episode_number, holder_id, holder_kind)
-         SELECT json_extract(data, '$.category'), CAST(json_extract(data, '$.episodeNumber') AS INTEGER), id, 'production'
-         FROM productions WHERE id = ?`,
-      )
-      .bind(productionId)
-      .run();
+    await runImportExampleSql(exampleImportProduction, {
+      mode: '--remote',
+      now,
+      importWriteId: 'd'.repeat(32),
+    });
     expect(
       await db
         .prepare(

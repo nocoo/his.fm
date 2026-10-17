@@ -23,6 +23,7 @@
     "playwright.config.ts",
     "cloudflare.config.ts",
     ".cloudflare/types/**/*.d.ts",
-    "*.d.ts"
+    "*.d.ts",
+    "scripts/**/*.d.mts"
   ]
 }

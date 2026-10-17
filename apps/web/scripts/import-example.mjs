@@ -1,6 +1,8 @@
 import { spawnSync } from 'node:child_process';
+import { randomBytes } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { buildImportExampleStatements } from './import-example-sql.mjs';
 
 process.env.MINIFLARE_CACHE_DIR = '.cloudflare/cache';
 
@@ -64,29 +66,8 @@ const production = {
   createdAt: now,
   updatedAt: now,
 };
-const quote = (value) => `'${String(value).replaceAll("'", "''")}'`;
-const marker = 'hisfm-real-production-example-v1';
-const localGuard =
-  mode === '--local' ? ` AND NOT EXISTS (SELECT 1 FROM local_seed_runs WHERE name = ${quote(marker)})` : '';
-const productionGuard = `NOT EXISTS (SELECT 1 FROM productions WHERE json_extract(data, '$.slug') = ${quote(production.slug)})${localGuard}`;
-const productionData = quote(JSON.stringify(production));
-const sql = [
-  `WITH new_production AS (
-     INSERT INTO productions (id, version, stage, data, created_at, updated_at, write_id)
-     SELECT ${quote(production.id)}, 1, 'draft', json_set(${productionData}, '$.episodeNumber', (
-       SELECT COALESCE(MAX(episode_number), 0) + 1 FROM episode_number_claims WHERE category = ${quote(production.category)}
-     )), ${quote(now)}, ${quote(now)}, lower(hex(randomblob(16)))
-     WHERE ${productionGuard}
-     RETURNING id, data
-   )
-   INSERT INTO episode_number_claims (category, episode_number, holder_id, holder_kind)
-   SELECT json_extract(data, '$.category'), CAST(json_extract(data, '$.episodeNumber') AS INTEGER), id, 'production'
-   FROM new_production;`,
-];
-if (mode === '--local')
-  sql.push(
-    `INSERT OR IGNORE INTO local_seed_runs (name, created_at) VALUES (${quote(marker)}, ${quote(now)});`,
-  );
+const importWriteId = randomBytes(16).toString('hex');
+const sql = buildImportExampleStatements(production, { mode, now, importWriteId });
 const result = spawnSync(
   process.execPath,
   [
