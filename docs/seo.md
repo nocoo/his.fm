@@ -76,8 +76,9 @@ The current 768px WebP and archived 1024px originals are not compliant. Obtain a
 approved original or explicit permission for a derivative; do not invent an email
 or change the author identity on behalf of the owner.
 
-RSS emits boolean explicit values, owner metadata when configured, byte lengths
-from R2 metadata and standard iTunes channel taxonomy. Submission acceptance
+RSS emits boolean explicit values, owner metadata when configured, an
+`atom:author` URI when `podcastAuthorUrl` is set, byte lengths from R2 metadata
+and standard iTunes channel taxonomy. Submission acceptance
 still requires live endpoint and platform validation after deployment. A 1200x630
 Open Graph image is a separate social-preview improvement, not the podcast cover.
 See [the owner content checklist](seo-content-checklist.md) for confirmed values,

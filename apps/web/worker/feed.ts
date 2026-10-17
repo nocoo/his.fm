@@ -132,6 +132,9 @@ async function buildChannel(
   const owner = site.podcastOwnerEmail
     ? `\n    <itunes:owner><itunes:name>${escapeXml(site.podcastAuthor)}</itunes:name><itunes:email>${escapeXml(site.podcastOwnerEmail)}</itunes:email></itunes:owner>`
     : '';
+  const authorLink = site.podcastAuthorUrl
+    ? `\n    <atom:author><atom:name>${escapeXml(site.podcastAuthor)}</atom:name><atom:uri>${escapeXml(site.podcastAuthorUrl)}</atom:uri></atom:author>`
+    : '';
   return `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0"
   xmlns:atom="http://www.w3.org/2005/Atom"
@@ -144,7 +147,7 @@ async function buildChannel(
     <language>${escapeXml(site.language)}</language>
     <itunes:author>${escapeXml(site.podcastAuthor)}</itunes:author>
     <itunes:summary>${escapeXml(description)}</itunes:summary>
-    <itunes:explicit>${site.itunesExplicit}</itunes:explicit>${image}${owner}
+    <itunes:explicit>${site.itunesExplicit}</itunes:explicit>${image}${owner}${authorLink}
     <itunes:category text="${escapeXml(site.itunesCategory)}" />
     <atom:link href="${escapeXml(selfHref)}" rel="self" type="application/rss+xml"/>
     ${items}
