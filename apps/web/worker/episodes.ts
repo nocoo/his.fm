@@ -134,6 +134,18 @@ async function fetchPublishedRow(db: D1Database, lookup: EpisodeLookup) {
   return null;
 }
 
+export function listEpisodes(
+  db: D1Database,
+  publishedOnly: true,
+  actor?: Actor,
+  origin?: string,
+): Promise<PublicEpisode[]>;
+export function listEpisodes(
+  db: D1Database,
+  publishedOnly: boolean,
+  actor?: Actor,
+  origin?: string,
+): Promise<Array<Episode | PublicEpisode>>;
 export async function listEpisodes(
   db: D1Database,
   publishedOnly: boolean,

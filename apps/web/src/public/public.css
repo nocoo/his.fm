@@ -1292,7 +1292,7 @@ html:has(.public-site) body {
       opacity var(--reveal-duration) var(--reveal-ease),
       transform var(--reveal-duration) var(--reveal-ease);
   }
-  .public-site .public-reveal:not([data-revealed]) {
+  .public-site .public-reveal[data-reveal-pending]:not([data-revealed]) {
     opacity: 0;
     transform: translateY(var(--reveal-distance));
   }

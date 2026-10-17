@@ -84,7 +84,12 @@ test('public pages fit a phone and respect reduced motion', async ({ page }) => 
   await page.screenshot({ path: '.local/home-desktop.png', fullPage: true, animations: 'disabled' });
 });
 
-test('empty and failed libraries provide useful recovery paths', async ({ page }) => {
+test('client-only library entry retains empty and failed recovery paths', async ({ page }) => {
+  await page.route('**/episodes', async (route) => {
+    const response = await route.fetch();
+    const html = (await response.text()).replace(/<script id="public-data"[^>]*>[\s\S]*?<\/script>/, '');
+    await route.fulfill({ response, body: html });
+  });
   await page.route('**/api/episodes', (route) =>
     route.fulfill({ status: 503, contentType: 'application/json', body: '{}' }),
   );
@@ -98,4 +103,45 @@ test('empty and failed libraries provide useful recovery paths', async ({ page }
   );
   await page.reload();
   await expect(page.getByRole('heading', { name: '第一段声音，正在路上。' })).toBeVisible();
+});
+
+test('public content and episode links are readable without JavaScript', async ({ browser, baseURL }) => {
+  const context = await browser.newContext({ javaScriptEnabled: false, ignoreHTTPSErrors: true });
+  const page = await context.newPage();
+  for (const path of ['/', '/episodes', '/about', '/episodes/how-many-ai-tools-after-work']) {
+    const response = await page.goto(`${baseURL}${path}`);
+    expect(response?.status()).toBe(200);
+    await expect(page.locator('main h1:not(article h1)')).toBeVisible();
+    await expect(page.getByRole('link', { name: '全部播客', exact: true }).first()).toBeVisible();
+  }
+  await expect(page.locator('#reading-panel')).toContainText('下班后');
+  await expect(page.locator('#reading-panel a').first()).toBeVisible();
+  await context.close();
+});
+
+test('unknown URLs return 404 and real icons retain their media types', async ({ request }) => {
+  for (const path of ['/feed', '/rss.xml', '/favicon.ico', '/episodes/missing-episode']) {
+    expect((await request.get(path)).status(), path).toBe(404);
+  }
+  expect((await request.get('/apple-touch-icon.png')).headers()['content-type']).toContain('image/png');
+  expect((await request.get('/site.webmanifest')).status()).toBe(200);
+});
+
+test('public re-entry revalidates the server snapshot without a document reload', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.locator('.episode-card')).toHaveCount(3);
+  await page.locator('footer a[href="/login"]').click();
+  await expect(page).toHaveURL(/\/login$/);
+  await expect(page.getByRole('heading', { name: '欢迎回到工作室' })).toBeVisible();
+  await page.route('**/api/episodes', (route) => route.fulfill({ json: { episodes: [] } }));
+  await page.route('**/api/appearance', (route) =>
+    route.fulfill({ json: { appearance: { theme: 'stillwood' } } }),
+  );
+  await page.route('**/api/site-seo', (route) =>
+    route.fulfill({ json: { seo: { defaultTitle: 'Fresh public metadata' } } }),
+  );
+  await page.getByRole('link', { name: '返回网站' }).click();
+  await expect(page.locator('.episode-card')).toHaveCount(0);
+  await expect(page.locator('.public-site')).toHaveAttribute('data-theme', 'stillwood');
+  await expect(page).toHaveTitle('Fresh public metadata');
 });

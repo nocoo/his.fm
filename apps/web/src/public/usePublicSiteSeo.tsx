@@ -1,10 +1,12 @@
 import { createContext, type ReactNode, useContext, useEffect, useState } from 'react';
 import { type SiteSeo, siteSeoSchema } from '../shared/seo';
+import { usePublicData } from './PublicData';
 
 const SiteSeoContext = createContext<SiteSeo>(siteSeoSchema.parse({}));
 
 export function PublicSiteSeoProvider({ children }: { children: ReactNode }) {
-  const [site, setSite] = useState<SiteSeo>(() => siteSeoSchema.parse({}));
+  const initial = usePublicData();
+  const [site, setSite] = useState<SiteSeo>(() => initial?.site ?? siteSeoSchema.parse({}));
   useEffect(() => {
     const controller = new AbortController();
     fetch('/api/site-seo', { signal: controller.signal })

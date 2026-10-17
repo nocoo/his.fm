@@ -35,6 +35,7 @@ import {
   episodeDisplayLabel,
   filterEpisodes,
 } from './model';
+import { usePublicOrigin } from './PublicData';
 import { Reveal } from './Reveal';
 import { useEpisodes } from './useEpisodes';
 import { PublicSiteSeoProvider, usePublicSiteSeo } from './usePublicSiteSeo';
@@ -215,7 +216,7 @@ function Home() {
   const { episodes, categories } = useLibrary();
   const { id } = useAppearance();
   const site = usePublicSiteSeo();
-  const origin = window.location.origin;
+  const origin = usePublicOrigin();
   const featured = episodes.find((episode) => episode.featured) ?? episodes[0];
   const featuredLabel = featured ? episodeDisplayLabel(featured, categories) : undefined;
   useEffect(() => {
@@ -296,7 +297,7 @@ function Home() {
 function Catalogue() {
   const { episodes, categories } = useLibrary();
   const site = usePublicSiteSeo();
-  const origin = window.location.origin;
+  const origin = usePublicOrigin();
   const [searchParams, setSearchParams] = useSearchParams();
   const category = catalogueCategoryFromSearch(searchParams.get('category'));
   const [query, setQuery] = useState('');
@@ -398,7 +399,7 @@ function EpisodeDetail() {
       ? pickLegacyPublishedEpisode(episodes, slug)
       : undefined;
   const [copyState, setCopyState] = useState('');
-  const origin = window.location.origin;
+  const origin = usePublicOrigin();
   useEffect(() => {
     if (!episode) return;
     const category = categories.find((item) => item.id === episode.category) ?? {
@@ -537,7 +538,7 @@ function EpisodeDetail() {
 
 function About() {
   const site = usePublicSiteSeo();
-  const origin = window.location.origin;
+  const origin = usePublicOrigin();
   useEffect(() => {
     applyClientSeo(resolveAboutPageSeo(site, origin), [podcastSeriesJsonLd(origin, site)]);
   }, [site, origin]);
@@ -609,7 +610,12 @@ function About() {
 function NotFound() {
   const site = usePublicSiteSeo();
   useEffect(() => {
-    applyClientSeo(resolveSiteDefaults(site, window.location.origin));
+    applyClientSeo({
+      ...resolveSiteDefaults(site, window.location.origin),
+      title: '页面不存在 · his.fm',
+      canonical: `${window.location.origin}${window.location.pathname}`,
+      noindex: true,
+    });
   }, [site]);
   return (
     <section className="not-found wrap">

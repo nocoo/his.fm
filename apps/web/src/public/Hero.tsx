@@ -6,6 +6,14 @@ import { episodePublicPath } from '../shared/episode-url';
 import { PublicLink, useAppearance } from './Appearance';
 import { durationLabel } from './model';
 
+export function heroImageSizes(id: string) {
+  const split = ['interval', 'human-sample', 'window-seat'].includes(id);
+  return {
+    sizes: split ? 'max(52vw, 825px)' : 'max(100vw, 1290px)',
+    mobileSizes: split ? 'max(calc(100vw - 48px), 370px)' : 'max(100vw, 740px)',
+  };
+}
+
 export function ThemeImage({
   className = '',
   priority = false,
@@ -45,8 +53,7 @@ export function ThemeImage({
 export function Hero({ featured, episodeLabel }: { featured?: PublicEpisode; episodeLabel?: string }) {
   const { id } = useAppearance();
   const theme = themes[id];
-  const split = ['interval', 'human-sample', 'window-seat'].includes(id);
-  const sizes = split ? 'max(52vw, 825px)' : 'max(100vw, 1290px)';
+  const imageSizes = heroImageSizes(id);
   return (
     <section className="home-hero">
       {id === 'human-sample' && (
@@ -79,11 +86,7 @@ export function Hero({ featured, episodeLabel }: { featured?: PublicEpisode; epi
         </PublicLink>
       </div>
       <figure className="hero-visual">
-        <ThemeImage
-          priority
-          sizes={sizes}
-          mobileSizes={split ? 'max(calc(100vw - 48px), 370px)' : 'max(100vw, 740px)'}
-        />
+        <ThemeImage priority {...imageSizes} />
         <BrandSymbol />
         <figcaption>{theme.note}</figcaption>
       </figure>

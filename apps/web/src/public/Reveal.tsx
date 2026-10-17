@@ -8,6 +8,7 @@ function observeReveal(node: HTMLDivElement | null) {
     element.dataset.revealed = '';
     return;
   }
+  element.dataset.revealPending = '';
   const observer = new IntersectionObserver(
     (entries) => {
       if (entries.some((entry) => entry.isIntersecting)) reveal();
@@ -21,6 +22,7 @@ function observeReveal(node: HTMLDivElement | null) {
   }
   function reveal() {
     element.dataset.revealed = '';
+    delete element.dataset.revealPending;
     cleanup();
   }
   function preferenceChanged() {

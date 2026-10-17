@@ -24,7 +24,12 @@ async function media(request: Request, env: Env) {
   const headers = new Headers();
   object.writeHttpMetadata(headers);
   headers.set('ETag', object.httpEtag);
-  headers.set('Cache-Control', 'public, max-age=3600');
+  headers.set(
+    'Cache-Control',
+    /^images\/(?:hero-retina-20260926-|identity\/.*-[a-f0-9]{16}\.webp$)/.test(key)
+      ? 'public, max-age=31536000, immutable'
+      : 'public, max-age=3600',
+  );
   headers.set('X-Content-Type-Options', 'nosniff');
   headers.set('Content-Security-Policy', "default-src 'none'; sandbox");
   return streamMedia(request, env.MEDIA, object, headers);
@@ -45,6 +50,21 @@ async function route(request: Request, env: Env): Promise<Response> {
   const path = url.pathname;
   const origin = url.origin;
   const mediaBase = env.MEDIA_BASE_URL ?? 'https://f.no.mt';
+  if (env.ENVIRONMENT === 'local' && /^\/(?:@|src\/|node_modules\/)/.test(path))
+    return env.ASSETS.fetch(request);
+  if (url.hostname === 'www.his.fm' || (url.hostname === 'his.fm' && url.protocol === 'http:')) {
+    url.protocol = 'https:';
+    url.hostname = 'his.fm';
+    return Response.redirect(url.href, 308);
+  }
+  if (
+    (request.method === 'GET' || request.method === 'HEAD') &&
+    /^\/(?:about|login|episodes(?:\/[^/]+){0,2})\/+$/i.test(path)
+  ) {
+    url.pathname = path.replace(/\/+$/, '');
+    return Response.redirect(url.href, 308);
+  }
+  const shell = () => env.ASSETS.fetch(new Request(new URL('/', request.url), request));
   const discovery = routeDiscovery(request);
   if (discovery) return discovery;
   if (path.startsWith('/api/agent/')) return routeAgent(request, env);
@@ -143,7 +163,7 @@ async function route(request: Request, env: Env): Promise<Response> {
     if (!session) {
       if (api) throw new HttpError(401, '请先登录管理后台');
       if (!isLocal(request, env)) return accessLogin();
-      return env.ASSETS.fetch(request);
+      return shell();
     }
     if (api && path.startsWith('/admin/api/')) {
       if (!['GET', 'HEAD'].includes(request.method)) requireSameOrigin(request);
@@ -156,7 +176,7 @@ async function route(request: Request, env: Env): Promise<Response> {
     if (path === '/admin/api/session' && request.method === 'GET') return json(await enrichSession(session));
     if (path === '/admin/api/logout' && request.method === 'POST') return logout(request, env);
     if (api) throw new HttpError(404, '接口不存在');
-    const asset = await env.ASSETS.fetch(request);
+    const asset = await (path.includes('.') ? env.ASSETS.fetch(request) : shell());
     const response = new Response(asset.body, asset);
     response.headers.set('Cache-Control', 'no-store');
     return response;
@@ -171,37 +191,50 @@ async function route(request: Request, env: Env): Promise<Response> {
       404,
       { Link: discoveryLinks(url.origin) },
     );
+  if (path === '/login') return shell();
   const html = await maybeServePublicHtml(request, env);
   if (html) return html;
   return env.ASSETS.fetch(request);
 }
 
+async function respond(request: Request, env: Env): Promise<Response> {
+  try {
+    return await route(request, env);
+  } catch (error) {
+    if (error instanceof HttpError) return json({ error: error.message }, error.status);
+    console.error(
+      JSON.stringify({
+        event: 'request_failed',
+        path: new URL(request.url).pathname,
+        message: error instanceof Error ? error.message : 'Unknown error',
+      }),
+    );
+    return json(
+      {
+        error: '暂时无法完成操作，请稍后重试',
+        ...(new URL(request.url).pathname.startsWith('/api/agent/')
+          ? {
+              code: 'internal_error',
+              documentation: `${new URL(request.url).origin}/api/agent/instructions`,
+            }
+          : {}),
+      },
+      500,
+      { Link: discoveryLinks(new URL(request.url).origin) },
+    );
+  }
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
-    try {
-      return await route(request, env);
-    } catch (error) {
-      if (error instanceof HttpError) return json({ error: error.message }, error.status);
-      console.error(
-        JSON.stringify({
-          event: 'request_failed',
-          path: new URL(request.url).pathname,
-          message: error instanceof Error ? error.message : 'Unknown error',
-        }),
-      );
-      return json(
-        {
-          error: '暂时无法完成操作，请稍后重试',
-          ...(new URL(request.url).pathname.startsWith('/api/agent/')
-            ? {
-                code: 'internal_error',
-                documentation: `${new URL(request.url).origin}/api/agent/instructions`,
-              }
-            : {}),
-        },
-        500,
-        { Link: discoveryLinks(new URL(request.url).origin) },
-      );
-    }
+    const response = await respond(request, env);
+    const headers = new Headers(response.headers);
+    if (new URL(request.url).protocol === 'https:')
+      headers.set('Strict-Transport-Security', 'max-age=31536000');
+    headers.set('X-Content-Type-Options', 'nosniff');
+    headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+    if (!headers.has('Content-Security-Policy'))
+      headers.set('Content-Security-Policy', "base-uri 'self'; object-src 'none'; frame-ancestors 'none'");
+    return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
   },
 } satisfies ExportedHandler<Env>;

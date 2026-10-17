@@ -63,23 +63,8 @@ describe('Cloudflare configuration', () => {
       expect(worker.env).not.toHaveProperty('AUDIO_WORKFLOW');
       expect(worker.env).not.toHaveProperty('AGENT_HUB');
       expect(worker.env).not.toHaveProperty('GEMINI_API_KEY');
-      expect(worker.assets.runWorkerFirst).toEqual([
-        '/api/*',
-        '/feed.xml',
-        '/feeds/*',
-        '/sitemap.xml',
-        '/robots.txt',
-        '/llms.txt',
-        '/llms-full.txt',
-        '/',
-        '/about',
-        '/episodes',
-        '/episodes/*',
-        '/.well-known/api-catalog',
-        '/admin',
-        '/admin/*',
-        '/media/*',
-      ]);
+      expect(worker.assets.runWorkerFirst).toBe(true);
+      expect(worker.assets.notFoundHandling).toBe('none');
     }
   });
 });

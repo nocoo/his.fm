@@ -4,6 +4,7 @@ import { BrandSymbol } from '../brand/Brand';
 import { themeStyle, themes } from '../brand/themes';
 import { type PublicAppearance, type ThemeId, themeIdSchema } from '../shared/appearance';
 import { appearanceHref, getAppearance } from './model';
+import { usePublicData } from './PublicData';
 
 const AppearanceContext = createContext<{ id: ThemeId; preview: ThemeId | null } | null>(null);
 
@@ -28,15 +29,16 @@ export function PublicNavLink({ to, ...props }: Omit<NavLinkProps, 'to'> & { to:
 }
 
 export function SiteAppearance({ children }: { children: ReactNode }) {
+  const initial = usePublicData();
   const location = useLocation();
   const selected = themeIdSchema.safeParse(new URLSearchParams(location.search).get('theme'));
   const preview = selected.success ? selected.data : null;
-  const [appearance, setAppearance] = useState<PublicAppearance | null>(null);
+  const [appearance, setAppearance] = useState<PublicAppearance | null>(initial?.appearance ?? null);
   const [error, setError] = useState('');
   const [attempt, setAttempt] = useState(0);
   const id = preview ?? appearance?.theme;
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: A retry or a returning tab refreshes the server-selected appearance.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: Retry and focus explicitly revalidate saved appearance.
   useEffect(() => {
     if (preview) return;
     const controller = new AbortController();

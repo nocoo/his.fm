@@ -111,7 +111,9 @@ beforeAll(async () => {
             ASSETS: {
               type: 'fetcher',
               handler: () =>
-                new MiniflareResponse('<html>his.fm</html>', { headers: { 'Content-Type': 'text/html' } }),
+                new MiniflareResponse('<html><head></head><body><div id="root"></div></body></html>', {
+                  headers: { 'Content-Type': 'text/html' },
+                }),
             },
           },
         },
@@ -420,6 +422,71 @@ describe('public podcast catalog', () => {
     expect(await categoryFeed.text()).toContain('<itunes:author>');
   });
 
+  it('renders published public content and safely bootstraps only public data', async () => {
+    const episode = await create({
+      showNotes: '## Listen closely\n\nA note </script><script>alert(1)</script>',
+    });
+    await create({ slug: 'private-draft', episodeNumber: 99, title: 'PRIVATE DRAFT', status: 'draft' });
+    for (const path of ['/', '/episodes', '/about', `/episodes/${episode.category}/${episode.slug}`]) {
+      const response = await call(path);
+      expect(response.status).toBe(200);
+      const html = await response.text();
+      expect(html).toContain('<h1');
+      expect(html).not.toContain('<div id="root"></div>');
+      expect(html).not.toContain('PRIVATE DRAFT');
+      expect(html).not.toContain('<script>alert(1)</script>');
+      expect(html).not.toContain('"transcript":');
+      const bootstrap = html.match(/<script id="public-data" type="application\/json">(.*?)<\/script>/s);
+      expect(bootstrap).not.toBeNull();
+      const data = JSON.parse(bootstrap?.[1] ?? '{}');
+      expect(data.site).not.toHaveProperty('updatedBy');
+      expect(data.appearance).not.toHaveProperty('updatedBy');
+      if (path.includes(episode.slug)) expect(html).toContain('<h2>Listen closely</h2>');
+    }
+    const home = await (await call('/?theme=interval')).text();
+    expect(home).toContain('imageSrcSet=');
+    expect(home).toContain('media="(max-width: 760px)"');
+    expect(home).toContain('max(calc(100vw - 48px), 370px)');
+    expect(await (await call('/', { method: 'HEAD' })).text()).toBe('');
+  });
+
+  it('returns real public 404s, keeps local tooling reachable and adds security headers', async () => {
+    for (const path of [
+      '/feed',
+      '/missing',
+      '/episodes/episodes',
+      '/episodes/unknown',
+      '/episodes/life/unknown',
+    ]) {
+      const response = await call(path);
+      expect(response.status).toBe(404);
+      expect(await response.text()).toContain('noindex, follow');
+    }
+    expect((await call('/@vite/client')).status).toBe(200);
+    expect((await call('/login')).status).toBe(200);
+    const response = await call('/');
+    expect(response.headers.get('Strict-Transport-Security')).toBe('max-age=31536000');
+    expect(response.headers.get('Content-Security-Policy')).toContain("object-src 'none'");
+    const production = await call('/', {}, { ...env, ENVIRONMENT: 'production' });
+    const csp = production.headers.get('Content-Security-Policy');
+    const nonce = /'nonce-([^']+)'/.exec(csp ?? '')?.[1];
+    expect(nonce).toBeTruthy();
+    expect(await production.text()).toContain(`<script nonce="${nonce}"`);
+    for (const url of ['http://his.fm/about?x=1', 'https://www.his.fm/about?x=1']) {
+      const redirect = await worker.fetch(new Request(url), env);
+      expect(redirect.status).toBe(308);
+      expect(redirect.headers.get('Location')).toBe('https://his.fm/about?x=1');
+    }
+  });
+
+  it('redirects public trailing slashes before selecting the HTML shell', async () => {
+    for (const path of ['/about', '/episodes', '/episodes/life/test', '/login']) {
+      const response = await call(`${path}/?theme=interval`);
+      expect(response.status).toBe(308);
+      expect(response.headers.get('Location')).toBe(`${origin}${path}?theme=interval`);
+    }
+  });
+
   it('includes audio enclosures when episodes have playable media', async () => {
     const bytes = new Uint8Array([0, 1, 2, 3, 4]);
     await env.MEDIA.put('sample.mp3', bytes, { httpMetadata: { contentType: 'audio/mpeg' } });
@@ -432,7 +499,10 @@ describe('public podcast catalog', () => {
   });
 
   it('includes mentions in RSS item descriptions', async () => {
-    await create();
+    await env.MEDIA.put('mentions.mp3', new Uint8Array([1, 2, 3]), {
+      httpMetadata: { contentType: 'audio/mpeg' },
+    });
+    await create({ audioUrl: '/media/mentions.mp3' });
     const feed = await call('/feed.xml');
     expect(feed.status).toBe(200);
     expect(feed.headers.get('Content-Type')).toContain('application/rss+xml');

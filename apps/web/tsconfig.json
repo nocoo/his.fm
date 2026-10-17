@@ -17,6 +17,7 @@
     "src/**/*.ts",
     "src/**/*.tsx",
     "worker/**/*.ts",
+    "worker/**/*.tsx",
     "tests/**/*.ts",
     "vitest.config.ts",
     "vite.config.ts",

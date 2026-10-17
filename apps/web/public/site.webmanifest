@@ -1,0 +1,8 @@
+{
+  "name": "his.fm",
+  "short_name": "his.fm",
+  "lang": "zh-CN",
+  "start_url": "/",
+  "display": "browser",
+  "icons": [{ "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml" }]
+}
