@@ -14,6 +14,7 @@ import { InputArea } from '@nocoo/basalt/components/input-area';
 import { CircleHelp, ExternalLink, Link2Off, Replace } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { AudioPlayer } from '../../components/AudioPlayer';
+import { FramedCover } from '../../components/FramedCover';
 import {
   type Production,
   productionAudioMaxBytes,
@@ -369,7 +370,7 @@ function CoverPreview({ production }: { production: Production }) {
   const cover = production.assets.cover;
   return cover ? (
     <div className="studio-asset-preview studio-asset-preview-cover">
-      <img className="studio-cover" src={cover.url} alt={`${production.title}的节目封面`} />
+      <FramedCover className="studio-cover" src={cover.url} alt={`${production.title}的节目封面`} />
       <div className="studio-asset-preview-actions">
         <a
           className="studio-link studio-asset-quiet-link"

@@ -1,6 +1,7 @@
 import { Button } from '@nocoo/basalt';
 import { Download } from 'lucide-react';
 import { useState } from 'react';
+import { useResolvedThemeId } from '../../shared/useResolvedThemeId';
 import { errorMessage } from '../model';
 import { exportCover } from './cover-export';
 
@@ -13,6 +14,7 @@ export function CoverDownload({
   episodeNumber: number;
   compact?: boolean;
 }) {
+  const themeId = useResolvedThemeId();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState('');
   const [download, setDownload] = useState('');
@@ -21,7 +23,7 @@ export function CoverDownload({
     setError('');
     setDownload('');
     try {
-      const file = await exportCover(source, episodeNumber);
+      const file = await exportCover(source, episodeNumber, themeId);
       const url = URL.createObjectURL(file);
       const link = document.createElement('a');
       link.href = url;
