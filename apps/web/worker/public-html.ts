@@ -58,16 +58,8 @@ export async function maybeServePublicHtml(request: Request, env: Env): Promise<
     jsonLd = [podcastSeriesJsonLd(origin, site)];
   } else if (path === '/episodes') {
     const categoryId = url.searchParams.get('category');
-    if (categoryId) {
-      const resolvedCategory = await resolveCategoryAlias(env.DB, categoryId);
-      if (resolvedCategory !== categoryId) {
-        const params = new URLSearchParams(url.searchParams);
-        params.set('category', resolvedCategory);
-        return redirect(`${origin}/episodes?${params}`);
-      }
-    }
     const categories = await listCategories(env.DB);
-    const category = categoryId ? categories.find((item) => item.id === categoryId) : undefined;
+    const category = categories.find((item) => item.id === categoryId);
     const categorySeo = category ? (await getCategory(env.DB, category.id)).seo : undefined;
     seo = resolveCatalogueSeo(site, origin, category, categorySeo);
   } else if (categoryEpisode) {

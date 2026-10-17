@@ -3,7 +3,6 @@ import { discoveryLinks, routeAgent, routeDiscovery } from './agent-api';
 import { getAppearance } from './appearance';
 import { accessLogin, authenticate, isLocal, localLogin, logout } from './auth';
 import { getCategory, listCategories } from './categories';
-import { redirect, resolveCategoryAlias } from './episode-public';
 import { getEpisode, listEpisodes } from './episodes';
 import { buildCategoryRssFeed, buildRssFeed } from './feed';
 import { HttpError, json, requireSameOrigin } from './http';
@@ -86,12 +85,7 @@ async function route(request: Request, env: Env): Promise<Response> {
   const categoryFeed = /^\/feeds\/([a-z0-9-]+)\.xml$/.exec(path);
   if (categoryFeed) {
     if (request.method !== 'GET' && request.method !== 'HEAD') throw new HttpError(405, '不支持这个请求方式');
-    const requestedId = categoryFeed[1];
-    const resolvedId = await resolveCategoryAlias(env.DB, requestedId);
-    if (resolvedId !== requestedId) {
-      return redirect(`${origin}/feeds/${resolvedId}.xml`);
-    }
-    const category = await getCategory(env.DB, resolvedId);
+    const category = await getCategory(env.DB, categoryFeed[1]);
     const body = await buildCategoryRssFeed(env.DB, origin, mediaBase, category.id, category.name, env.MEDIA);
     const response = new Response(body, {
       headers: {
