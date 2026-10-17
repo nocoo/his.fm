@@ -12,7 +12,15 @@ type Theme = {
   note: string;
   imageAlt: string;
   palette: [string, string, string, string, string];
+  /** Transparent square SVG overlaid on episode covers; defaults to the shared brand frame. */
+  coverFrame?: string;
 };
+
+export const defaultCoverFrame = '/brand/cover-frame.svg';
+
+export function themeCoverFrameSrc(id: ThemeId): string {
+  return themes[id].coverFrame ?? defaultCoverFrame;
+}
 
 export const themes: Record<ThemeId, Theme> = {
   grove: {
