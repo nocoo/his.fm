@@ -1,6 +1,37 @@
 import { mkdir } from 'node:fs/promises';
 import { expect, test } from '@playwright/test';
 
+for (const width of [375, 390, 430, 1440]) {
+  test(`episode artwork starts at the top and fits at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 1000 });
+    await page.goto('/episodes/manager-notes/how-many-ai-tools-after-work?theme=interval');
+    const artwork = page.locator('.detail-art');
+    await expect(artwork.locator('.framed-cover')).toBeVisible();
+    const art = await artwork.boundingBox();
+    const intro = await page.locator('.detail-intro').boundingBox();
+    const hero = await page.locator('.episode-detail-hero').boundingBox();
+    if (!art || !intro || !hero) throw new Error('Missing episode layout');
+    expect(Math.abs(art.y - hero.y)).toBeLessThan(1);
+    expect(Math.abs(art.x - hero.x)).toBeLessThan(1);
+    if (width < 760) {
+      expect(Math.abs(art.width - hero.width)).toBeLessThan(1);
+      expect(intro.y - (art.y + art.height)).toBeGreaterThanOrEqual(20);
+      expect(intro.y - (art.y + art.height)).toBeLessThanOrEqual(32);
+      expect(await artwork.evaluate((element) => getComputedStyle(element).position)).toBe('static');
+    } else {
+      expect(Math.abs(art.y - intro.y)).toBeLessThan(1);
+      expect(await artwork.evaluate((element) => getComputedStyle(element).position)).toBe('sticky');
+    }
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    await mkdir('.local', { recursive: true });
+    await page.screenshot({
+      path: `.local/episode-layout-${width}.png`,
+      fullPage: true,
+      animations: 'disabled',
+    });
+  });
+}
+
 test('listeners can browse, filter and read episode summaries without transcripts', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
