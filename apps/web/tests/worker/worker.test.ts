@@ -537,6 +537,39 @@ describe('editor CRUD', () => {
     expect((await call(`/admin/api/episodes/${episode.id}`)).status).toBe(404);
   });
 
+  it('does not mutate episode number claims when a stale episode save loses the race', async () => {
+    const episode = await create({ status: 'draft', publishedAt: null, episodeNumber: 1 });
+    const path = `/admin/api/episodes/${episode.id}`;
+    const save = (version: number, title: string, episodeNumber = 1) =>
+      call(path, {
+        method: 'PUT',
+        ...body({
+          ...input,
+          version,
+          slug: episode.slug,
+          category: episode.category,
+          episodeNumber,
+          status: 'draft',
+          publishedAt: null,
+          title,
+        }),
+      });
+    const second = ((await (await save(episode.version, '第二版')).json()) as { episode: Episode }).episode;
+    const third = ((await (await save(second.version, '第三版')).json()) as { episode: Episode }).episode;
+    const before = await env.DB.prepare(
+      'SELECT category, episode_number FROM episode_number_claims WHERE holder_id = ?',
+    )
+      .bind(episode.id)
+      .all();
+    expect((await save(second.version, '过期保存', 2)).status).toBe(409);
+    expect(
+      await env.DB.prepare('SELECT category, episode_number FROM episode_number_claims WHERE holder_id = ?')
+        .bind(episode.id)
+        .all(),
+    ).toEqual(before);
+    expect(third.episodeNumber).toBe(1);
+  });
+
   it('rejects episode renumber when another holder already claimed the number', async () => {
     const episode = await create();
     await env.DB.prepare(

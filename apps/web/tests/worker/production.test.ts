@@ -4,6 +4,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 import { z } from 'zod';
 import type { Actor, Production } from '../../src/shared/production';
 import { authenticateAgent, routeAgentTokens } from '../../worker/agent-tokens';
+import { nextEpisodeNumberInCategory } from '../../worker/episode-numbering';
 import { HttpError, json } from '../../worker/http';
 import { publishProduction, routeProductions } from '../../worker/production';
 import { readBytes, readJson } from '../../worker/production-body';
@@ -255,12 +256,15 @@ describe('production API and optimistic updates', () => {
     );
     expect(realigned.episodeNumber).toBe(production.episodeNumber);
     expect(
-      await env.DB.prepare(
-        'SELECT holder_kind AS holderKind, episode_number AS episodeNumber FROM episode_number_claims WHERE holder_id = ?',
-      )
-        .bind(production.id)
-        .first<{ holderKind: string; episodeNumber: number }>(),
-    ).toEqual({ holderKind: 'episode', episodeNumber: production.episodeNumber });
+      (
+        await env.DB.prepare(
+          'SELECT holder_kind AS holderKind, episode_number AS episodeNumber FROM episode_number_claims WHERE holder_id = ? ORDER BY holder_kind',
+        )
+          .bind(production.id)
+          .all<{ holderKind: string; episodeNumber: number }>()
+      ).results,
+    ).toEqual([{ holderKind: 'episode', episodeNumber: production.episodeNumber }]);
+    expect(await nextEpisodeNumberInCategory(env.DB, bumped.category)).toBe(9);
   });
 
   it('rejects stale production rows when the optimistic version no longer matches', async () => {
@@ -273,6 +277,32 @@ describe('production API and optimistic updates', () => {
         production.version,
       ),
     ).rejects.toMatchObject({ status: 409 });
+  });
+
+  it('does not mutate episode number claims when a stale production save loses the race', async () => {
+    const production = await create();
+    const current = await saveProduction(
+      env.DB,
+      { ...production, episodeNumber: production.episodeNumber },
+      production.version,
+    );
+    await saveProduction(env.DB, { ...current, intent: '先保存一版' }, current.version);
+    const before = await env.DB.prepare(
+      'SELECT category, episode_number AS episodeNumber, holder_kind AS holderKind FROM episode_number_claims WHERE holder_id = ?',
+    )
+      .bind(production.id)
+      .all<{ category: string; episodeNumber: number; holderKind: string }>();
+    await expect(
+      saveProduction(env.DB, { ...current, episodeNumber: current.episodeNumber + 1 }, current.version),
+    ).rejects.toMatchObject({ status: 409 });
+    expect(
+      await env.DB.prepare(
+        'SELECT category, episode_number AS episodeNumber, holder_kind AS holderKind FROM episode_number_claims WHERE holder_id = ?',
+      )
+        .bind(production.id)
+        .all(),
+    ).toEqual(before);
+    expect((await getProduction(env.DB, production.id)).episodeNumber).toBe(current.episodeNumber);
   });
 
   it('maps claim collisions to conflict when renumbering productions', async () => {
