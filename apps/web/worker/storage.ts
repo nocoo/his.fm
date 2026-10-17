@@ -6,6 +6,7 @@ import {
   storageKeySchema,
   storageKind,
 } from '../src/shared/storage';
+import { collectReferenceKeys } from '../src/shared/storage-references';
 import { parseWav } from './audio';
 import { requireScope } from './authorization';
 import { HttpError, json } from './http';
@@ -25,19 +26,7 @@ function collect(value: unknown, label: string, keys: References['keys'], proper
       keys.set(key, labels);
     };
     if (['key', 'introKey', 'outroKey'].includes(property)) add(value);
-    for (const match of value.matchAll(/https?:\/\/[^\s<>"'()`[\]]+|\/media\/[^\s<>"'()`[\]]+/g)) {
-      try {
-        const url = new URL(match[0].replace(/[.,;!，。；！]+$/, ''), 'https://his.fm');
-        let path = '';
-        if (url.origin === 'https://f.no.mt') path = url.pathname.slice(1);
-        else if (
-          ['his.fm', 'hisfm.dev.hexly.ai', 'localhost', '127.0.0.1'].includes(url.hostname) &&
-          url.pathname.startsWith('/media/')
-        )
-          path = url.pathname.slice(7);
-        if (path) add(decodeURIComponent(path));
-      } catch {}
-    }
+    for (const key of collectReferenceKeys(value)) add(key);
   } else if (Array.isArray(value)) {
     for (const item of value) collect(item, label, keys);
   } else if (value && typeof value === 'object') {
@@ -57,7 +46,7 @@ async function references(db: D1Database): Promise<References> {
     db.prepare('SELECT content, prompts FROM channel_profile'),
     db.prepare('SELECT name, data FROM bumpers'),
     db.prepare('SELECT name, prompt, seo FROM categories'),
-    db.prepare('SELECT data FROM site_seo'),
+    db.prepare('SELECT data FROM site_seo WHERE id = 1'),
   ]);
   if (
     [productions, episodes, provenance, channel, bumpers, categories, siteSeo].some(
@@ -70,17 +59,17 @@ async function references(db: D1Database): Promise<References> {
     const data = JSON.parse(String(row.data));
     collect(data, `制作：${data.title}`, refs.keys);
   }
-  for (const row of episodes.results)
-    collect(
-      { ...row, seo: JSON.parse(String(row.seo)), mentions: JSON.parse(String(row.mentions)) },
-      `节目：${row.title}`,
-      refs.keys,
-    );
+  for (const { seo, mentions, ...row } of episodes.results) {
+    collect({ ...row, mentions: JSON.parse(String(mentions)) }, `节目：${row.title}`, refs.keys);
+    collect(JSON.parse(String(seo)), `节目 SEO：${row.title}`, refs.keys);
+  }
   for (const row of provenance.results) collect(JSON.parse(String(row.data)), '历史音频素材', refs.keys);
   for (const row of bumpers.results) collect(JSON.parse(String(row.data)), `贴片：${row.name}`, refs.keys);
   for (const row of channel.results) collect(row, '频道定位', refs.keys);
-  for (const row of categories.results)
-    collect({ prompt: row.prompt, seo: JSON.parse(String(row.seo)) }, `栏目：${row.name}`, refs.keys);
+  for (const row of categories.results) {
+    collect(row.prompt, `栏目：${row.name}`, refs.keys);
+    collect(JSON.parse(String(row.seo)), `栏目 SEO：${row.name}`, refs.keys);
+  }
   for (const row of siteSeo.results) collect(JSON.parse(String(row.data)), '站点 SEO', refs.keys);
   return refs;
 }

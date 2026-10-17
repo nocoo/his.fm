@@ -2,7 +2,7 @@
 
 All notable changes to his.fm are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions use the owner’s patch-only deployment policy in `AGENTS.md`, with the authoritative version in `package.json`.
 
-## 2.5.1 - 2026-10-17
+## 2.5.2 - 2026-10-18
 
 ### Added
 
@@ -15,13 +15,19 @@ All notable changes to his.fm are documented here. The format follows [Keep a Ch
 - Cache reusable public HTML templates and artwork derivatives in the named Workers Cache entrypoint, parallelize SSR reads and purge after successful relevant writes. Keep the gateway/private APIs uncached, strip credentials before cache access and apply fresh CSP nonces after reading templates.
 - Prevent Zod's eval capability probe from violating CSP without enabling unsafe-eval. Keep public CSS in the static entry for no-JavaScript rendering, and apply shell headers without mutating fetched asset headers.
 - Bind `www.his.fm` to the Worker so HTTP/www requests use the canonical HTTPS redirect.
-- Protect saved site/episode/category SEO images and mention references from storage cleanup. Fail closed when any reference-query batch is unsuccessful and revalidate references before deletion.
+- Extend v2.5.1 storage reference protection to saved mention and production SEO references. Preserve the expanded URL/path extractor, report SEO references distinctly, fail closed when any reference-query batch is unsuccessful, and revalidate references before deletion.
 
 ### Deployment Notes
 
 - No D1 migrations or dependency changes. Deployment adds the native `IMAGES` binding and the cache-enabled `PublicContent` entrypoint; the default gateway remains cache-disabled.
 - The owner still supplies a genuine 3000 x 3000 RGB JPEG/PNG channel cover, a separate 1200 x 630 sharing image, and saves the confirmed identity/contact settings. Deployment does not populate production editorial settings or prove podcast-directory acceptance.
 - Local workerd/browser checks do not establish native edge cache HIT/purge behavior or a Lighthouse score. Verify real DNS/TLS, Images output and cache headers after deployment; do not change production content solely for a purge test.
+
+## 2.5.1 - 2026-10-17
+
+### Fixed
+
+- Count every image URL stored in site, category and episode SEO settings as a storage reference during inventory scans and orphan cleanup, including absolute `f.no.mt` CDN URLs and `/images` or `/media` path forms.
 
 ## 2.5.0 - 2026-10-17
 

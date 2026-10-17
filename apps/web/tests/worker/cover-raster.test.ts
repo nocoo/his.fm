@@ -223,7 +223,7 @@ describe('cover raster lifetime', () => {
   });
 });
 
-describe('deployed-like workerd WASM', () => {
+describe('deployed-like workerd WASM', { concurrent: false }, () => {
   let mf: Miniflare;
 
   beforeAll(async () => {
@@ -290,7 +290,10 @@ export default { async fetch(request, env) {
                 type: 'fetcher',
                 handler: (request) => {
                   const filename = new URL(request.url).pathname.split('/').at(-1) ?? '';
-                  return new MiniflareResponse(readFileSync(new URL(filename, fontRoot)));
+                  const bytes = readFileSync(new URL(filename, fontRoot));
+                  return new MiniflareResponse(new Uint8Array(bytes), {
+                    headers: { 'Content-Length': String(bytes.byteLength) },
+                  });
                 },
               },
             },
@@ -415,8 +418,10 @@ export default { async fetch(request, env) {
         }),
       });
       expect(response.status).toBe(200);
-      await response.arrayBuffer();
-      expect(Number(response.headers.get('X-Wasm-Bytes'))).toBeLessThan(96 * 1024 * 1024);
+      const wasmBytes = Number(response.headers.get('X-Wasm-Bytes'));
+      const body = await response.arrayBuffer();
+      expect(body.byteLength).toBeGreaterThan(0);
+      expect(wasmBytes).toBeLessThan(96 * 1024 * 1024);
     },
     10_000,
   );
