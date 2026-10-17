@@ -1,6 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { type Episode, projectPublicEpisode } from '../../src/shared/episode';
+import { artLocation } from '../../src/shared/episode-art';
 import { type SiteSeoRecord, siteSeoSchema } from '../../src/shared/seo';
+import { getAppearance } from '../../worker/appearance';
+import { artRecords } from '../../worker/episode-art-cache';
 import { listEpisodes, listPublishedEpisodesInCategory } from '../../worker/episodes';
 import { buildCategoryRssFeed, buildRssFeed } from '../../worker/feed';
 import { getSiteSeo } from '../../worker/seo-store';
@@ -10,6 +13,8 @@ vi.mock('../../worker/episodes', () => ({
   listPublishedEpisodesInCategory: vi.fn(),
 }));
 vi.mock('../../worker/seo-store', () => ({ getSiteSeo: vi.fn() }));
+vi.mock('../../worker/appearance', () => ({ getAppearance: vi.fn() }));
+vi.mock('../../worker/episode-art-cache', () => ({ artRecords: vi.fn() }));
 
 const origin = 'https://his.fm';
 const mediaBase = 'https://f.no.mt';
@@ -43,6 +48,9 @@ function episode(patch: Partial<Episode> = {}): Episode {
 }
 
 function catalogue(...episodes: Episode[]) {
+  vi.mocked(artRecords).mockResolvedValue(
+    episodes.map((item) => ({ ...item, categoryName: '生活', resource: 'episodes' as const })),
+  );
   vi.mocked(listEpisodes).mockResolvedValue(episodes.map((item) => projectPublicEpisode(item, origin)));
   vi.mocked(listPublishedEpisodesInCategory).mockResolvedValue(episodes);
 }
@@ -63,8 +71,19 @@ beforeEach(() => {
     updatedBy: 'owner',
   };
   vi.mocked(getSiteSeo).mockImplementation(async () => site);
+  vi.mocked(getAppearance).mockResolvedValue({
+    theme: 'stillwood',
+    version: 1,
+    updatedAt: '',
+    updatedBy: '',
+  });
   catalogue(episode());
 });
+
+async function artUrl(id = 'episode-1') {
+  return (await artLocation({ ...episode({ id }), categoryName: '生活', resource: 'episodes' }, 'stillwood'))
+    .url;
+}
 
 describe('podcast feeds', () => {
   it.each([false, true])(
@@ -75,7 +94,7 @@ describe('podcast feeds', () => {
       const xml = await buildRssFeed(db, origin, mediaBase, bucket);
       expect(xml).toContain(`<itunes:explicit>${explicit}</itunes:explicit>`);
       expect(xml).toContain('<itunes:image href="https://his.fm/brand/podcast.jpg" />');
-      expect(xml).toContain('<itunes:image href="https://his.fm/episodes/episode-1/art.jpg" />');
+      expect(xml).toContain(`<itunes:image href="${origin}${await artUrl()}" />`);
       expect(xml).not.toContain('<itunes:owner');
       expect(xml).not.toContain('<itunes:name');
       expect(xml).not.toContain('<atom:author');
@@ -111,7 +130,7 @@ describe('podcast feeds', () => {
     catalogue(episode({ seo: { ogImageUrl: 'https://cdn.example.test/custom-share.jpg' } }));
     const xml = await buildRssFeed(db, origin, mediaBase, media().bucket);
     expect(xml).toContain(`<itunes:image href="${url}" />`);
-    expect(xml).toContain('<itunes:image href="https://his.fm/episodes/episode-1/art.jpg" />');
+    expect(xml).toContain(`<itunes:image href="${origin}${await artUrl()}" />`);
     expect(xml).not.toContain('custom-share.jpg');
   });
 
@@ -125,10 +144,8 @@ describe('podcast feeds', () => {
     const xml = await buildRssFeed(db, origin, mediaBase, media().bucket);
     const items = [...xml.matchAll(/<item>[\s\S]*?<\/item>/g)].map((match) => match[0]);
     expect(items).toHaveLength(2);
-    expect(items[0]).toContain(
-      `<itunes:image href="${origin}/episodes/${encodeURIComponent(id)}/art.jpg" />`,
-    );
-    expect(items[1]).toContain(`<itunes:image href="${origin}/episodes/second-id/art.jpg" />`);
+    expect(items[0]).toContain(`<itunes:image href="${origin}${await artUrl(id)}" />`);
+    expect(items[1]).toContain(`<itunes:image href="${origin}${await artUrl('second-id')}" />`);
     expect(xml).not.toContain('/episodes/no-audio/art.jpg');
     expect(xml).not.toContain('/images/episode-01.webp');
   });
@@ -333,7 +350,7 @@ describe('podcast feeds', () => {
     expect(xml.match(/<item>/g)).toHaveLength(1);
     expect(xml).toContain('<itunes:duration>123</itunes:duration>');
     expect(xml).toContain('<itunes:image href="https://his.fm/brand/podcast.jpg" />');
-    expect(xml).toContain('<itunes:image href="https://his.fm/episodes/episode-1/art.jpg" />');
+    expect(xml).toContain(`<itunes:image href="${origin}${await artUrl()}" />`);
     expect(xml).not.toContain('/episodes/no-audio/art.jpg');
     expect(listPublishedEpisodesInCategory).toHaveBeenCalledWith(db, 'manager-notes');
   });

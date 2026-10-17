@@ -151,7 +151,7 @@ test('saved standalone preview matches public metadata across eight platforms wi
 
 test('a transient share image failure retries the same URL without losing edits', async ({ page }) => {
   let attempts = 0;
-  await page.route(`**/episodes/${episodeId}/share.jpg`, async (route) => {
+  await page.route(`**/episodes/${episodeId}/share.jpg*`, async (route) => {
     attempts++;
     if (attempts === 1) return route.fulfill({ status: 503, body: 'Retry rendering' });
     await route.continue();

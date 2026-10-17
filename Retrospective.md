@@ -758,3 +758,26 @@ current category when its input is temporarily absent; absence is not an edit.
 Herdr's split ratio describes the leading pane, not the new worker pane. Verify
 the returned layout rather than inferring geometry: the controller must use
 0.33 on the left, with workers on the right. The initial 0.67 split was corrected.
+
+## 2026-10-18 — Invoke targeted tests in the owning workspace
+
+Passing Playwright flags through the root script's nested `npm run` consumed the
+flags and selected no tests. Invoke `npm run test:e2e --workspace @his-fm/web --`
+directly when adding test filters; the corrected two-test sidebar run passed.
+
+## 2026-10-18 — Verify generated-art inputs and test boundaries
+
+The initial pregeneration selector missed the publication collection route and
+used the old category ID after a combined ID/name rename. Trace successful writes
+through their shared controller and use the saved identity for follow-up work.
+Regression tests now cover publication, republication and category renaming.
+
+Spying directly on Miniflare's R2 binding proxy did not intercept its methods.
+Use explicit forwarding binding wrappers when testing cache races and failures;
+otherwise a passing test can exercise the real binding instead of the fault.
+Async Web Crypto also requires async preview-model tests and deterministic digest
+mocks in view tests; the shared helper tests retain real hashing.
+
+I repeated the documented Herdr split-ratio mistake before checking the layout.
+The controller was corrected to the left 0.33 immediately after inspection.
+Check geometry directly after creating a pane, not after starting delegated work.

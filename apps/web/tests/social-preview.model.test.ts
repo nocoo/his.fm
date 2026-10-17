@@ -6,6 +6,7 @@ import {
   socialPlatforms,
 } from '../src/admin/seo/social-preview.model';
 import { type Episode, projectPublicEpisode } from '../src/shared/episode';
+import { withShareArtwork } from '../src/shared/episode-art';
 import { siteSeoSchema } from '../src/shared/seo';
 import { resolveSiteDefaults } from '../src/shared/seo-resolve';
 import { fixture, readyFixture } from './worker/production-fixture';
@@ -20,45 +21,54 @@ const episode: Episode = {
 };
 
 describe('social preview metadata', () => {
-  it('shares the exact public episode projection, including label, canonical and share.jpg', () => {
-    const result = episodeSocialPreview(site, origin, episode, '生活', episode, now);
-    expect(result.seo).toEqual(projectPublicEpisode(episode, origin, { site, categoryName: '生活' }).pageSeo);
+  it('shares the exact public episode projection, including label, canonical and share.jpg', async () => {
+    const result = await episodeSocialPreview(site, origin, episode, '生活', episode, now);
+    expect(result.seo).toEqual(
+      (await withShareArtwork(projectPublicEpisode(episode, origin, { site, categoryName: '生活' }), origin))
+        .pageSeo,
+    );
     expect(result.seo.title).toBe(`生活 EP.08 · ${episode.title} · his.fm`);
     expect(result.seo.description).toBe(`生活 EP.08 · ${episode.summary}`);
     expect(result.seo.canonical).toBe(`${origin}/episodes/life/dinner-before-the-prompt`);
-    expect(result.seo.ogImageUrl).toBe(`${origin}/episodes/production-test/share.jpg`);
+    expect(result.seo.ogImageUrl).toMatch(
+      /^https:\/\/his\.fm\/episodes\/production-test\/share\.jpg\?v=[a-f0-9]{64}$/,
+    );
     expect(result.imageAvailable).toBe(true);
     expect(result.siteName).toBe(site.siteName);
   });
 
-  it('honors site text overrides and episode overrides without substituting source covers', () => {
+  it('honors site text overrides and episode overrides without substituting source covers', async () => {
     const customSite = siteSeoSchema.parse({
       siteName: '慢慢来',
       defaultOgImageUrl: 'https://example.com/site.jpg',
       overrides: { title: '全站标题', description: '全站摘要', ogImageUrl: '/brand/override.jpg' },
     });
     const encoded = { ...episode, id: 'record / 中文' };
-    const result = episodeSocialPreview(customSite, origin, encoded, '生活');
+    const result = await episodeSocialPreview(customSite, origin, encoded, '生活');
     expect(result.seo.title).toBe('全站标题');
     expect(result.seo.description).toBe('全站摘要');
-    expect(result.seo.ogImageUrl).toBe(`${origin}/episodes/record%20%2F%20%E4%B8%AD%E6%96%87/share.jpg`);
+    expect(result.seo.ogImageUrl).toContain(
+      `${origin}/episodes/record%20%2F%20%E4%B8%AD%E6%96%87/share.jpg?v=`,
+    );
     expect(result.siteName).toBe('慢慢来');
     const overridden = {
       ...episode,
       seo: { title: '本期标题', description: '本期摘要', ogImageUrl: '/media/custom.jpg', noindex: true },
     };
-    expect(episodeSocialPreview(customSite, origin, overridden, '生活', overridden, now)).toMatchObject({
-      seo: {
-        title: '本期标题',
-        description: '本期摘要',
-        ogImageUrl: `${origin}/media/custom.jpg`,
-        noindex: true,
+    expect(await episodeSocialPreview(customSite, origin, overridden, '生活', overridden, now)).toMatchObject(
+      {
+        seo: {
+          title: '本期标题',
+          description: '本期摘要',
+          ogImageUrl: `${origin}/media/custom.jpg`,
+          noindex: true,
+        },
+        imageAvailable: true,
       },
-      imageAvailable: true,
-    });
+    );
   });
 
-  it('never loads an unpublished, future, invalid-date or unsaved image as live', () => {
+  it('never loads an unpublished, future, invalid-date or unsaved image as live', async () => {
     for (const saved of [
       undefined,
       { ...episode, status: 'draft' as const },
@@ -69,16 +79,20 @@ describe('social preview metadata', () => {
       { ...episode, coverUrl: '/images/old.jpg' },
       { ...episode, seo: { ogImageUrl: '/images/old.jpg' } },
     ]) {
-      expect(episodeSocialPreview(site, origin, episode, '生活', saved, now).imageAvailable).toBe(false);
+      expect((await episodeSocialPreview(site, origin, episode, '生活', saved, now)).imageAvailable).toBe(
+        false,
+      );
     }
-    expect(episodeSocialPreview(site, origin, episode, '生活', episode).imageAvailable).toBe(true);
+    expect((await episodeSocialPreview(site, origin, episode, '生活', episode)).imageAvailable).toBe(true);
     const boundary = { ...episode, publishedAt: new Date(now).toISOString() };
-    expect(episodeSocialPreview(site, origin, boundary, '生活', boundary, now).imageAvailable).toBe(true);
+    expect((await episodeSocialPreview(site, origin, boundary, '生活', boundary, now)).imageAvailable).toBe(
+      true,
+    );
   });
 
-  it('keeps live metadata edits distinct from the saved image without changing inputs', () => {
+  it('keeps live metadata edits distinct from the saved image without changing inputs', async () => {
     const draft = { ...episode, title: '正在修改', slug: 'new-slug', summary: '新的摘要' };
-    const result = episodeSocialPreview(site, origin, draft, '生活', episode, now);
+    const result = await episodeSocialPreview(site, origin, draft, '生活', episode, now);
     expect(result.imageAvailable).toBe(true);
     expect(result.seo.title).toContain('正在修改');
     expect(result.seo.canonical).toContain('/new-slug');
@@ -104,7 +118,7 @@ describe('social preview metadata', () => {
     );
   });
 
-  it('maps saved production content without inventing publication or media availability', () => {
+  it('maps saved production content without inventing publication or media availability', async () => {
     const draft = productionPreviewEpisode(fixture({ mentions: undefined, seo: undefined }));
     expect(draft).toMatchObject({
       id: 'production-test',
@@ -129,7 +143,7 @@ describe('social preview metadata', () => {
       coverUrl: production.assets.cover?.url,
       durationSeconds: 600,
     });
-    expect(episodeSocialPreview(site, origin, ready, '生活', ready, now).imageAvailable).toBe(false);
+    expect((await episodeSocialPreview(site, origin, ready, '生活', ready, now)).imageAvailable).toBe(false);
   });
 
   it('offers all eight requested platform simulations with distinct stable IDs', () => {

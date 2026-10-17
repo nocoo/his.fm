@@ -83,7 +83,7 @@ async function route(request: Request, env: Env, ctx?: ExecutionContext): Promis
   const shell = () => env.ASSETS.fetch(new Request(new URL('/', request.url), request));
   const discovery = routeDiscovery(request);
   if (discovery) return discovery;
-  if (path.startsWith('/api/agent/')) return routeAgent(request, env);
+  if (path.startsWith('/api/agent/')) return routeAgent(request, env, ctx);
   if (path === '/api/live') {
     if (request.method !== 'GET') throw new HttpError(405, '不支持这个请求方式');
     await env.DB.prepare('SELECT 1').first();
@@ -186,10 +186,16 @@ async function route(request: Request, env: Env, ctx?: ExecutionContext): Promis
     }
     if (api && path.startsWith('/admin/api/')) {
       if (!['GET', 'HEAD'].includes(request.method)) requireSameOrigin(request);
-      const response = await routeManagement(request, env, path.slice('/admin/api'.length), {
-        kind: 'human',
-        name: session.user.email,
-      });
+      const response = await routeManagement(
+        request,
+        env,
+        path.slice('/admin/api'.length),
+        {
+          kind: 'human',
+          name: session.user.email,
+        },
+        ctx,
+      );
       if (response) return response;
     }
     if (path === '/admin/api/session' && request.method === 'GET') return json(await enrichSession(session));

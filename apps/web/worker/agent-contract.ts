@@ -580,7 +580,7 @@ export function agentOpenApi(origin: string) {
         put: {
           ...operation(
             'uploadProductionCover',
-            'Upload a clean unframed raster original, at most 8 MiB; immutable key and approved-script asset rules apply',
+            'Upload a clean unframed raster original, at most 8 MiB; immutable key and approved-script asset rules apply. Use 1400x1400 square originals (smaller accepted), without text, logos, borders or overlays. Keep the share subject near x=50%, y=40%; on square originals the crop spans y=13.75-66.25%. Upload pregenerates square podcast art and landscape share images as immutable generated R2 objects before publication, just like studio uploads; publication and republication warm linked episode artwork keys. Public published-only /episodes/{id}/art.jpg and /episodes/{id}/share.jpg resolve to art.jpg?v=<hash> (optionally with &size=N) and share.jpg?v=<hash>. Square art follows the website theme, defaults to 1400 square and accepts size=1400-3000; 1200x630 sharing is theme-independent. Cache generated outputs, never replace originals; storage cleanup protects current generated versions.',
             wrappedProduction,
             ['productions:write', 'storage:write'],
           ),

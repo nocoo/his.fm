@@ -23,6 +23,31 @@ export function EpisodeSocialPreview({
   const [error, setError] = useState('');
   const [attempt, setAttempt] = useState(0);
   const { categories, error: categoryError, loading, load } = useCategories();
+  const categoryName = categories.find((item) => item.id === episode.category)?.name;
+  const origin = getEnvironment() === 'production' ? 'https://his.fm' : window.location.origin;
+  const [preview, setPreview] = useState<{
+    episode: Episode;
+    saved?: Episode;
+    site: SiteSeo;
+    categoryName: string;
+    value: Awaited<ReturnType<typeof episodeSocialPreview>>;
+  } | null>(null);
+  useEffect(() => {
+    let active = true;
+    if (site && categoryName) {
+      void episodeSocialPreview(site, origin, episode, categoryName, saved).then(
+        (value) => {
+          if (active) setPreview({ episode, saved, site, categoryName, value });
+        },
+        (cause: unknown) => {
+          if (active) setError(errorMessage(cause));
+        },
+      );
+    }
+    return () => {
+      active = false;
+    };
+  }, [site, origin, episode, categoryName, saved]);
   // biome-ignore lint/correctness/useExhaustiveDependencies: The retry key restarts the aborted read.
   useEffect(() => {
     const controller = new AbortController();
@@ -40,12 +65,19 @@ export function EpisodeSocialPreview({
   if (error) return <Failure error={error} retry={() => setAttempt((value) => value + 1)} />;
   if (categoryError) return <Failure error={categoryError} retry={() => void load()} />;
   if (!site || loading) return <LayerCard.Loading label="正在读取分享预览元数据" />;
-  const category = categories.find((item) => item.id === episode.category);
-  if (!category) return <Failure error="请先选择有效栏目，再重新加载分享预览" retry={() => void load()} />;
-  const origin = getEnvironment() === 'production' ? 'https://his.fm' : window.location.origin;
+  if (!categoryName)
+    return <Failure error="请先选择有效栏目，再重新加载分享预览" retry={() => void load()} />;
+  if (!preview) return <LayerCard.Loading label="正在读取分享预览元数据" />;
   return (
     <SocialPreview
-      {...episodeSocialPreview(site, origin, episode, category.name, saved)}
+      {...preview.value}
+      imageAvailable={
+        preview.episode === episode &&
+        preview.saved === saved &&
+        preview.site === site &&
+        preview.categoryName === categoryName &&
+        preview.value.imageAvailable
+      }
       unsavedRecord={!episode.id && !episode.seo.ogImageUrl}
       notice={notice}
     />

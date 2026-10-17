@@ -37,6 +37,7 @@ describe('studio social previews', () => {
   let root: Root;
 
   beforeEach(() => {
+    vi.spyOn(crypto.subtle, 'digest').mockResolvedValue(new Uint8Array(32).buffer);
     localStorage.clear();
     container = document.createElement('div');
     document.body.appendChild(container);
@@ -60,7 +61,7 @@ describe('studio social previews', () => {
 
   it('switches all eight platform cards live without changing metadata or submitting a form', async () => {
     const submit = vi.fn((event: React.SubmitEvent) => event.preventDefault());
-    const props = episodeSocialPreview(site, 'https://his.fm', episode, '生活', episode);
+    const props = await episodeSocialPreview(site, 'https://his.fm', episode, '生活', episode);
     await act(async () => {
       root.render(
         <form onSubmit={submit}>
@@ -91,7 +92,7 @@ describe('studio social previews', () => {
   });
 
   it('shows explicit unavailable states without substituting original covers', async () => {
-    const props = episodeSocialPreview(site, 'https://his.fm', episode, '生活', episode);
+    const props = await episodeSocialPreview(site, 'https://his.fm', episode, '生活', episode);
     await act(async () => root.render(<SocialPreview {...props} notice="已发布" />));
     act(() => {
       container.querySelector('img')?.dispatchEvent(new Event('error'));
@@ -123,12 +124,12 @@ describe('studio social previews', () => {
       root.render(<EpisodeSocialPreview episode={episode} saved={episode} />);
     });
     expect(container.querySelector('img')?.getAttribute('src')).toBe(
-      `${window.location.origin}/episodes/production-test/share.jpg`,
+      `${window.location.origin}/episodes/production-test/share.jpg?v=${'0'.repeat(64)}`,
     );
   });
 
   it('retries a failed image at the same URL without losing edited metadata or requesting drafts', async () => {
-    const props = episodeSocialPreview(
+    const props = await episodeSocialPreview(
       site,
       'https://his.fm',
       { ...episode, title: '未保存的标题' },
@@ -182,7 +183,7 @@ describe('studio social previews', () => {
       root.render(<EpisodeSocialPreview episode={episode} saved={episode} />);
     });
     expect(container.querySelector('img')?.getAttribute('src')).toBe(
-      'https://his.fm/episodes/production-test/share.jpg',
+      `https://his.fm/episodes/production-test/share.jpg?v=${'0'.repeat(64)}`,
     );
     expect(container.textContent).toContain('https://his.fm/episodes/life/dinner-before-the-prompt');
   });

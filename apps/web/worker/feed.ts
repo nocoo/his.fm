@@ -1,6 +1,9 @@
 import { type PublicEpisode, projectPublicEpisode } from '../src/shared/episode';
+import { artLocation } from '../src/shared/episode-art';
 import { categoryFeedPath, episodePublicPath } from '../src/shared/episode-url';
 import { mentionsShowNotesHtml } from '../src/shared/mentions-format';
+import { getAppearance } from './appearance';
+import { artRecords } from './episode-art-cache';
 import { listEpisodes, listPublishedEpisodesInCategory } from './episodes';
 import { getSiteSeo } from './seo-store';
 
@@ -89,6 +92,7 @@ async function renderItem(
   episode: PublicEpisode,
   bucket: R2Bucket | undefined,
   cache: Map<string, Promise<R2Object | null>>,
+  artUrl: string,
 ) {
   const publishedAt = episode.publishedAt ? new Date(episode.publishedAt) : null;
   if (!episode.title.trim() || !publishedAt || !Number.isFinite(publishedAt.getTime())) return '';
@@ -106,12 +110,13 @@ async function renderItem(
   <guid isPermaLink="true">${link}</guid>
   <pubDate>${publishedAt.toUTCString()}</pubDate>
   <description>${escapeXml(itemDescription(episode))}</description>
-  <itunes:image href="${escapeXml(absoluteUrl(origin, `/episodes/${encodeURIComponent(episode.id)}/art.jpg`))}" />
+  <itunes:image href="${escapeXml(absoluteUrl(origin, artUrl))}" />
   <enclosure url="${escapeXml(enclosure.url)}" length="${enclosure.length}" type="${escapeXml(enclosure.type)}" />${duration}
 </item>`;
 }
 
 async function buildChannel(
+  db: D1Database,
   origin: string,
   mediaBase: string,
   title: string,
@@ -122,8 +127,28 @@ async function buildChannel(
   bucket: R2Bucket | undefined,
 ) {
   const cache = new Map<string, Promise<R2Object | null>>();
+  const [{ theme }, records] = await Promise.all([
+    getAppearance(db),
+    artRecords(db, { resource: 'episodes' }),
+  ]);
+  const artwork = new Map(
+    await Promise.all(
+      records.map(async (record) => [record.id, (await artLocation(record, theme)).url] as const),
+    ),
+  );
   const items = (
-    await Promise.all(episodes.map((episode) => renderItem(origin, mediaBase, episode, bucket, cache)))
+    await Promise.all(
+      episodes.map((episode) =>
+        renderItem(
+          origin,
+          mediaBase,
+          episode,
+          bucket,
+          cache,
+          artwork.get(episode.id) ?? `/episodes/${encodeURIComponent(episode.id)}/art.jpg`,
+        ),
+      ),
+    )
   )
     .filter(Boolean)
     .join('\n');
@@ -163,6 +188,7 @@ export async function buildRssFeed(
   const site = await getSiteSeo(db);
   const episodes = await listEpisodes(db, true, undefined, origin);
   return buildChannel(
+    db,
     origin,
     mediaBase,
     site.siteName,
@@ -187,6 +213,7 @@ export async function buildCategoryRssFeed(
     projectPublicEpisode(episode, origin, { site, categoryName }),
   );
   return buildChannel(
+    db,
     origin,
     mediaBase,
     `${categoryName} · ${site.siteName}`,

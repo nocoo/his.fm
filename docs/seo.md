@@ -78,10 +78,17 @@ artwork is independent of episode social-image overrides and channel artwork.
 The channel uses the configured `podcastCoverUrl`; an empty value falls back to
 the committed 3000 x 3000 `/brand/podcast.jpg`, not the landscape sharing image.
 
-The public episode JPEG endpoints serve published episodes only and render on
-demand with `no-store`; they do not enter the named public-content cache or the
-responsive WebP-thumbnail cache. These sRGB JPEG derivatives have no alpha or
-embedded ICC profile and never overwrite clean originals or saved publication
+The public episode JPEG endpoints serve published, non-future episodes only.
+Stable record-ID URLs resolve to versioned URLs (`art.jpg?v=<hash>`, optionally
+with `&size=N`, and `share.jpg?v=<hash>`) backed by immutable generated R2 objects.
+Studio and Agent API cover uploads pregenerate production artwork before publication; publication
+and republication warm the linked episode's current keys. Square-art versions
+follow relevant metadata and website-theme changes; landscape sharing remains
+theme-independent. Cache misses render and store generated outputs. Storage
+cleanup protects current generated versions and may reclaim superseded versions
+subject to its safety rules. These routes do not enter the named public-content
+cache or the responsive WebP-thumbnail cache. These sRGB JPEG derivatives have no
+alpha or embedded ICC profile and never overwrite clean originals or saved publication
 snapshots. Static brand assets are committed with their reproducible generation
 script. These code defaults do not rewrite saved or live SEO settings.
 

@@ -9,6 +9,7 @@ import {
 import { collectReferenceKeys } from '../src/shared/storage-references';
 import { parseWav } from './audio';
 import { requireScope } from './authorization';
+import { currentArtPrefixes } from './episode-art-cache';
 import { HttpError, json } from './http';
 import { streamMedia } from './media';
 import { rasterType } from './media-validation';
@@ -16,7 +17,7 @@ import { readBytes, readJson } from './production-body';
 import { mediaUrl } from './production-store';
 
 const retentionMs = 24 * 60 * 60 * 1000;
-type References = { keys: Map<string, Set<string>> };
+type References = { keys: Map<string, Set<string>>; artPrefixes: string[] };
 
 function collect(value: unknown, label: string, keys: References['keys'], property = '') {
   if (typeof value === 'string') {
@@ -54,7 +55,7 @@ async function references(db: D1Database): Promise<References> {
     )
   )
     throw new HttpError(503, '资源引用暂时无法读取，请重试');
-  const refs: References = { keys: new Map() };
+  const refs: References = { keys: new Map(), artPrefixes: await currentArtPrefixes(db) };
   for (const row of productions.results) {
     const data = JSON.parse(String(row.data));
     collect(data, `制作：${data.title}`, refs.keys);
@@ -81,6 +82,9 @@ function describe(object: R2Object, refs: References): StorageObject {
   if (labels) {
     state = 'referenced';
     reasons = [...labels];
+  } else if (refs.artPrefixes.some((prefix) => object.key.startsWith(prefix))) {
+    state = 'referenced';
+    reasons = ['当前节目合成图片'];
   } else if (object.key.startsWith('images/') || object.key.startsWith('reference/')) {
     state = 'protected';
     reasons = ['品牌图片与音色参考'];
@@ -175,7 +179,10 @@ async function upload(request: Request, env: Env) {
     onlyIf: { etagDoesNotMatch: '*' },
   });
   if (!object) throw new HttpError(409, '资源路径已存在，请重试');
-  return json({ object: describe(object, { keys: new Map() }), url: mediaUrl(env, key) }, 201);
+  return json(
+    { object: describe(object, { keys: new Map(), artPrefixes: [] }), url: mediaUrl(env, key) },
+    201,
+  );
 }
 
 export async function routeStorage(request: Request, env: Env, actor: Actor) {

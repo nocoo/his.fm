@@ -1,4 +1,5 @@
 import { type Episode, projectPublicEpisode } from '../../shared/episode';
+import { withShareArtwork } from '../../shared/episode-art';
 import type { Production } from '../../shared/production';
 import type { SiteSeo } from '../../shared/seo';
 import { resolveSiteDefaults } from '../../shared/seo-resolve';
@@ -16,7 +17,7 @@ export const socialPlatforms = [
 
 export type SocialPlatform = (typeof socialPlatforms)[number]['id'];
 
-export function episodeSocialPreview(
+export async function episodeSocialPreview(
   site: SiteSeo,
   origin: string,
   episode: Episode,
@@ -24,7 +25,10 @@ export function episodeSocialPreview(
   saved?: Episode,
   now = Date.now(),
 ) {
-  const seo = projectPublicEpisode(episode, origin, { site, categoryName }).pageSeo;
+  const { pageSeo: seo } = await withShareArtwork(
+    projectPublicEpisode(episode, origin, { site, categoryName }),
+    origin,
+  );
   const publishedAt = saved?.publishedAt ? Date.parse(saved.publishedAt) : Number.NaN;
   const imageAvailable = Boolean(
     saved?.status === 'published' &&

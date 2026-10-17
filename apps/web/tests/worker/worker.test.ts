@@ -67,7 +67,10 @@ function call(path: string, options: RequestInit = {}, bindings = env) {
 
 function publicCache() {
   const entrypoint = { fetch: vi.fn(), invalidate: vi.fn().mockResolvedValue(undefined) };
-  const context = { exports: { PublicContent: entrypoint } } as unknown as ExecutionContext;
+  const context = {
+    exports: { PublicContent: entrypoint },
+    waitUntil: vi.fn(),
+  } as unknown as ExecutionContext;
   return { entrypoint, context };
 }
 
