@@ -32,6 +32,7 @@ export default defineConfig({
         'src/**/views/**',
         'src/**/*View.ts',
         'worker/episode-public.ts',
+        'worker/episode-numbering.ts',
         'worker/public-redirects.ts',
         'worker/feed.ts',
         'src/shared/mentions-format.ts',

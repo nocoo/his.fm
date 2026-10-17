@@ -19,7 +19,12 @@ import {
 import { requireScope } from './authorization';
 import { categoryFence, getCategory } from './categories';
 import { getChannel } from './channel';
-import { resolveEpisodeNumberForCreate, resolveProductionPatchEpisodeNumber } from './episode-numbering';
+import {
+  assertEpisodeNumberAvailable,
+  insertEpisodeNumberClaim,
+  nextEpisodeNumberInCategory,
+  resolveProductionPatchEpisodeNumber,
+} from './episode-numbering';
 import { HttpError, json } from './http';
 import { rasterType } from './media-validation';
 import { readBytes, readJson } from './production-body';
@@ -366,13 +371,16 @@ export async function routeProductions(
       await getCategory(env.DB, brief.category);
       const now = new Date().toISOString();
       const productionId = crypto.randomUUID();
-      const maxAttempts = brief.episodeNumber === undefined ? 8 : 1;
+      const maxAttempts = brief.episodeNumber === undefined ? 16 : 1;
       for (let attempt = 0; attempt < maxAttempts; attempt++) {
-        const episodeNumber = await resolveEpisodeNumberForCreate(
-          env.DB,
-          brief.category,
-          brief.episodeNumber,
-        );
+        const episodeNumber =
+          brief.episodeNumber ??
+          (await nextEpisodeNumberInCategory(env.DB, brief.category, { productionId: productionId }));
+        if (brief.episodeNumber !== undefined) {
+          await assertEpisodeNumberAvailable(env.DB, brief.category, episodeNumber, {
+            productionId: productionId,
+          });
+        }
         const production = appendEvent(
           {
             ...brief,
@@ -399,20 +407,23 @@ export async function routeProductions(
           'INSERT INTO productions (id, version, stage, data, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
         ).bind(production.id, production.version, production.stage, JSON.stringify(production), now, now);
         try {
-          await env.DB.batch([categoryFence(env.DB, brief.category), insert]);
+          await env.DB.batch([
+            categoryFence(env.DB, brief.category),
+            insertEpisodeNumberClaim(env.DB, brief.category, episodeNumber, productionId, 'production'),
+            insert,
+          ]);
           return respond(production, 201);
         } catch (error) {
-          const conflict =
-            error instanceof Error &&
-            /UNIQUE constraint failed/.test(error.message) &&
-            /productions/.test(error.message);
+          const message = error instanceof Error ? error.message : '';
+          const unique = /UNIQUE constraint failed/.test(message);
           if (brief.episodeNumber !== undefined) {
-            if (conflict) throw new HttpError(409, '该栏目下已有相同期数');
+            if (unique) throw new HttpError(409, '该栏目下已有相同期数');
             throw error;
           }
-          if (!conflict) throw error;
+          if (!unique) throw error;
         }
       }
+      /* v8 ignore next */
       throw new HttpError(503, '栏目期数暂时无法分配，请稍后重试');
     }
     throw new HttpError(405, '不支持这个请求方式');

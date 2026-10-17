@@ -118,6 +118,9 @@ beforeAll(async () => {
     '0014_token_deletion.sql',
     '0016_episode_numbers_per_category.sql',
     '0017_episode_mentions.sql',
+    '0018_category_id_aliases.sql',
+    '0019_episode_slug_per_category.sql',
+    '0020_episode_number_claims.sql',
   ]) {
     const sql = readFileSync(new URL(`../../migrations/${file}`, import.meta.url), 'utf8');
     await env.DB.batch(
@@ -130,9 +133,12 @@ beforeAll(async () => {
 }, 30000);
 beforeEach(async () => {
   await env.DB.batch(
-    ['DELETE FROM productions', 'DELETE FROM episodes', 'DELETE FROM agent_tokens'].map((sql) =>
-      env.DB.prepare(sql),
-    ),
+    [
+      'DELETE FROM productions',
+      'DELETE FROM episodes',
+      'DELETE FROM episode_number_claims',
+      'DELETE FROM agent_tokens',
+    ].map((sql) => env.DB.prepare(sql)),
   );
 });
 afterAll(async () => {
@@ -140,6 +146,57 @@ afterAll(async () => {
 });
 
 describe('production API and optimistic updates', () => {
+  it('rejects explicit production numbers that are already claimed', async () => {
+    await env.DB.prepare(
+      'INSERT INTO episode_number_claims (category, episode_number, holder_id, holder_kind) VALUES (?, ?, ?, ?)',
+    )
+      .bind('life', brief.episodeNumber, 'blocked', 'episode')
+      .run();
+    const response = await call('/productions', 'POST', brief);
+    expect(response.status).toBe(409);
+  });
+
+  it('assigns the next free production number when lower claims are taken', async () => {
+    await env.DB.prepare(
+      'INSERT INTO episode_number_claims (category, episode_number, holder_id, holder_kind) VALUES (?, ?, ?, ?)',
+    )
+      .bind('life', 8, 'blocked', 'production')
+      .run();
+    const response = await call('/productions', 'POST', {
+      ...brief,
+      episodeNumber: undefined,
+      slug: 'auto-number',
+    });
+    expect(response.status).toBe(201);
+    expect(((await response.json()) as { production: Production }).production.episodeNumber).toBe(9);
+  });
+
+  it('skips claim updates when production numbering stays the same', async () => {
+    const production = await create();
+    const saved = await saveProduction(
+      env.DB,
+      { ...production, intent: '只改文案，不改期数' },
+      production.version,
+    );
+    expect(saved.intent).toBe('只改文案，不改期数');
+  });
+
+  it('syncs episode number claims when production category or number changes', async () => {
+    const production = await create();
+    const moved = await saveProduction(
+      env.DB,
+      { ...production, category: 'learning', episodeNumber: 1 },
+      production.version,
+    );
+    expect(
+      await env.DB.prepare(
+        'SELECT category, episode_number AS episodeNumber FROM episode_number_claims WHERE holder_id = ?',
+      )
+        .bind(moved.id)
+        .first<{ category: string; episodeNumber: number }>(),
+    ).toEqual({ category: 'learning', episodeNumber: 1 });
+  });
+
   it('creates and lists private drafts, preserves sources while scripting, and records feedback', async () => {
     let production = await create();
     expect(production.events[0]).toMatchObject({ actor: agent, action: 'create' });

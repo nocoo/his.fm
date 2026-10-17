@@ -83,7 +83,7 @@ beforeAll(async () => {
 });
 beforeEach(async () => {
   await env.DB.batch(
-    ['media_provenance', 'productions', 'episodes', 'bumpers'].map((table) =>
+    ['media_provenance', 'productions', 'episodes', 'episode_number_claims', 'bumpers'].map((table) =>
       env.DB.prepare(`DELETE FROM ${table}`),
     ),
   );

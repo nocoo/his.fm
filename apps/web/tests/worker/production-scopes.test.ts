@@ -135,6 +135,9 @@ beforeAll(async () => {
     '0015_retire_native_runtime.sql',
     '0016_episode_numbers_per_category.sql',
     '0017_episode_mentions.sql',
+    '0018_category_id_aliases.sql',
+    '0019_episode_slug_per_category.sql',
+    '0020_episode_number_claims.sql',
   ]) {
     const sql = readFileSync(new URL(`../../migrations/${file}`, import.meta.url), 'utf8');
     await env.DB.batch(
@@ -148,7 +151,7 @@ beforeAll(async () => {
 
 beforeEach(async () => {
   await env.DB.batch(
-    ['agent_tokens', 'episodes', 'productions', 'media_provenance'].map((table) =>
+    ['agent_tokens', 'episodes', 'productions', 'episode_number_claims', 'media_provenance'].map((table) =>
       env.DB.prepare(`DELETE FROM ${table}`),
     ),
   );

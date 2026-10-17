@@ -8,9 +8,11 @@ export async function maybeServePublicRedirects(request: Request, env: Env): Pro
   const origin = url.origin;
 
   const legacyEpisode = /^\/episodes\/([^/]+)$/.exec(path);
-  if (legacyEpisode && !isReservedEpisodeSegment(legacyEpisode[1])) {
-    const hit = await findPublishedEpisodeBySlug(env.DB, legacyEpisode[1]);
+  if (legacyEpisode) {
+    const slug = legacyEpisode[1];
+    const hit = await findPublishedEpisodeBySlug(env.DB, slug);
     if (hit) return redirect(`${origin}${episodePublicPath(hit.category, hit.slug)}`);
+    if (isReservedEpisodeSegment(slug)) return null;
   }
 
   const categoryEpisode = /^\/episodes\/([^/]+)\/([^/]+)$/.exec(path);
