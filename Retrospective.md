@@ -550,3 +550,21 @@ selection. The original bootstrap also skipped fetching on every later public
 mount, replaying stale data after studio edits. Keep the snapshot for hydration
 but revalidate on mount, with a browser regression for public-to-login-to-public
 navigation that does not reload the document.
+
+## 2026-10-17: Separate directory RSS formats from website playback
+
+The initial feed validation accepted WAV because the CMS and browser player
+support it. Apple's RSS requirements accept MP3/AAC; WAV support belongs to its
+separate subscriber-upload workflow. Keep website WAV playback unchanged, but
+omit WAV enclosures from directory RSS and document the need for an MP3 upload.
+Verify delivery-channel requirements instead of equating playable audio with
+directory-compatible audio.
+
+## 2026-10-17: Keep browser API fixtures on the public SEO contract
+
+The full browser suite exposed fixtures left behind by the earlier SEO merge:
+player tests returned private Episode objects without required `pageSeo`, the
+source-navigation assertion expected the retired slug-only route, and the sidebar
+inventory omitted the new SEO entry. Project mock episodes through the same
+public projection as the API and assert the current canonical routes and complete
+navigation. Do not add production fallbacks for malformed test fixtures.

@@ -1,6 +1,7 @@
 import { expect, type Locator, type Page, type Route, test } from '@playwright/test';
-import type { Episode } from '../../src/shared/episode';
+import { type Episode, projectPublicEpisode } from '../../src/shared/episode';
 import type { BumperRecord } from '../../src/shared/production';
+import { siteSeoSchema } from '../../src/shared/seo';
 
 function silentWav(seconds: number) {
   const sampleRate = 8000;
@@ -132,7 +133,15 @@ async function mockPlayer(page: Page) {
         return fulfillAudio(route, body);
       }
       case '/api/episodes':
-        return route.fulfill({ json: { episodes } });
+        return route.fulfill({
+          json: {
+            episodes: episodes.map((episode) =>
+              projectPublicEpisode(episode, new URL(route.request().url()).origin),
+            ),
+          },
+        });
+      case '/api/site-seo':
+        return route.fulfill({ json: { seo: siteSeoSchema.parse({}) } });
       case '/api/categories':
         return route.fulfill({
           json: {
@@ -322,7 +331,7 @@ test('a source change stops the previous recording and resets position, duration
   await player.getByRole('button', { name: '播放', exact: true }).click();
   await page.evaluate(() => Reflect.set(window, '__previousTestAudio', document.querySelector('audio')));
   await page.getByRole('link', { name: '另一段测试音频', exact: true }).click();
-  await expect(page).toHaveURL(/\/episodes\/player-second\?theme=interval$/);
+  await expect(page).toHaveURL(/\/episodes\/test-category\/player-second\?theme=interval$/);
   const audio = await ready(page, 45);
   await expect(page.locator('.his-audio-player')).toHaveCount(1);
   expect(
