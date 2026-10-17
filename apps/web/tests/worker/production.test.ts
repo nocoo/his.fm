@@ -966,5 +966,15 @@ describe('bounded request parsing', () => {
         z.object({ title: z.string() }),
       ),
     ).toEqual({ title: 'ok' });
+    await expect(
+      readJson(
+        new Request(origin, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: '{"title":1}',
+        }),
+        z.object({ title: z.string() }),
+      ),
+    ).rejects.toMatchObject({ status: 400 });
   });
 });

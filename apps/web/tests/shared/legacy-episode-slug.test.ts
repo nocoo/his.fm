@@ -51,5 +51,19 @@ describe('legacy published slug resolution', () => {
       'https://his.fm',
     );
     expect(pickLegacyPublishedEpisode([tieA, tieB], 'shared-slug')?.id).toBe('episode-a');
+    expect(pickLegacyPublishedEpisode([], 'missing')).toBeUndefined();
+    expect(compareLegacyPublishedSlugCandidates(newer, older)).toBeGreaterThan(0);
+    expect(
+      compareLegacyPublishedSlugCandidates(
+        { id: 'a', publishedAt: null, updatedAt: '2026-03-01T00:00:00.000Z' },
+        { id: 'b', publishedAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-01T00:00:00.000Z' },
+      ),
+    ).toBeGreaterThan(0);
+    expect(
+      compareLegacyPublishedSlugCandidates(
+        { id: 'z', publishedAt: null, updatedAt: '2026-01-01T00:00:00.000Z' },
+        { id: 'a', publishedAt: null, updatedAt: '2026-01-01T00:00:00.000Z' },
+      ),
+    ).toBeGreaterThan(0);
   });
 });

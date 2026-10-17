@@ -137,6 +137,7 @@ describe('listening room', () => {
       ]),
     ).toBe('主理人手札');
     expect(episodeDisplayLabel(episodes[0], [])).toContain('栏目 EP.');
+    expect(episodeDisplayLabel({ category: 'missing', episodeNumber: 3 }, [])).toBe('栏目 EP.03');
   });
   it('loads published episodes and forwards cancellation', async () => {
     const controller = new AbortController();

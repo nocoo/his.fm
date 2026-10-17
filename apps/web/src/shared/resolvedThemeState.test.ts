@@ -80,5 +80,26 @@ describe('buildResolvedThemeState', () => {
       resolved: false,
       error: '网络异常',
     });
+    expect(
+      buildResolvedThemeState({
+        adminStatus: 'error',
+        adminTheme: null,
+        adminErrorMessage: null,
+      }),
+    ).toMatchObject({
+      error: '外观主题未能加载，请稍后重试。',
+    });
+    expect(
+      buildResolvedThemeState({
+        adminStatus: 'ready',
+        adminTheme: null,
+        adminErrorMessage: null,
+      }),
+    ).toEqual({
+      themeId: 'interval',
+      loading: false,
+      resolved: false,
+      error: null,
+    });
   });
 });
