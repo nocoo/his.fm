@@ -81,7 +81,7 @@ function SiteSeoForm({
         <strong>播客 Feed（RSS / Apple Podcasts）</strong>
         {!value.podcastCoverUrl && (
           <p className="admin-muted" role="status">
-            尚未配置播客封面，RSS 暂不输出图片；符合平台要求的封面是上架前的必要条件。
+            未配置专用封面时，RSS 使用 3000 × 3000 JPEG 品牌封面；保存自定义地址可替换。
           </p>
         )}
         <div className="admin-fields">
@@ -145,7 +145,7 @@ function SiteSeoForm({
           <Field
             label="播客封面"
             htmlFor="podcast-cover"
-            hint="独立于分享图；上架需 1400–3000 像素的正方形 PNG 或 JPEG、RGB 色彩。这里只校验地址，尺寸和色彩需人工核验。"
+            hint="留空使用品牌封面。自定义封面需 1400–3000 像素的正方形 PNG 或 JPEG、RGB 色彩；这里只校验地址。"
           >
             <Input
               id="podcast-cover"

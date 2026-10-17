@@ -36,7 +36,8 @@ There is no wildcard. Reader/editor/owner presets expand to explicit grants; the
 `PUT /seo` requires the current `version` and preserves omitted fields. Podcast
 settings include `podcastCoverUrl` (JPEG/PNG URL or empty), `podcastOwnerEmail`
 (approved public contact or empty) and `podcastAuthorType` (`Person` or
-`Organization`). An empty cover or email is not submission-ready; image dimensions
+`Organization`). Empty artwork settings use the bundled Stillwood JPEG brand
+images; an empty owner email remains a launch blocker. Custom image dimensions
 and color space require separate verification. See [SEO operations](seo.md).
 
 ## Editorial preparation
@@ -132,7 +133,7 @@ standalone content edits.
 - Categories: GET/POST `/categories`, GET/PUT/DELETE `/categories/:id`. Private reads need `categories:read`; prompts additionally need `prompts:read`. PUT is partial plus version and preserves omitted prompt. Optional `nextId` renames the stable ID and updates episode/production references in one transaction. Changing a prompt additionally needs `prompts:write`; referenced categories cannot be deleted.
 - Channel: GET/PUT `/channel`; PUT accepts version plus content and/or the complete known prompt bundle. Writes need `prompts:write`; write-only responses return only version.
 - Appearance: GET/PUT `/appearance`; PUT uses current version and a known theme ID.
-- SEO: GET/PUT `/seo` uses `prompts:read` / `prompts:write`. PUT is partial plus the current version and preserves omitted settings. `podcastAuthorUrl` is HTTPS or empty; `podcastCoverUrl` and `podcastOwnerEmail` are owner-supplied launch requirements, not invented defaults. See `docs/seo-content-checklist.md` for artwork and identity fields.
+- SEO: GET/PUT `/seo` uses `prompts:read` / `prompts:write`. PUT is partial plus the current version and preserves omitted settings. `podcastAuthorUrl` is HTTPS or empty; `podcastOwnerEmail` must be owner-supplied. Empty `podcastCoverUrl` and `defaultOgImageUrl` use bundled brand JPEGs without writing settings. See `docs/seo-content-checklist.md` for artwork and identity fields.
 - Storage: GET `/storage?cursor=...` must follow all cursors. GET/HEAD `/storage/object?key=...` streams single byte ranges. DELETE `/storage/object?key=...&version=...` or POST `/storage/cleanup` with `{items:[{key,version}]}` needs `storage:delete` and reports per-object results, not unconditional deletion.
 
 Cleanup protects current references (including site/episode/category SEO and mention URLs), retained media provenance, `images/`, `reference/` and uploads younger than 24 hours. Failed reference-query batches block deletion. It cannot prove an object has no external users or atomically coordinate arbitrary R2 overwrites with D1; avoid concurrent reference changes. Deletion does not purge CDN caches.

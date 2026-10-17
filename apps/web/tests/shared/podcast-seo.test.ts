@@ -75,6 +75,7 @@ describe('podcast SEO settings', () => {
 
   it.each([
     '',
+    '/brand/podcast.jpg',
     '/images/podcast-cover.png',
     '/media/covers/show.jpg',
     'https://f.no.mt/images/show.jpeg',
@@ -88,6 +89,7 @@ describe('podcast SEO settings', () => {
     '/images/show.webp',
     '/images/show.svg',
     '/images/../private.png',
+    '/brand/../private.jpg',
     '/other/show.png',
     '//cdn.example.test/show.png',
     'http://cdn.example.test/show.png',

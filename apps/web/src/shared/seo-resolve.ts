@@ -31,7 +31,7 @@ export function resolveSiteDefaults(site: SiteSeo, origin: string): ResolvedPage
     title: merged.title ?? site.defaultTitle,
     description: merged.description ?? site.defaultDescription,
     canonical: `${origin}/`,
-    ogImageUrl: absoluteAsset(origin, merged.ogImageUrl ?? site.defaultOgImageUrl),
+    ogImageUrl: absoluteAsset(origin, merged.ogImageUrl ?? (site.defaultOgImageUrl || '/brand/share.jpg')),
     noindex: merged.noindex ?? false,
     ogType: 'website',
   };
@@ -46,7 +46,7 @@ export function resolveAboutPageSeo(site: SiteSeo, origin: string, override?: Se
     description:
       merged.description ?? 'his.fm 是一档给开发者的中文播客，聊技术变化、工作节奏，也聊屏幕之外的生活。',
     canonical: `${origin}/about`,
-    ogImageUrl: absoluteAsset(origin, merged.ogImageUrl ?? site.defaultOgImageUrl),
+    ogImageUrl: override?.ogImageUrl ? absoluteAsset(origin, override.ogImageUrl) : base.ogImageUrl,
     noindex: merged.noindex ?? false,
   };
 }
@@ -65,7 +65,7 @@ export function resolveCatalogueSeo(
       title: merged.title ?? `${category.name} · 全部播客${site.titleSuffix}`,
       description: merged.description ?? `浏览 his.fm「${category.name}」栏目的全部节目。`,
       canonical: `${origin}/episodes?category=${encodeURIComponent(category.id)}`,
-      ogImageUrl: absoluteAsset(origin, merged.ogImageUrl ?? site.defaultOgImageUrl),
+      ogImageUrl: override?.ogImageUrl ? absoluteAsset(origin, override.ogImageUrl) : base.ogImageUrl,
       noindex: merged.noindex ?? false,
     };
   }
@@ -74,7 +74,7 @@ export function resolveCatalogueSeo(
     title: merged.title ?? `全部播客${site.titleSuffix}`,
     description: merged.description ?? '浏览 his.fm 全部已发布节目。',
     canonical: `${origin}/episodes`,
-    ogImageUrl: absoluteAsset(origin, merged.ogImageUrl ?? site.defaultOgImageUrl),
+    ogImageUrl: override?.ogImageUrl ? absoluteAsset(origin, override.ogImageUrl) : base.ogImageUrl,
     noindex: merged.noindex ?? false,
   };
 }
@@ -90,7 +90,7 @@ export function resolveEpisodePageSeo(
   const canonical = episodeCanonicalUrl(origin, episode);
   const title = merged.title ?? `${label} · ${episode.title}${site.titleSuffix}`;
   const description = merged.description ?? `${label} · ${episode.summary}`;
-  const ogImage = merged.ogImageUrl ?? episode.coverUrl ?? site.defaultOgImageUrl;
+  const ogImage = override?.ogImageUrl ?? `/episodes/${encodeURIComponent(episode.id)}/share.jpg`;
   return {
     title,
     description,
