@@ -117,8 +117,8 @@ describe('listening room', () => {
     expect(durationLabel(601)).toBe('11 分钟');
     expect(durationLabel(0)).toBe('时长待定');
     expect(
-      categoryLabel('work', [{ id: 'work', name: '工作之间', icon: 'briefcase-business', color: 'blue' }]),
-    ).toBe('工作之间');
+      categoryLabel('work', [{ id: 'work', name: '店长手札', icon: 'briefcase-business', color: 'blue' }]),
+    ).toBe('店长手札');
   });
   it('loads published episodes and forwards cancellation', async () => {
     const controller = new AbortController();

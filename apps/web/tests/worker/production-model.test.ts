@@ -330,7 +330,7 @@ describe('audit and production prompts', () => {
       },
       {
         id: 'work',
-        name: '工作之间',
+        name: '店长手札',
         icon: 'briefcase-business',
         color: 'blue',
         prompt: '栏目风格',

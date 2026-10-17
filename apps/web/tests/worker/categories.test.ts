@@ -80,7 +80,8 @@ it('keeps original identities, returns public metadata without prompts, and vali
     'life',
     'conversations',
   ]);
-  expect(await getCategory(env.DB, 'work')).toMatchObject({ name: '工作之间', prompt: '', version: 1 });
+  expect(await getCategory(env.DB, 'work')).toMatchObject({ name: '店长手札', prompt: '', version: 1 });
+  expect(await getCategory(env.DB, 'learning')).toMatchObject({ name: '每日手冲', version: 1 });
   const category = await create();
   expect(category).toMatchObject({ ...input, version: 1 });
   const publicResponse = await worker.fetch(new Request(`${origin}/api/categories`), env);
