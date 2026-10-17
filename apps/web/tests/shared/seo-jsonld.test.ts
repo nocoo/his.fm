@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import type { PublicEpisode } from '../../src/shared/episode';
 import { siteSeoSchema } from '../../src/shared/seo';
-import { breadcrumbJsonLd, podcastEpisodeJsonLd, podcastSeriesJsonLd } from '../../src/shared/seo-jsonld';
+import {
+  breadcrumbJsonLd,
+  podcastAuthorJsonLd,
+  podcastEpisodeJsonLd,
+  podcastSeriesJsonLd,
+} from '../../src/shared/seo-jsonld';
 
 describe('seo-jsonld', () => {
   it('uses the configured author identity without inventing a person', () => {
@@ -59,21 +64,37 @@ describe('seo-jsonld', () => {
         ogType: 'article' as const,
       },
     } satisfies PublicEpisode;
-    expect(podcastEpisodeJsonLd('https://his.fm', episode, 'https://f.no.mt/a.mp3')).toMatchObject({
+    expect(podcastEpisodeJsonLd('https://his.fm', episode, site, 'https://f.no.mt/a.mp3')).toMatchObject({
       associatedMedia: { contentUrl: 'https://f.no.mt/a.mp3' },
+      author: { '@type': 'Organization', name: 'his.fm' },
     });
-    expect(podcastEpisodeJsonLd('https://his.fm', episode)).not.toHaveProperty('associatedMedia');
+    expect(podcastEpisodeJsonLd('https://his.fm', episode, site)).not.toHaveProperty('associatedMedia');
+    expect(
+      podcastEpisodeJsonLd(
+        'https://his.fm',
+        episode,
+        siteSeoSchema.parse({
+          podcastAuthor: 'A named host',
+          podcastAuthorType: 'Person',
+          podcastAuthorUrl: 'https://author.example.test',
+        }),
+      ).author,
+    ).toEqual({ '@type': 'Person', name: 'A named host', url: 'https://author.example.test' });
+    expect(podcastAuthorJsonLd(siteSeoSchema.parse({}))).toEqual({
+      '@type': 'Organization',
+      name: 'his.fm',
+    });
     const withMentions = {
       ...episode,
       mentions: [{ name: '散步', description: '没有链接也可以。' }],
     };
-    expect(podcastEpisodeJsonLd('https://his.fm', withMentions).mentions).toHaveLength(1);
+    expect(podcastEpisodeJsonLd('https://his.fm', withMentions, site).mentions).toHaveLength(1);
     const draftTiming = {
       ...episode,
       publishedAt: null,
       updatedAt: '2026-02-01T00:00:00.000Z',
     };
-    expect(podcastEpisodeJsonLd('https://his.fm', draftTiming).datePublished).toBe(
+    expect(podcastEpisodeJsonLd('https://his.fm', draftTiming, site).datePublished).toBe(
       '2026-02-01T00:00:00.000Z',
     );
   });

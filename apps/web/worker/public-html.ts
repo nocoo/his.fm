@@ -87,6 +87,7 @@ export async function maybeServePublicHtml(request: Request, env: Env): Promise<
           podcastEpisodeJsonLd(
             origin,
             episode,
+            site,
             episode.audioUrl
               ? /^https?:\/\//i.test(episode.audioUrl)
                 ? episode.audioUrl

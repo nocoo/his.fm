@@ -429,7 +429,7 @@ function EpisodeDetail() {
       seo: {},
     };
     applyClientSeo(episode.pageSeo, [
-      podcastEpisodeJsonLd(origin, episode, episode.audioUrl),
+      podcastEpisodeJsonLd(origin, episode, site, episode.audioUrl),
       episodeBreadcrumbs(origin, category, episode),
       podcastSeriesJsonLd(origin, site),
     ]);

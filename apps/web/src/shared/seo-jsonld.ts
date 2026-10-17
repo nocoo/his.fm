@@ -4,6 +4,14 @@ import { episodeCanonicalUrl, episodePublicPath } from './episode-url';
 import { podcastEpisodeMentionsJsonLd } from './mentions-format';
 import type { SiteSeo } from './seo';
 
+export function podcastAuthorJsonLd(site: SiteSeo) {
+  return {
+    '@type': site.podcastAuthorType,
+    name: site.podcastAuthor,
+    ...(site.podcastAuthorUrl ? { url: site.podcastAuthorUrl } : {}),
+  };
+}
+
 export function podcastSeriesJsonLd(origin: string, site: SiteSeo) {
   return {
     '@context': 'https://schema.org',
@@ -12,17 +20,14 @@ export function podcastSeriesJsonLd(origin: string, site: SiteSeo) {
     description: site.podcastDescription,
     url: `${origin}/`,
     inLanguage: site.language,
-    author: {
-      '@type': site.podcastAuthorType,
-      name: site.podcastAuthor,
-      ...(site.podcastAuthorUrl ? { url: site.podcastAuthorUrl } : {}),
-    },
+    author: podcastAuthorJsonLd(site),
   };
 }
 
 export function podcastEpisodeJsonLd(
   origin: string,
   episode: PublicEpisode,
+  site: SiteSeo,
   audioAbsoluteUrl?: string | null,
 ) {
   return {
@@ -32,6 +37,7 @@ export function podcastEpisodeJsonLd(
     description: episode.summary,
     url: episodeCanonicalUrl(origin, episode),
     datePublished: episode.publishedAt ?? episode.updatedAt,
+    author: podcastAuthorJsonLd(site),
     ...(audioAbsoluteUrl
       ? { associatedMedia: { '@type': 'MediaObject', contentUrl: audioAbsoluteUrl } }
       : {}),
