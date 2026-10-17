@@ -335,7 +335,7 @@ test('manual cover and WAV uploads retain failures and detach only after explici
   );
   await page.goto('/admin/productions/production-test?section=assets');
   const section = page.locator('.studio-section:visible');
-  const cover = section.getByLabel('上传节目封面', { exact: true });
+  const cover = section.locator('input[type=file][accept*="image"]');
   await cover.setInputFiles({
     name: 'cover.png',
     mimeType: 'image/png',
@@ -354,7 +354,7 @@ test('manual cover and WAV uploads retain failures and detach only after explici
     /\/brand\/frames\/.+\.svg$/,
   );
   const wav = Buffer.concat([Buffer.from(wavHeader(48000)), Buffer.alloc(48000)]);
-  await section.getByLabel('上传节目音频', { exact: true }).setInputFiles({
+  await section.locator('input[type=file][accept*="audio"]').setInputFiles({
     name: 'episode.wav',
     mimeType: 'audio/wav',
     buffer: wav,

@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { expect, test } from '@playwright/test';
 import type { Category } from '../../src/shared/category';
 import { e2eOrigin } from './origin';
@@ -84,10 +85,11 @@ test('new categories persist through the real local API and appear in episode se
   page,
 }) => {
   let id = '';
+  const categoryName = `栏目验收-${randomUUID().slice(0, 8)}`;
   await page.request.post('/admin/api/dev-login', { headers: { Origin: e2eOrigin() } });
   try {
     await page.goto('/admin/categories/new');
-    await page.getByLabel('栏目名称', { exact: true }).fill('栏目验收');
+    await page.getByLabel('栏目名称', { exact: true }).fill(categoryName);
     await page.getByRole('button', { name: '保存栏目', exact: true }).click();
     await expect(page).toHaveURL(/\/admin\/categories\/[a-f0-9-]+$/);
     id = new URL(page.url()).pathname.split('/').at(-1) ?? '';
@@ -99,8 +101,8 @@ test('new categories persist through the real local API and appear in episode se
     await expect(page.getByRole('status').filter({ hasText: '已保存' })).toBeVisible();
     await page.goto('/admin/productions/new');
     await page.getByRole('combobox', { name: '栏目', exact: true }).click();
-    await page.getByRole('option', { name: '栏目验收', exact: true }).click();
-    await expect(page.getByRole('combobox', { name: '栏目', exact: true })).toContainText('栏目验收');
+    await page.getByRole('option', { name: categoryName, exact: true }).click();
+    await expect(page.getByRole('combobox', { name: '栏目', exact: true })).toContainText(categoryName);
     const response = await page.request.get('/api/categories');
     expect(await response.text()).not.toContain('Private category acceptance marker');
     await page.goto(`/admin/channel?prompt=category:${id}`);
