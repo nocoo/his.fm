@@ -344,6 +344,21 @@ describe('public podcast catalog', () => {
     expect(response.headers.get('Location')).toContain(`/episodes/${episode.category}/${episode.slug}`);
   });
 
+  it('redirects legacy category ids on catalogue HTML and category feeds', async () => {
+    const episode = await create();
+    await env.DB.prepare('INSERT INTO category_id_aliases (alias, category_id) VALUES (?, ?)')
+      .bind('legacy-feed-category', episode.category)
+      .run();
+    const catalogue = await call('/episodes?category=legacy-feed-category');
+    expect(catalogue.status).toBe(301);
+    expect(catalogue.headers.get('Location')).toBe(`${origin}/episodes?category=${episode.category}`);
+    const feed = await call('/feeds/legacy-feed-category.xml');
+    expect(feed.status).toBe(301);
+    expect(feed.headers.get('Location')).toBe(`${origin}/feeds/${episode.category}.xml`);
+    const resolvedFeed = await call(`/feeds/${episode.category}.xml`);
+    expect(resolvedFeed.status).toBe(200);
+  });
+
   it('resolves nested public episode API paths', async () => {
     const episode = await create();
     const nested = await call(`/api/episodes/${episode.category}/${episode.slug}`);
