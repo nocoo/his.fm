@@ -75,4 +75,45 @@ describe('adminAppearanceTheme', () => {
       error: null,
     });
   });
+
+  it('ignores a delayed load success after publish', async () => {
+    let settle: (value: unknown) => void = () => {};
+    read.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          settle = resolve;
+        }),
+    );
+    loadAdminAppearanceTheme();
+    expect(getAdminAppearanceThemeSnapshot().status).toBe('loading');
+    publishAdminAppearanceTheme('grove');
+    settle({ appearance: { theme: 'interval' } });
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(getAdminAppearanceThemeSnapshot()).toEqual({
+      status: 'ready',
+      theme: 'grove',
+      error: null,
+    });
+  });
+
+  it('ignores a delayed load failure after publish', async () => {
+    let settle: (error: Error) => void = () => {};
+    read.mockImplementation(
+      () =>
+        new Promise((_, reject) => {
+          settle = reject;
+        }),
+    );
+    loadAdminAppearanceTheme();
+    publishAdminAppearanceTheme('grove');
+    settle(new Error('offline'));
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(getAdminAppearanceThemeSnapshot()).toEqual({
+      status: 'ready',
+      theme: 'grove',
+      error: null,
+    });
+  });
 });

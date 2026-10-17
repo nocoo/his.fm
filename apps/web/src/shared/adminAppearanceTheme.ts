@@ -46,6 +46,7 @@ export function loadAdminAppearanceTheme(): void {
 }
 
 export function publishAdminAppearanceTheme(theme: ThemeId): void {
+  generation++;
   snapshot = { status: 'ready', theme, error: null };
   notify();
 }
