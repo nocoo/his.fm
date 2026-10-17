@@ -49,6 +49,42 @@ assets are immutable; replaceable media keeps bounded cache lifetimes. Re-measur
 mobile Lighthouse after deployment rather than treating preload as a score claim.
 The manifest and Apple touch icon reuse the existing identity.
 
+## Share and podcast artwork
+
+Non-episode pages use the configured site sharing image, falling back to
+`/brand/share.jpg` when `defaultOgImageUrl` is empty or absent. The committed
+1200 x 630 JPEG is theme-independent Stillwood branding: paper texture, a thin
+frame and the his.fm wordmark, without episode copy. Existing site-wide and
+page-specific image overrides remain effective on these pages. Clearing
+`defaultOgImageUrl` is valid and restores the code fallback without changing
+other saved settings.
+
+Episode pages use `/episodes/{encoded-id}/share.jpg` for both `og:image` and
+`twitter:image`. An explicit episode SEO `ogImageUrl` wins; site image overrides,
+site defaults and the source cover URL do not replace the per-episode image.
+The stable record ID is URL-encoded independently of the public category/slug
+page URL. This 1200 x 630 JPEG cover-crops the clean original full-bleed with a
+theme-independent Stillwood frame and wordmark. It has no title, title panel,
+episode number or category copy.
+
+Both site and category RSS feeds include an `itunes:image` on every emitted
+item, pointing to `/episodes/{encoded-id}/art.jpg`. The default 1400 x 1400 JPEG
+uses the current site theme's complete framed cover composition, including the
+real title, episode number and category. Originals are expected to be 1400 square;
+smaller 1024px originals still upscale gracefully. Larger originals are read automatically, with composition
+and effective detail capped at 1600 square. `?size=N` accepts 1400–3000; outputs
+above 1600 are upscaled JPEGs rather than additional native-resolution detail. Item
+artwork is independent of episode social-image overrides and channel artwork.
+The channel uses the configured `podcastCoverUrl`; an empty value falls back to
+the committed 3000 x 3000 `/brand/podcast.jpg`, not the landscape sharing image.
+
+The public episode JPEG endpoints serve published episodes only and render on
+demand with `no-store`; they do not enter the named public-content cache or the
+responsive WebP-thumbnail cache. These sRGB JPEG derivatives have no alpha or
+embedded ICC profile and never overwrite clean originals or saved publication
+snapshots. Static brand assets are committed with their reproducible generation
+script. These code defaults do not rewrite saved or live SEO settings.
+
 ## Podcast launch requirements
 
 The site and category feeds use published episodes with real, positive-length
@@ -64,23 +100,24 @@ historical fractional values; file size is never used to infer duration.
 
 The versioned SEO settings expose:
 
-- `podcastCoverUrl`: a dedicated JPEG/PNG URL, independent of the Open Graph image.
+- `podcastCoverUrl`: an optional custom JPEG/PNG URL, independent of the Open Graph image.
 - `podcastOwnerEmail`: the explicitly approved public contact email.
 - `podcastAuthorType`: `Person` or `Organization`, defaulting to `Organization`.
 - `podcastAuthorUrl`: an optional owner-confirmed HTTPS homepage, defaulting empty.
 
-Empty cover/email values remain empty and are launch blockers in the studio.
-URL validation does not prove artwork dimensions or color space. Before directory
-submission, inspect the actual square image: 1400-3000 pixels, JPEG/PNG, RGB.
-The current 768px WebP and archived 1024px originals are not compliant. Obtain an
-approved original or explicit permission for a derivative; do not invent an email
-or change the author identity on behalf of the owner.
+Empty saved cover/email values remain empty. RSS resolves an empty cover to the
+brand square; it never invents an owner email. URL validation does not prove
+custom artwork dimensions or color space. Before directory submission, inspect
+the actual channel and item images: square, 1400-3000 pixels, JPEG/PNG, RGB.
+The source 768px WebP and archived 1024px originals are not directory artwork by
+themselves; use the generated JPEG derivatives rather than those source URLs.
+Do not invent an email or change the author identity on behalf of the owner.
 
 RSS emits boolean explicit values, owner metadata when configured, an
 `atom:author` URI when `podcastAuthorUrl` is set, byte lengths from R2 metadata
 and standard iTunes channel taxonomy. Submission acceptance
-still requires live endpoint and platform validation after deployment. A 1200x630
-Open Graph image is a separate social-preview improvement, not the podcast cover.
+still requires live endpoint and platform validation after deployment. The
+1200 x 630 Open Graph image is separate from the square podcast cover.
 See [the owner content checklist](seo-content-checklist.md) for confirmed values,
 artwork delivery requirements, per-production SEO and the versioned correction
 path. Deployment alone does not populate these production settings.

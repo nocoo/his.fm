@@ -4,7 +4,7 @@ const mediaUrl = z
   .string()
   .max(2048)
   .refine((value) => {
-    if (/^\/(?:images|media)\/[a-zA-Z0-9/_.-]+$/.test(value) && !value.includes('..')) return true;
+    if (/^\/(?:brand|images|media)\/[a-zA-Z0-9/_.-]+$/.test(value) && !value.includes('..')) return true;
     try {
       const url = new URL(value);
       return url.protocol === 'https:' && !url.username && !url.password;
@@ -32,7 +32,7 @@ export const siteSeoSchema = z.strictObject({
     .min(1)
     .max(320)
     .default('his.fm，一档给开发者的中文播客。聊 AI，聊工作，也聊屏幕之外正在发生的生活。'),
-  defaultOgImageUrl: mediaUrl.default('/images/episode-01.webp'),
+  defaultOgImageUrl: mediaUrl.or(z.literal('')).default('/brand/share.jpg'),
   podcastDescription: z
     .string()
     .trim()

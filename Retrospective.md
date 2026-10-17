@@ -696,3 +696,32 @@ reproduced the lifecycle violation deterministically. Drain each response into
 owned bytes before awaiting image analysis, and enable that assertion for the
 workerd fixture. Preserve rendering, geometry, memory and coverage checks; a
 retry or longer timeout is not a response-lifetime fix.
+
+## 2026-10-18: Measure the largest public artwork in a cold Worker
+
+A 3000-square JPEG composition passed Node output checks but consumed 214 MiB
+of WASM linear memory in cold workerd, above the entire Workers budget. Even a
+full-size transparent overlay exceeded that budget. A native draw alternative
+then passed dimension checks but lost the original locally: the pinned Miniflare
+Images implementation ignores draw layers. Real all-theme pixel comparisons
+caught this. Crop the original natively, cap the complete shared composition at
+1600 and explicitly upscale larger JPEG outputs. Document the effective-detail
+cap, retain cold-workerd memory tests, and distinguish linear-memory measurements
+from total-isolate certification. Output dimensions alone do not verify pixels.
+
+A raster test initially called Sharp stats after extract without materializing
+the crop; stats inspected the original image. Encode the crop to an owned buffer
+before measuring pixels. Native Images also defaults to scale-down: explicitly
+select squeeze for overlay upscaling, and verify actual maximum-size JPEG bytes.
+
+The native intermediate JPEG also flattened valid transparent originals to black,
+instead of preserving the shared composition's paper behind them. Keep the
+bounded crop as alpha-preserving WebP until final JPEG composition, test
+translucent original pixel parity, and remeasure that exact intermediate format.
+Large PNG responses stalled the pinned local Images proxy during the first
+attempt; the existing supported WebP path retains alpha without that failure.
+
+The new shared raster lock also exposed an existing catch-all in authenticated
+PNG export: it relabeled contention as a 422 decode failure. Preserve typed
+errors and return retryable 503 responses at both public and authenticated entry
+points; test guard release after cross-format contention.

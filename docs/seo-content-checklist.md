@@ -1,8 +1,9 @@
 # Owner content checklist
 
-Technical deployments do not write production editorial settings or supply new
-artwork. Complete this checklist before submitting the RSS feed to podcast
-directories. An empty podcast cover or owner email remains a launch blocker.
+Technical deployments do not write production editorial settings. Bundled
+Stillwood brand artwork supplies empty-setting defaults. Complete this checklist
+before submitting the RSS feed to podcast directories; an empty owner email
+remains a launch blocker.
 
 ## 1. Confirm identity in Search and Sharing
 
@@ -16,8 +17,8 @@ current version before sending a partial `PUT /api/agent/seo`.
 | Author / producer | `podcastAuthor` | `李征` |
 | Author homepage | `podcastAuthorUrl` | `https://lizheng.dev` |
 | Podcast owner email | `podcastOwnerEmail` | `hi@his.fm` |
-| Podcast cover | `podcastCoverUrl` | The uploaded channel-cover URL from step 2 |
-| Default sharing image | `defaultOgImageUrl` | The uploaded social-preview URL from step 3 |
+| Podcast cover | `podcastCoverUrl` | Empty for bundled brand art, or a custom URL from step 2 |
+| Default sharing image | `defaultOgImageUrl` | Empty for bundled brand art, or a custom URL from step 3 |
 
 The email is public in RSS. Confirm that the mailbox receives mail before using
 it for directory verification. The author homepage must be HTTPS; it appears in
@@ -30,7 +31,10 @@ Use an official English Apple taxonomy value such as `Technology` rather than
 a local Chinese programme-category name. Do not change factual content merely
 to improve a score.
 
-## 2. Supply the podcast channel cover
+## 2. Verify the podcast channel cover
+
+An empty `podcastCoverUrl` uses `/brand/podcast.jpg`, the reproducible 3000-square
+sRGB JPEG brand cover. No upload or settings write is needed. To replace it:
 
 - Deliver a genuine **3000 x 3000 pixel, square, static JPEG or PNG**.
 - Use **RGB / sRGB**, preferably flattened without transparency.
@@ -68,21 +72,22 @@ Channel branding is appropriate for this separate channel asset. Production
 cover uploads remain clean originals without text, logos, frames or overlays.
 The frontend's responsive WebP derivatives do not replace the RSS image.
 
-## 3. Supply separate Open Graph artwork
+## 3. Verify separate Open Graph artwork
+
+An empty `defaultOgImageUrl` uses `/brand/share.jpg` (1200 x 630). Episode pages
+use their public `/episodes/{id}/share.jpg`, not the site-wide image.
 
 - Deliver a **1200 x 630 pixel JPEG or PNG**, with important text and artwork away
   from the outer edge. Aim for **500 KB or less** when visually acceptable.
 - Upload it through the same storage API and put its stable public URL in
   `defaultOgImageUrl`.
-- If one image should cover *all* pages, including episode details, also put the
-  same URL in the global page override's `ogImageUrl` (`overrides.ogImageUrl`).
-  The default alone does not override an episode's own cover.
+- Global page overrides apply to non-episode pages. Neither the site default nor
+  the global image override replaces an episode's own share artwork.
 - For an individual production, set `seo.ogImageUrl` in its metadata section.
   Save, complete the applicable final review, and explicitly publish or correct
   its publication to update the public episode snapshot.
 
-The order for episode images is: episode SEO override, global page override,
-episode cover, site default. An episode-specific value wins over a global one.
+The order for episode images is: episode SEO override, rendered episode share art.
 Do not use the square podcast channel cover as the wide social-preview image.
 
 Existing productions without a `seo` field preserve their published snapshot's

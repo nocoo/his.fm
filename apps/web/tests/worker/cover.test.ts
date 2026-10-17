@@ -10,6 +10,7 @@ import { coverSource, routeCover } from '../../worker/cover';
 import { loadCoverFonts } from '../../worker/cover-fonts';
 import { renderCoverPng } from '../../worker/cover-raster';
 import { getEpisode, mutateEpisode } from '../../worker/episodes';
+import { HttpError } from '../../worker/http';
 import { routeManagement } from '../../worker/management';
 import { getProduction } from '../../worker/production-store';
 import { agent, human, readyFixture } from './production-fixture';
@@ -384,6 +385,19 @@ describe('finished cover controller', () => {
       'Fonts unavailable',
     );
     expect(renderCoverPng).toHaveBeenCalledTimes(1);
+  });
+
+  it('preserves shared JPEG renderer contention and releases the PNG entry guard', async () => {
+    vi.mocked(renderCoverPng).mockRejectedValueOnce(new HttpError(503, 'busy'));
+    const busy = await routeCover(coverRequest(), env, human, 'episodes', episode.id);
+    expect(busy.status).toBe(503);
+    expect(busy.headers.get('Retry-After')).toBe('1');
+    expect(busy.headers.get('Cache-Control')).toBe('no-store');
+    expect((await routeCover(coverRequest(), env, human, 'episodes', episode.id)).status).toBe(200);
+    vi.mocked(renderCoverPng).mockRejectedValueOnce(new HttpError(413, 'too large'));
+    await expect(routeCover(coverRequest(), env, human, 'episodes', episode.id)).rejects.toMatchObject({
+      status: 413,
+    });
   });
 
   it('admits one memory-bounded composition per isolate and releases capacity on completion', async () => {

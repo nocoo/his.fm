@@ -2,6 +2,20 @@
 
 All notable changes to his.fm are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions use the owner’s patch-only deployment policy in `AGENTS.md`, with the authoritative version in `package.json`.
 
+## 2.6.0 - 2026-10-18
+
+The owner explicitly approved this minor release, overriding the patch-only deployment policy.
+
+### Added
+
+- Add theme-independent Stillwood brand images at `/brand/share.jpg` (1200 x 630) and `/brand/podcast.jpg` (3000 x 3000) as the default sharing and podcast artwork.
+- Add public artwork endpoints for published episodes: `/episodes/{id}/art.jpg` renders the current theme's framed square composition at 1400 x 1400 by default; `/episodes/{id}/share.jpg` renders a 1200 x 630 image with theme-independent Stillwood branding. Preserve clean original artwork and saved publication snapshots.
+
+### Changed
+
+- Use each episode's `share.jpg` for `og:image` and `twitter:image`, unless an explicit episode social-image override is saved.
+- Point RSS item `itunes:image` to each episode's `art.jpg` in both site and category feeds. Fall back to the brand square podcast image when the channel has no configured podcast cover.
+
 ## 2.5.3 - 2026-10-18
 
 ### Added

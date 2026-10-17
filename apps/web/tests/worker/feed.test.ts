@@ -68,13 +68,14 @@ beforeEach(() => {
 
 describe('podcast feeds', () => {
   it.each([false, true])(
-    'uses boolean explicit metadata (%s) and only configured cover/contact',
+    'uses boolean explicit metadata (%s), brand cover fallback and only configured contact',
     async (explicit) => {
       site.itunesExplicit = explicit;
       const { bucket } = media();
       const xml = await buildRssFeed(db, origin, mediaBase, bucket);
       expect(xml).toContain(`<itunes:explicit>${explicit}</itunes:explicit>`);
-      expect(xml).not.toContain('<itunes:image');
+      expect(xml).toContain('<itunes:image href="https://his.fm/brand/podcast.jpg" />');
+      expect(xml).toContain('<itunes:image href="https://his.fm/episodes/episode-1/art.jpg" />');
       expect(xml).not.toContain('<itunes:owner');
       expect(xml).not.toContain('<itunes:name');
       expect(xml).not.toContain('<atom:author');
@@ -98,6 +99,38 @@ describe('podcast feeds', () => {
     expect(xml).toContain('<itunes:email>confirmed-owner@example.test</itunes:email>');
     expect(xml).toContain('<itunes:author>Existing producer</itunes:author>');
     expect(xml).toContain('<itunes:name>Existing producer</itunes:name>');
+    expect(xml).not.toContain('/brand/podcast.jpg');
+  });
+
+  it.each([
+    ['/media/cover.jpg', 'https://f.no.mt/cover.jpg'],
+    ['https://cdn.example.test/cover.jpg?x=1&v=2', 'https://cdn.example.test/cover.jpg?x=1&amp;v=2'],
+    ['/brand/podcast.jpg', 'https://his.fm/brand/podcast.jpg'],
+  ])('retains the configured channel artwork %s independently of item artwork', async (cover, url) => {
+    site.podcastCoverUrl = cover;
+    catalogue(episode({ seo: { ogImageUrl: 'https://cdn.example.test/custom-share.jpg' } }));
+    const xml = await buildRssFeed(db, origin, mediaBase, media().bucket);
+    expect(xml).toContain(`<itunes:image href="${url}" />`);
+    expect(xml).toContain('<itunes:image href="https://his.fm/episodes/episode-1/art.jpg" />');
+    expect(xml).not.toContain('custom-share.jpg');
+  });
+
+  it('uses encoded stable episode IDs for each item artwork, not slugs or source covers', async () => {
+    const id = 'episode /节目?&"#';
+    catalogue(
+      episode({ id, slug: 'first-slug' }),
+      episode({ id: 'second-id', slug: 'other-slug' }),
+      episode({ id: 'no-audio', audioUrl: null }),
+    );
+    const xml = await buildRssFeed(db, origin, mediaBase, media().bucket);
+    const items = [...xml.matchAll(/<item>[\s\S]*?<\/item>/g)].map((match) => match[0]);
+    expect(items).toHaveLength(2);
+    expect(items[0]).toContain(
+      `<itunes:image href="${origin}/episodes/${encodeURIComponent(id)}/art.jpg" />`,
+    );
+    expect(items[1]).toContain(`<itunes:image href="${origin}/episodes/second-id/art.jpg" />`);
+    expect(xml).not.toContain('/episodes/no-audio/art.jpg');
+    expect(xml).not.toContain('/images/episode-01.webp');
   });
 
   it('emits atom:author with the configured homepage and omits it when empty', async () => {
@@ -299,6 +332,9 @@ describe('podcast feeds', () => {
     expect(xml).not.toContain('text="管理手记"');
     expect(xml.match(/<item>/g)).toHaveLength(1);
     expect(xml).toContain('<itunes:duration>123</itunes:duration>');
+    expect(xml).toContain('<itunes:image href="https://his.fm/brand/podcast.jpg" />');
+    expect(xml).toContain('<itunes:image href="https://his.fm/episodes/episode-1/art.jpg" />');
+    expect(xml).not.toContain('/episodes/no-audio/art.jpg');
     expect(listPublishedEpisodesInCategory).toHaveBeenCalledWith(db, 'manager-notes');
   });
 

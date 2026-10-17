@@ -133,7 +133,11 @@ export async function routeCover(
     try {
       const { renderCoverPng } = await import('./cover-raster');
       png = await renderCoverPng(svg, fonts);
-    } catch {
+    } catch (error) {
+      if (error instanceof HttpError) {
+        if (error.status === 503) return json({ error: error.message }, 503, { 'Retry-After': '1' });
+        throw error;
+      }
       throw new HttpError(422, '封面图片无法解码或排版，请检查原图后重试');
     }
     return new Response(new Uint8Array(png), {

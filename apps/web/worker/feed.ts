@@ -106,6 +106,7 @@ async function renderItem(
   <guid isPermaLink="true">${link}</guid>
   <pubDate>${publishedAt.toUTCString()}</pubDate>
   <description>${escapeXml(itemDescription(episode))}</description>
+  <itunes:image href="${escapeXml(absoluteUrl(origin, `/episodes/${encodeURIComponent(episode.id)}/art.jpg`))}" />
   <enclosure url="${escapeXml(enclosure.url)}" length="${enclosure.length}" type="${escapeXml(enclosure.type)}" />${duration}
 </item>`;
 }
@@ -126,9 +127,7 @@ async function buildChannel(
   )
     .filter(Boolean)
     .join('\n');
-  const image = site.podcastCoverUrl
-    ? `\n    <itunes:image href="${escapeXml(absoluteMedia(origin, mediaBase, site.podcastCoverUrl))}" />`
-    : '';
+  const image = `\n    <itunes:image href="${escapeXml(absoluteMedia(origin, mediaBase, site.podcastCoverUrl || '/brand/podcast.jpg'))}" />`;
   const owner = site.podcastOwnerEmail
     ? `\n    <itunes:owner><itunes:name>${escapeXml(site.podcastAuthor)}</itunes:name><itunes:email>${escapeXml(site.podcastOwnerEmail)}</itunes:email></itunes:owner>`
     : '';
