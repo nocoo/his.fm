@@ -242,6 +242,48 @@ describe('owner R2 inventory and cleanup', () => {
     for (const object of protectedItems) expect(await env.MEDIA.head(object.key)).not.toBeNull();
   });
 
+  it('treats SEO image fields as referenced for site, category and episode scopes', async () => {
+    const cdnKey = 'uploads/c457d853-8487-4c07-9346-7c9ee13cf024.png';
+    const mediaKey = 'uploads/723aebb9-d547-4246-ac40-d0f758bb26c1.jpg';
+    const imagesKey = 'images/custom-og.webp';
+    await env.DB.prepare(
+      'UPDATE site_seo SET data = ?, version = version + 1, updated_at = ?, updated_by = ? WHERE id = 1',
+    )
+      .bind(
+        JSON.stringify({
+          defaultOgImageUrl: `/images/${imagesKey.split('/').pop()}`,
+          podcastCoverUrl: `https://f.no.mt/${cdnKey}`,
+        }),
+        'now',
+        'owner',
+      )
+      .run();
+    await env.DB.prepare('UPDATE categories SET seo = ? WHERE id = ?')
+      .bind(JSON.stringify({ ogImageUrl: `https://f.no.mt/${mediaKey}` }), 'life')
+      .run();
+    await env.DB.prepare(
+      `INSERT INTO episodes (id, slug, episode_number, title, summary, transcript, show_notes, cover_url, category, seo, status, created_at, updated_at)
+      VALUES ('episode', 'episode', 1, 'SEO 节目', '', '', '', '', 'life', ?, 'draft', 'now', 'now')`,
+    )
+      .bind(JSON.stringify({ ogImageUrl: `/media/${mediaKey}` }))
+      .run();
+    for (const key of [cdnKey, mediaKey, imagesKey]) await put(key, 'image/png');
+    const objects = (await scan(aged())).objects;
+    const states = Object.fromEntries(objects.map((object) => [object.key, object.state]));
+    for (const key of [cdnKey, mediaKey, imagesKey]) {
+      expect(states[key]).toBe('referenced');
+      expect(objects.find((object) => object.key === key)?.reasons.join('')).toMatch(/SEO/);
+    }
+    const cleanup = await remove(
+      [cdnKey, mediaKey, imagesKey].map((key) => {
+        const object = objects.find((candidate) => candidate.key === key);
+        expect(object).toBeDefined();
+        return { key, version: object?.version ?? '' };
+      }),
+    );
+    expect(cleanup.every((result) => result.status === 'skipped')).toBe(true);
+  });
+
   it('keeps new uploads, rechecks references, detects replacement and reports individual failure', async () => {
     const fresh = await put('fresh.wav', 'audio/wav');
     expect((await scan()).objects[0]).toMatchObject({
