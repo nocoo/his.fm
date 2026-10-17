@@ -16,7 +16,7 @@ export function buildImportExampleStatements(production, { mode, now, importWrit
      SELECT ${quote(production.id)}, 1, 'draft', json_set(${productionData}, '$.episodeNumber', (
        SELECT COALESCE(MAX(episode_number), 0) + 1 FROM episode_number_claims WHERE category = ${quote(production.category)}
      )), ${quote(now)}, ${quote(now)}, ${writeId}
-     WHERE ${productionGuard}`,
+     WHERE ${productionGuard};`,
     `INSERT INTO episode_number_claims (category, episode_number, holder_id, holder_kind)
      SELECT json_extract(data, '$.category'), CAST(json_extract(data, '$.episodeNumber') AS INTEGER), id, 'production'
      FROM productions
@@ -24,7 +24,7 @@ export function buildImportExampleStatements(production, { mode, now, importWrit
      AND NOT EXISTS (
        SELECT 1 FROM episode_number_claims existing
        WHERE existing.holder_kind = 'production' AND existing.holder_id = productions.id
-     )`,
+     );`,
   ];
   if (mode === '--local') {
     statements.push(
@@ -32,4 +32,17 @@ export function buildImportExampleStatements(production, { mode, now, importWrit
     );
   }
   return statements;
+}
+
+/** Same string passed to `cf d1 raw --sql` */
+export function joinImportExampleSql(statements) {
+  return statements.join('\n');
+}
+
+/** Split a `joinImportExampleSql` payload back into executable statements. */
+export function splitImportExampleCliSql(sql) {
+  return sql
+    .split(/;\s*\n/)
+    .map((part) => part.trim())
+    .filter(Boolean);
 }

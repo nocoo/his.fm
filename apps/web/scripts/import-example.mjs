@@ -2,7 +2,7 @@ import { spawnSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { buildImportExampleStatements } from './import-example-sql.mjs';
+import { buildImportExampleStatements, joinImportExampleSql } from './import-example-sql.mjs';
 
 process.env.MINIFLARE_CACHE_DIR = '.cloudflare/cache';
 
@@ -77,7 +77,7 @@ const result = spawnSync(
     mode === '--local' ? '00000000-0000-4000-8000-000000007056' : '66f7e201-22a8-450d-838d-ecbc382afbc6',
     ...(mode === '--local' ? ['--local', '--persist-to', '.cloudflare/state'] : []),
     '--sql',
-    sql.join('\n'),
+    joinImportExampleSql(sql),
   ],
   { stdio: 'inherit', env: { ...process.env, CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV: 'false' } },
 );

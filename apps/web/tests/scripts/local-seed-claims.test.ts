@@ -1,7 +1,11 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { Miniflare } from 'miniflare';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { buildImportExampleStatements } from '../../scripts/import-example-sql.mjs';
+import {
+  buildImportExampleStatements,
+  joinImportExampleSql,
+  splitImportExampleCliSql,
+} from '../../scripts/import-example-sql.mjs';
 import { nextEpisodeNumberInCategory, reserveEpisodeNumberClaim } from '../../worker/episode-numbering';
 
 const exampleImportProduction = {
@@ -64,6 +68,7 @@ beforeEach(async () => {
     db.prepare('DELETE FROM episode_number_claims'),
     db.prepare('DELETE FROM episodes'),
     db.prepare('DELETE FROM productions'),
+    db.prepare('DELETE FROM local_seed_runs'),
   ]);
 });
 
@@ -78,6 +83,50 @@ describe('local seed episode number claims', () => {
       .bind('local-episode-01', 'preview-life', now, now, now, crypto.randomUUID())
       .run();
     expect(await nextEpisodeNumberInCategory(db, 'life')).toBe(1);
+  });
+
+  it('parses the concatenated cf d1 import payload after migrate and seed-style claims', async () => {
+    const productionId = exampleImportProduction.id as string;
+    const now = '2026-09-24T08:00:00.000Z';
+    await db
+      .prepare(
+        'INSERT INTO episode_number_claims (category, episode_number, holder_id, holder_kind) VALUES (?, ?, ?, ?)',
+      )
+      .bind('manager-notes', 1, 'local-episode-01', 'episode')
+      .run();
+    const runCliPayload = async (importWriteId: string) => {
+      const sql = joinImportExampleSql(
+        buildImportExampleStatements(exampleImportProduction, {
+          mode: '--local',
+          now,
+          importWriteId,
+        }),
+      );
+      const results = await db.batch(splitImportExampleCliSql(sql).map((statement) => db.prepare(statement)));
+      expect(results.every((result) => result.success)).toBe(true);
+    };
+    await runCliPayload('e'.repeat(32));
+    expect(
+      await db
+        .prepare(
+          "SELECT CAST(json_extract(data, '$.episodeNumber') AS INTEGER) AS episodeNumber FROM productions WHERE id = ?",
+        )
+        .bind(productionId)
+        .first<{ episodeNumber: number }>(),
+    ).toEqual({ episodeNumber: 2 });
+    expect(
+      await db
+        .prepare('SELECT holder_kind AS holderKind FROM episode_number_claims WHERE holder_id = ?')
+        .bind(productionId)
+        .first<{ holderKind: string }>(),
+    ).toEqual({ holderKind: 'production' });
+    await runCliPayload('f'.repeat(32));
+    expect(
+      await db
+        .prepare('SELECT COUNT(*) AS n FROM episode_number_claims WHERE holder_id = ?')
+        .bind(productionId)
+        .first<{ n: number }>(),
+    ).toEqual({ n: 1 });
   });
 
   it('runs import-example SQL on D1 and writes a production claim only on new insert', async () => {
