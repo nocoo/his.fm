@@ -4,6 +4,7 @@ import { AccentProvider } from '@nocoo/basalt/providers/accent';
 import type { ReactNode } from 'react';
 import { lazy, Suspense, useEffect, useLayoutEffect, useState } from 'react';
 import { Link, Navigate, Route, Routes } from 'react-router';
+import { clearClientJsonLd } from '../shared/seo-client';
 import { AdminShell } from './AdminShell';
 import { EpisodeEditor } from './EpisodeEditor';
 import { LoginBadge } from './LoginBadge';
@@ -72,6 +73,9 @@ function AdminProviders({ children }: { children: ReactNode }) {
 }
 
 export function LoginPage() {
+  useEffect(() => {
+    clearClientJsonLd();
+  }, []);
   return (
     <AdminProviders>
       <LoginBadge />

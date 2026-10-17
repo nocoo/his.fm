@@ -1,5 +1,9 @@
 import type { ResolvedPageSeo } from './seo-resolve';
 
+export function clearClientJsonLd() {
+  for (const node of document.querySelectorAll('script[type="application/ld+json"]')) node.remove();
+}
+
 export function applyClientSeo(seo: ResolvedPageSeo, jsonLd?: unknown[]) {
   document.title = seo.title;
   const setMeta = (selector: string, attr: 'content' | 'href', value: string) => {
@@ -16,7 +20,7 @@ export function applyClientSeo(seo: ResolvedPageSeo, jsonLd?: unknown[]) {
   setMeta('meta[name="twitter:title"]', 'content', seo.title);
   setMeta('meta[name="twitter:description"]', 'content', seo.description);
   setMeta('meta[name="twitter:image"]', 'content', seo.ogImageUrl);
-  for (const node of document.querySelectorAll('script[type="application/ld+json"]')) node.remove();
+  clearClientJsonLd();
   if (jsonLd?.length) {
     const script = document.createElement('script');
     script.id = 'page-jsonld';

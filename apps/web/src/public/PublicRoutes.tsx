@@ -607,6 +607,10 @@ function About() {
 }
 
 function NotFound() {
+  const site = usePublicSiteSeo();
+  useEffect(() => {
+    applyClientSeo(resolveSiteDefaults(site, window.location.origin));
+  }, [site]);
   return (
     <section className="not-found wrap">
       <p className="eyebrow">404 / A SMALL DETOUR</p>
