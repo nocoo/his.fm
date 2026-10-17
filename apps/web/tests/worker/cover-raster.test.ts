@@ -513,7 +513,7 @@ export default { async fetch(request, env) {
         readFileSync(new URL('../../public/images/episode-01.webp', import.meta.url)),
       )
         .resize(crop.width, crop.height, { fit: 'cover' })
-        .jpeg({ quality: 95 })
+        .webp({ quality: 95 })
         .toBuffer();
       expect(await sharp(artwork).metadata()).toMatchObject(crop);
       const frame = readFileSync(
@@ -533,7 +533,7 @@ export default { async fetch(request, env) {
           share: !theme,
           frame,
           title: '从 WWDC 到 MWC：下班后，还要追多少个 AI？龘',
-          image: `data:image/jpeg;base64,${artwork.toString('base64')}`,
+          image: `data:image/webp;base64,${artwork.toString('base64')}`,
         }),
       });
       expect(response.status).toBe(200);
@@ -563,7 +563,7 @@ export default { async fetch(request, env) {
         readFileSync(new URL('../../public/images/episode-01.webp', import.meta.url)),
       )
         .resize(crop.width, crop.height, { fit: 'cover' })
-        .jpeg({ quality: 95 })
+        .webp({ quality: 95 })
         .toBuffer();
       expect(await sharp(artwork).metadata()).toMatchObject(crop);
       const frame = readFileSync(new URL(`../../public/brand/frames/${theme}.svg`, import.meta.url), 'utf8');
@@ -577,7 +577,7 @@ export default { async fetch(request, env) {
             height: 1600,
             theme,
             frame,
-            image: `data:image/jpeg;base64,${artwork.toString('base64')}`,
+            image: `data:image/webp;base64,${artwork.toString('base64')}`,
             title: '从 WWDC 到 MWC：下班后，还要追多少个 AI？龘',
           }),
         });

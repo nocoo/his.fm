@@ -713,3 +713,15 @@ A raster test initially called Sharp stats after extract without materializing
 the crop; stats inspected the original image. Encode the crop to an owned buffer
 before measuring pixels. Native Images also defaults to scale-down: explicitly
 select squeeze for overlay upscaling, and verify actual maximum-size JPEG bytes.
+
+The native intermediate JPEG also flattened valid transparent originals to black,
+instead of preserving the shared composition's paper behind them. Keep the
+bounded crop as alpha-preserving WebP until final JPEG composition, test
+translucent original pixel parity, and remeasure that exact intermediate format.
+Large PNG responses stalled the pinned local Images proxy during the first
+attempt; the existing supported WebP path retains alpha without that failure.
+
+The new shared raster lock also exposed an existing catch-all in authenticated
+PNG export: it relabeled contention as a 422 decode failure. Preserve typed
+errors and return retryable 503 responses at both public and authenticated entry
+points; test guard release after cross-format contention.

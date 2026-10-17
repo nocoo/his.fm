@@ -70,8 +70,8 @@ episode number or category copy.
 Both site and category RSS feeds include an `itunes:image` on every emitted
 item, pointing to `/episodes/{encoded-id}/art.jpg`. The default 1400 x 1400 JPEG
 uses the current site theme's complete framed cover composition, including the
-real title, episode number and category. Rendering can upscale existing 1024px
-originals; higher-resolution originals are read automatically, with composition
+real title, episode number and category. Originals are expected to be 1400 square;
+smaller 1024px originals still upscale gracefully. Larger originals are read automatically, with composition
 and effective detail capped at 1600 square. `?size=N` accepts 1400–3000; outputs
 above 1600 are upscaled JPEGs rather than additional native-resolution detail. Item
 artwork is independent of episode social-image overrides and channel artwork.

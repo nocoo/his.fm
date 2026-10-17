@@ -99,9 +99,9 @@ export async function routeEpisodeArt(
           height: artwork ? Math.ceil((renderHeight * artwork.height) / coverDesignSize) : renderHeight,
           fit: 'cover',
         })
-        .output({ format: 'image/jpeg', quality: 95, anim: false });
+        .output({ format: 'image/webp', quality: 95, anim: false });
       const bytes = await readBytes(source.response(), maxSourceBytes);
-      const dataUrl = `data:image/jpeg;base64,${Buffer.from(bytes).toString('base64')}`;
+      const dataUrl = `data:image/webp;base64,${Buffer.from(bytes).toString('base64')}`;
       const svg = theme
         ? composeCoverSvg(theme, episode, dataUrl, frame, families)
         : composeShareSvg(frame, dataUrl);
@@ -114,6 +114,8 @@ export async function routeEpisodeArt(
         jpeg = await readBytes(output.response(), maxSourceBytes);
       }
     } catch (error) {
+      if (error instanceof HttpError && error.status === 503)
+        return json({ error: error.message }, 503, { 'Retry-After': '1' });
       if (error instanceof HttpError) throw error;
       throw new HttpError(422, '封面图片无法解码或排版，请检查原图后重试');
     }

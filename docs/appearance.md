@@ -79,13 +79,15 @@ Both routes use only currently published, non-future episode snapshots, return
 404 for private/missing episodes, and bypass the named public cache. Every
 request renders on demand with `Cache-Control: no-store`; no composite is stored.
 Native Images streams trusted R2 or bundled sources (up to 20 MB), cropping the
-real original to the theme's artwork window before Takumi composition. Square
+real original to the theme's artwork window before Takumi composition. Cropped
+intermediates use WebP to retain transparency over the theme paper. Square
 composition and effective image detail are capped at the existing 1600-square
 export resolution; requested sizes above 1600 are explicitly upscaled by native
 Images to the final JPEG dimensions. This keeps WASM bounded: a full 3000-square
 WASM composition exceeds the Workers memory budget. Larger originals supply more
 detail up to the composition cap; no thumbnail replaces the original. Existing
-1024 originals are upscaled, not given additional source detail. Landscape
+1400 originals are the expected input; smaller 1024 originals still upscale
+gracefully without inventing source detail. Landscape
 artwork uses native cropping followed by a bounded 1200 x 630 JPEG render.
 The separate authenticated PNG export retains its 4 MiB / 4MP source guards.
 Render contention returns 503; source/asset/decode failures remain explicit.

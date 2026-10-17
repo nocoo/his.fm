@@ -6,8 +6,9 @@ import { themeIds } from '../../src/shared/appearance';
 import { composeCoverSvg, coverText } from '../../src/shared/cover-composition';
 import worker from '../../worker';
 import { loadCoverFonts } from '../../worker/cover-fonts';
-import { renderCoverPng } from '../../worker/cover-raster';
+import * as raster from '../../worker/cover-raster';
 import { routeEpisodeArt } from '../../worker/episode-art';
+import { HttpError } from '../../worker/http';
 import { cacheablePublicRequest } from '../../worker/public-cache';
 
 vi.mock('@takumi-rs/wasm/takumi_wasm_bg.wasm', async () => ({
@@ -139,22 +140,25 @@ describe('public episode JPEG artwork', () => {
     expect(Buffer.from(await stored.arrayBuffer())).toEqual(source);
   });
 
-  it('accepts size bounds and higher-resolution originals beyond PNG export limits', async () => {
-    const original = await sharp(source).resize(3000, 3000).jpeg().toBuffer();
-    await env.MEDIA.put(key, original);
-    const response = await call('art', '?size=3000');
-    const metadata = await sharp(await response.arrayBuffer()).metadata();
-    expect(metadata).toMatchObject({
-      format: 'jpeg',
-      width: 3000,
-      height: 3000,
-      space: 'srgb',
-      channels: 3,
-      hasAlpha: false,
-    });
-    expect(metadata.icc).toBeUndefined();
-    expect(metadata.exif).toBeUndefined();
-  });
+  it.each([1024, 1400, 3000])(
+    'renders a 3000-square output from a %i-square original',
+    async (originalSize) => {
+      const original = await sharp(source).resize(originalSize, originalSize).jpeg().toBuffer();
+      await env.MEDIA.put(key, original);
+      const response = await call('art', '?size=3000');
+      const metadata = await sharp(await response.arrayBuffer()).metadata();
+      expect(metadata).toMatchObject({
+        format: 'jpeg',
+        width: 3000,
+        height: 3000,
+        space: 'srgb',
+        channels: 3,
+        hasAlpha: false,
+      });
+      expect(metadata.icc).toBeUndefined();
+      expect(metadata.exif).toBeUndefined();
+    },
+  );
 
   it.each(themeIds)('preserves the existing %s framed composition', async (theme) => {
     await env.DB.prepare('UPDATE site_appearance SET theme = ?').bind(theme).run();
@@ -162,7 +166,7 @@ describe('public episode JPEG artwork', () => {
     const copy = { title: '下班后，慢慢来', episodeNumber: 1, categoryName: '生活' };
     const { fonts, families } = await loadCoverFonts(env, origin, coverText(theme, copy));
     const frame = readFileSync(new URL(`../../public/brand/frames/${theme}.svg`, import.meta.url), 'utf8');
-    const expected = await renderCoverPng(
+    const expected = await raster.renderCoverPng(
       composeCoverSvg(theme, copy, `data:image/webp;base64,${source.toString('base64')}`, frame, families),
       fonts,
     );
@@ -173,6 +177,36 @@ describe('public episode JPEG artwork', () => {
       .toBuffer();
     const { channels } = await sharp(difference).stats();
     expect(Math.max(...channels.map((channel) => channel.mean))).toBeLessThan(5);
+  });
+
+  it('preserves transparent original pixels over the theme paper', async () => {
+    const original = await sharp({
+      create: { width: 1024, height: 1024, channels: 4, background: { r: 220, g: 40, b: 80, alpha: 0.2 } },
+    })
+      .png()
+      .toBuffer();
+    await env.MEDIA.put(key, original);
+    const actual = Buffer.from(await (await call('art', '?size=1600')).arrayBuffer());
+    const copy = { title: '下班后，慢慢来', episodeNumber: 1, categoryName: '生活' };
+    const { fonts, families } = await loadCoverFonts(env, origin, coverText('stillwood', copy));
+    const frame = readFileSync(new URL('../../public/brand/frames/stillwood.svg', import.meta.url), 'utf8');
+    const expected = await raster.renderCoverPng(
+      composeCoverSvg(
+        'stillwood',
+        copy,
+        `data:image/png;base64,${original.toString('base64')}`,
+        frame,
+        families,
+      ),
+      fonts,
+    );
+    const difference = await sharp(actual)
+      .composite([{ input: Buffer.from(expected), blend: 'difference' }])
+      .removeAlpha()
+      .png()
+      .toBuffer();
+    const { channels } = await sharp(difference).stats();
+    expect(Math.max(...channels.map((channel) => channel.mean))).toBeLessThan(2);
   });
 
   it('uses the saved theme and reads fresh sources on every request', async () => {
@@ -291,5 +325,14 @@ describe('public episode JPEG artwork', () => {
     expect(busy.headers.get('Cache-Control')).toBe('no-store');
     release(await env.MEDIA.get(key));
     expect((await pending).status).toBe(200);
+  });
+
+  it('preserves shared PNG renderer contention and releases the JPEG entry guard', async () => {
+    vi.spyOn(raster, 'renderCoverJpeg').mockRejectedValueOnce(new HttpError(503, 'busy'));
+    const busy = await call('share');
+    expect(busy.status).toBe(503);
+    expect(busy.headers.get('Retry-After')).toBe('1');
+    expect(busy.headers.get('Cache-Control')).toBe('no-store');
+    expect((await call('share')).status).toBe(200);
   });
 });
