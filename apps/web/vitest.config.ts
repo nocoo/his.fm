@@ -8,7 +8,7 @@ export default defineConfig({
   test: {
     environment: 'node',
     maxWorkers: 4,
-    include: ['tests/**/*.test.ts', 'src/**/*.test.ts'],
+    include: ['tests/**/*.test.ts', 'tests/**/*.test.tsx', 'src/**/*.test.ts'],
     allowOnly: false,
     passWithNoTests: false,
     coverage: {
@@ -33,9 +33,6 @@ export default defineConfig({
         'src/**/*View.ts',
         'src/shared/useResolvedThemeId.ts',
         'src/shared/seo-client.ts',
-        'worker/categories.ts',
-        'worker/episodes.ts',
-        'worker/production.ts',
         'worker/episode-public.ts',
         'worker/episode-numbering.ts',
         'worker/public-html.ts',

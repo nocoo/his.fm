@@ -606,7 +606,7 @@ function About() {
   );
 }
 
-function NotFound() {
+export function NotFound() {
   const site = usePublicSiteSeo();
   useEffect(() => {
     applyClientSeo(resolveSiteDefaults(site, window.location.origin));

@@ -46,5 +46,19 @@ describe('seo-jsonld', () => {
     expect(podcastEpisodeJsonLd('https://his.fm', episode, 'https://f.no.mt/a.mp3')).toMatchObject({
       associatedMedia: { contentUrl: 'https://f.no.mt/a.mp3' },
     });
+    expect(podcastEpisodeJsonLd('https://his.fm', episode)).not.toHaveProperty('associatedMedia');
+    const withMentions = {
+      ...episode,
+      mentions: [{ name: '散步', description: '没有链接也可以。' }],
+    };
+    expect(podcastEpisodeJsonLd('https://his.fm', withMentions).mentions).toHaveLength(1);
+    const draftTiming = {
+      ...episode,
+      publishedAt: null,
+      updatedAt: '2026-02-01T00:00:00.000Z',
+    };
+    expect(podcastEpisodeJsonLd('https://his.fm', draftTiming).datePublished).toBe(
+      '2026-02-01T00:00:00.000Z',
+    );
   });
 });

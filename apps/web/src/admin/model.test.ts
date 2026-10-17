@@ -103,7 +103,15 @@ describe('session display', () => {
 
   it('prefers profile name and derives initials', () => {
     expect(sessionDisplayName(session)).toBe('Zheng Li');
+    expect(
+      sessionDisplayName({
+        mode: 'access',
+        user: { email: 'editor@his.fm', name: '  ', avatar: null },
+      }),
+    ).toBe('editor@his.fm');
     expect(sessionInitials('Zheng Li')).toBe('ZL');
     expect(sessionInitials('editor@his.fm')).toBe('ED');
+    expect(sessionInitials('')).toBe('?');
+    expect(sessionInitials('Solo')).toBe('SO');
   });
 });
