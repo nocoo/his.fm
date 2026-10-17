@@ -228,6 +228,40 @@ describe('public episode JPEG artwork', () => {
     expect(assetReads.every((path) => path === '/brand/stillwood-wordmark.svg')).toBe(true);
   });
 
+  it.each([
+    [1400, 1400],
+    [700, 1400],
+    [1400, 900],
+    [2800, 700],
+  ])('anchors the share band at 0.4 and clamps a %i x %i original', async (width, height) => {
+    const pixels = Buffer.alloc(width * height * 3);
+    for (let row = 0; row < height; row++) {
+      for (let column = 0; column < width; column++) {
+        const offset = (row * width + column) * 3;
+        pixels[offset] = Math.round((column / width) * 255);
+        pixels[offset + 1] = Math.round((row / height) * 255);
+        pixels[offset + 2] = 100;
+      }
+    }
+    const original = await sharp(pixels, { raw: { width, height, channels: 3 } })
+      .png()
+      .toBuffer();
+    await env.MEDIA.put(key, original);
+    const response = await call('share');
+    const { data, info } = await sharp(await response.arrayBuffer())
+      .raw()
+      .toBuffer({ resolveWithObject: true });
+    const scale = Math.max(1200 / width, 630 / height);
+    const cropHeight = 630 / scale;
+    const top = Math.max(0, Math.min(height - cropHeight, height * 0.4 - cropHeight / 2));
+    for (const row of [5, 315, 624]) {
+      const offset = (row * info.width + 600) * info.channels;
+      expect(Math.abs(data[offset] - 128)).toBeLessThan(4);
+      expect(Math.abs(data[offset + 1] - ((top + row / scale) / height) * 255)).toBeLessThan(4);
+      expect(Math.abs(data[offset + 2] - 100)).toBeLessThan(4);
+    }
+  });
+
   it('supports bodyless HEAD with the same JPEG headers', async () => {
     const response = await call('share', '', 'HEAD');
     expect(response.headers.get('Content-Type')).toBe('image/jpeg');

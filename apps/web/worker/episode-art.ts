@@ -6,6 +6,7 @@ import { getAppearance } from './appearance';
 import { coverSource } from './cover';
 import { loadCoverFonts } from './cover-fonts';
 import { HttpError, json } from './http';
+import { coverDimensions } from './media-validation';
 import { readBytes } from './production-body';
 
 export const episodeArtRoute = /^\/episodes\/([^/]+)\/(art|share)\.jpg$/;
@@ -95,16 +96,16 @@ export async function routeEpisodeArt(
       const artwork = theme ? coverArtwork(theme) : null;
       const source = await env.IMAGES.input(stream)
         .transform({
-          width: artwork ? Math.ceil((renderWidth * artwork.width) / coverDesignSize) : renderWidth,
-          height: artwork ? Math.ceil((renderHeight * artwork.height) / coverDesignSize) : renderHeight,
-          fit: 'cover',
+          width: artwork ? Math.ceil((renderWidth * artwork.width) / coverDesignSize) : 1600,
+          height: artwork ? Math.ceil((renderHeight * artwork.height) / coverDesignSize) : 1600,
+          fit: artwork ? 'cover' : 'contain',
         })
         .output({ format: 'image/webp', quality: 95, anim: false });
       const bytes = await readBytes(source.response(), maxSourceBytes);
       const dataUrl = `data:image/webp;base64,${Buffer.from(bytes).toString('base64')}`;
       const svg = theme
         ? composeCoverSvg(theme, episode, dataUrl, frame, families)
-        : composeShareSvg(frame, dataUrl);
+        : composeShareSvg(frame, { dataUrl, ...coverDimensions(bytes) });
       const { renderCoverJpeg } = await import('./cover-raster');
       jpeg = await renderCoverJpeg(svg, fonts, renderWidth, renderHeight);
       if (width > renderWidth) {

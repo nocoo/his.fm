@@ -301,11 +301,11 @@ import { initSync } from '@takumi-rs/wasm';
 import wasm from '@takumi-rs/wasm/takumi_wasm_bg.wasm';
 globalThis.fetch = () => { throw new Error('Unexpected outbound fetch'); };
 export default { async fetch(request, env) {
-  const { image, title = '中文龘', weight = 500, theme, share = false, frame, format = 'png', width = 1600, height = 1600 } = await request.json();
+  const { image, imageSize, title = '中文龘', weight = 500, theme, share = false, frame, format = 'png', width = 1600, height = 1600 } = await request.json();
   const copy = { title, episodeNumber: 1, categoryName: '工作与睡眠' };
   const slots = share ? [] : theme ? coverText(theme, copy) : [{ font: 'noto-sans-sc', weight, value: title }];
   const { fonts, families } = await loadCoverFonts(env, 'https://his.fm', slots);
-  const svg = share ? composeShareSvg(frame, image, width, height) : theme ? composeCoverSvg(theme, copy, image, frame, families) : '<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1600"><rect width="1600" height="1600" fill="white"/><image href="' + image + '" width="80" height="80"/><text x="100" y="70" font-family="' + families['noto-sans-sc'] + '" font-weight="' + weight + '" font-size="64">' + title + '</text></svg>';
+  const svg = share ? composeShareSvg(frame, { dataUrl: image, ...imageSize }, width, height) : theme ? composeCoverSvg(theme, copy, image, frame, families) : '<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1600"><rect width="1600" height="1600" fill="white"/><image href="' + image + '" width="80" height="80"/><text x="100" y="70" font-family="' + families['noto-sans-sc'] + '" font-weight="' + weight + '" font-size="64">' + title + '</text></svg>';
   const bytes = format === 'jpeg' ? await renderCoverJpeg(svg, fonts, width, height) : await renderCoverPng(svg, fonts);
   return new Response(bytes, { headers: { 'Content-Type': 'image/' + format, 'X-Wasm-Bytes': String(initSync({module:wasm}).memory.buffer.byteLength) } });
 } };`;
@@ -508,7 +508,7 @@ export default { async fetch(request, env) {
             width: Math.ceil((width * art.width) / coverDesignSize),
             height: Math.ceil((height * art.height) / coverDesignSize),
           }
-        : { width, height };
+        : { width: 1600, height: 1600 };
       const artwork = await sharp(
         readFileSync(new URL('../../public/images/episode-01.webp', import.meta.url)),
       )
@@ -531,6 +531,7 @@ export default { async fetch(request, env) {
           height,
           theme,
           share: !theme,
+          imageSize: crop,
           frame,
           title: '从 WWDC 到 MWC：下班后，还要追多少个 AI？龘',
           image: `data:image/webp;base64,${artwork.toString('base64')}`,

@@ -725,3 +725,13 @@ The new shared raster lock also exposed an existing catch-all in authenticated
 PNG export: it relabeled contention as a 422 decode failure. Preserve typed
 errors and return retryable 503 responses at both public and authenticated entry
 points; test guard release after cross-format contention.
+
+## 2026-10-18 — Verify crop pixels, not only binding types
+
+The Images binding exposes coordinate gravity, but the pinned Miniflare runtime
+only implements named edge positions and silently centers coordinate requests.
+Gradient pixel tests caught the incorrect local share crop before acceptance.
+Keep the original stream bounded through native Images, then apply the shared
+focal-point geometry to its bounded intermediate in SVG. Verify square, portrait,
+landscape and edge-clamped pixels in the actual runtime instead of assuming
+generated types prove emulator behavior. No environment-specific fallback is needed.

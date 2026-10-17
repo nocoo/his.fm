@@ -75,6 +75,22 @@ The default is 1400 square; `?size=N` accepts integers from 1400 through 3000.
 full-bleed under the theme-independent Stillwood border and wordmark. It contains
 no episode copy or title panel and accepts no query parameters.
 
+The shared `shareArtworkFocusY` in `src/shared/share-composition.ts` anchors
+this landscape crop at **x = 50%, y = 40%** of the original (a focal point, not
+a percentage of leftover crop space).
+For a square original, the 1200:630 crop covers 52.5% of its height: its top is
+`clamp(0.40 * height - cropHeight / 2, 0, height - cropHeight)`, or 13.75%,
+and its bottom is 66.25%. This prioritizes the upper-middle subject zone
+(approximately y = 22–58%), rather than the logo zone (0–25%) or title panel
+(57–100%) of the cover safe-area convention. The shared SVG composition clamps
+the window to the source bounds for other aspect ratios. Native Images streams
+the original into an aspect-preserving WebP bounded to 1600 x 1600 before the
+SVG positions and clips it; only this bounded intermediate has its dimensions
+parsed. This keeps decoding bounded without applying PNG-export input limits
+to originals, and works identically in local and production runtimes (the pinned
+local Images emulator ignores coordinate gravity). Square framed artwork retains
+its centered crop.
+
 Both routes use only currently published, non-future episode snapshots, return
 404 for private/missing episodes, and bypass the named public cache. Every
 request renders on demand with `Cache-Control: no-store`; no composite is stored.
@@ -88,7 +104,7 @@ WASM composition exceeds the Workers memory budget. Larger originals supply more
 detail up to the composition cap; no thumbnail replaces the original. Existing
 1400 originals are the expected input; smaller 1024 originals still upscale
 gracefully without inventing source detail. Landscape
-artwork uses native cropping followed by a bounded 1200 x 630 JPEG render.
+artwork uses the bounded native intermediate followed by a 1200 x 630 JPEG render.
 The separate authenticated PNG export retains its 4 MiB / 4MP source guards.
 Render contention returns 503; source/asset/decode failures remain explicit.
 Directory acceptance still requires live Apple/Spotify validation.
