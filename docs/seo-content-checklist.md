@@ -1,7 +1,7 @@
 # Owner content checklist
 
-The v2.5.1 technical changes do not write production editorial settings or supply
-new artwork. Complete this checklist before submitting the RSS feed to podcast
+Technical deployments do not write production editorial settings or supply new
+artwork. Complete this checklist before submitting the RSS feed to podcast
 directories. An empty podcast cover or owner email remains a launch blocker.
 
 ## 1. Confirm identity in Search and Sharing
@@ -92,17 +92,18 @@ the current public snapshot or revoke an already approved script.
 
 ## 4. Correct the confirmed name typo
 
-The inspected production is `7b81ad45-d60e-4a1f-87fd-e4ed6112079f`, published as
-`/episodes/manager-notes/execution-fast-trust-slow`. Its first mention description
-contains:
+The earlier inspection found this typo in the first mention of production
+`7b81ad45-d60e-4a1f-87fd-e4ed6112079f`, published as
+`/episodes/manager-notes/execution-fast-trust-slow`:
 
 ```text
 Before: 本期改编自的李正博客文章。
 After:  本期改编自李征的博客文章。
 ```
 
-Open the linked production, read its latest saved state, correct that mention,
-and follow the existing reopening/review/publication-correction controls. Check
+Read the latest public and saved content first; do not reopen an already corrected
+production. Otherwise, correct the linked production's mention and follow the
+existing reopening/review/publication-correction controls. Check
 the current transcript and show notes for other instances before changing them;
 do not apply a blind global name replacement. Do not edit the linked episode
 snapshot directly in D1 or through standalone episode CRUD.

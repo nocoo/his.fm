@@ -686,3 +686,13 @@ entry import. The local runtime also did not emulate native Workers Cache or
 provide its purge context. Report absent status as UNKNOWN, not MISS, and keep
 mock invocation tests separate from edge HIT/purge evidence. Never manufacture a
 production editorial mutation merely to obtain cache acceptance evidence.
+
+## 2026-10-18: Consume Miniflare responses before unrelated asynchronous work
+
+A merged raster test retained the blank-render response while Sharp decoded a
+different image. A later full gate exposed an unusable response body even though
+the first gate passed. The pinned Miniflare immediate-consumption assertion
+reproduced the lifecycle violation deterministically. Drain each response into
+owned bytes before awaiting image analysis, and enable that assertion for the
+workerd fixture. Preserve rendering, geometry, memory and coverage checks; a
+retry or longer timeout is not a response-lifetime fix.

@@ -20,7 +20,7 @@ All notable changes to his.fm are documented here. The format follows [Keep a Ch
 ### Deployment Notes
 
 - No D1 migrations or dependency changes. Deployment adds the native `IMAGES` binding and the cache-enabled `PublicContent` entrypoint; the default gateway remains cache-disabled.
-- The owner still supplies a genuine 3000 x 3000 RGB JPEG/PNG channel cover, a separate 1200 x 630 sharing image, and saves the confirmed identity/contact settings. Deployment does not populate production editorial settings or prove podcast-directory acceptance.
+- Directory readiness requires an owner-supplied genuine 3000 x 3000 RGB JPEG/PNG channel cover, a separate 1200 x 630 sharing image, and saved identity/contact settings. Deployment does not populate production editorial settings or prove podcast-directory acceptance.
 - Local workerd/browser checks do not establish native edge cache HIT/purge behavior or a Lighthouse score. Verify real DNS/TLS, Images output and cache headers after deployment; do not change production content solely for a purge test.
 
 ## 2.5.1 - 2026-10-17

@@ -227,6 +227,7 @@ describe('deployed-like workerd WASM', { concurrent: false }, () => {
   let mf: Miniflare;
 
   beforeAll(async () => {
+    vi.stubEnv('MINIFLARE_ASSERT_BODIES_CONSUMED', 'true');
     const raster = fileURLToPath(new URL('../../worker/cover-raster.ts', import.meta.url));
     const loader = fileURLToPath(new URL('../../worker/cover-fonts.ts', import.meta.url));
     const composition = fileURLToPath(new URL('../../src/shared/cover-composition.ts', import.meta.url));
@@ -303,7 +304,10 @@ export default { async fetch(request, env) {
     });
   }, 20_000);
 
-  afterAll(async () => mf?.dispose());
+  afterAll(async () => {
+    await mf?.dispose();
+    vi.unstubAllEnvs();
+  });
 
   it.each(['png', 'jpeg', 'webp'] as const)(
     'renders embedded %s and CJK using the shipped WASM with no fetch',
@@ -368,8 +372,9 @@ export default { async fetch(request, env) {
         }),
       });
       expect(blank.status).toBe(200);
+      const blankPng = new Uint8Array(await blank.arrayBuffer());
       const { data } = await pixels(png);
-      const { data: background } = await pixels(new Uint8Array(await blank.arrayBuffer()));
+      const { data: background } = await pixels(blankPng);
       let titleRight = 0;
       for (let y = 1250; y < 1600; y++) {
         for (let x = 0; x < 1600; x++) {
