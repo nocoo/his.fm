@@ -30,11 +30,11 @@ export function FramedCover({
   height,
   draggable,
 }: FramedCoverProps) {
-  const resolvedTheme = useResolvedThemeId(themeId);
-  const frameSrc = themeCoverFrameSrc(resolvedTheme);
+  const { themeId: resolvedTheme, resolved: themeResolved } = useResolvedThemeId(themeId);
+  const frameSrc = themeResolved ? themeCoverFrameSrc(resolvedTheme) : null;
   const [failedFrame, setFailedFrame] = useState<string | null>(null);
   const [failedCoverSrc, setFailedCoverSrc] = useState<string | null>(null);
-  const frameFailed = failedFrame === frameSrc;
+  const frameFailed = !frameSrc || failedFrame === frameSrc;
   const coverFailed = coverErrorHidesSrc(failedCoverSrc, src);
 
   if (coverFailed) return null;
@@ -54,7 +54,7 @@ export function FramedCover({
           onCoverError?.();
         }}
       />
-      {!frameFailed && (
+      {frameSrc && !frameFailed && (
         <img
           className="framed-cover-overlay"
           src={frameSrc}

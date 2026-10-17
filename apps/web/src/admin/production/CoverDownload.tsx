@@ -3,6 +3,7 @@ import { Download } from 'lucide-react';
 import { useState } from 'react';
 import { useResolvedThemeId } from '../../shared/useResolvedThemeId';
 import { errorMessage } from '../model';
+import { Failure } from './controls';
 import { exportCover } from './cover-export';
 
 export function CoverDownload({
@@ -14,11 +15,18 @@ export function CoverDownload({
   episodeNumber: number;
   compact?: boolean;
 }) {
-  const themeId = useResolvedThemeId();
+  const {
+    themeId,
+    loading: themeLoading,
+    resolved: themeResolved,
+    error: themeError,
+    retry,
+  } = useResolvedThemeId();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState('');
   const [download, setDownload] = useState('');
   async function save() {
+    if (!themeResolved) return;
     setPending(true);
     setError('');
     setDownload('');
@@ -45,7 +53,8 @@ export function CoverDownload({
         <Button
           variant={compact ? 'ghost' : 'outline'}
           size={compact ? 'icon' : 'sm'}
-          loading={pending}
+          loading={pending || themeLoading}
+          disabled={!themeResolved || pending || themeLoading}
           aria-label="下载含品牌框架的封面成品"
           onClick={() => void save()}
         >
@@ -54,6 +63,7 @@ export function CoverDownload({
         </Button>
         {!compact && <span className="admin-muted">PNG · 1600 × 1600 · 含品牌框架</span>}
       </div>
+      {themeError && <Failure error={themeError} retry={retry} />}
       {error && (
         <p className="admin-error" role="alert">
           {error}

@@ -1,35 +1,47 @@
-import { useEffect, useState } from 'react';
-import { appearanceService } from '../admin/appearance/service';
+import { useEffect, useSyncExternalStore } from 'react';
+import { errorMessage } from '../admin/model';
 import { useOptionalAppearance } from '../public/Appearance';
+import {
+  getAdminAppearanceThemeSnapshot,
+  loadAdminAppearanceTheme,
+  retryAdminAppearanceTheme,
+  subscribeAdminAppearanceTheme,
+} from './adminAppearanceTheme';
 import type { ThemeId } from './appearance';
+import { buildResolvedThemeState, type ResolvedThemeState } from './resolvedThemeState';
 
-const fallbackTheme: ThemeId = 'interval';
+export { resolveThemeId } from './resolvedThemeState';
 
-export function resolveThemeId(
-  appearanceId: ThemeId | undefined,
-  adminTheme: ThemeId | null,
-  override?: ThemeId,
-): ThemeId {
-  return override ?? appearanceId ?? adminTheme ?? fallbackTheme;
-}
+export type UseResolvedThemeIdResult = ResolvedThemeState & {
+  retry: () => void;
+};
 
-export function useResolvedThemeId(override?: ThemeId): ThemeId {
+export function useResolvedThemeId(override?: ThemeId): UseResolvedThemeIdResult {
   const appearance = useOptionalAppearance();
-  const [adminTheme, setAdminTheme] = useState<ThemeId | null>(null);
+  const adminSnapshot = useSyncExternalStore(
+    subscribeAdminAppearanceTheme,
+    getAdminAppearanceThemeSnapshot,
+    getAdminAppearanceThemeSnapshot,
+  );
 
   useEffect(() => {
-    if (appearance) return;
-    const controller = new AbortController();
-    appearanceService
-      .read(controller.signal)
-      .then(({ appearance: value }) => {
-        if (!controller.signal.aborted) setAdminTheme(value.theme);
-      })
-      .catch(() => {
-        if (!controller.signal.aborted) setAdminTheme(fallbackTheme);
-      });
-    return () => controller.abort();
-  }, [appearance]);
+    if (appearance || override) return;
+    loadAdminAppearanceTheme();
+  }, [appearance, override]);
 
-  return resolveThemeId(appearance?.id, adminTheme, override);
+  const state = buildResolvedThemeState({
+    override,
+    appearanceId: appearance?.id,
+    adminStatus: adminSnapshot.status,
+    adminTheme: adminSnapshot.theme,
+    adminErrorMessage: adminSnapshot.error ? errorMessage(adminSnapshot.error) : null,
+  });
+
+  return {
+    ...state,
+    retry: () => {
+      if (override || appearance) return;
+      retryAdminAppearanceTheme();
+    },
+  };
 }

@@ -41,6 +41,15 @@ async function studio(page: Page, initial = fixture()) {
         body: status === 204 ? '' : JSON.stringify(body),
       });
     if (path === '/session') return send({ mode: 'local', user: { email: 'editor@his.fm' } });
+    if (path === '/appearance')
+      return send({
+        appearance: {
+          theme: 'interval',
+          version: 1,
+          updatedAt: '2026-01-01T00:00:00.000Z',
+          updatedBy: 'owner',
+        },
+      });
     if (path === '/categories')
       return send({
         categories: [
@@ -524,8 +533,10 @@ test('only a finished download receives branding and the original is never rewri
     'src',
     production.assets.cover?.url ?? '',
   );
+  const downloadButton = page.getByRole('button', { name: /下载含品牌框架的封面成品/ });
+  await expect(downloadButton).toBeEnabled();
   const downloadPromise = page.waitForEvent('download');
-  await page.getByRole('button', { name: /下载含品牌框架的封面成品/ }).click();
+  await downloadButton.click();
   const download = await downloadPromise;
   expect(download.suggestedFilename()).toBe(
     `his-fm-ep-${String(production.episodeNumber).padStart(3, '0')}.png`,
@@ -564,6 +575,7 @@ test('only a finished download receives branding and the original is never rewri
   expect(writes).toEqual([]);
   await page.route('**/brand/frames/*.svg', (route) => route.fulfill({ status: 503, body: '' }));
   await page.reload();
+  await expect(page.getByRole('button', { name: /下载含品牌框架的封面成品/ })).toBeEnabled();
   await page.getByRole('button', { name: /下载含品牌框架的封面成品/ }).click();
   await expect(page.getByText('封面或品牌框架未能加载，请稍后重试。', { exact: true })).toBeVisible();
   expect(state.production).toEqual(before);
