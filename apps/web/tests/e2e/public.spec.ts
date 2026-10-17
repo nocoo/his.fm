@@ -6,11 +6,11 @@ test('listeners can browse, filter and read the complete first episode', async (
   page.on('pageerror', (error) => errors.push(error.message));
   await page.goto('/?theme=interval');
   await expect(page.getByRole('heading', { level: 1 })).toContainText('今天就');
-  await expect(page.locator('.episode-card .framed-cover-overlay')).toHaveAttribute(
-    'src',
-    '/brand/frames/interval.svg',
-  );
-  await expect(page.locator('.episode-card')).toHaveCount(3);
+  const homeCards = page.locator('.episode-card');
+  await expect(homeCards).toHaveCount(3);
+  for (const card of await homeCards.all()) {
+    await expect(card.locator('.framed-cover-overlay')).toHaveAttribute('src', '/brand/frames/interval.svg');
+  }
   await page.getByRole('link', { name: '找一期，歇一会儿' }).click();
   await expect(page).toHaveURL(/\/episodes\?theme=interval$/);
   await expect(page.locator('.episode-card')).toHaveCount(6);
