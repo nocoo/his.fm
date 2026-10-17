@@ -107,6 +107,14 @@ Standalone `/episodes` supports POST/GET and `/:id` GET/PUT/DELETE. PUT includes
 
 Production briefs and standalone episode bodies accept an ordered `mentions` array (at most 50 items). Each item is `{name, description, url?}`: `name` and `description` are required strings; `description` is a single-sentence explanation; `url` is optional and must be `http` or `https` when present. Published snapshots copy `mentions` to the public episode. Public `/api/episodes` responses include `mentions` but never full transcripts.
 
+Production briefs/patches also accept optional `seo` with the existing page override
+fields (`title`, `description`, `ogImageUrl`, `noindex`). A metadata SEO change
+revokes current final approval, not script approval. Only explicit reviewed
+publication/correction copies it to the public snapshot. An omitted field preserves
+existing SEO, including legacy production snapshots; explicit `seo: {}` clears
+episode-specific overrides on the next publication. Linked snapshots still reject
+standalone content edits.
+
 ```json
 {
   "mentions": [
@@ -124,9 +132,10 @@ Production briefs and standalone episode bodies accept an ordered `mentions` arr
 - Categories: GET/POST `/categories`, GET/PUT/DELETE `/categories/:id`. Private reads need `categories:read`; prompts additionally need `prompts:read`. PUT is partial plus version and preserves omitted prompt. Optional `nextId` renames the stable ID and updates episode/production references in one transaction. Changing a prompt additionally needs `prompts:write`; referenced categories cannot be deleted.
 - Channel: GET/PUT `/channel`; PUT accepts version plus content and/or the complete known prompt bundle. Writes need `prompts:write`; write-only responses return only version.
 - Appearance: GET/PUT `/appearance`; PUT uses current version and a known theme ID.
+- SEO: GET/PUT `/seo` uses `prompts:read` / `prompts:write`. PUT is partial plus the current version and preserves omitted settings. `podcastAuthorUrl` is HTTPS or empty; `podcastCoverUrl` and `podcastOwnerEmail` are owner-supplied launch requirements, not invented defaults. See `docs/seo-content-checklist.md` for artwork and identity fields.
 - Storage: GET `/storage?cursor=...` must follow all cursors. GET/HEAD `/storage/object?key=...` streams single byte ranges. DELETE `/storage/object?key=...&version=...` or POST `/storage/cleanup` with `{items:[{key,version}]}` needs `storage:delete` and reports per-object results, not unconditional deletion.
 
-Cleanup protects current references, retained media provenance, `images/`, `reference/` and uploads younger than 24 hours. It cannot prove an object has no external users or atomically coordinate arbitrary R2 overwrites with D1; avoid concurrent reference changes. Deletion does not purge CDN caches.
+Cleanup protects current references (including site/episode/category SEO and mention URLs), retained media provenance, `images/`, `reference/` and uploads younger than 24 hours. Failed reference-query batches block deletion. It cannot prove an object has no external users or atomically coordinate arbitrary R2 overwrites with D1; avoid concurrent reference changes. Deletion does not purge CDN caches.
 
 ## Delegation and response privacy
 

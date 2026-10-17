@@ -13,11 +13,21 @@ Public section reveals use IntersectionObserver and CSS transitions, not an anim
 | `/api/live` | D1 health, release version and revision |
 | `/api/episodes[/:slug]` | Published episodes whose publication date has arrived; catalogue JSON omits full transcripts |
 | `/api/categories`, `/api/appearance` | Public metadata only |
+| `/api/site-seo` | Public site/author/podcast metadata, without settings audit fields |
 | `/admin/api/session` | Verified owner identity |
 | `/admin/api/*` | Owner management through shared controllers |
 | `/api/agent`, `/.well-known/api-catalog`, `/llms.txt` | Public API discovery, no private content |
 | `/api/agent/*` business routes | Explicitly scoped bearer management |
 | `/media/*` | R2 streaming with HEAD, validators and single byte ranges |
+| `/media/episode-thumbnails/:id/:version/:theme/:width.webp` | Fixed artwork-only WebP derivatives of current published R2 covers |
+
+The default gateway is uncached. Canonical public page and thumbnail requests
+enter the named `PublicContent` entrypoint's native Workers Cache without user
+credentials. HTML templates live for 60 seconds; each delivery receives a fresh
+CSP nonce and downstream `no-store`. Relevant successful mutations purge the
+owning entrypoint. Static public CSS remains available before the deferred,
+jitless-configured browser bootstrap. See [SEO](seo.md) for cache and image
+boundaries, and [operations](operations.md) for edge verification.
 
 Cloudflare Access JWTs are verified for signature, issuer, audience and expiry. An email header is never authentication. Human mutations require exact same-origin `Origin`. Bearer REST needs neither a browser session nor station enrollment. Public discovery does not establish authentication.
 
@@ -28,6 +38,11 @@ Local login requires `ENVIRONMENT=local` and an allowlisted hostname. Its eight-
 A production is a versioned editorial record: sources, intent, script, descriptions, cover/audio assets, approvals and publication audit. The server does not fetch arbitrary source URLs. Field changes and approval transitions share the same state machine for owners and external clients; scopes do not bypass validity or versions.
 
 Published episodes are snapshots, not live views of mutable productions. Public pages, feeds and catalogue JSON expose summaries and show notes only; full transcripts remain in admin and authenticated agent APIs. An explicit publication operation atomically updates the snapshot and appends an audit event. Editing a production preserves its public snapshot. Linked snapshot content cannot be changed through standalone episode CRUD; `featured` has a separate versioned display PATCH. Standalone episodes retain CRUD and can publish a manuscript without audio.
+
+Optional production SEO follows the same approval/publication boundary. A change
+reopens final approval without invalidating the approved script. Omitted SEO
+preserves the snapshot's overrides; an explicit empty object clears them only
+on reviewed publication/correction.
 
 R2 assets use unique immutable keys. Detaching an asset does not delete bytes. Cleanup checks current references, saved media provenance, object versions and the 24-hour retention period; reserved brand/reference prefixes remain protected. Public and private media streaming share range handling so browser seeking works without downloading an entire recording first.
 

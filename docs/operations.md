@@ -32,7 +32,7 @@ node scripts/verify-gate.mjs
 
 ## Production preparation
 
-Configuration lives in `apps/web/cloudflare.config.ts`. Only Vite development mode enables local login and local resources; omitted and production modes retain production settings. The D1 database and R2 bucket are already created. Production D1 has the schema and no mock episode records. Four generated WebP images are stored in R2 under `images/`.
+Configuration lives in `apps/web/cloudflare.config.ts`. Only Vite development mode enables local login and local resources; omitted and production modes retain production settings. The D1 database and R2 bucket are already created. Production D1 has the schema and no mock episode records. R2 contains fingerprinted brand artwork and separately uploaded editorial media.
 
 Access uses team `nocoo` and application audience `41ef6d396f8256e97999ba1d1f11e15f6e7e5e788fce46f54016fd1d9710f726`. Its protected path is `his.fm/admin`, including descendant routes through policy inheritance. The application verifies JWTs itself as well. `workers.dev` and preview URLs are disabled in production configuration.
 
@@ -47,6 +47,47 @@ node scripts/import-example.mjs --remote
 ```
 
 The import preserves existing records and records no human approvals or publication. Local startup imports it once; production never loads the mock catalogue. The initial draft contains research, intent, manuscript and description, with no invented audio. Content generation happens outside the website. Upload completed recordings and clean covers through the versioned assets API or studio. Optional 24 kHz mono PCM16 WAV bumpers remain at `/admin/bumpers` for external composition; the website does not generate or mix audio.
+
+## Public delivery and SEO
+
+Production custom domains are `his.fm` and `www.his.fm`. The Worker redirects
+HTTP and www to `https://his.fm`, preserving the path and query. After release,
+verify DNS, TLS and the actual 308 response for each origin; an HTTP connection
+timeout is not redirect evidence. Keep the existing Access boundary on the
+canonical admin hostname; alternate hosts redirect before authentication.
+
+Only the named `PublicContent` entrypoint enables native Workers Cache. The
+default gateway remains uncached and supplies a fresh CSP nonce for each HTML
+delivery. Successful public HTML templates live for 60 seconds and versioned,
+theme-specific WebP thumbnails for one hour. Private/API/authentication responses
+never enter this cache. Successful content/SEO/appearance mutations purge this
+entrypoint synchronously. `X-Public-Cache: invalidation-failed` and the structured
+`public_cache_purge_failed` log mean the content write succeeded but the cache
+purge did not; read the current version before any further edit, rather than
+blindly replaying a successful write. Do not enable cross-version cache sharing.
+
+Verify real edge `X-Public-Cache`/`CF-Cache-Status` and repeated-request timings.
+`UNKNOWN` means no native cache status was supplied, not a proven miss or hit.
+The pinned local Miniflare does not emulate native Workers Cache or its purge;
+unit invocation tests and local browser checks do not prove edge propagation.
+Do not withdraw or edit production content solely to manufacture purge evidence.
+
+The `IMAGES` binding streams published R2 originals into fixed, centered WebP
+derivatives. Check a real `/media/episode-thumbnails/:id/:version/:theme/:width.webp`
+response after deployment: status 200, `image/webp`, decoded dimensions and bytes.
+Native sources above 20 MB or transformation failures redirect to the validated
+original with `no-store` and `X-Thumbnail-Status: original`; inspect the
+`episode_thumbnail_failed` log before claiming optimization succeeded. R2 originals,
+RSS/OG images and composed PNG exports are not rewritten. Check current Images
+availability/quotas; release authorization does not enable a paid subscription.
+
+Test built public pages with JavaScript disabled and with a
+`securitypolicyviolation` listener in Chrome. The development CSS pipeline is not
+production no-JavaScript evidence, and absence of `pageerror` alone does not prove
+CSP compliance. Retain the static public CSS imports before the deferred React
+bootstrap. Follow [the content checklist](seo-content-checklist.md) for owner
+identity, the 3000-square podcast cover, separate 1200x630 OG artwork and the
+reviewed production correction; deployment does not supply or save those values.
 
 ## Use production data from the local interface
 
@@ -66,7 +107,7 @@ Owner APIs inherit Cloudflare Access authentication. External clients use the sa
 - `GET|HEAD /admin/api/storage/object?key=...`: authenticated streaming preview with single byte-range support for seeking. Active document formats download as attachments. Local-to-production media previews use the owner's CDN `https://f.no.mt` directly.
 - `POST /admin/api/storage/cleanup`: same-origin JSON `{ "items": [{ "key": "old/file.wav", "version": "version-from-scan" }] }`, at most 50 items. The UI confirms the environment, selected count and bytes, then submits batches of 25. Responses report each key as `deleted`, `skipped` or `failed`, with actual deleted bytes. A transport failure leaves the known results visible and requires a new scan.
 
-Cleanup re-reads D1 references and R2 object metadata before deletion. It protects all production assets and owned media URLs in production text/sources, draft/published episode fields, global prompt and current bumper settings. Retained historical media provenance protects existing audio and bumper references after operational job tables are retired. `images/` and `reference/` are reserved for brand artwork and voice references. All uploads remain protected for 24 hours to cover pending attachment to D1 attachment updates. Other media become candidates only when unreferenced and beyond that retention window.
+Cleanup re-reads D1 references and R2 object metadata before deletion. It protects all production assets and owned media URLs in production text/sources, draft/published episode fields and mentions, site/episode/category SEO, global prompt and current bumper settings. Failed or unsuccessful reference-query batches block deletion. Retained historical media provenance protects existing audio and bumper references after operational job tables are retired. `images/` and `reference/` are reserved for brand artwork and voice references. All uploads remain protected for 24 hours to cover pending attachment to D1 attachment updates. Other media become candidates only when unreferenced and beyond that retention window.
 
 “Unused” means no detected in-app reference, not proof of no external use. Review externally shared links before confirming deletion. R2 has no conditional-delete primitive or transaction with D1: version checks catch changes since scanning but cannot serialize arbitrary concurrent external bucket writes or new references. Avoid simultaneous reference edits or external overwrites during cleanup. Uploads use unique immutable media keys. Deleting from R2 reclaims origin storage but does not purge already cached CDN copies. This module does not compress or replace existing media.
 
