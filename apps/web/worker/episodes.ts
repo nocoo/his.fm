@@ -3,12 +3,14 @@ import {
   type Episode,
   type EpisodeInput,
   episodeDisplaySchema,
+  episodeCreateSchema,
   episodeInputSchema,
   episodeUpdateSchema,
 } from '../src/shared/episode';
 import type { Actor } from '../src/shared/production';
 import { requireScope } from './authorization';
 import { getCategory } from './categories';
+import { resolveEpisodeNumberForCreate, resolveEpisodePatchEpisodeNumber } from './episode-numbering';
 import { HttpError, json } from './http';
 import { readJson } from './production-body';
 
@@ -125,7 +127,7 @@ async function readInput(request: Request, update: boolean) {
   } catch {
     throw new HttpError(400, '节目内容不是有效的 JSON');
   }
-  const parsed = (update ? episodeUpdateSchema : episodeInputSchema).safeParse(data);
+  const parsed = (update ? episodeUpdateSchema : episodeCreateSchema).safeParse(data);
   if (!parsed.success) throw new HttpError(400, parsed.error.issues[0]?.message ?? '请检查节目内容');
   return parsed.data;
 }
@@ -201,6 +203,18 @@ export async function mutateEpisode(request: Request, db: D1Database, actor: Act
   )
     requireScope(actor, 'episodes:publish');
   await getCategory(db, input.category);
+  const episodeNumber = id && current
+    ? await resolveEpisodePatchEpisodeNumber(
+        db,
+        {
+          id: current.id,
+          category: current.category,
+          episodeNumber: current.episode_number,
+        },
+        { category: input.category, episodeNumber: input.episodeNumber },
+      )
+    : await resolveEpisodeNumberForCreate(db, input.category, input.episodeNumber);
+  const payload = { ...input, episodeNumber };
   const now = new Date().toISOString();
   try {
     const statement = id
@@ -208,18 +222,21 @@ export async function mutateEpisode(request: Request, db: D1Database, actor: Act
           .prepare(
             'UPDATE episodes SET slug = ?, episode_number = ?, title = ?, summary = ?, transcript = ?, show_notes = ?, cover_url = ?, category = ?, tags = ?, duration_seconds = ?, audio_url = ?, status = ?, featured = ?, published_at = ?, updated_at = ?, version = version + 1 WHERE id = ? AND version = ? AND source_production_id IS NULL RETURNING *',
           )
-          .bind(...inputValues(input), now, id, 'version' in input ? input.version : null)
+          .bind(...inputValues(payload), now, id, 'version' in input ? input.version : null)
       : db
           .prepare(
             'INSERT INTO episodes (slug, episode_number, title, summary, transcript, show_notes, cover_url, category, tags, duration_seconds, audio_url, status, featured, published_at, created_at, updated_at, id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *',
           )
-          .bind(...inputValues(input), now, now, crypto.randomUUID());
+          .bind(...inputValues(payload), now, now, crypto.randomUUID());
     const row = await statement.first<EpisodeRow>();
     if (!row) throw new HttpError(409, '节目已被修改，请刷新后重试');
     return respond(row, id ? 200 : 201);
   } catch (error) {
     if (error instanceof Error && /UNIQUE constraint failed: episodes\.slug/.test(error.message)) {
       throw new HttpError(409, '这个链接名称已被另一集使用');
+    }
+    if (error instanceof Error && /UNIQUE constraint failed: episodes\.category/.test(error.message)) {
+      throw new HttpError(409, '该栏目下已有相同期数');
     }
     throw error;
   }

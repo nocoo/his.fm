@@ -59,6 +59,10 @@ export const briefSchema = z.strictObject({
   intent: z.string().trim().max(12000).default(''),
 });
 export type ProductionBrief = z.infer<typeof briefSchema>;
+export const briefCreateSchema = briefSchema
+  .omit({ episodeNumber: true })
+  .extend({ episodeNumber: briefSchema.shape.episodeNumber.optional() });
+export type ProductionBriefCreate = z.infer<typeof briefCreateSchema>;
 export const productionPatchSchema = briefSchema
   .partial()
   .extend({

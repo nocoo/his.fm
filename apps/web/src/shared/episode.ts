@@ -47,6 +47,10 @@ export const episodeInputSchema = z
   });
 
 export type EpisodeInput = z.infer<typeof episodeInputSchema>;
+export const episodeCreateSchema = episodeInputSchema
+  .omit({ episodeNumber: true })
+  .extend({ episodeNumber: episodeInputSchema.shape.episodeNumber.optional() });
+export type EpisodeCreateInput = z.infer<typeof episodeCreateSchema>;
 export const episodeUpdateSchema = episodeInputSchema.safeExtend({ version: z.number().int().positive() });
 export const episodeDisplaySchema = z.strictObject({
   version: z.number().int().positive(),

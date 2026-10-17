@@ -1,6 +1,7 @@
 import { AudioError, hasScope } from '@his-fm/contracts';
 import {
   type Actor,
+  briefCreateSchema,
   briefSchema,
   type Production,
   productionActionSchema,
@@ -18,6 +19,7 @@ import {
 } from './audio';
 import { requireScope } from './authorization';
 import { categoryFence, getCategory } from './categories';
+import { resolveEpisodeNumberForCreate, resolveProductionPatchEpisodeNumber } from './episode-numbering';
 import { getChannel } from './channel';
 import { HttpError, json } from './http';
 import { rasterType } from './media-validation';
@@ -355,12 +357,18 @@ export async function routeProductions(
     }
     if (request.method === 'POST') {
       requireScope(actor, 'productions:write');
-      const brief = await readJson(request, briefSchema);
+      const brief = await readJson(request, briefCreateSchema);
       await getCategory(env.DB, brief.category);
+      const episodeNumber = await resolveEpisodeNumberForCreate(
+        env.DB,
+        brief.category,
+        brief.episodeNumber,
+      );
       const now = new Date().toISOString();
       const production = appendEvent(
         {
           ...brief,
+          episodeNumber,
           id: crypto.randomUUID(),
           version: 1,
           stage: 'draft',
@@ -404,17 +412,19 @@ export async function routeProductions(
     );
   if (operation === 'actions' && request.method === 'POST') {
     const action = await readJson(request, productionActionSchema);
+    let changes = action.changes;
+    if (changes) {
+      const current = await getProduction(env.DB, id);
+      const episodeNumber = await resolveProductionPatchEpisodeNumber(env.DB, current, changes);
+      changes = { ...changes, episodeNumber };
+    }
     const production = await updateProduction(
       env.DB,
       id,
       actor,
       action.action,
       (current) => {
-        return applyAction(
-          action.changes ? applyPatch(current, action.changes, actor) : current,
-          action,
-          actor,
-        );
+        return applyAction(changes ? applyPatch(current, changes, actor) : current, action, actor);
       },
       { expectedVersion: action.version, feedback: action.feedback },
     );
@@ -482,12 +492,14 @@ export async function routeProductions(
     requireScope(actor, 'productions:write');
     const patch = await readJson(request, productionPatchSchema);
     const { version, ...fields } = patch;
+    const current = await getProduction(env.DB, id);
+    const episodeNumber = await resolveProductionPatchEpisodeNumber(env.DB, current, fields);
     const production = await updateProduction(
       env.DB,
       id,
       actor,
       'edit',
-      (current) => applyPatch(current, fields, actor),
+      (production) => applyPatch(production, { ...fields, episodeNumber }, actor),
       { expectedVersion: version },
     );
     return respond(production);
