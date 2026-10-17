@@ -17,9 +17,11 @@ import { episodePublicPath } from '../shared/episode-url';
 import { type Mention, mentionsSchema } from '../shared/mentions';
 import type { SeoOverride } from '../shared/seo';
 import { CategorySelect } from './categories/CategorySelect';
+import { useCategories } from './categories/useCategories';
 import { MentionsEditor } from './MentionsEditor';
 import { MarkdownEditor } from './markdown/MarkdownEditor';
 import { emptyEpisode, errorMessage, readEpisodeForm, toLocalDateTime } from './model';
+import { CoverDownload } from './production/CoverDownload';
 import { Confirm } from './production/controls';
 import { canDeleteStandaloneEpisode } from './production/model';
 import { useUnsavedChanges } from './production/useUnsavedChanges';
@@ -38,6 +40,8 @@ export function EpisodeEditor() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [coverPreview, setCoverPreview] = useState('');
+  const [coverCopy, setCoverCopy] = useState({ title: '', episodeNumber: 1, category: '' });
+  const { categories } = useCategories();
   const [mentions, setMentions] = useState<Mention[]>(emptyEpisode.mentions);
   const [seo, setSeo] = useState<SeoOverride>(emptyEpisode.seo);
   useUnsavedChanges(dirty);
@@ -67,7 +71,9 @@ export function EpisodeEditor() {
   }, [id, attempt]);
   useEffect(() => {
     setCoverPreview(episode?.coverUrl ?? emptyEpisode.coverUrl);
-  }, [episode?.coverUrl]);
+    const source = episode ?? emptyEpisode;
+    setCoverCopy({ title: source.title, episodeNumber: source.episodeNumber, category: source.category });
+  }, [episode]);
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (pending || episode?.sourceProductionId || (id && !episode)) return;
@@ -204,7 +210,15 @@ export function EpisodeEditor() {
           id="episode-form"
           key={episode?.updatedAt ?? 'new'}
           onSubmit={save}
-          onChange={() => setDirty(true)}
+          onChange={(event) => {
+            setDirty(true);
+            const data = new FormData(event.currentTarget);
+            setCoverCopy({
+              title: String(data.get('title') ?? ''),
+              episodeNumber: Number(data.get('episodeNumber')),
+              category: String(data.get('category') ?? ''),
+            });
+          }}
           className="admin-editor-form"
         >
           {(error || Object.keys(errors).length > 0) && (
@@ -335,7 +349,19 @@ export function EpisodeEditor() {
                     <FramedCover
                       className="studio-cover"
                       src={coverPreview.trim()}
-                      alt={`${value.title || '节目'}的封面预览`}
+                      title={coverCopy.title}
+                      episodeNumber={coverCopy.episodeNumber}
+                      categoryName={categories.find((item) => item.id === coverCopy.category)?.name ?? ''}
+                      alt={`${coverCopy.title || '节目'}的封面预览`}
+                    />
+                  )}
+                  {episode && (
+                    <CoverDownload
+                      resource="episodes"
+                      id={episode.id}
+                      version={episode.version}
+                      episodeNumber={episode.episodeNumber}
+                      disabled={dirty || pending}
                     />
                   )}
                   <Field
@@ -448,7 +474,15 @@ export function EpisodeEditor() {
                     />
                   </Field>
                   <Field label="栏目" htmlFor="category" required error={errors.category}>
-                    <CategorySelect id="category" defaultValue={value.category} disabled={pending} />
+                    <CategorySelect
+                      id="category"
+                      defaultValue={value.category}
+                      disabled={pending}
+                      onChange={(category) => {
+                        setDirty(true);
+                        setCoverCopy((copy) => ({ ...copy, category }));
+                      }}
+                    />
                   </Field>
                   <Field label="标签" htmlFor="tags" error={errors.tags} hint="使用逗号分隔，最多 10 个。">
                     <Input

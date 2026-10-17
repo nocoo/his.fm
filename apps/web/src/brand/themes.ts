@@ -12,14 +12,10 @@ type Theme = {
   note: string;
   imageAlt: string;
   palette: [string, string, string, string, string];
-  /** Transparent square SVG overlaid on episode covers; defaults to the shared brand frame. */
-  coverFrame?: string;
 };
 
-export const defaultCoverFrame = '/brand/cover-frame.svg';
-
 export function themeCoverFrameSrc(id: ThemeId): string {
-  return themes[id].coverFrame ?? defaultCoverFrame;
+  return `/brand/frames/${id}.svg`;
 }
 
 export const themes: Record<ThemeId, Theme> = {
@@ -33,7 +29,6 @@ export const themes: Record<ThemeId, Theme> = {
     note: '一段树荫，一点陪伴。',
     imageAlt: '巨树的树荫下，一个人坐在草地上，望向阳光中的未来城市',
     palette: ['#F3F3EC', '#213E2D', '#D0F66D', '#759C45', '#DFD8F0'],
-    coverFrame: '/brand/frames/grove.svg',
   },
   interval: {
     number: '02',
@@ -45,7 +40,6 @@ export const themes: Record<ThemeId, Theme> = {
     note: '关掉一个窗口。留下一点空白。',
     imageAlt: '椅边一只松弛的手，身旁伸出一片青草叶',
     palette: ['#F5F4EE', '#1C211A', '#D6F25B', '#294ADF', '#D6D8CE'],
-    coverFrame: '/brand/frames/interval.svg',
   },
   'soft-landing': {
     number: '03',
@@ -57,7 +51,6 @@ export const themes: Record<ThemeId, Theme> = {
     note: '给今天，一个落点。',
     imageAlt: '青草绿玻璃回环接住一只淡紫色的柔软靠垫',
     palette: ['#F5EDCF', '#423048', '#D8C8EA', '#A7C96A', '#FFFBF1'],
-    coverFrame: '/brand/frames/soft-landing.svg',
   },
   'human-sample': {
     number: '04',
@@ -69,7 +62,6 @@ export const themes: Record<ThemeId, Theme> = {
     note: '声音里，有具体的生活。',
     imageAlt: '窗边感受晚风的成年人，青草绿与柿子橙的套色人像',
     palette: ['#F2F0E6', '#20241E', '#BCEF52', '#FA603A', '#EDC9D9'],
-    coverFrame: '/brand/frames/human-sample.svg',
   },
   stillwood: {
     number: '05',
@@ -81,7 +73,6 @@ export const themes: Record<ThemeId, Theme> = {
     note: '窗外有风，屋里有一段声音。',
     imageAlt: '山间的雾气笼罩杉林，一座木屋亮着暖色的窗',
     palette: ['#ECEBE1', '#263C35', '#A6AF94', '#C69D65', '#D4DAD2'],
-    coverFrame: '/brand/frames/stillwood.svg',
   },
   'tidal-hours': {
     number: '06',
@@ -93,7 +84,6 @@ export const themes: Record<ThemeId, Theme> = {
     note: '海面很宽，今天可以很小。',
     imageAlt: '低可视度的灰蓝海面中，一座孤岛静静浮现',
     palette: ['#EFF1EB', '#344C57', '#B3C5C5', '#D9C9AA', '#D7E0DF'],
-    coverFrame: '/brand/frames/tidal-hours.svg',
   },
   'window-seat': {
     number: '07',
@@ -105,7 +95,6 @@ export const themes: Record<ThemeId, Theme> = {
     note: '列车向前，我先听完这一段。',
     imageAlt: '戴着耳机的成年乘客坐在通勤列车窗边，窗外城市掠过',
     palette: ['#E9E7DF', '#293940', '#CEB581', '#AEBBBE', '#657778'],
-    coverFrame: '/brand/frames/window-seat.svg',
   },
   'alpine-bloom': {
     number: '08',
@@ -117,7 +106,6 @@ export const themes: Record<ThemeId, Theme> = {
     note: '世界自有速度。花有花期。',
     imageAlt: '薄雾与高海拔雪山之间，一朵蓝色高原花在近处静静开放',
     palette: ['#F0F1E9', '#404F50', '#B8C8D9', '#AFBCAC', '#D9C58D'],
-    coverFrame: '/brand/frames/alpine-bloom.svg',
   },
 };
 

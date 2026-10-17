@@ -24,6 +24,10 @@
 .his-audio-player *::after {
   box-sizing: border-box;
 }
+.his-audio-player:not(.is-compact):has(.his-audio-cover) {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
 .his-audio-player audio {
   display: none;
 }

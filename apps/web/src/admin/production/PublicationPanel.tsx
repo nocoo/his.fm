@@ -15,11 +15,13 @@ type PublicationDraft = Pick<Publication, 'platform' | 'publishedAt'> & { url?: 
 
 export function PublicationPanel({
   production,
+  categoryName,
   pending,
   mutate,
   onDirty,
 }: {
   production: Production;
+  categoryName: string;
   pending: boolean;
   mutate: (operation: () => Promise<{ production: Production }>, message: string) => Promise<boolean>;
   onDirty: (dirty: boolean) => void;
@@ -55,9 +57,18 @@ export function PublicationPanel({
             <FramedCover
               className="studio-cover"
               src={production.assets.cover.url}
+              title={production.title}
+              episodeNumber={production.episodeNumber}
+              categoryName={categoryName}
               alt={`${production.title}的节目封面`}
             />
-            <CoverDownload source={production.assets.cover.url} episodeNumber={production.episodeNumber} />
+            <CoverDownload
+              resource="productions"
+              id={production.id}
+              version={production.version}
+              episodeNumber={production.episodeNumber}
+              disabled={pending}
+            />
           </div>
         )}
         <Tabs defaultValue="wechat">

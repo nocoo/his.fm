@@ -150,7 +150,13 @@ function PromptEditor({
               <p className="admin-muted">
                 上传与存储的是无框原图；公开页面、工作室预览与下载成品会叠加当前网站主题的透明品牌框。
               </p>
-              <FramedCover className="studio-cover" src="/images/episode-01.webp" alt="品牌框叠加示意" />
+              <FramedCover
+                className="studio-cover"
+                src="/images/episode-01.webp"
+                title="一些声音，一点陪伴。"
+                categoryName="封面排版示例"
+                alt="品牌框叠加示意，非发布节目"
+              />
             </LayerCard>
           )}
           <LayerCard padding="none" className="channel-sheet">

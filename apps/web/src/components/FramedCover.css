@@ -4,7 +4,8 @@
   overflow: hidden;
 }
 .framed-cover-image,
-.framed-cover-overlay {
+.framed-cover-overlay,
+.framed-cover-copy {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -12,9 +13,11 @@
   display: block;
 }
 .framed-cover-image {
-  object-fit: contain;
+  object-fit: cover;
+  object-position: center;
 }
-.framed-cover-overlay {
+.framed-cover-overlay,
+.framed-cover-copy {
   pointer-events: none;
   object-fit: fill;
 }

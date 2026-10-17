@@ -5,6 +5,7 @@ import { requireScope } from './authorization';
 import { routeBumpers } from './bumpers';
 import { routeCategories } from './categories';
 import { routeChannel } from './channel';
+import { routeCover } from './cover';
 import { getEpisode, listEpisodes, mutateEpisode } from './episodes';
 import { HttpError, json } from './http';
 import { routeProductions } from './production';
@@ -21,7 +22,16 @@ export async function routeManagement(
   const category = /^\/categories(?:\/([a-z0-9-]+))?$/.exec(path);
   const bumper = /^\/bumpers(?:\/([^/]+))?$/.exec(path);
   const episode = /^\/episodes(?:\/([^/]+))?$/.exec(path);
-  if (category) response = await routeCategories(request, env, actor, category[1]);
+  const cover = /^\/(productions|episodes)\/([^/]+)\/cover\.png$/.exec(path);
+  if (cover)
+    response = await routeCover(
+      request,
+      env,
+      actor,
+      cover[1] === 'productions' ? 'productions' : 'episodes',
+      cover[2],
+    );
+  else if (category) response = await routeCategories(request, env, actor, category[1]);
   else if (path === '/channel') response = await routeChannel(request, env, actor);
   else if (path === '/seo') response = await routeSiteSeo(request, env, actor);
   else if (path === '/appearance') response = await routeAppearance(request, env, actor);

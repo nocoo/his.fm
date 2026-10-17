@@ -3,17 +3,23 @@ import { Download } from 'lucide-react';
 import { useState } from 'react';
 import { useResolvedThemeId } from '../../shared/useResolvedThemeId';
 import { errorMessage } from '../model';
+import { downloadCover } from '../service';
 import { Failure } from './controls';
-import { exportCover } from './cover-export';
 
 export function CoverDownload({
-  source,
+  resource,
+  id,
+  version,
   episodeNumber,
   compact = false,
+  disabled = false,
 }: {
-  source: string;
+  resource: 'productions' | 'episodes';
+  id: string;
+  version: number;
   episodeNumber: number;
   compact?: boolean;
+  disabled?: boolean;
 }) {
   const {
     themeId,
@@ -31,11 +37,11 @@ export function CoverDownload({
     setError('');
     setDownload('');
     try {
-      const file = await exportCover(source, episodeNumber, themeId);
+      const file = await downloadCover(resource, id, version, themeId);
       const url = URL.createObjectURL(file);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `his-fm-ep-${String(episodeNumber).padStart(3, '0')}.png`;
+      link.download = `his-fm-ep-${String(episodeNumber).padStart(3, '0')}-${themeId}.png`;
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -48,20 +54,24 @@ export function CoverDownload({
     }
   }
   return (
-    <div className={compact ? undefined : 'studio-stack'}>
+    <div className={compact ? undefined : 'studio-stack studio-cover-download'}>
       <div className="studio-actions">
         <Button
           variant={compact ? 'ghost' : 'outline'}
           size={compact ? 'icon' : 'sm'}
           loading={pending || themeLoading}
-          disabled={!themeResolved || pending || themeLoading}
+          disabled={disabled || !themeResolved || pending || themeLoading}
           aria-label="下载含品牌框架的封面成品"
           onClick={() => void save()}
         >
           <Download size={15} />
           {!compact && ' 下载封面成品'}
         </Button>
-        {!compact && <span className="admin-muted">PNG · 1600 × 1600 · 含品牌框架</span>}
+        {!compact && (
+          <span className="admin-muted">
+            {disabled ? '先保存改动，再下载成品' : 'PNG · 1600 × 1600 · 当前主题与已保存内容'}
+          </span>
+        )}
       </div>
       {themeError && <Failure error={themeError} retry={retry} />}
       {error && (

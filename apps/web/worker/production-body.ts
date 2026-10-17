@@ -1,7 +1,7 @@
 import type { z } from 'zod';
 import { HttpError } from './http';
 
-export async function readBytes(request: Request, limit: number) {
+export async function readBytes(request: Pick<Request, 'headers' | 'body'>, limit: number) {
   if (Number(request.headers.get('Content-Length')) > limit) throw new HttpError(413, '上传内容过大');
   const reader = request.body?.getReader();
   if (!reader) throw new HttpError(400, '请求内容不能为空');

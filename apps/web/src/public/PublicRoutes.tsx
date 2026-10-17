@@ -188,7 +188,10 @@ function EpisodeCard({ episode }: { episode: PublicEpisode }) {
         tabIndex={-1}
         aria-hidden="true"
       >
-        <EpisodeCover episode={episode} />
+        <EpisodeCover
+          episode={episode}
+          categoryName={categories.find((item) => item.id === episode.category)?.name ?? ''}
+        />
         <span className="art-arrow">
           <ArrowUpRight size={25} />
         </span>
@@ -215,6 +218,7 @@ function EpisodeCard({ episode }: { episode: PublicEpisode }) {
 function Home() {
   const { episodes, categories } = useLibrary();
   const { id } = useAppearance();
+  const quiet = ['stillwood', 'tidal-hours', 'window-seat', 'alpine-bloom'].includes(id);
   const site = usePublicSiteSeo();
   const origin = usePublicOrigin();
   const featured = episodes.find((episode) => episode.featured) ?? episodes[0];
@@ -252,30 +256,23 @@ function Home() {
           </div>
         </LibraryState>
       </section>
-      <section className="interlude wrap">
-        <div className="interlude-inner">
-          <span className="eyebrow">A LITTLE ROOM FOR YOURSELF</span>
-          <h2>
-            很多事还没做完。
-            <br />
-            晚饭倒是可以先吃。
-          </h2>
-          <Link to="/about" className="text-link">
-            认识 his.fm <ArrowUpRight size={19} />
-          </Link>
-          <BrandSymbol />
-        </div>
-      </section>
-      <section className="about-teaser wrap">
-        <Reveal className="about-teaser-image">
-          <img
-            src={themeMedia[id].artwork}
-            alt="屏幕之外，一点安静的日常"
-            loading="lazy"
-            width={768}
-            height={768}
-          />
-        </Reveal>
+      {!quiet && (
+        <section className="interlude wrap">
+          <div className="interlude-inner">
+            <span className="eyebrow">A LITTLE ROOM FOR YOURSELF</span>
+            <h2>
+              很多事还没做完。
+              <br />
+              晚饭倒是可以先吃。
+            </h2>
+            <Link to="/about" className="text-link">
+              认识 his.fm <ArrowUpRight size={19} />
+            </Link>
+            <BrandSymbol />
+          </div>
+        </section>
+      )}
+      <section className={`about-teaser ${quiet ? 'quiet-reflection' : 'wrap'}`}>
         <Reveal className="about-teaser-copy">
           <p className="eyebrow">HELLO, WE ARE HIS.FM</p>
           <h2>
@@ -288,6 +285,15 @@ function Home() {
           <Link to="/about" className="text-link">
             关于这个频道 <ArrowUpRight size={19} />
           </Link>
+        </Reveal>
+        <Reveal className="about-teaser-image">
+          <img
+            src={themeMedia[id].artwork}
+            alt="屏幕之外，一点安静的日常"
+            loading="lazy"
+            width={768}
+            height={768}
+          />
         </Reveal>
       </section>
     </>
@@ -443,10 +449,16 @@ function EpisodeDetail() {
                     src={episode.audioUrl}
                     title={episode.title}
                     coverUrl={episode.coverUrl}
+                    episodeNumber={episode.episodeNumber}
+                    categoryName={categories.find((item) => item.id === episode.category)?.name ?? ''}
                     subtitle={episodeDisplayLabel(episode, categories)}
                   />
                 ) : (
-                  <EpisodeCover episode={episode} priority />
+                  <EpisodeCover
+                    episode={episode}
+                    categoryName={categories.find((item) => item.id === episode.category)?.name ?? ''}
+                    priority
+                  />
                 )}
               </Reveal>
               <Reveal className="detail-intro">

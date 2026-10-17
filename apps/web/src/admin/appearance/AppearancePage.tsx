@@ -109,24 +109,26 @@ export default function AppearancePage() {
                       </span>
                       <BrandSymbol />
                     </div>
-                    <div className="appearance-choice">
+                    <LayerCard.Body className="appearance-choice">
                       <Radio
                         id={`appearance-${id}`}
                         value={id}
                         aria-labelledby={`appearance-name-${id}`}
                         aria-describedby={`appearance-description-${id}`}
                       />
-                      <div>
-                        <strong id={`appearance-name-${id}`}>
-                          {theme.number} · {theme.name}
-                        </strong>
-                        <span>{theme.english}</span>
-                      </div>
-                      {vm.saved?.theme === id && <Badge variant="secondary">使用中</Badge>}
-                    </div>
-                    <p id={`appearance-description-${id}`} className="appearance-description">
-                      {theme.description}
-                    </p>
+                      <strong id={`appearance-name-${id}`}>
+                        {theme.number} · {theme.name}
+                      </strong>
+                      {vm.saved?.theme === id && (
+                        <Badge variant="secondary" className="appearance-current">
+                          使用中
+                        </Badge>
+                      )}
+                      <span className="appearance-english">{theme.english}</span>
+                      <p id={`appearance-description-${id}`} className="appearance-description">
+                        {theme.description}
+                      </p>
+                    </LayerCard.Body>
                     <div className="appearance-swatches" aria-hidden="true">
                       {theme.palette.map((color) => (
                         <span key={color} style={{ background: color }} />

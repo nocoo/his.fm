@@ -75,6 +75,28 @@ curl --fail-with-body -X PUT \
 
 Fetch the new version after every successful mutation. Never blindly retry a body after a conflict.
 
+## Finished-cover PNG
+
+Read a saved original and its current metadata as one themed image:
+
+- `GET /productions/:id/cover.png?theme=<id>&version=N` requires `productions:read`.
+- `GET /episodes/:id/cover.png?theme=<id>&version=N` requires `episodes:read`, including for a published production snapshot.
+- `theme` is mandatory: `grove`, `interval`, `soft-landing`, `human-sample`, `stillwood`, `tidal-hours`, `window-seat` or `alpine-bloom`.
+- `version` is an optional positive integer; send the saved version to detect stale input. Unknown or repeated query parameters are rejected.
+
+Success is a binary **1600 x 1600 PNG**, not JSON, SVG or layered HTML. Headers include `Content-Type: image/png`, an attachment filename, `X-Cover-Theme`, `X-Resource-Version` and `Cache-Control: private, no-store`. The equivalent `/admin/api/...` routes serve authenticated studio downloads. No storage, write, approval or publication grant is needed, and no original, record or published snapshot is changed.
+
+```sh
+curl --fail \
+  "$HISFM_API_BASE/episodes/$EPISODE_ID/cover.png?theme=window-seat&version=$VERSION" \
+  -H "Authorization: Bearer $HISFM_TOKEN" \
+  --output "his-fm-$EPISODE_ID-window-seat.png"
+```
+
+Set `HISFM_API_BASE` to the authorized environment's `/api/agent` base. Originals must already be saved at a supported same-origin image/media path or the configured media CDN. The Worker reads the configured R2/ASSETS bindings; it never fetches an arbitrary external cover URL. Local development maps only the three known seeded CDN episode images to their bundled local copies.
+
+Export accepts static PNG/JPEG/WebP up to **4 MiB**, **4,000,000 pixels**, and **8192 pixels per side**; production uploads retain their separate 8 MiB limit. The selected font set is bounded to 2 MiB. Missing originals return 404; missing saved covers or stale versions return 409; size limits return 413; unsupported, animated or invalid image headers return 415; failed pixel decoding/rendering returns 422. A busy isolate returns 503 with `Retry-After: 1`; unavailable frame/font assets also fail explicitly. Do not save an error response as a PNG or silently replace the requested theme. Finished images are derivatives: never upload one back as the clean source.
+
 ## Publication and episodes
 
 `POST /productions/:id/publications` records `{version, platform, url, publishedAt}`. Platforms are `wechat` and `xiaoyuzhou`, with matching HTTPS hostnames and an actual non-future time. Current final approval/assets are required. This records publication; it does not post to the external platform.

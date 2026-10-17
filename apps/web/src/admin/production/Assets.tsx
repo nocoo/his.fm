@@ -35,12 +35,14 @@ const audioRules =
 
 export function Assets({
   production,
+  categoryName,
   pending,
   onDirty,
   onSave,
   mutate,
 }: {
   production: Production;
+  categoryName: string;
   pending: boolean;
   dirty: boolean;
   onDirty: (dirty: boolean) => void;
@@ -111,7 +113,7 @@ export function Assets({
             </div>
           </div>
           <div className="studio-asset-card-body">
-            <CoverPreview production={production} />
+            <CoverPreview production={production} categoryName={categoryName} />
           </div>
           {replaceCover && (
             <div className="studio-asset-upload">
@@ -209,7 +211,7 @@ export function Assets({
             </div>
           </div>
           <div className="studio-asset-card-body">
-            <AudioPreview production={production} />
+            <AudioPreview production={production} categoryName={categoryName} />
           </div>
           {replaceAudio && (
             <div className="studio-asset-upload">
@@ -366,11 +368,18 @@ function AssetMetadataPopover({
   );
 }
 
-function CoverPreview({ production }: { production: Production }) {
+function CoverPreview({ production, categoryName }: { production: Production; categoryName: string }) {
   const cover = production.assets.cover;
   return cover ? (
     <div className="studio-asset-preview studio-asset-preview-cover">
-      <FramedCover className="studio-cover" src={cover.url} alt={`${production.title}的节目封面`} />
+      <FramedCover
+        className="studio-cover"
+        src={cover.url}
+        title={production.title}
+        episodeNumber={production.episodeNumber}
+        categoryName={categoryName}
+        alt={`${production.title}的节目封面`}
+      />
       <div className="studio-asset-preview-actions">
         <a
           className="studio-link studio-asset-quiet-link"
@@ -381,7 +390,13 @@ function CoverPreview({ production }: { production: Production }) {
           <ExternalLink size={14} aria-hidden="true" />
           原图
         </a>
-        <CoverDownload source={cover.url} episodeNumber={production.episodeNumber} compact />
+        <CoverDownload
+          resource="productions"
+          id={production.id}
+          version={production.version}
+          episodeNumber={production.episodeNumber}
+          compact
+        />
       </div>
       {cover.scriptVersion !== production.scriptVersion && (
         <p className="studio-notice">这是旧版封面，请上传对应当前逐字稿的成品。</p>
@@ -392,13 +407,15 @@ function CoverPreview({ production }: { production: Production }) {
   );
 }
 
-function AudioPreview({ production }: { production: Production }) {
+function AudioPreview({ production, categoryName }: { production: Production; categoryName: string }) {
   const audio = production.assets.audio;
   return audio ? (
     <div className="studio-asset-preview">
       <AudioPlayer
         src={audio.url}
         title={production.title}
+        episodeNumber={production.episodeNumber}
+        categoryName={categoryName}
         coverUrl={production.assets.cover?.url}
         subtitle={`第 ${production.episodeNumber} 期 · 完整音频`}
         compact
@@ -427,17 +444,17 @@ function AudioPreview({ production }: { production: Production }) {
   );
 }
 
-export function FinalReview({ production }: { production: Production }) {
+export function FinalReview({ production, categoryName }: { production: Production; categoryName: string }) {
   return (
     <div className="studio-stack">
       <div className="studio-grid studio-assets-grid">
         <LayerCard className="studio-asset-card">
           <strong>封面检查</strong>
-          <CoverPreview production={production} />
+          <CoverPreview production={production} categoryName={categoryName} />
         </LayerCard>
         <LayerCard className="studio-asset-card">
           <strong>完整试听</strong>
-          <AudioPreview production={production} />
+          <AudioPreview production={production} categoryName={categoryName} />
         </LayerCard>
       </div>
       <strong>节目摘要</strong>

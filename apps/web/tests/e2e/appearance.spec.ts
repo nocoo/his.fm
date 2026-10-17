@@ -2,6 +2,7 @@ import { mkdir } from 'node:fs/promises';
 import { expect, test } from '@playwright/test';
 import { themes } from '../../src/brand/themes';
 import { type Appearance, themeIds } from '../../src/shared/appearance';
+import { coverArtwork, coverDesignSize } from '../../src/shared/cover-composition';
 
 test('all eight previews load real artwork, inline identity and same-origin fonts on desktop and phone', async ({
   page,
@@ -31,6 +32,83 @@ test('all eight previews load real artwork, inline identity and same-origin font
         )
         .toBeGreaterThan(0);
       await page.evaluate(() => document.fonts.ready);
+      const covers = page.locator('.episode-card .framed-cover');
+      expect(await covers.count()).toBeGreaterThan(0);
+      for (const cover of await covers.all()) {
+        await expect(cover).toHaveAttribute('data-cover-theme', id);
+        await expect(cover.locator('.framed-cover-image')).toHaveCSS('object-fit', 'cover');
+        await expect(cover.locator('.framed-cover-image')).toHaveCSS('object-position', '50% 50%');
+        await expect(cover.locator('.framed-cover-copy text')).not.toHaveCount(0);
+        const geometry = await cover.evaluate((element) => {
+          const rect = element.getBoundingClientRect();
+          const image = element.querySelector('img')?.getBoundingClientRect();
+          if (!image) throw new Error('Missing clean artwork');
+          return {
+            x: (image.x - rect.x) / rect.width,
+            y: (image.y - rect.y) / rect.height,
+            width: image.width / rect.width,
+            height: image.height / rect.height,
+            overflow: [...element.querySelectorAll('text')].some((text) => {
+              const bounds = text.getBBox();
+              return (
+                bounds.x < 0 ||
+                bounds.y < 0 ||
+                bounds.x + bounds.width > 1024 ||
+                bounds.y + bounds.height > 1024
+              );
+            }),
+          };
+        });
+        const artwork = coverArtwork(id);
+        for (const key of ['x', 'y', 'width', 'height'] as const)
+          expect(geometry[key]).toBeCloseTo(artwork[key] / coverDesignSize, 3);
+        expect(geometry.overflow).toBe(false);
+        if (id === 'window-seat') {
+          const padding = await cover.evaluate((element) => {
+            const canvas = document.createElement('canvas').getContext('2d');
+            if (!canvas) throw new Error('Missing text measurement context');
+            const titles = [...element.querySelectorAll('text')].filter(
+              (text) => Number(text.getAttribute('font-size')) > 30,
+            );
+            const ink = titles.map((text) => {
+              const style = getComputedStyle(text);
+              canvas.font = `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+              const metrics = canvas.measureText(text.textContent ?? '');
+              const baseline = Number(text.getAttribute('y'));
+              return {
+                top: baseline - metrics.actualBoundingBoxAscent,
+                bottom: baseline + metrics.actualBoundingBoxDescent,
+              };
+            });
+            return {
+              top: Math.min(...ink.map((line) => line.top)) - 808,
+              bottom: 993 - Math.max(...ink.map((line) => line.bottom)),
+            };
+          });
+          expect(padding.top).toBeGreaterThan(20);
+          expect(padding.bottom).toBeGreaterThan(20);
+          expect(Math.abs(padding.top - padding.bottom)).toBeLessThan(8);
+        }
+      }
+      const card = page.locator('.episode-card').first();
+      await card.hover();
+      const arrow = card.locator('.art-arrow');
+      await expect(arrow).toHaveCSS('opacity', '1');
+      await expect(arrow).toHaveCSS('color', 'rgb(255, 255, 255)');
+      const action = await arrow.evaluate((element) => {
+        const rect = element.getBoundingClientRect();
+        const art = element.closest('.episode-art')?.getBoundingClientRect();
+        if (!art) throw new Error('Missing cover link');
+        return {
+          background: getComputedStyle(element).backgroundColor,
+          primary: getComputedStyle(element.closest('.public-site') as Element).color,
+          bottom: (art.bottom - rect.bottom) / art.height,
+          right: (art.right - rect.right) / art.width,
+        };
+      });
+      expect(action.background).toBe(action.primary);
+      expect(action.bottom).toBeCloseTo(0.06, 2);
+      expect(action.right).toBeCloseTo(0.06, 2);
       expect(
         await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
         `${id} at ${width}px`,
@@ -52,6 +130,68 @@ test('all eight previews load real artwork, inline identity and same-origin font
   await expect(page).toHaveURL(/\/episodes$/);
   expect(writes).toEqual([]);
   expect(errors).toEqual([]);
+});
+
+test('long Chinese and wide Latin cover titles stay inside every theme and clear the hover action', async ({
+  page,
+}) => {
+  test.setTimeout(120_000);
+  const titles = [
+    '我们在一个不断变化的世界里，如何重新找回属于自己的时间和生活',
+    '从 WWDC 到 MWC：我们为什么总在期待下一个改变世界的产品',
+    'WWDC MWC WWW Windows Windows Windows Windows',
+  ];
+  await page.route('**/api/episodes', async (route) => {
+    const response = await route.fetch();
+    const data = await response.json();
+    await route.fulfill({
+      json: {
+        ...data,
+        episodes: data.episodes.slice(0, titles.length).map((episode: object, index: number) => ({
+          ...episode,
+          title: titles[index],
+        })),
+      },
+    });
+  });
+  for (const width of [1440, 390]) {
+    await page.setViewportSize({ width, height: width === 390 ? 844 : 1000 });
+    for (const theme of themeIds) {
+      await page.goto(`/episodes?theme=${theme}`);
+      await expect(page.locator('.episode-card h3').first()).toHaveText(titles[0]);
+      await page.evaluate(() => document.fonts.ready);
+      for (const art of await page.locator('.episode-art').all()) {
+        await art.hover();
+        const bounds = await art.evaluate((element) => {
+          const arrow = element.querySelector('.art-arrow')?.getBoundingClientRect();
+          const cover = element.querySelector('.framed-cover')?.getBoundingClientRect();
+          if (!arrow || !cover) throw new Error('Missing cover action');
+          return {
+            height: cover.height,
+            linkHeight: element.getBoundingClientRect().height,
+            actionTop: arrow.top - cover.top,
+            actionBottom: cover.bottom - arrow.bottom,
+            lines: [...element.querySelectorAll('.framed-cover-copy text')]
+              .filter((text) => Number(text.getAttribute('font-size')) > 30)
+              .map((text) => {
+                const glyphs = (text as SVGTextElement).getBBox();
+                return {
+                  designRight: glyphs.x + glyphs.width,
+                  gap: arrow.left - text.getBoundingClientRect().right,
+                };
+              }),
+          };
+        });
+        expect(bounds.linkHeight, `${theme} at ${width}px`).toBeCloseTo(bounds.height, 1);
+        expect(bounds.actionTop, `${theme} at ${width}px`).toBeGreaterThan(0);
+        expect(bounds.actionBottom / bounds.height, `${theme} at ${width}px`).toBeCloseTo(0.06, 2);
+        for (const line of bounds.lines) {
+          expect(line.designRight, `${theme} at ${width}px`).toBeLessThanOrEqual(844);
+          expect(line.gap, `${theme} at ${width}px`).toBeGreaterThan(1);
+        }
+      }
+    }
+  }
 });
 
 test('the owner can preview and apply a theme without changing production or concurrent local edits', async ({
@@ -159,7 +299,7 @@ test('failed saves preserve selection and conflicts require an explicit reload',
   await page.screenshot({ path: '.local/appearance/admin-mobile-dark.png', fullPage: true });
 });
 
-test('theme choices have no outer frame and retain selection and keyboard focus', async ({
+test('theme choices align padded content and retain selection and keyboard focus without an outer frame', async ({
   page,
 }, testInfo) => {
   const writes: string[] = [];
@@ -177,7 +317,17 @@ test('theme choices have no outer frame and retain selection and keyboard focus'
   await page.goto('/admin/appearance');
   const group = page.getByRole('radiogroup', { name: '网站视觉主题' });
   const frame = page.locator('.appearance-page > fieldset');
-  for (const width of [1440, 393]) {
+  await expect(group).toBeVisible();
+  await page.evaluate(async () => {
+    await document.fonts.ready;
+    await Promise.all(
+      [...document.querySelectorAll<HTMLImageElement>('.appearance-mini img')].map((image) => {
+        image.loading = 'eager';
+        return image.decode();
+      }),
+    );
+  });
+  for (const width of [1440, 1024, 393]) {
     await page.setViewportSize({ width, height: 900 });
     if (width === 393) {
       await page.getByRole('button', { name: '切换主题', exact: true }).click();
@@ -187,6 +337,51 @@ test('theme choices have no outer frame and retain selection and keyboard focus'
     await expect(frame).toHaveCSS('border-width', '0px');
     await expect(frame).toHaveCSS('padding', '0px');
     await expect(frame).toHaveCSS('margin', '0px');
+    for (const card of await page.locator('.appearance-option').all()) {
+      await expect(card.locator('.appearance-choice')).toHaveCSS('padding', '16px');
+      const spacing = await card.evaluate((element) => {
+        const rect = (selector: string) => {
+          const child = element.querySelector(selector);
+          if (!child) throw new Error(`Missing ${selector}`);
+          return child.getBoundingClientRect();
+        };
+        const body = rect('.appearance-choice');
+        const title = rect('strong');
+        const english = rect('.appearance-english');
+        const description = rect('.appearance-description');
+        const radio = rect('[role="radio"]');
+        const mini = rect('.appearance-mini');
+        const heading = rect('.mini-heading');
+        const current = element.querySelector('.appearance-current')?.getBoundingClientRect();
+        return {
+          left: radio.left - body.left,
+          textOffset: description.left - title.left,
+          englishOffset: english.left - title.left,
+          right: body.right - description.right,
+          descriptionGap:
+            description.top +
+            parseFloat(
+              getComputedStyle(element.querySelector('.appearance-description') as Element).paddingTop,
+            ) -
+            english.bottom,
+          radioAlignment: (radio.top + radio.bottom - title.top - title.bottom) / 2,
+          badgeGap: current ? current.left - title.right : null,
+          stripBottom: element.getBoundingClientRect().bottom - rect('.appearance-swatches').bottom,
+          headingBottom: mini.bottom - heading.bottom,
+          headingRight: mini.right - heading.right,
+        };
+      });
+      expect(spacing.left).toBeCloseTo(16, 1);
+      expect(spacing.right).toBeCloseTo(16, 1);
+      expect(spacing.textOffset).toBeCloseTo(0, 1);
+      expect(spacing.englishOffset).toBeCloseTo(0, 1);
+      expect(spacing.radioAlignment).toBeCloseTo(0, 1);
+      expect(spacing.descriptionGap).toBeCloseTo(12, 1);
+      expect(spacing.stripBottom).toBeCloseTo(0, 1);
+      expect(spacing.headingBottom).toBeGreaterThan(8);
+      expect(spacing.headingRight).toBeGreaterThan(8);
+      if (spacing.badgeGap !== null) expect(spacing.badgeGap).toBeGreaterThanOrEqual(12);
+    }
     const choice = group.getByRole('radio', { name: '01 · 林间电台', exact: true });
     await choice.click();
     await expect(choice).toBeChecked();

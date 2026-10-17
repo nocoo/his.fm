@@ -54,6 +54,7 @@ export function Hero({ featured, episodeLabel }: { featured?: PublicEpisode; epi
   const { id } = useAppearance();
   const theme = themes[id];
   const imageSizes = heroImageSizes(id);
+  const quiet = ['stillwood', 'tidal-hours', 'alpine-bloom'].includes(id);
   return (
     <section className="home-hero">
       {id === 'human-sample' && (
@@ -67,14 +68,19 @@ export function Hero({ featured, episodeLabel }: { featured?: PublicEpisode; epi
           <BrandSymbol />
         </div>
       )}
-      <div className="hero-index">
-        <span>HIS.FM / {theme.english}</span>
-        <span>
-          <Headphones size={15} strokeWidth={1.5} /> 给自己一点时间
-        </span>
-      </div>
+      {id === 'interval' && (
+        <div className="hero-index">
+          <span>HIS.FM / A LITTLE OPEN SPACE</span>
+          <span>
+            <Headphones size={15} strokeWidth={1.5} /> 给自己一点时间
+          </span>
+        </div>
+      )}
       <div className="hero-copy">
-        <p className="hero-overline">一档给开发者的中文播客</p>
+        <p className="hero-overline">
+          {quiet || id === 'window-seat' ? `HIS.FM / ${theme.english}` : '一档给开发者的中文播客'}
+        </p>
+        {id === 'window-seat' && <BrandSymbol className="hero-copy-mark" />}
         <h1>
           {theme.heading.map((line) => (
             <span key={line}>{line}</span>
@@ -90,14 +96,39 @@ export function Hero({ featured, episodeLabel }: { featured?: PublicEpisode; epi
         <BrandSymbol />
         <figcaption>{theme.note}</figcaption>
       </figure>
-      <div className="hero-seal" aria-hidden="true">
-        <BrandSymbol />
-        <span>
-          AT YOUR
-          <br />
-          OWN PACE.
-        </span>
-      </div>
+      {(id === 'soft-landing' || id === 'tidal-hours') && (
+        <p className="hero-handwriting" aria-hidden="true">
+          {id === 'soft-landing' ? (
+            <>
+              a softer
+              <br />
+              <em>landing.</em>
+            </>
+          ) : (
+            <>
+              at your
+              <br />
+              <em>own tide.</em>
+            </>
+          )}
+        </p>
+      )}
+      {quiet && (
+        <div className="hero-seal" aria-hidden="true">
+          <BrandSymbol />
+          <span>
+            {theme.english}
+            <br />
+            {id === 'alpine-bloom' ? (
+              <em>in its own time.</em>
+            ) : id === 'stillwood' ? (
+              'HIS.FM'
+            ) : (
+              'A LITTLE TIME, YOUR OWN.'
+            )}
+          </span>
+        </div>
+      )}
       {featured && (
         <PublicLink to={episodePublicPath(featured.category, featured.slug)} className="hero-feature">
           <span className="hero-feature-number">

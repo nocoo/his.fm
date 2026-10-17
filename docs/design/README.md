@@ -1,6 +1,6 @@
 # his.fm identity studies
 
-Eight static identity studies for the public podcast brand. Open [the gallery](index.html), or use the existing local server at <https://hisfm.dev.hexly.ai/docs/design/>. The new quiet directions are at <https://hisfm.dev.hexly.ai/docs/design/#quiet>.
+Eight static identity studies for the public podcast brand. Open [the gallery](index.html) directly in Chrome. The quiet directions are in [the second collection](index.html#quiet). This archive is not a public application route; current implementation and preview links are documented in [website appearance](../appearance.md).
 
 The gallery and individual pages also open directly from disk. Everything needed for display, including fonts, is local. No application build, account, API call, or audio service is required.
 

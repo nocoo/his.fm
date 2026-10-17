@@ -1,7 +1,7 @@
 import { grantsSchema, principalSchema, type Scope } from '@his-fm/contracts';
 import { z } from 'zod';
 import { version } from '../../../package.json';
-import { appearanceSchema, appearanceUpdateSchema } from '../src/shared/appearance';
+import { appearanceSchema, appearanceUpdateSchema, themeIdSchema } from '../src/shared/appearance';
 import { categoryInputSchema, categoryMutationSchema, categorySchema } from '../src/shared/category';
 import { channelProfileSchema, channelUpdateSchema, editorialPriority } from '../src/shared/channel';
 import {
@@ -174,7 +174,7 @@ const wrappedProduction = {
   ],
 };
 const errors = Object.fromEntries(
-  [400, 401, 403, 404, 405, 409, 413, 415, 500, 502, 503].map((status) => [
+  [400, 401, 403, 404, 405, 409, 413, 415, 422, 500, 502, 503].map((status) => [
     String(status),
     {
       description: `HTTP ${status}; read error and documentation. Never blindly retry writes.`,
@@ -216,6 +216,42 @@ export function agentOpenApi(origin: string) {
     schema: { type: 'integer', minimum: 1 },
     description: 'Expected resource version from the latest read.',
   };
+  const finishedCover = (resource: 'productions' | 'episodes') => ({
+    parameters: [idParameter],
+    get: {
+      ...operation(
+        resource === 'productions' ? 'downloadProductionCover' : 'downloadEpisodeCover',
+        'Download a 1600x1600 PNG with the selected theme, saved title, category and episode number. Reads trusted local/CDN originals only; no upload, publication or source mutation. Source limit: 4 MiB and 4,000,000 pixels. Concurrent composition in the same isolate returns 503 with Retry-After: 1.',
+        {},
+        [resource === 'productions' ? 'productions:read' : 'episodes:read'],
+      ),
+      parameters: [
+        { name: 'theme', in: 'query', required: true, schema: schema(themeIdSchema) },
+        { ...versionQuery, required: false },
+      ],
+      responses: {
+        ...errors,
+        503: {
+          ...errors['503'],
+          headers: {
+            'Retry-After': {
+              description: 'Seconds before retrying when this isolate is already composing a cover.',
+              schema: { type: 'integer', minimum: 1 },
+            },
+          },
+        },
+        200: {
+          description:
+            'Composited PNG attachment. Private, no-store; never upload this derivative as source artwork.',
+          headers: {
+            'X-Cover-Theme': { schema: schema(themeIdSchema) },
+            'X-Resource-Version': { schema: { type: 'integer' } },
+          },
+          content: { 'image/png': { schema: { type: 'string', format: 'binary' } } },
+        },
+      },
+    },
+  });
   const categoryProjection = categorySchema.partial({ prompt: true });
   const tokenRecord = tokenSchema.omit({ expiresInDays: true }).extend({
     scopes: grantsSchema,
@@ -656,6 +692,8 @@ export function agentOpenApi(origin: string) {
           requestBody: body(episodeCreateSchema),
         },
       },
+      '/productions/{id}/cover.png': finishedCover('productions'),
+      '/episodes/{id}/cover.png': finishedCover('episodes'),
       '/episodes/{id}': {
         parameters: [idParameter],
         get: operation(

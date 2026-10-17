@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Export per-theme transparent cover overlays from docs/design into apps/web/public/brand/frames/."""
+"""Export the approved cover frames and their dynamic text slots from docs/design."""
 
 import argparse
 import hashlib
@@ -31,17 +31,17 @@ THEME_BY_BRAND = {
 
 EXPORT_SIZE = 1600
 SOURCE_SIZE = 1024
+TITLE_RIGHT = 842
 
-# Episode badge placement per theme (1024 design space), scaled for export in cover-export.
-EPISODE_BADGE = {
-    'grove': {'x': 834, 'y': 93, 'fontSize': 39, 'fill': 'paper'},
-    'interval': {'x': 96, 'y': 793, 'fontSize': 33, 'fill': 'ink'},
-    'soft-landing': {'x': 705, 'y': 105, 'fontSize': 28, 'fill': 'ink'},
-    'human-sample': {'x': 62, 'y': 758, 'fontSize': 38, 'fill': 'ink'},
-    'stillwood': {'x': 91, 'y': 758, 'fontSize': 31, 'fill': 'paper'},
-    'tidal-hours': {'x': 46, 'y': 170, 'fontSize': 28, 'fill': 'ink'},
-    'window-seat': {'x': 71, 'y': 163, 'fontSize': 27, 'fill': 'paper'},
-    'alpine-bloom': {'x': 62, 'y': 758, 'fontSize': 29, 'fill': 'ink'},
+ART_WINDOWS = {
+    'grove': (0, 0, 1024, 1024),
+    'interval': (92, 174, 892, 559),
+    'soft-landing': (56, 180, 912, 610),
+    'human-sample': (30, 203, 994, 517),
+    'stillwood': (0, 0, 1024, 1024),
+    'tidal-hours': (36, 190, 952, 540),
+    'window-seat': (65, 181, 904, 573),
+    'alpine-bloom': (0, 0, 1024, 1024),
 }
 
 
@@ -58,31 +58,54 @@ def digest(path: Path) -> str:
 
 
 def export_frames(destination: Path, layout_path: Path, quiet: bool = False) -> None:
-    assets.prepare_fonts()
     destination.mkdir(parents=True, exist_ok=True)
     layouts: dict[str, dict] = {}
+    font_widths: dict[str, list[float]] = {}
     for brand in pages.BRANDS:
         theme_id = THEME_BY_BRAND[brand['id']]
-        content = assets.overlay_frame(brand)
+        slots = []
+        outline = assets.text
+
+        def capture(value, x, y, size, color, font='noto-sans-sc', weight=500, max_width=None, tracking=0):
+            if any(token in value for token in ('{number}', '{category}', '{title1}', '{title2}')):
+                if value in ('{title1}', '{title2}'):
+                    max_width = min(max_width or SOURCE_SIZE - x - 32, TITLE_RIGHT - x)
+                if theme_id == 'window-seat' and value in ('{title1}', '{title2}'):
+                    y = 886 if value == '{title1}' else 959
+                slots.append({
+                    'template': value, 'x': x, 'y': y, 'size': size, 'fill': color,
+                    'font': font, 'weight': weight, 'maxWidth': max_width or SOURCE_SIZE - x - 32,
+                    'tracking': tracking,
+                })
+                return ''
+            return outline(value, x, y, size, color, font, weight, max_width, tracking)
+
+        assets.text = capture
+        try:
+            content = assets.frame(brand, {
+                'number': '{number}', 'tag': '{category}', 'lines': ('{title1}', '{title2}'),
+            })
+        finally:
+            assets.text = outline
+        for slot in slots:
+            key = f'{slot["font"]}:{slot["weight"]}'
+            if key not in font_widths:
+                glyphs, cmap, units = assets.font_data(slot['font'], slot['weight'])
+                font_widths[key] = [round(glyphs[cmap[point]].width / units, 6) for point in range(32, 127)]
         (destination / f'{theme_id}.svg').write_text(svg_body(content))
         paper, ink, accent = [c for _, c in brand['palette'][:3]]
-        badge = EPISODE_BADGE[theme_id]
-        scale = EXPORT_SIZE / SOURCE_SIZE
-        fill_color = paper if badge['fill'] == 'paper' else ink
         layouts[theme_id] = {
             'paper': paper,
             'ink': ink,
             'accent': accent,
-            'episode': {
-                'x': round(badge['x'] * scale),
-                'y': round(badge['y'] * scale),
-                'fontSize': round(badge['fontSize'] * scale),
-                'fill': fill_color,
-            },
+            'artwork': dict(zip(('x', 'y', 'width', 'height'), ART_WINDOWS[theme_id])),
+            'text': slots,
         }
         if not quiet:
             print(f'wrote {theme_id}.svg from docs/design {brand["slug"]} ({brand["name"]})')
-    layout_path.write_text(json.dumps({'size': EXPORT_SIZE, 'themes': layouts}, indent=2) + '\n')
+    layout_path.write_text(json.dumps({
+        'size': EXPORT_SIZE, 'designSize': SOURCE_SIZE, 'themes': layouts, 'fontWidths': font_widths,
+    }, indent=2) + '\n')
     if not quiet:
         print(f'wrote {layout_path.relative_to(ROOT)}')
 
@@ -98,7 +121,7 @@ def verify_committed(destination: Path, layout_path: Path) -> int:
             generated = tmp_dest / f'{theme_id}.svg'
             if digest(committed) != digest(generated):
                 mismatches.append(f'{theme_id}.svg')
-        if digest(layout_path) != digest(tmp_layout):
+        if json.loads(layout_path.read_text()) != json.loads(tmp_layout.read_text()):
             mismatches.append(layout_path.name)
         if mismatches:
             print('Committed cover frames are out of date. Run:', file=sys.stderr)

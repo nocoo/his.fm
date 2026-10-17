@@ -1,0 +1,886 @@
+[
+  {
+    "font": "instrument-serif",
+    "source_url": "https://raw.githubusercontent.com/google/fonts/main/ofl/instrumentserif/InstrumentSerif-Regular.ttf",
+    "source_sha256": "498efd461f6ddfcb7a111bf9a565709d2085d48201d501ead960d93e84ffbb88",
+    "license": "instrumentserif-OFL.txt",
+    "delivery": "instrument-serif.woff2",
+    "sha256": "8d7a1d23a152621981aa2fe6636fb78fe1ffb28094ca5f55518f4619142c8cb5",
+    "subset": false,
+    "file": "instrument-serif.woff2"
+  },
+  {
+    "font": "instrument-serif-italic",
+    "source_url": "https://raw.githubusercontent.com/google/fonts/main/ofl/instrumentserif/InstrumentSerif-Italic.ttf",
+    "source_sha256": "08939b8bdf534afec24ae0ef5e03f948940cd9a8fe08e7fecbad040e62327385",
+    "license": "instrumentserif-OFL.txt",
+    "delivery": "instrument-serif-italic.woff2",
+    "sha256": "1da7be1ea3945a40f9bd539b6f911ca6ad8fc8f561dd32273f3b2510361e6c94",
+    "subset": false,
+    "file": "instrument-serif-italic.woff2"
+  },
+  {
+    "font": "syne",
+    "source_url": "https://raw.githubusercontent.com/google/fonts/main/ofl/syne/Syne%5Bwght%5D.ttf",
+    "source_sha256": "ce5ac77142a65cab2248a1a2ebb740b1d4d9c20b52488877d3ff664d1356104a",
+    "license": "syne-OFL.txt",
+    "delivery": "syne.woff2",
+    "sha256": "32eddd9571a569d56f0fe63f9e260da3fc515d1d608e8a000b5751ca16083cc5",
+    "subset": false,
+    "file": "syne.woff2"
+  },
+  {
+    "font": "noto-serif-sc",
+    "source_url": "https://raw.githubusercontent.com/google/fonts/main/ofl/notoserifsc/NotoSerifSC%5Bwght%5D.ttf",
+    "source_sha256": "050080d9255a86808f2945bffac582b31ef32bc36411ce29563b4961670c66f9",
+    "license": "notoserifsc-OFL.txt",
+    "codepoints": 30928,
+    "deliveries": [
+      {
+        "file": "noto-serif-sc-000.woff2",
+        "sha256": "25f718d6d9154a6977b4f81941f60b4a9f08e0ca390d0155ed2d1398559e0cfb",
+        "bytes": 5616
+      },
+      {
+        "file": "noto-serif-sc-001.woff2",
+        "sha256": "7e3a3fa087557ca30469614c9f2f2a7fbb1debd39e4a8e3daf30f5e1da497f38",
+        "bytes": 66040
+      },
+      {
+        "file": "noto-serif-sc-002.woff2",
+        "sha256": "d96190cc54992ebbf026c841b363c4cba82869e7b4fe0ea325ac921ce8eb60d1",
+        "bytes": 13560
+      },
+      {
+        "file": "noto-serif-sc-003.woff2",
+        "sha256": "491791bbea90c94f0bd9e412582d45fe5554f350830672d5aaba2d9c9c2e01aa",
+        "bytes": 15908
+      },
+      {
+        "file": "noto-serif-sc-004.woff2",
+        "sha256": "2c9f4f315d63f41df16424404d1d2213846f6e6cdea1e79bcc9a6893a99cd27c",
+        "bytes": 84796
+      },
+      {
+        "file": "noto-serif-sc-005.woff2",
+        "sha256": "cd1cd6ab1504b5cfd3b6c6cd3651241f246204c713edd8a6796ef91a8179988f",
+        "bytes": 73288
+      },
+      {
+        "file": "noto-serif-sc-006.woff2",
+        "sha256": "2ef1f53a0b2175a2f55b7f086d9ef77ffd9df6194dd4325cd65777d5098897ce",
+        "bytes": 82072
+      },
+      {
+        "file": "noto-serif-sc-007.woff2",
+        "sha256": "16475e1d1d85e41989c02d7379cb07cb0cb8ae2bb2075d0eb5dc2193cb5ba3fc",
+        "bytes": 77528
+      },
+      {
+        "file": "noto-serif-sc-008.woff2",
+        "sha256": "e23b2e811abb8e8988b6ea7984f6e9ca2a37538623c2d3ac96dae6f29ef05c80",
+        "bytes": 70776
+      },
+      {
+        "file": "noto-serif-sc-009.woff2",
+        "sha256": "874a6fdb828cecf4a405b225248f872fa8c1cf9a20314aaaf5ce981fcfa67c2f",
+        "bytes": 63980
+      },
+      {
+        "file": "noto-serif-sc-010.woff2",
+        "sha256": "851499b1f076f577a6697081cec8b828efbaf0f5a3f1840821a7b5911b869005",
+        "bytes": 67324
+      },
+      {
+        "file": "noto-serif-sc-011.woff2",
+        "sha256": "91606ae00fe21e61d46bdd901413d80cb9bb1dfb1fbdd80d9356158612f99359",
+        "bytes": 72268
+      },
+      {
+        "file": "noto-serif-sc-012.woff2",
+        "sha256": "5c0a61c4a5294f23ba8efbd0d2db059561f0a482e59b36d257a325f1d9af6265",
+        "bytes": 76392
+      },
+      {
+        "file": "noto-serif-sc-013.woff2",
+        "sha256": "4bc8c4e37439ddc1774185175c024f16785b4e3f042c4b3ec5a5b0023ade54e1",
+        "bytes": 63736
+      },
+      {
+        "file": "noto-serif-sc-014.woff2",
+        "sha256": "96b1268789cadf7a15cf3512a9420d047c348a5ede7e5f4492e57c5edd2b4ef2",
+        "bytes": 67512
+      },
+      {
+        "file": "noto-serif-sc-015.woff2",
+        "sha256": "5a389d3d4a3d1546b3e21ca1c3f3e75366ee3b85daba45e78fc1803dc85f0958",
+        "bytes": 65432
+      },
+      {
+        "file": "noto-serif-sc-016.woff2",
+        "sha256": "e1aa9047c61e853f0a2cff9225b6d16a87be0de7085b5264c9a04d65fcf262ab",
+        "bytes": 64136
+      },
+      {
+        "file": "noto-serif-sc-017.woff2",
+        "sha256": "a257f752bcdbc84425b01a53a530ea2f6beca141a9f128a836d6a685c6cf1ebe",
+        "bytes": 63224
+      },
+      {
+        "file": "noto-serif-sc-018.woff2",
+        "sha256": "a7f4390a713ae2c27fea8910698c44296335fa27e44fc1d2d7a8e75980ff7652",
+        "bytes": 57328
+      },
+      {
+        "file": "noto-serif-sc-019.woff2",
+        "sha256": "e741732ae6a1aa140cb7c6632b0b14d223faf2a84c8a948a3081ded5bc7e89aa",
+        "bytes": 67256
+      },
+      {
+        "file": "noto-serif-sc-020.woff2",
+        "sha256": "509d16af4204ad6c7e6c734c0df136e066fb637eed1a22a9e360f66c95a33f6e",
+        "bytes": 74656
+      },
+      {
+        "file": "noto-serif-sc-021.woff2",
+        "sha256": "cad67b52e597b7dd3b57abbbf77b53b45219605b3cb318df65c75a33379f21c1",
+        "bytes": 71760
+      },
+      {
+        "file": "noto-serif-sc-022.woff2",
+        "sha256": "3b6f7beb377479d8767df6778401e8286b5f9e04e96dd22c6a772e2450696abd",
+        "bytes": 65572
+      },
+      {
+        "file": "noto-serif-sc-023.woff2",
+        "sha256": "b24a7a6221c4f5e86600de2a14277f007f364d4e92ac7b85e0ab10c026f5c886",
+        "bytes": 50944
+      },
+      {
+        "file": "noto-serif-sc-024.woff2",
+        "sha256": "45639f923b5730cfca67124f331488772e4250c85442379d8973b2a5cdc97fc1",
+        "bytes": 62148
+      },
+      {
+        "file": "noto-serif-sc-025.woff2",
+        "sha256": "dd501c304a28b9314a7f200ff6701ec411cc55a0b0898a0a2806194c219f98bd",
+        "bytes": 57736
+      },
+      {
+        "file": "noto-serif-sc-026.woff2",
+        "sha256": "2f5fed4c4ea88c5b1db8b45b62be2ba397098c3b8a37fdf31ba176f9bf45bb38",
+        "bytes": 71996
+      },
+      {
+        "file": "noto-serif-sc-027.woff2",
+        "sha256": "d053a7779f6c60852d9e42115aa8d615c52d94c4834ed9a4f8942b25dc8c038e",
+        "bytes": 90780
+      },
+      {
+        "file": "noto-serif-sc-028.woff2",
+        "sha256": "9517c8e6a3b979d0b9bb96eaf24ddf8012b8dff059d9efe6403949274237ffc0",
+        "bytes": 76928
+      },
+      {
+        "file": "noto-serif-sc-029.woff2",
+        "sha256": "2d210d4e29a5dc20f20380d62f6a7ef1e07cae4b411c4e00b1802a0b2812334f",
+        "bytes": 73428
+      },
+      {
+        "file": "noto-serif-sc-030.woff2",
+        "sha256": "949a911e1a8be20afa0aced8bec3c35c30ffa2831a27913f71c5f55efcae5c1a",
+        "bytes": 64084
+      },
+      {
+        "file": "noto-serif-sc-031.woff2",
+        "sha256": "c2a55ba24d1df0cae3ab63645849ea94645a83b8ad14ba3361b86b7fd39e832c",
+        "bytes": 69776
+      },
+      {
+        "file": "noto-serif-sc-032.woff2",
+        "sha256": "8478930738cd0d3ff926e8bf89d51086ea4002a0b3fe49426f266185c30c0b96",
+        "bytes": 63600
+      },
+      {
+        "file": "noto-serif-sc-033.woff2",
+        "sha256": "cc8b2177b36dba1ee6bfc6b9112b955e708da2248c5aeab3e874154e80b2a1a1",
+        "bytes": 56704
+      },
+      {
+        "file": "noto-serif-sc-034.woff2",
+        "sha256": "4813318b81ba0fe25f06c19b4960ae7f4a6734c0821e729a92ba2219a4d12001",
+        "bytes": 67168
+      },
+      {
+        "file": "noto-serif-sc-035.woff2",
+        "sha256": "04bd7d6e8d4b2df09488782fd1fc9bae7485a949ef9ebe6f970e2ddd02a7ea47",
+        "bytes": 53316
+      },
+      {
+        "file": "noto-serif-sc-036.woff2",
+        "sha256": "7d0a467e801aedef1ad98796678d5eeae1cfab9f844fe944b65fdada84bd6dc4",
+        "bytes": 68660
+      },
+      {
+        "file": "noto-serif-sc-037.woff2",
+        "sha256": "af64bb4f9db32b630f45be36d5a6606f9a125ca331c6c67f1a8e12ea77f1a707",
+        "bytes": 61028
+      },
+      {
+        "file": "noto-serif-sc-038.woff2",
+        "sha256": "5c2139970162c25900416b36a98e992c694f10bc34b6aee4fec080efc4ef0010",
+        "bytes": 69004
+      },
+      {
+        "file": "noto-serif-sc-039.woff2",
+        "sha256": "1a5f52bc2f20f46743748fd11f727289e7ca44ef7f3fe920e36435e797efe2ff",
+        "bytes": 73396
+      },
+      {
+        "file": "noto-serif-sc-040.woff2",
+        "sha256": "f563f6fd942b366ecefe5835849b084268fc77d77ae818625e6b3d34f17c207a",
+        "bytes": 81856
+      },
+      {
+        "file": "noto-serif-sc-041.woff2",
+        "sha256": "bc252d9243fe66e8551ee3f8c758096019ee1fec74f4ff050a4006a9955d4a28",
+        "bytes": 68924
+      },
+      {
+        "file": "noto-serif-sc-042.woff2",
+        "sha256": "e5d712ea254778cca535bbe522b61d694971362cf2c1f493ab33d90adcdce135",
+        "bytes": 60748
+      },
+      {
+        "file": "noto-serif-sc-043.woff2",
+        "sha256": "90c66df9425fdeb6af52e97321d2a1e9a5c738e542b16cba5fd85ad7dd7a8efd",
+        "bytes": 60740
+      },
+      {
+        "file": "noto-serif-sc-044.woff2",
+        "sha256": "e926843cb1bb1c69146b9edc27a915c584f1d9bd76186c43fac92ffdde384b24",
+        "bytes": 79048
+      },
+      {
+        "file": "noto-serif-sc-045.woff2",
+        "sha256": "3d7bea47860411455f8bdd81235f2f9aca29f3d7c044e32af4ece4d605e17bc9",
+        "bytes": 63396
+      },
+      {
+        "file": "noto-serif-sc-046.woff2",
+        "sha256": "184895c8835a6929621b2eac2016d2ba293addca81531568743644167e4a9496",
+        "bytes": 50516
+      },
+      {
+        "file": "noto-serif-sc-047.woff2",
+        "sha256": "cde25a308360e7688f89cb5b9da10c91ca0b70066143b59f94d3a3b374a06842",
+        "bytes": 57960
+      },
+      {
+        "file": "noto-serif-sc-048.woff2",
+        "sha256": "7135faa9600faa40d60180ce284acc2b10cbe36661319e0aebcee16ad38deae7",
+        "bytes": 68512
+      },
+      {
+        "file": "noto-serif-sc-049.woff2",
+        "sha256": "eadde2ccfdeb3b7a5106568bae3daf76aa0c605b9c283fd1418f5f3217fd7aa7",
+        "bytes": 71184
+      },
+      {
+        "file": "noto-serif-sc-050.woff2",
+        "sha256": "cbd123221aa3e34cf70a91f2e3285ec57e0bb3895f751ecd20c28d3fb8221be1",
+        "bytes": 53720
+      },
+      {
+        "file": "noto-serif-sc-051.woff2",
+        "sha256": "94d9961d0d901ca233ff4dc4c1523be0ad76775852b306e63eeab9983640bb12",
+        "bytes": 73024
+      },
+      {
+        "file": "noto-serif-sc-052.woff2",
+        "sha256": "4b5381b0d28ab2190b18f303d9ec6ff4f04329a9ad6050cf8385fb03e33a5cbf",
+        "bytes": 52524
+      },
+      {
+        "file": "noto-serif-sc-053.woff2",
+        "sha256": "7a9916839a16ec4c90a8d08ee69a40631cd6f1704cbc4eccd9c30b1a7b898c33",
+        "bytes": 62380
+      },
+      {
+        "file": "noto-serif-sc-054.woff2",
+        "sha256": "0a8c1790e7fba0dbe4006a93c02fc222e867d10d96e0ef31f3e97063f2628505",
+        "bytes": 65160
+      },
+      {
+        "file": "noto-serif-sc-055.woff2",
+        "sha256": "99d5d84eb7e8a8102473cc81e738af4729937d918dcc03d51e4c6f01cf88afb1",
+        "bytes": 55452
+      },
+      {
+        "file": "noto-serif-sc-056.woff2",
+        "sha256": "67f19e4ea3a4dd136e3c0f51d46e50bf46d554cae28dffd818cb83bbc64416bb",
+        "bytes": 74072
+      },
+      {
+        "file": "noto-serif-sc-057.woff2",
+        "sha256": "a0dc38a8cefd07298196f8d365dc36f079b2627649c022bd5fa6b5fa72fd69a9",
+        "bytes": 57280
+      },
+      {
+        "file": "noto-serif-sc-058.woff2",
+        "sha256": "8de619183d5851cfb00aee775f580f3b927d5aa367ef4faaecbc08da4479635f",
+        "bytes": 65164
+      },
+      {
+        "file": "noto-serif-sc-059.woff2",
+        "sha256": "18b2fb44c962660ada5fb4407368574afa595cd1c02c9b1bd31d63d3a50759f5",
+        "bytes": 51700
+      },
+      {
+        "file": "noto-serif-sc-060.woff2",
+        "sha256": "6e39995eb97d9824b9422704c50753e8df7b8c3e6498feb8d8bd7ad436f2e329",
+        "bytes": 70464
+      },
+      {
+        "file": "noto-serif-sc-061.woff2",
+        "sha256": "0492c2f8f2dde46d4ce4d895671c20a51f7a347f39fd255ccd7c3c1905d26d41",
+        "bytes": 58260
+      },
+      {
+        "file": "noto-serif-sc-062.woff2",
+        "sha256": "f6155480bb2206531126ddcbacded98f0edc5a172e9b925851852883ef862dc9",
+        "bytes": 44624
+      },
+      {
+        "file": "noto-serif-sc-063.woff2",
+        "sha256": "7504de9dc578c51f44b256aecff325119d11b97a7cc3417a0bffc8abab557a9e",
+        "bytes": 60152
+      },
+      {
+        "file": "noto-serif-sc-064.woff2",
+        "sha256": "bf5f0ba979323677a033c8f72ed1246d347519a427ed3e0976c8a2a213bc6f76",
+        "bytes": 61512
+      },
+      {
+        "file": "noto-serif-sc-065.woff2",
+        "sha256": "1ba422aa3d70edbf8b3043b7ca38c05adb8f6e16c4e3aadf089d3c3d63093793",
+        "bytes": 58208
+      },
+      {
+        "file": "noto-serif-sc-066.woff2",
+        "sha256": "b64d163d13eac49b0dfdff602e78f61309ecae1575e66f3e5d72c844aacdefb4",
+        "bytes": 42032
+      },
+      {
+        "file": "noto-serif-sc-067.woff2",
+        "sha256": "b802de8683c9f63582c100d3b1d6e1d416f76da7401884a883c3bd4c34c6db89",
+        "bytes": 35920
+      },
+      {
+        "file": "noto-serif-sc-068.woff2",
+        "sha256": "2b8d9bf20e93eb1865a043170a7d59596763f7155da2d512c6be5bcb70bf58b7",
+        "bytes": 47436
+      },
+      {
+        "file": "noto-serif-sc-069.woff2",
+        "sha256": "b2df00f2a7f1a6aaaaeabe490e1e235379b3a60bd1b9b0d36c3a4a5153cfc289",
+        "bytes": 6896
+      },
+      {
+        "file": "noto-serif-sc-070.woff2",
+        "sha256": "0b84604ec4e6f3118374c20665dc610a3cfd192b16949e1ec4bbc7e14814fabe",
+        "bytes": 6284
+      },
+      {
+        "file": "noto-serif-sc-071.woff2",
+        "sha256": "9e53065f3288757ec235ba1e3d7dcd475d2b8380de494f8b2eaf05d2febd2307",
+        "bytes": 11804
+      },
+      {
+        "file": "noto-serif-sc-072.woff2",
+        "sha256": "7014bdd8af636d0d5a5a2dcbd746cded4c2cb243cb9574b955cd921e79a807fd",
+        "bytes": 9700
+      },
+      {
+        "file": "noto-serif-sc-073.woff2",
+        "sha256": "80bb84b44ce9f1654b33cc67a524e6cfdba67b9e0360f7f96fe154286bc93306",
+        "bytes": 10604
+      },
+      {
+        "file": "noto-serif-sc-074.woff2",
+        "sha256": "d2c700e8a9c0a7298196109338b5d39c91d6e0ed4666117610bab8f57b388b39",
+        "bytes": 2200
+      },
+      {
+        "file": "noto-serif-sc-075.woff2",
+        "sha256": "e7472546510d4566a22f53261e88931846602a212ce166c8a0e965a90d0fc290",
+        "bytes": 3848
+      },
+      {
+        "file": "noto-serif-sc-076.woff2",
+        "sha256": "da24788d749eba5a668a175dade8d8564f7052e6578eeb776a3446c13b1f7a78",
+        "bytes": 11716
+      },
+      {
+        "file": "noto-serif-sc-077.woff2",
+        "sha256": "95d908aa3201171a7bb7a66a1f591278932b1424417dde5f0c91149f76508f8d",
+        "bytes": 86100
+      },
+      {
+        "file": "noto-serif-sc-078.woff2",
+        "sha256": "ada0c5a345de68ed6e71d72f4455aa81cb1135bcbfdd1c21be8bff6f31e2342a",
+        "bytes": 77496
+      },
+      {
+        "file": "noto-serif-sc-079.woff2",
+        "sha256": "23d58594c08bc8987928988a97cd7f1da2f108ae617914b6718d2d039c5dfae8",
+        "bytes": 80588
+      },
+      {
+        "file": "noto-serif-sc-080.woff2",
+        "sha256": "fd3a0a7116810bf025fd8af84e715540f5b03b9cdb5e00d50552159a0f82513a",
+        "bytes": 84560
+      },
+      {
+        "file": "noto-serif-sc-081.woff2",
+        "sha256": "6e26319062c5442374e5adb328845061a15cc91cfc2ccf9c801845b606289007",
+        "bytes": 81184
+      },
+      {
+        "file": "noto-serif-sc-082.woff2",
+        "sha256": "4bea2000d280686f3cc997d92eaa481d29ca1fb2b59fdca6d1d2f830e1d1db10",
+        "bytes": 81304
+      },
+      {
+        "file": "noto-serif-sc-083.woff2",
+        "sha256": "b3123385f0a1ac03ef3d6421ac1d45d6387b82e495a81ae97f59e3b19f0831be",
+        "bytes": 81124
+      },
+      {
+        "file": "noto-serif-sc-084.woff2",
+        "sha256": "c2e80b43abada92707ebbfeb37160f704915154129920d3f3d89d6fe5ad8c744",
+        "bytes": 79400
+      },
+      {
+        "file": "noto-serif-sc-085.woff2",
+        "sha256": "531accb9882b29a2aa282edf87ec74e3201eb75e57992f399cbc84afa1304a91",
+        "bytes": 83500
+      },
+      {
+        "file": "noto-serif-sc-086.woff2",
+        "sha256": "c122e92e803a960dfe97fa48a99675fbd7bf69f4a1dca5fc6532313b6c4400b1",
+        "bytes": 78752
+      },
+      {
+        "file": "noto-serif-sc-087.woff2",
+        "sha256": "69cbd99e06e443211d5aef42a28fff0527f822030d28aba5bfb19e7e2b665f8c",
+        "bytes": 78676
+      },
+      {
+        "file": "noto-serif-sc-088.woff2",
+        "sha256": "ab75e5d7e51148642921d7d441edcf8b34c249f981c22883d1c9c384bca77ab9",
+        "bytes": 80980
+      },
+      {
+        "file": "noto-serif-sc-089.woff2",
+        "sha256": "2eb8a425e2cda5c30dd8f36b27580b39f29aa201b765aed3bc8b1d510fa40f67",
+        "bytes": 76004
+      },
+      {
+        "file": "noto-serif-sc-090.woff2",
+        "sha256": "e20a2c7bccb58410ca9883c899a57e6dd3987844cb0ab5e502758c7f895bd9f2",
+        "bytes": 76316
+      },
+      {
+        "file": "noto-serif-sc-091.woff2",
+        "sha256": "b329f8b02aed6155019b8fe24ed439426d7a996788235556b5ad85572eecca35",
+        "bytes": 74632
+      },
+      {
+        "file": "noto-serif-sc-092.woff2",
+        "sha256": "c14501b6b53123b9216458951de0fe41a3c0eb521e3fcc099ae6208febfe0399",
+        "bytes": 72000
+      },
+      {
+        "file": "noto-serif-sc-093.woff2",
+        "sha256": "218772fb68d6a7fda726bcb061b85a161655696d431aa6e611f03e30c8bb4256",
+        "bytes": 67904
+      },
+      {
+        "file": "noto-serif-sc-094.woff2",
+        "sha256": "4bbf86d6a3b5b7ac335539945992f15e098b08f5a2ecb6dfb40ca82e852ea2bd",
+        "bytes": 66520
+      },
+      {
+        "file": "noto-serif-sc-095.woff2",
+        "sha256": "f9424c2f2dc8a463d249eb11c15d89688e20f336722e212347535456f0ef5997",
+        "bytes": 63844
+      },
+      {
+        "file": "noto-serif-sc-096.woff2",
+        "sha256": "10baf9c2def6b93db461639c0f1ec36fedc37426a240d068a7759b45751848a2",
+        "bytes": 232036
+      },
+      {
+        "file": "noto-serif-sc-097.woff2",
+        "sha256": "3d6e944503af12f13c5df52aa08d899d3ef675afe4c850874c493323cd9937fb",
+        "bytes": 13468
+      },
+      {
+        "file": "noto-serif-sc-098.woff2",
+        "sha256": "7b1c4a6c7a86a52b37df3742b905ce71d75927d3e506ee49d82fa97c7747e0fd",
+        "bytes": 4500
+      },
+      {
+        "file": "noto-serif-sc-099.woff2",
+        "sha256": "a2d705d0674dc00c046b8c8aa26a47055e4b8c7195416d5108549e696620c6e9",
+        "bytes": 3580
+      },
+      {
+        "file": "noto-serif-sc-100.woff2",
+        "sha256": "a0ac9ac27dd2e443bfcbb6006d71030e3ae29563e671ec4a014cb988c884de45",
+        "bytes": 1936
+      },
+      {
+        "file": "noto-serif-sc-101.woff2",
+        "sha256": "e668c6f9d7aeb11e881f084842874ead1963d9e9f32c7950ac33e5bf298a5651",
+        "bytes": 35548
+      },
+      {
+        "file": "noto-serif-sc-102.woff2",
+        "sha256": "21aa57953c07d92dd45c235a4eb88bf19ed2675f2e0deff52cef407ecbfd803e",
+        "bytes": 47344
+      },
+      {
+        "file": "noto-serif-sc-103.woff2",
+        "sha256": "281904d43a1623cfa463256e523eaee5d916c47ce4983a53e9992918b85adf37",
+        "bytes": 70360
+      },
+      {
+        "file": "noto-serif-sc-104.woff2",
+        "sha256": "6ec239cf8730473b3c2083beec58fb0d80cffb67b29b13cd844b59b48fc52c47",
+        "bytes": 58752
+      },
+      {
+        "file": "noto-serif-sc-105.woff2",
+        "sha256": "de0222c59a6e9b2fb6d7f5f024877dde3fdcec9371e9d4dec32aca3484470e85",
+        "bytes": 121980
+      },
+      {
+        "file": "noto-serif-sc-106.woff2",
+        "sha256": "fa4bd21d976eef58e25a0305cdb97f2f4b88c23414db5c8a9fe388b4e1023990",
+        "bytes": 92024
+      },
+      {
+        "file": "noto-serif-sc-107.woff2",
+        "sha256": "7edfc519e0a112d6b6ade3ecb72987045c1516c125e4ab4867c07346f2333da2",
+        "bytes": 99632
+      },
+      {
+        "file": "noto-serif-sc-108.woff2",
+        "sha256": "105f8f9e104c2ea2a8e93db28bfe0b47ba35e88a8264dffca26889cff13c6dc8",
+        "bytes": 113100
+      },
+      {
+        "file": "noto-serif-sc-109.woff2",
+        "sha256": "c60793661e41f16a67af6dd8eb281b2fdf1fc079660b3cb72b2e9d7b374f4ac5",
+        "bytes": 108976
+      },
+      {
+        "file": "noto-serif-sc-110.woff2",
+        "sha256": "73891389dd8996c9d124600a9e4a7f5946aac284b0bdd6a7d1cd30ae80e99e13",
+        "bytes": 111420
+      },
+      {
+        "file": "noto-serif-sc-111.woff2",
+        "sha256": "68cdc0daebe857c5202d002006106667870d5c0b46e57b14a6a11f3a14aaf8e8",
+        "bytes": 105128
+      },
+      {
+        "file": "noto-serif-sc-112.woff2",
+        "sha256": "82e68666a7a43c147ee54a37503590fd53a3b4ccadae8177dd667d1bfc5d39de",
+        "bytes": 115160
+      },
+      {
+        "file": "noto-serif-sc-113.woff2",
+        "sha256": "4f20c2ea70f29307170a3a3d884f95dd92072862e6018087a7300a5d6350c70e",
+        "bytes": 105992
+      },
+      {
+        "file": "noto-serif-sc-114.woff2",
+        "sha256": "5ce467aa08cf3d570c66792543660ce5b73d6c6a4cd9187acc1985684a8189e1",
+        "bytes": 127124
+      },
+      {
+        "file": "noto-serif-sc-115.woff2",
+        "sha256": "96627147f82a5bfd27c78e49e10e709d52ef96860b89ca8947555cb6dec9f3e9",
+        "bytes": 133652
+      },
+      {
+        "file": "noto-serif-sc-116.woff2",
+        "sha256": "64c3b7b541a198e70b1a1bd4586bd8b6a6f403724fb99b3cfcec2c42b32496f0",
+        "bytes": 111728
+      },
+      {
+        "file": "noto-serif-sc-117.woff2",
+        "sha256": "6c31b28e5c521aafa5c7ab0a1ecb1d939543e1107c9e87e7f462044f4f058ac4",
+        "bytes": 113520
+      },
+      {
+        "file": "noto-serif-sc-118.woff2",
+        "sha256": "daf1d866f666d7fff24f9e416f6dc4ef4dfc1f419ca89c6e4bf07de0b568e2b3",
+        "bytes": 104924
+      },
+      {
+        "file": "noto-serif-sc-119.woff2",
+        "sha256": "5ffa0031aab49e74f28102d5745c9d5dd90fdc1bc291a534ee4d921f334da8cd",
+        "bytes": 115764
+      },
+      {
+        "file": "noto-serif-sc-120.woff2",
+        "sha256": "fa9188ede262dced26a2f5daa8534109e21c9e84842852567854df808964cb56",
+        "bytes": 122164
+      },
+      {
+        "file": "noto-serif-sc-121.woff2",
+        "sha256": "8ede0448d40a130ad77da0b2e8c6d32075b3256d7410bb64d6a8aa05c6d874b5",
+        "bytes": 126044
+      },
+      {
+        "file": "noto-serif-sc-122.woff2",
+        "sha256": "70a3a100e772486c050d339c8f192f44209960d088953613439a05ea0f5b16e0",
+        "bytes": 103508
+      },
+      {
+        "file": "noto-serif-sc-123.woff2",
+        "sha256": "e0122bbb541125d382894e0e0f7b102cec8deffdc3f1e7209cefa78239d1138b",
+        "bytes": 125788
+      },
+      {
+        "file": "noto-serif-sc-124.woff2",
+        "sha256": "871c6361681bb4d8a2c34a8dd4b726d044cbb8ec31fd3ca851030da28b813dc6",
+        "bytes": 122540
+      },
+      {
+        "file": "noto-serif-sc-125.woff2",
+        "sha256": "d2222d3001ac68af2ddb8ac8b4a271ab07db564444194979446508e34193bb13",
+        "bytes": 117784
+      },
+      {
+        "file": "noto-serif-sc-126.woff2",
+        "sha256": "f63d1d4d8cf5ee96ec80e5b7cff9adf64667e547af466e8d83c7817e4410a007",
+        "bytes": 110396
+      },
+      {
+        "file": "noto-serif-sc-127.woff2",
+        "sha256": "70f833606338f6647a75a11559f5fc251878ac72ca3e0930c37411341ba62b70",
+        "bytes": 121920
+      },
+      {
+        "file": "noto-serif-sc-128.woff2",
+        "sha256": "4394e0ffc03027eb64276e44a4f23b05baab2981955ea9229bfe81f7c214c9eb",
+        "bytes": 119588
+      },
+      {
+        "file": "noto-serif-sc-129.woff2",
+        "sha256": "7f96cdbd0f025c2e78b84183b80b39456bd65a4f2d165893ff49894dfd5e87c5",
+        "bytes": 131260
+      },
+      {
+        "file": "noto-serif-sc-130.woff2",
+        "sha256": "27933d590cbaca1e1e86abdbf3521aab3990bd8aabfd63736fd78f36de77cb38",
+        "bytes": 134940
+      },
+      {
+        "file": "noto-serif-sc-131.woff2",
+        "sha256": "bb7e05cf36eabf4eabd17f6b8bc08f611b3f60a01078e836cb64423af49e06f5",
+        "bytes": 138784
+      },
+      {
+        "file": "noto-serif-sc-132.woff2",
+        "sha256": "63707f8a9a81ae6dfd9c800185f97e964c4d66ea902524102a7f514b9361af4b",
+        "bytes": 106492
+      },
+      {
+        "file": "noto-serif-sc-133.woff2",
+        "sha256": "fbd589c6fee7b754fb6cfb4dfad8e059d30eefb6bdb0d699bc308df3a2741dc6",
+        "bytes": 100152
+      },
+      {
+        "file": "noto-serif-sc-134.woff2",
+        "sha256": "4a4d4353d2dd1cce687ce685570944cbce54a9a948a2319f158c9dc7781ef555",
+        "bytes": 113908
+      },
+      {
+        "file": "noto-serif-sc-135.woff2",
+        "sha256": "e7ba324b3e270b2765ce0dfa33f3b1ed731043a3915921fb49e5ed6a9b57f267",
+        "bytes": 121628
+      },
+      {
+        "file": "noto-serif-sc-136.woff2",
+        "sha256": "30f38e730e11c2908b5fce4474bdba187198be92fe93d8759dbe2cfc7763680f",
+        "bytes": 119736
+      },
+      {
+        "file": "noto-serif-sc-137.woff2",
+        "sha256": "1669ca23e28e6c38e4d248ef1c5edc28e60884fbc48d8640df4b1cc42a92d1bd",
+        "bytes": 112252
+      },
+      {
+        "file": "noto-serif-sc-138.woff2",
+        "sha256": "be70272cf99358be24f6650929bc6e691e88d8b20f13e1049221a9d19d770f48",
+        "bytes": 115228
+      },
+      {
+        "file": "noto-serif-sc-139.woff2",
+        "sha256": "4397009951bcf118510f4a4ccf1080226519c1c19aa6b2c0524ff8e7196b280f",
+        "bytes": 127004
+      },
+      {
+        "file": "noto-serif-sc-140.woff2",
+        "sha256": "c173c14bd1d20ce6b0bee34af55eee88450df6089c85da5cc5cc643615a45f9b",
+        "bytes": 102852
+      },
+      {
+        "file": "noto-serif-sc-141.woff2",
+        "sha256": "9a65fc8df8547ca8e608172afcff5958b1542677e1236fb0004d162d37d162d1",
+        "bytes": 133740
+      },
+      {
+        "file": "noto-serif-sc-142.woff2",
+        "sha256": "448951c2b6070dfa48c094c99614d5c7892ddec0aa39a80a86a9f69d1eb18293",
+        "bytes": 119188
+      },
+      {
+        "file": "noto-serif-sc-143.woff2",
+        "sha256": "69b02d807990f3635448d4e00d99ec28fe9a7c19ca348a8824a240a3c02f1dcd",
+        "bytes": 149156
+      },
+      {
+        "file": "noto-serif-sc-144.woff2",
+        "sha256": "e399d26555acc1675ef103e4ee8bddf2a0132d0f185fdd825e9d36de111f9a81",
+        "bytes": 119976
+      },
+      {
+        "file": "noto-serif-sc-145.woff2",
+        "sha256": "e49ef92b94e9a2387459814fb05e0f16dbc6d126107a10d37f1409be72a6048c",
+        "bytes": 120340
+      },
+      {
+        "file": "noto-serif-sc-146.woff2",
+        "sha256": "9136f3a0f64b1730097bd2330424115fdbea927b84accd5503968dd971e47b58",
+        "bytes": 115100
+      },
+      {
+        "file": "noto-serif-sc-147.woff2",
+        "sha256": "321eb0d457b4b5ff65293e9c450401af0b9791db0b0ff7b8b01118a74aa1f6a6",
+        "bytes": 122560
+      },
+      {
+        "file": "noto-serif-sc-148.woff2",
+        "sha256": "81e29f074afa9480a1e0018a8f5f0ada9fc353e497c56147e75579c1d9a3d878",
+        "bytes": 134476
+      },
+      {
+        "file": "noto-serif-sc-149.woff2",
+        "sha256": "de1e1729fab1cf2d68608af519d68b91939945e37506a6a0ebbbcc56f782ff64",
+        "bytes": 151056
+      },
+      {
+        "file": "noto-serif-sc-150.woff2",
+        "sha256": "84d2b8b4147df224a634d46d52b8608460b7566724a7b923f287b1de61e083b3",
+        "bytes": 116136
+      },
+      {
+        "file": "noto-serif-sc-151.woff2",
+        "sha256": "16f5bc90edae35c4c3f640e40fd1b0b181e843efdac95b9d8bb5d0a570f2d5c2",
+        "bytes": 104812
+      },
+      {
+        "file": "noto-serif-sc-152.woff2",
+        "sha256": "53179aa6faaad0ada9a360396e9cf222e7b720594f476f34b8b32854ab9303e8",
+        "bytes": 138808
+      },
+      {
+        "file": "noto-serif-sc-153.woff2",
+        "sha256": "8eea03895d9449b9749f8ec2f46510b282c0f56a307e47168f33cdbdb299aea8",
+        "bytes": 132204
+      },
+      {
+        "file": "noto-serif-sc-154.woff2",
+        "sha256": "8d91b8eb6268176efd52c367452f773f91182ca295fdae1f8b1ac5c50bf77f5b",
+        "bytes": 122344
+      },
+      {
+        "file": "noto-serif-sc-155.woff2",
+        "sha256": "c7c163b7a87174e4772360a134f0fe1491d56adc0aed81fb5b7047fdc9769a59",
+        "bytes": 124232
+      },
+      {
+        "file": "noto-serif-sc-156.woff2",
+        "sha256": "07b2f9910eeb8997dacfe039e91748e1face11218b7aeface6302be5281a9896",
+        "bytes": 121516
+      },
+      {
+        "file": "noto-serif-sc-157.woff2",
+        "sha256": "464a357e40f11be5c7f9803117dd7d8133eef2464ffaa670257ea4a46551dcbb",
+        "bytes": 110092
+      },
+      {
+        "file": "noto-serif-sc-158.woff2",
+        "sha256": "fb19af0e9ad26fb0c540051d74f44a2de6a98b045c7237b1730720fa72a7493f",
+        "bytes": 119356
+      },
+      {
+        "file": "noto-serif-sc-159.woff2",
+        "sha256": "24afd83768806c7f5c388c9320ec306a168f246592e4645fb3a252c0d1429c11",
+        "bytes": 141508
+      },
+      {
+        "file": "noto-serif-sc-160.woff2",
+        "sha256": "5cc4076b9fa3d67ca944f3f72989eb8ba4700b2989d1cf5f316541373063f363",
+        "bytes": 122944
+      },
+      {
+        "file": "noto-serif-sc-161.woff2",
+        "sha256": "04d9561be6a283b6296e81cf5f859bd1e7295b5bb58135d628e5f1f61eb8442d",
+        "bytes": 139588
+      },
+      {
+        "file": "noto-serif-sc-162.woff2",
+        "sha256": "69e92cef0ba743234276f152b3333a821436ed6a593eab3ac61cd14b42a2a72d",
+        "bytes": 146312
+      },
+      {
+        "file": "noto-serif-sc-163.woff2",
+        "sha256": "cea7f0575a8a563a89a009af2b2e5a4d5448b957673fbcffc827c1a595a2f62d",
+        "bytes": 132220
+      },
+      {
+        "file": "noto-serif-sc-164.woff2",
+        "sha256": "2328c4bd97538905cb0d0af3a1e5fee518e19b63d182d93f457eda1c62edcdac",
+        "bytes": 137340
+      },
+      {
+        "file": "noto-serif-sc-165.woff2",
+        "sha256": "ce90f9f0dccd5151bdd7f2cbcf0267efddb0b263560edaf583a87ff32aac01d5",
+        "bytes": 149488
+      },
+      {
+        "file": "noto-serif-sc-166.woff2",
+        "sha256": "b621f60c659c8898b73da8f269c321ef401643303d85820e93c82c44a977fb3d",
+        "bytes": 89684
+      },
+      {
+        "file": "noto-serif-sc-167.woff2",
+        "sha256": "78c2fae37ca7731c670af737cc9883611dff1a66d5bf17df0fa39c7412768c08",
+        "bytes": 71520
+      },
+      {
+        "file": "noto-serif-sc-168.woff2",
+        "sha256": "0f8ff9a8b01f2674f8ecb7734d92cd4226219b910f52ee95cb93bebe615af775",
+        "bytes": 68484
+      }
+    ]
+  }
+]

@@ -568,3 +568,63 @@ source-navigation assertion expected the retired slug-only route, and the sideba
 inventory omitted the new SEO entry. Project mock episodes through the same
 public projection as the API and assert the current canonical routes and complete
 navigation. Do not add production fallbacks for malformed test fixtures.
+
+## 2026-10-17: Preserve the complete cover composition, not only its frame
+
+The initial design adaptation removed title slots with decorative copy and placed
+the source in a generic square. This lost the designs' artwork windows and left
+the finished cover without its real title. Export static decoration separately
+from dynamic metadata, and share crop/text geometry between public previews,
+studio previews and the PNG renderer. Validate real Chinese fonts, actual text
+and phone layouts against the archived studies, not only image loading or bounds.
+Owner review also caught a light seam from coincident image/frame edges and a
+top-heavy Window Seat title. Bleed artwork beneath the mask and measure visible
+glyph bounds; SVG font boxes alone do not prove optical centering.
+Long-title review then exposed action overlap and clipped WWDC/MWC lettering.
+Reserve the action's horizontal space and derive Latin advances from each actual
+font and weight. A successful short-title screenshot is not a wrapping test.
+The mobile catalogue's grid then stretched the artwork link below its square
+image, moving the bottom-anchored action off the cover. Align the link to the
+start and check both action axes against the artwork, not only text clearance.
+
+## 2026-10-17: Give each admin card one inset owner
+
+The Appearance description used paragraph margins that lost to the admin-wide
+paragraph reset, leaving text against the card edge. Use one padded Basalt body
+and a shared grid for the radio, title, status and description. Check computed
+insets and text alignment at desktop, tablet and phone widths, rather than
+assuming a declared margin wins the cascade.
+Miniature headings must scale with their card, not the viewport. Cover download
+controls also share the preview's width so centered artwork does not leave its
+actions stranded at the far edge of a wider form.
+
+## 2026-10-17: Test SVG font selection with mixed families
+
+Cover shard family names end in numeric tokens, so unquoted SVG font-family
+lists were invalid. The rasterizer silently used the first registered Latin
+family, widening a Tidal Hours title beyond the preview's safe area. Quote each
+family name; do not hide the discrepancy by weakening bounds or shrinking all
+titles. Compare isolated and mixed-family renders, then exercise all real theme
+layouts. A single-family font-loading test cannot detect this fallback.
+Focused npm test arguments must target the web workspace directly: the root
+wrapper does not forward flags such as --grep to its nested script.
+
+## 2026-10-17: Verify media formats and source resolution end to end
+
+The first PNG dimensions guard read only IHDR and could admit animated PNGs.
+Walk bounded chunks and reject animation markers before decoding. Local seeded
+episodes also retain three production-CDN image URLs while local media uses
+`/media`; treating every cover as a local R2 key broke real downloads. Resolve
+only those exact local seed URLs to existing bundled images. Do not repair a
+source mismatch by allowing arbitrary remote image fetches.
+Isolated build fixtures must also copy referenced public category IDs: existing
+local data can contain owner-renamed categories absent from fresh migrations.
+
+## 2026-10-17: Measure the renderer's worst-case memory before setting limits
+
+Small-image success did not justify an 8MP export contract: a high-entropy JPEG
+reached 132.375 MiB of WASM memory alone. Keep selected static glyph shards rather
+than full CJK fonts, enforce 4 MiB and 4MP before decoding, and admit one render
+per isolate. Exercise real PNG/JPEG/WebP in workerd with actual theme layouts.
+WASM high-water measurements are not total isolate memory or production CPU
+certification; preserve that distinction in the operational contract.

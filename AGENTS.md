@@ -18,7 +18,7 @@
 - Public routes are `/`, `/episodes`, `/episodes/:categoryId/:slug`, `/about`; legacy `/episodes/:slug` redirects to the category path. `/login` is the studio entry. Settings are Appearance, Connections, Prompts, Categories, Bumpers and Storage. Narration is ordinary `channel.prompts.narration` text.
 - Public HTML uses the shared React tree with request-scoped published data and client hydration/revalidation. Keep content readable without JavaScript and omit drafts, transcripts and audit fields from bootstrap data. See `docs/seo.md` for feed launch requirements; never infer the owner's email or personal identity.
 - Eight themes share the Open Interval identity in `src/brand/`. Appearance is versioned D1 state; `?theme=` previews without mutation. Fonts are fingerprinted same-origin assets. See `docs/appearance.md`.
-- Generated/uploaded/stored covers must be clean originals without text, logos, borders or overlays. Only the finished-cover download composes the independent brand frame; never upload the composite as a source or rewrite published originals.
+- Generated/uploaded/stored covers must be clean originals without text, logos, borders or overlays. Public/admin previews and authenticated `cover.png` downloads share the selected theme's composition, real metadata and centered artwork window. Export is a read-only 1600-square PNG with 4 MiB/4MP source guards; never upload the composite as a source or rewrite published originals. See `docs/appearance.md` and `docs/api-onboarding.md`.
 
 ## Authorization and content
 

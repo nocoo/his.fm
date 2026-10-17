@@ -1,3 +1,4 @@
+import type { ThemeId } from '../shared/appearance';
 import type { Episode, EpisodeInput } from '../shared/episode';
 import { getEnvironment } from './environment';
 
@@ -16,11 +17,11 @@ export class ApiError extends Error {
   }
 }
 
-export async function request<T>(
+async function requestResponse(
   path: string,
   init: RequestInit = {},
   target: 'selected' | 'local' | 'production' = 'selected',
-): Promise<T> {
+): Promise<Response> {
   const remote =
     import.meta.env.DEV &&
     target !== 'local' &&
@@ -42,8 +43,33 @@ export async function request<T>(
     } catch {}
     throw new ApiError(message, response.status);
   }
+  return response;
+}
+
+export async function request<T>(
+  path: string,
+  init: RequestInit = {},
+  target: 'selected' | 'local' | 'production' = 'selected',
+): Promise<T> {
+  const response = await requestResponse(path, init, target);
   if (response.status === 204) return undefined as T;
   return response.json() as Promise<T>;
+}
+
+export async function downloadCover(
+  resource: 'productions' | 'episodes',
+  id: string,
+  version: number,
+  theme: ThemeId,
+): Promise<Blob> {
+  const response = await requestResponse(
+    `/${resource}/${encodeURIComponent(id)}/cover.png?theme=${theme}&version=${version}`,
+    { headers: { Accept: 'image/png' } },
+  );
+  if (response.headers.get('Content-Type') !== 'image/png') {
+    throw new ApiError('服务器未返回封面图片，请重新登录后重试', response.status);
+  }
+  return response.blob();
 }
 
 export const adminService = {

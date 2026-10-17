@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { getEnvironment, selectEnvironment } from './environment';
 import { emptyEpisode } from './model';
-import { ApiError, adminService, connectProduction, request } from './service';
+import { ApiError, adminService, connectProduction, downloadCover, request } from './service';
 
 const fetchMock = vi.fn<typeof fetch>();
 vi.stubGlobal('fetch', fetchMock);
@@ -9,6 +9,46 @@ afterEach(() => {
   fetchMock.mockReset();
   vi.unstubAllEnvs();
   vi.stubGlobal('localStorage', undefined);
+});
+
+describe('finished cover transport', () => {
+  it('downloads the saved version and explicit theme as binary without a content mutation', async () => {
+    const bytes = new Uint8Array([137, 80, 78, 71]);
+    fetchMock.mockResolvedValueOnce(new Response(bytes, { headers: { 'Content-Type': 'image/png' } }));
+    const blob = await downloadCover('productions', 'a/b', 7, 'window-seat');
+    expect(blob.type).toBe('image/png');
+    expect(new Uint8Array(await blob.arrayBuffer())).toEqual(bytes);
+    expect(fetchMock.mock.calls[0]).toEqual([
+      '/admin/api/productions/a%2Fb/cover.png?theme=window-seat&version=7',
+      { credentials: 'same-origin', headers: { 'Content-Type': 'application/json', Accept: 'image/png' } },
+    ]);
+  });
+
+  it('uses the selected production proxy rather than local content when the admin switches environment', async () => {
+    vi.stubGlobal('localStorage', { getItem: () => 'production' });
+    fetchMock.mockResolvedValueOnce(
+      new Response(new Uint8Array([137]), { headers: { 'Content-Type': 'image/png' } }),
+    );
+    await downloadCover('episodes', 'episode-one', 3, 'stillwood');
+    expect(fetchMock.mock.calls[0]).toEqual([
+      '/admin/remote-api/episodes/episode-one/cover.png?theme=stillwood&version=3',
+      expect.objectContaining({
+        headers: { 'Content-Type': 'application/json', Accept: 'image/png', 'X-Hisfm-Remote': '1' },
+      }),
+    ]);
+  });
+
+  it('does not save login HTML or JSON errors as a PNG', async () => {
+    fetchMock.mockResolvedValueOnce(
+      new Response('<html>Login</html>', { headers: { 'Content-Type': 'text/html' } }),
+    );
+    await expect(downloadCover('episodes', 'one', 1, 'interval')).rejects.toThrow('服务器未返回封面图片');
+    respond({ error: '节目已更新，请刷新后下载封面' }, 409);
+    await expect(downloadCover('episodes', 'one', 1, 'interval')).rejects.toMatchObject({
+      status: 409,
+      message: '节目已更新，请刷新后下载封面',
+    });
+  });
 });
 
 function respond(body: unknown, status = 200) {

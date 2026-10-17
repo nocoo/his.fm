@@ -224,7 +224,7 @@ export async function routeAgent(request: Request, env: Env): Promise<Response> 
     if (!(error instanceof HttpError)) throw error;
     if (error.status === 405) {
       const paths: Record<string, object> = agentOpenApi(url.origin).paths;
-      const operations = paths[path.replace(/^\/productions\/[^/]+/, '/productions/{id}')];
+      const operations = paths[path.replace(/^\/(productions|episodes)\/[^/]+/, '/$1/{id}')];
       if (operations)
         headers.Allow = Object.keys(operations)
           .filter((key) => key !== 'parameters')
@@ -240,6 +240,7 @@ export async function routeAgent(request: Request, env: Env): Promise<Response> 
       409: 'conflict',
       413: 'payload_too_large',
       415: 'unsupported_media_type',
+      422: 'invalid_cover',
       503: 'unavailable',
     };
     return json(

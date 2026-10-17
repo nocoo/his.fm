@@ -443,6 +443,9 @@ test('cover grid and detail sections fit desktop and phone in both themes withou
   state.setEpisodes([snapshot('production-test'), snapshot(null)]);
   const cover = await readFile('public/images/episode-01.webp');
   await page.route('**/cover.png', (route) => route.fulfill({ contentType: 'image/webp', body: cover }));
+  await page.route('**/admin/api/episodes/standalone', (route) =>
+    route.fulfill({ json: { episode: snapshot(null) } }),
+  );
   for (const theme of ['light', 'dark']) {
     await page.addInitScript((value) => localStorage.setItem('hisfm-theme', value), theme);
     for (const width of [1440, 393]) {
@@ -494,6 +497,15 @@ test('cover grid and detail sections fit desktop and phone in both themes withou
       await page.screenshot({ path: `.local/admin-library-list-${theme}-${width}.png`, fullPage: true });
       await page.goto('/admin/productions/production-test?section=assets');
       await expect(page.locator('.studio-section:visible .his-audio-player')).toBeVisible();
+      const preview = page.locator('.studio-section:visible .studio-asset-preview-cover');
+      const alignment = await preview.evaluate((element) => {
+        const cover = element.querySelector('.studio-cover')?.getBoundingClientRect();
+        const actions = element.querySelector('.studio-asset-preview-actions')?.getBoundingClientRect();
+        if (!cover || !actions) throw new Error('Missing cover controls');
+        return { left: actions.left - cover.left, right: actions.right - cover.right };
+      });
+      expect(alignment.left).toBeCloseTo(0, 1);
+      expect(alignment.right).toBeCloseTo(0, 1);
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
       expect(await page.locator('.admin-shell').evaluate((element) => element.scrollTop)).toBe(0);
       await expect(page.getByRole('button', { name: /生成/ })).toHaveCount(0);
@@ -501,36 +513,68 @@ test('cover grid and detail sections fit desktop and phone in both themes withou
       await page.getByRole('tab', { name: /逐字稿/ }).click();
       await expect(page.getByRole('region', { name: '完整逐字稿预览', exact: true })).toBeVisible();
       await page.screenshot({ path: `.local/admin-detail-manuscript-${theme}-${width}.png`, fullPage: true });
+      for (const path of [
+        '/admin/productions/production-test?section=publication',
+        '/admin/episodes/standalone',
+      ]) {
+        await page.goto(path);
+        await expect(page.getByRole('button', { name: '下载含品牌框架的封面成品' })).toBeEnabled();
+        const alignment = await page.locator('.studio-cover-download').evaluate((element) => {
+          const cover = element.parentElement?.querySelector('.studio-cover')?.getBoundingClientRect();
+          const controls = element.getBoundingClientRect();
+          const button = element.querySelector('button')?.getBoundingClientRect();
+          if (!cover || !button) throw new Error('Missing finished-cover controls');
+          return {
+            left: controls.left - cover.left,
+            right: controls.right - cover.right,
+            button: button.left - cover.left,
+          };
+        });
+        expect(alignment.left).toBeCloseTo(0, 1);
+        expect(alignment.right).toBeCloseTo(0, 1);
+        expect(alignment.button).toBeCloseTo(0, 1);
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      }
     }
   }
 });
 
-test('only a finished download receives branding and the original is never rewritten', async ({ page }) => {
+test('finished downloads use the PNG API and never rewrite the clean original', async ({ page }) => {
   const production = readyFixture();
   const before = structuredClone(production);
   const writes: string[] = [];
   page.on('request', (request) => {
     if (request.method() !== 'GET' && request.url().includes('/admin/api/')) writes.push(request.url());
   });
-  const original = await page.evaluate(() => {
-    const canvas = document.createElement('canvas');
-    canvas.width = 600;
-    canvas.height = 300;
-    const context = canvas.getContext('2d');
-    if (!context) throw new Error('Canvas unavailable');
-    context.fillStyle = '#c86432';
-    context.fillRect(0, 0, 600, 300);
-    return canvas.toDataURL('image/png').split(',')[1];
-  });
+  const original = await readFile('public/images/episode-01.webp');
+  const serverPng = Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLbtAAAAABJRU5ErkJggg==',
+    'base64',
+  );
   await page.route('https://f.no.mt/cover.png', (route) =>
     route.fulfill({
-      contentType: 'image/png',
-      body: Buffer.from(original, 'base64'),
-      headers: { 'Access-Control-Allow-Origin': '*' },
+      contentType: 'image/webp',
+      body: original,
     }),
   );
   const state = await studio(page, production);
+  const exports: string[] = [];
+  let fail = false;
+  await page.route(/\/admin\/api\/productions\/[^/]+\/cover\.png\?/, (route) => {
+    const request = route.request();
+    exports.push(request.url());
+    expect(request.method()).toBe('GET');
+    expect(request.headers().accept).toBe('image/png');
+    return fail
+      ? route.fulfill({ status: 503, json: { error: '品牌框架暂时不可用，请稍后重试' } })
+      : route.fulfill({ contentType: 'image/png', body: serverPng });
+  });
   await page.goto(`/admin/productions/${production.id}?section=assets`);
+  await page.evaluate(() => {
+    HTMLCanvasElement.prototype.toDataURL = () => {
+      throw new Error('Client composition is retired');
+    };
+  });
   await expect(page.locator('.studio-section:visible .studio-cover .framed-cover-image')).toHaveAttribute(
     'src',
     production.assets.cover?.url ?? '',
@@ -541,46 +585,23 @@ test('only a finished download receives branding and the original is never rewri
   await downloadButton.click();
   const download = await downloadPromise;
   expect(download.suggestedFilename()).toBe(
-    `his-fm-ep-${String(production.episodeNumber).padStart(3, '0')}.png`,
+    `his-fm-ep-${String(production.episodeNumber).padStart(3, '0')}-interval.png`,
   );
   const path = await download.path();
   if (!path) throw new Error('Downloaded file missing');
-  const pixels = await page.evaluate(
-    async (bytes) => {
-      const image = await createImageBitmap(new Blob([new Uint8Array(bytes)], { type: 'image/png' }));
-      const canvas = document.createElement('canvas');
-      canvas.width = image.width;
-      canvas.height = image.height;
-      const context = canvas.getContext('2d');
-      if (!context) throw new Error('Canvas unavailable');
-      context.drawImage(image, 0, 0);
-      const sample = (x: number, y: number) => Array.from(context.getImageData(x, y, 1, 1).data);
-      return {
-        width: image.width,
-        height: image.height,
-        rail: sample(30, 800),
-        subject: sample(800, 800),
-        margin: sample(800, 220),
-      };
-    },
-    Array.from(await readFile(path)),
-  );
-  expect(pixels).toEqual({
-    width: 1600,
-    height: 1600,
-    rail: [214, 242, 91, 255],
-    subject: [200, 100, 50, 255],
-    margin: [245, 244, 238, 255],
-  });
+  expect(await readFile(path)).toEqual(serverPng);
+  expect(exports).toEqual([
+    `${e2eOrigin()}/admin/api/productions/${production.id}/cover.png?theme=interval&version=${production.version}`,
+  ]);
   await expect(page.getByText('成品已生成，原图保持不变。', { exact: true })).toBeVisible();
   expect(state.production).toEqual(before);
   expect(writes).toEqual([]);
-  await page.route('**/brand/frames/*.svg', (route) => route.fulfill({ status: 503, body: '' }));
-  await page.reload();
+  fail = true;
   await expect(page.getByRole('button', { name: /下载含品牌框架的封面成品/ })).toBeEnabled();
   await page.getByRole('button', { name: /下载含品牌框架的封面成品/ }).click();
-  await expect(page.getByText('封面或品牌框架未能加载，请稍后重试。', { exact: true })).toBeVisible();
+  await expect(page.getByRole('alert')).toContainText('品牌框架暂时不可用，请稍后重试');
   expect(state.production).toEqual(before);
+  expect(writes).toEqual([]);
 });
 
 test('separate bumper and connection pages preserve failed uploads and transient tokens', async ({

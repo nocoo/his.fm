@@ -1,8 +1,36 @@
 import { scopes } from '@his-fm/contracts';
 import { describe, expect, it } from 'vitest';
+import { themeIds } from '../../src/shared/appearance';
 import { agentOpenApi } from '../../worker/agent-contract';
 
 describe('scoped OpenAPI contract', () => {
+  it('publishes theme-specific PNG downloads with only the matching record read grant', () => {
+    const contract = agentOpenApi('https://example.test');
+    for (const resource of ['productions', 'episodes'] as const) {
+      const endpoint = contract.paths[`/${resource}/{id}/cover.png`];
+      expect(Object.keys(endpoint)).toEqual(['parameters', 'get']);
+      expect(endpoint.get['x-required-scopes']).toEqual([`${resource}:read`]);
+      expect(endpoint.get.summary).toContain('1600x1600 PNG');
+      expect(endpoint.get.parameters).toContainEqual(
+        expect.objectContaining({
+          name: 'theme',
+          in: 'query',
+          required: true,
+          schema: expect.objectContaining({ enum: [...themeIds] }),
+        }),
+      );
+      expect(endpoint.get.parameters).toContainEqual(
+        expect.objectContaining({ name: 'version', required: false }),
+      );
+      expect(endpoint.get.responses[200].content).toEqual({
+        'image/png': { schema: { type: 'string', format: 'binary' } },
+      });
+      expect(endpoint.get.responses).toHaveProperty('422');
+      expect(endpoint.get.responses[200].headers).toHaveProperty('X-Cover-Theme');
+      expect(endpoint.get.responses[200].headers).toHaveProperty('X-Resource-Version');
+    }
+  });
+
   it('declares grants for each protected operation and keeps business REST independent of station transport', () => {
     const contract = agentOpenApi('https://example.test');
     const operations = Object.entries(contract.paths).flatMap(([path, item]) =>

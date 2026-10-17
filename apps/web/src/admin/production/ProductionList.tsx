@@ -31,12 +31,28 @@ function Status({ row }: { row: LibraryEntry }) {
     />
   );
 }
-function Cover({ row, thumbnail = false }: { row: LibraryEntry; thumbnail?: boolean }) {
+function Cover({
+  row,
+  categoryName,
+  thumbnail = false,
+}: {
+  row: LibraryEntry;
+  categoryName: string;
+  thumbnail?: boolean;
+}) {
   const [failed, setFailed] = useState(false);
   return (
     <div className={thumbnail ? 'library-thumbnail' : 'library-cover'}>
       {row.coverUrl && !failed ? (
-        <FramedCover src={row.coverUrl} alt="" loading="lazy" onCoverError={() => setFailed(true)} />
+        <FramedCover
+          src={row.coverUrl}
+          title={row.title}
+          episodeNumber={row.episodeNumber}
+          categoryName={categoryName}
+          alt=""
+          loading="lazy"
+          onCoverError={() => setFailed(true)}
+        />
       ) : (
         <span className="library-cover-placeholder">
           <Music2 size={thumbnail ? 22 : 42} strokeWidth={1.25} />
@@ -96,7 +112,7 @@ export function ProductionList() {
       accessor: (row) => (
         <div className="admin-episode-cell">
           <Link to={row.href} tabIndex={-1} aria-hidden="true">
-            <Cover row={row} thumbnail />
+            <Cover row={row} categoryName={categoryName(row)} thumbnail />
           </Link>
           <div>
             <Link to={row.href}>{row.title}</Link>
@@ -285,7 +301,7 @@ export function ProductionList() {
               {visible.map((row) => (
                 <LayerCard key={row.id} padding="none" className="library-card">
                   <Link to={row.href} className="library-card-main" aria-label={row.title}>
-                    <Cover row={row} />
+                    <Cover row={row} categoryName={categoryName(row)} />
                     <div className="library-card-copy">
                       <div className="studio-row">
                         <span className="admin-number">

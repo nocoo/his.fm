@@ -1,5 +1,6 @@
 /* biome-ignore-all lint/style/noDescendingSpecificity: Public component states and responsive variants are scoped by their own classes. */
 @import "../brand/fonts.css";
+@import "../brand/theme-fonts.css";
 
 :root {
   --public-paper: #f5f4ee;
@@ -53,6 +54,7 @@ html:has(.public-site) body {
   --muted: color-mix(in srgb, var(--ink) 82%, var(--paper));
   --line: color-mix(in srgb, var(--ink) 21%, var(--paper));
   --well: color-mix(in srgb, var(--paper) 75%, var(--accent));
+  --on-ink: #fff;
   --space: clamp(24px, 4.6vw, 80px);
   --radius: 2px;
   --reveal-distance: 24px;
@@ -301,31 +303,33 @@ html:has(.public-site) body {
 .public-site .episode-art {
   display: block;
   position: relative;
+  align-self: start;
   overflow: hidden;
-  border-radius: var(--radius);
 }
 .public-site .episode-cover {
   background: var(--well);
 }
-.public-site .episode-cover .framed-cover-image {
-  object-fit: contain;
-}
 .public-site .art-arrow {
   position: absolute;
-  bottom: 13%;
-  right: 9%;
+  bottom: 6%;
+  right: 6%;
   display: grid;
   place-items: center;
-  width: 42px;
-  height: 42px;
+  width: 10.25%;
+  max-width: 42px;
+  aspect-ratio: 1;
   border-radius: 50%;
-  background: var(--paper);
-  color: var(--ink);
+  background: var(--ink);
+  color: var(--on-ink);
   opacity: 0;
   transform: translateY(8px);
   transition:
     opacity 0.2s,
     transform 0.2s;
+}
+.public-site .art-arrow svg {
+  width: 60%;
+  height: 60%;
 }
 .public-site .episode-card:hover .art-arrow,
 .public-site .episode-card:focus-within .art-arrow {
@@ -429,9 +433,11 @@ html:has(.public-site) body {
 }
 .public-site .about-teaser-image {
   max-width: 550px;
+  order: -1;
 }
 .public-site .about-teaser-image img {
   width: 100%;
+  height: auto;
   aspect-ratio: 1.15;
 }
 .public-site .about-teaser-copy h2 {
@@ -908,12 +914,109 @@ html:has(.public-site) body {
 .public-site[data-theme="grove"] {
   --radius: 18px;
 }
+.public-site:is([data-theme="soft-landing"], [data-theme="stillwood"], [data-theme="alpine-bloom"]) {
+  --display: "Noto Serif SC", serif;
+}
+.public-site[data-theme="human-sample"] {
+  --display: "Syne", "Noto Sans SC", sans-serif;
+}
+.public-site main :is(h1, h2, h3) {
+  font-family: var(--display, var(--font));
+}
+.public-site:where([data-theme="soft-landing"], [data-theme="stillwood"], [data-theme="alpine-bloom"])
+  .section-heading
+  h2 {
+  font-size: 34px;
+  font-weight: 450;
+}
+.public-site:where([data-theme="soft-landing"], [data-theme="stillwood"], [data-theme="alpine-bloom"])
+  .episode-card
+  h3 {
+  font-size: 21px;
+  font-weight: 500;
+  line-height: 1.65;
+}
+.public-site:where([data-theme="stillwood"], [data-theme="alpine-bloom"]) .page-heading h1 {
+  font-size: clamp(40px, 5.5vw, 75px);
+  line-height: 1.6;
+}
+.public-site:where([data-theme="soft-landing"]) .page-heading h1 {
+  font-size: clamp(40px, 5.5vw, 70px);
+}
+.public-site:where([data-theme="soft-landing"]) .readable-text {
+  font-family: "Noto Serif SC", serif;
+}
+.public-site:where([data-theme="human-sample"]) .episode-card h3 {
+  font-weight: 700;
+}
+.public-site:where([data-theme="human-sample"])
+  :is(
+    .section-heading h2,
+    .page-heading h1,
+    .detail-intro h1,
+    .about-opening h1,
+    .about-story h2,
+    .interlude-inner h2
+  ) {
+  font-weight: 800;
+}
+.public-site:where([data-theme="human-sample"]) .section-heading h2 {
+  font-size: 41px;
+}
+.public-site:where([data-theme="human-sample"]) .interlude-inner h2 {
+  line-height: 1.35;
+}
+.public-site[data-theme="interval"] .pace-line {
+  background: var(--accent);
+  border: 0;
+}
+.public-site[data-theme="tidal-hours"] .pace-line i {
+  height: 4px;
+  background: transparent;
+  border-block: 1px solid var(--line);
+}
+.public-site .quiet-reflection {
+  grid-template-columns: 1.1fr 0.9fr;
+  gap: 50px;
+  padding: 65px var(--space);
+  background: color-mix(in srgb, var(--paper) 84%, var(--surface));
+}
+.public-site .quiet-reflection .about-teaser-image {
+  order: 0;
+  width: 100%;
+  max-width: 470px;
+  justify-self: end;
+}
+.public-site .quiet-reflection .about-teaser-copy h2 {
+  font-size: clamp(31px, 3.3vw, 51px);
+  line-height: 1.7;
+  font-weight: 400;
+}
+.public-site .quiet-reflection .about-teaser-image img {
+  aspect-ratio: 1.22;
+}
+.public-site[data-theme="stillwood"] .quiet-reflection .about-teaser-image img {
+  aspect-ratio: 1.18;
+}
+.public-site[data-theme="tidal-hours"] .quiet-reflection .about-teaser-image {
+  max-width: 420px;
+}
+.public-site[data-theme="window-seat"] .quiet-reflection .about-teaser-image img {
+  aspect-ratio: 1.1;
+  border-radius: 55px;
+}
+.public-site[data-theme="alpine-bloom"] .quiet-reflection .about-teaser-image img {
+  aspect-ratio: 1;
+}
 .public-site[data-theme="soft-landing"] {
   --radius: 28px;
 }
 .public-site[data-theme="soft-landing"] .interlude-inner {
-  border-radius: 140px 140px 0 0;
-  padding-top: 65px;
+  border-radius: 48% 48% 0 0 / 25% 25% 0 0;
+  padding-top: 90px;
+}
+.public-site[data-theme="soft-landing"] .about-panorama {
+  border-radius: 50% 50% 0 0 / 12% 12% 0 0;
 }
 .public-site[data-theme="human-sample"] .interlude-inner {
   background: var(--secondary);
@@ -928,9 +1031,9 @@ html:has(.public-site) body {
 }
 .public-site[data-theme="human-sample"] .catalogue .episode-card {
   display: grid;
-  grid-template-columns: 220px 1fr 1fr;
-  gap: 10px 35px;
-  padding-block: 30px;
+  grid-template-columns: 260px 0.8fr 1fr;
+  gap: 15px 45px;
+  padding-block: 35px;
   border-bottom: 1px solid var(--line);
 }
 .public-site[data-theme="human-sample"] .catalogue .episode-art {
@@ -1053,6 +1156,25 @@ html:has(.public-site) body {
     gap: 28px;
     padding-block: 45px;
   }
+  .public-site .quiet-reflection {
+    padding: 42px var(--space);
+    gap: 32px;
+  }
+  .public-site .quiet-reflection .about-teaser-copy h2 {
+    font-size: 29px;
+    line-height: 1.65;
+  }
+  .public-site .quiet-reflection .about-teaser-image,
+  .public-site[data-theme="tidal-hours"] .quiet-reflection .about-teaser-image {
+    max-width: none;
+  }
+  .public-site[data-theme="alpine-bloom"] .quiet-reflection .about-teaser-image {
+    width: 78%;
+    justify-self: center;
+  }
+  .public-site[data-theme="window-seat"] .quiet-reflection .about-teaser-image img {
+    border-radius: 38px;
+  }
   .public-site .about-teaser-image {
     width: 100%;
     max-width: none;
@@ -1082,6 +1204,11 @@ html:has(.public-site) body {
   }
   .public-site .page-heading h1 {
     font-size: 52px;
+  }
+  .public-site:where([data-theme="stillwood"], [data-theme="alpine-bloom"], [data-theme="soft-landing"])
+    .page-heading
+    h1 {
+    font-size: 38px;
   }
   .public-site .category-filters {
     gap: 3px;

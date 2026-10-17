@@ -6,6 +6,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 import type { Episode } from '../../shared/episode';
 import { type ProductionAction, stageLabels } from '../../shared/production';
+import { useCategories } from '../categories/useCategories';
 import { adminService } from '../service';
 import { Assets, FinalReview } from './Assets';
 import { BriefForm } from './BriefForm';
@@ -37,6 +38,7 @@ export function ProductionEditor() {
 }
 function Editor({ id }: { id: string }) {
   const vm = useProduction(id);
+  const { categories } = useCategories();
   const navigate = useNavigate();
   const [query, setQuery] = useSearchParams();
   const [drafts, setDrafts] = useState<Partial<Record<Section, boolean>>>({});
@@ -97,6 +99,7 @@ function Editor({ id }: { id: string }) {
     );
   };
   const missing = finalMissing(production);
+  const categoryName = categories.find((item) => item.id === production.category)?.name ?? '';
   const completed = {
     metadata: Boolean(production.approvals.brief),
     manuscript: Boolean(production.approvals.script),
@@ -186,6 +189,7 @@ function Editor({ id }: { id: string }) {
             {panel === 'assets' && (
               <Assets
                 production={production}
+                categoryName={categoryName}
                 pending={vm.pending}
                 dirty={drafts.assets ?? false}
                 onDirty={(dirty) => markDirty(panel, dirty)}
@@ -197,7 +201,7 @@ function Editor({ id }: { id: string }) {
               <div className="studio-stack">
                 <details className="studio-review" open={!production.approvals.final}>
                   <summary>发布前检查{production.approvals.final ? ' · 已批准' : ''}</summary>
-                  <FinalReview production={production} />
+                  <FinalReview production={production} categoryName={categoryName} />
                   <div className="studio-stage-footer">
                     <p className="admin-muted">
                       {anyDirty
@@ -232,6 +236,7 @@ function Editor({ id }: { id: string }) {
                 </details>
                 <PublicationPanel
                   production={production}
+                  categoryName={categoryName}
                   pending={
                     vm.pending ||
                     Object.entries(drafts).some(([key, dirty]) => key !== 'publication' && dirty)

@@ -55,14 +55,15 @@
   overflow-wrap: anywhere;
   line-height: 1.85;
 }
-.studio-cover {
+.studio-cover,
+.studio-cover-download,
+.studio-asset-preview-actions {
   width: 100%;
   max-width: 340px;
-  border-radius: var(--basalt-radius);
   align-self: center;
 }
-.studio-cover .framed-cover-image {
-  object-fit: contain;
+.studio-cover-download > .studio-actions {
+  justify-content: flex-start;
 }
 .studio-stack audio {
   width: 100%;
@@ -528,6 +529,8 @@
   display: flex;
   flex-direction: column;
   min-width: 0;
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
 }
 .library-card-main {
   display: flex;
@@ -567,7 +570,6 @@
   width: 52px;
   flex: 0 0 52px;
   overflow: hidden;
-  border-radius: var(--basalt-radius);
 }
 .library-thumbnail .library-cover-placeholder > span {
   display: none;

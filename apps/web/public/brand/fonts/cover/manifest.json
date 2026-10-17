@@ -1,0 +1,4767 @@
+{
+  "version": 1,
+  "fonts": [
+    {
+      "id": "noto-sans-sc",
+      "family": "Noto Sans SC",
+      "codepoints": 30890,
+      "source_url": "https://raw.githubusercontent.com/google/fonts/main/ofl/notosanssc/NotoSansSC%5Bwght%5D.ttf",
+      "source_sha256": "a3041811a78c361b1de50f953c805e0244951c21c5bd412f7232ef0d899af0da",
+      "license": "notosanssc-OFL.txt",
+      "shards": [
+        {
+          "family": "Noto Sans SC Cover 000",
+          "ranges": [
+            [32, 126],
+            [160, 259],
+            [272, 275],
+            [282, 283],
+            [296, 299],
+            [323, 324],
+            [327, 328],
+            [332, 335],
+            [338, 339],
+            [360, 365],
+            [402, 402],
+            [416, 417],
+            [431, 432],
+            [461, 476],
+            [504, 505],
+            [593, 593],
+            [609, 609],
+            [699, 699],
+            [711, 711],
+            [713, 715],
+            [729, 729],
+            [746, 747],
+            [768, 769],
+            [772, 772],
+            [775, 775],
+            [780, 780],
+            [913, 929],
+            [931, 937],
+            [945, 969],
+            [1025, 1025],
+            [1040, 1103],
+            [1105, 1105],
+            [7742, 7743],
+            [7840, 7929],
+            [8194, 8195],
+            [8208, 8214],
+            [8216, 8218],
+            [8220, 8222],
+            [8224, 8226],
+            [8229, 8231],
+            [8240, 8240],
+            [8242, 8243],
+            [8245, 8245],
+            [8249, 8252],
+            [8258, 8258],
+            [8263, 8265],
+            [8273, 8273],
+            [8308, 8308],
+            [8361, 8361],
+            [8363, 8364],
+            [8413, 8414],
+            [8448, 8448],
+            [8451, 8451],
+            [8453, 8453],
+            [8457, 8458],
+            [8463, 8463]
+          ],
+          "faces": [
+            {
+              "weight": 400,
+              "file": "noto-sans-sc-000-400-d0ddee545f1580f2.woff2",
+              "sha256": "d0ddee545f1580f2b5179d502e92d1a7374e67d5a9f4e1a39ea736d20c494424",
+              "bytes": 42816
+            },
+            {
+              "weight": 500,
+              "file": "noto-sans-sc-000-500-212a26a3c727a8fb.woff2",
+              "sha256": "212a26a3c727a8fb8983b14688608be6ab34d1c53f7041e08821216aafc18f6c",
+              "bytes": 42960
+            },
+            {
+              "weight": 550,
+              "file": "noto-sans-sc-000-550-4eea19677b6fa274.woff2",
+              "sha256": "4eea19677b6fa2749fd29b42fc27c786952c869af9c886dd26ec676762f40eb2",
+              "bytes": 42928
+            },
+            {
+              "weight": 600,
+              "file": "noto-sans-sc-000-600-8d176f386d90d472.woff2",
+              "sha256": "8d176f386d90d472669eaf04ac717e1d6b42ad2caddc3dabd826ff1b8bbef6be",
+              "bytes": 42952
+            },
+            {
+              "weight": 650,
+              "file": "noto-sans-sc-000-650-0c2d9be91b66e977.woff2",
+              "sha256": "0c2d9be91b66e9778f0be86dd0fd64d3e8b660fc5c752483746d86fbf9966438",
+              "bytes": 42936
+            },
+            {
+              "weight": 850,
+              "file": "noto-sans-sc-000-850-cc2bde166b0a9bca.woff2",
+              "sha256": "cc2bde166b0a9bca3150bc952855db434691ea9b1ad1ec5c76c994c6eae65d70",
+              "bytes": 43920
+            }
+          ]
+        },
+        {
+          "family": "Noto Sans SC Cover 001",
+          "ranges": [
+            [8467, 8467],
+            [8470, 8470],
+            [8481, 8482],
+            [8486, 8487],
+            [8491, 8491],
+            [8494, 8494],
+            [8501, 8501],
+            [8507, 8507],
+            [8544, 8555],
+            [8560, 8571],
+            [8592, 8601],
+            [8632, 8633],
+            [8644, 8646],
+            [8651, 8652],
+            [8656, 8656],
+            [8658, 8658],
+            [8660, 8660],
+            [8678, 8681],
+            [8693, 8693],
+            [8704, 8704],
+            [8706, 8707],
+            [8709, 8715],
+            [8719, 8719],
+            [8721, 8723],
+            [8725, 8725],
+            [8730, 8730],
+            [8733, 8736],
+            [8739, 8739],
+            [8741, 8750],
+            [8756, 8759],
+            [8765, 8765],
+            [8771, 8771],
+            [8773, 8773],
+            [8776, 8776],
+            [8780, 8780],
+            [8800, 8802],
+            [8804, 8807],
+            [8810, 8811],
+            [8814, 8815],
+            [8818, 8819],
+            [8822, 8823],
+            [8834, 8839],
+            [8842, 8843],
+            [8853, 8857],
+            [8864, 8864],
+            [8869, 8869],
+            [8895, 8895],
+            [8922, 8923],
+            [8943, 8943],
+            [8965, 8967],
+            [8978, 8978],
+            [8984, 8984],
+            [9001, 9002],
+            [9136, 9137],
+            [9150, 9164],
+            [9166, 9166],
+            [9178, 9179],
+            [9251, 9251],
+            [9312, 9643],
+            [9649, 9651],
+            [9654, 9655],
+            [9660, 9661],
+            [9664, 9665],
+            [9670, 9671],
+            [9673, 9676],
+            [9678, 9681]
+          ],
+          "faces": [
+            {
+              "weight": 400,
+              "file": "noto-sans-sc-001-400-fa1f04c6f22ff763.woff2",
+              "sha256": "fa1f04c6f22ff763b971c9313b215fd3d9e1a0163d0391dba00004888979972e",
+              "bytes": 20176
+            },
+            {
+              "weight": 500,
+              "file": "noto-sans-sc-001-500-8cf1ff6afc2eedb6.woff2",
+              "sha256": "8cf1ff6afc2eedb66daf6b97807e92c089b24a00bd4b51f7ee7e58db5a705625",
+              "bytes": 20056
+            },
+            {
+              "weight": 550,
+              "file": "noto-sans-sc-001-550-e3289462da889a83.woff2",
+              "sha256": "e3289462da889a831eee0051814dd8091d788f475f994a140675a085d12aed9b",
+              "bytes": 20236
+            },
+            {
+              "weight": 600,
+              "file": "noto-sans-sc-001-600-375428898333f353.woff2",
+              "sha256": "375428898333f353e12d2170835692a7ec6321e800e6231ea16afc5f2ccff2e3",
+              "bytes": 20196
+            },
+            {
+              "weight": 650,
+              "file": "noto-sans-sc-001-650-683f56518af9f7c6.woff2",
+              "sha256": "683f56518af9f7c62a827caff79cf649de9fbfc1d032a64d9e55aad24dbbeeaa",
+              "bytes": 20120
+            },
+            {
+              "weight": 850,
+              "file": "noto-sans-sc-001-850-18c18c1fbca4e465.woff2",
+              "sha256": "18c18c1fbca4e46545ebac531e4b0206f77b21b72555d213b72e36968b7efb70",
+              "bytes": 20108
+            }
+          ]
+        },
+        {
+          "family": "Noto Sans SC Cover 002",
+          "ranges": [
+            [9682, 9683],
+            [9698, 9702],
+            [9711, 9711],
+            [9728, 9731],
+            [9733, 9734],
+            [9737, 9737],
+            [9742, 9743],
+            [9750, 9751],
+            [9756, 9759],
+            [9775, 9775],
+            [9792, 9794],
+            [9824, 9839],
+            [9842, 9853],
+            [9888, 9888],
+            [9917, 9918],
+            [9986, 9986],
+            [10003, 10003],
+            [10010, 10010],
+            [10045, 10045],
+            [10047, 10048],
+            [10070, 10070],
+            [10102, 10131],
+            [10145, 10145],
+            [10548, 10549],
+            [10687, 10687],
+            [10746, 10747],
+            [11013, 11015],
+            [11034, 11034],
+            [11157, 11157],
+            [11834, 11835],
+            [11904, 11929],
+            [11931, 12019],
+            [12032, 12245],
+            [12272, 12283],
+            [12288, 12350]
+          ],
+          "faces": [
+            {
+              "weight": 400,
+              "file": "noto-sans-sc-002-400-3c26bd4f5aa76ad2.woff2",
+              "sha256": "3c26bd4f5aa76ad21d5b7dea1b503960cf5e76b6b96d07511ac38f36e954c07b",
+              "bytes": 47664
+            },
+            {
+              "weight": 500,
+              "file": "noto-sans-sc-002-500-8af80c08752d1cf0.woff2",
+              "sha256": "8af80c08752d1cf07f70188880658b26dca70122147fe6104e38d18b68bc9a88",
+              "bytes": 47948
+            },
+            {
+              "weight": 550,
+              "file": "noto-sans-sc-002-550-3e2d5fe0f160488b.woff2",
+              "sha256": "3e2d5fe0f160488b6a6a9069db2705463bbb69009aa764013f56eb23edadf160",
+              "bytes": 48064
+            },
+            {
+              "weight": 600,
+              "file": "noto-sans-sc-002-600-a53e9cdbfff8ed95.woff2",
+              "sha256": "a53e9cdbfff8ed95723b047bc45fc16c257a1bbd0bc839a3ff663d655a5a313f",
+              "bytes": 48056
+            },
+            {
+              "weight": 650,
+              "file": "noto-sans-sc-002-650-f364bfa5f47ff480.woff2",
+              "sha256": "f364bfa5f47ff480a5ab08d2d621405a5162afb44ffa2f41a5d0b277f7fb1fba",
+              "bytes": 48204
+            },
+            {
+              "weight": 850,
+              "file": "noto-sans-sc-002-850-5e7aa45401869649.woff2",
+              "sha256": "5e7aa4540186964947c7ff94e5fec47597606807c411ed37cdb3853630208ccf",
+              "bytes": 48716
+            }
+          ]
+        },
+        {
+          "family": "Noto Sans SC Cover 003",
+          "ranges": [
+            [12351, 12351],
+            [12353, 12438],
+            [12441, 12543],
+            [12549, 12591],
+            [12593, 12643],
+            [12645, 12686],
+            [12688, 12731],
+            [12736, 12771],
+            [12784, 12830],
+            [12832, 12890]
+          ],
+          "faces": [
+            {
+              "weight": 400,
+              "file": "noto-sans-sc-003-400-229713d3d9260389.woff2",
+              "sha256": "229713d3d9260389e01a251ae0a13f7ccede8024ebda35dd0a011159e070dc48",
+              "bytes": 92524
+            },
+            {
+              "weight": 500,
+              "file": "noto-sans-sc-003-500-bcaac16ee6de5fb4.woff2",
+              "sha256": "bcaac16ee6de5fb4fd5e28b2d781d49f659c934c782d5310e035f0a08886c5d5",
+              "bytes": 92944
+            },
+            {
+              "weight": 550,
+              "file": "noto-sans-sc-003-550-a25555d1e422b46a.woff2",
+              "sha256": "a25555d1e422b46aff96fa9afcbaad3f74a1b767e3ce26b4d32f3bdb958be59c",
+              "bytes": 93124
+            },
+            {
+              "weight": 600,
+              "file": "noto-sans-sc-003-600-f148c53228f2c2b8.woff2",
+              "sha256": "f148c53228f2c2b81bff63364b168bea4da9dfd18473035e3f5dbe05ef43a20c",
+              "bytes": 91416
+            },
+            {
+              "weight": 650,
+              "file": "noto-sans-sc-003-650-53b80bfaec326827.woff2",
+              "sha256": "53b80bfaec3268277141240eb151cd1f056e560903ae4ecfccd0b36f00368df2",
+              "bytes": 93608
+            },
+            {
+              "weight": 850,
+              "file": "noto-sans-sc-003-850-38821aed470002f9.woff2",
+              "sha256": "38821aed470002f9513df2dc7bf4862e7115c9091ec7a3d0b81fa6c625d3fd67",
+              "bytes": 93208
+            }
+          ]
+        },
+        {
+          "family": "Noto Sans SC Cover 004",
+          "ranges": [[12891, 13099], [13101, 13403]],
+          "faces": [
+            {
+              "weight": 400,
+              "file": "noto-sans-sc-004-400-8de8ad5561165953.woff2",
+              "sha256": "8de8ad55611659533c5fb854052f5976428c7c361d495bd828e78f8affb05faa",
+              "bytes": 63232
+            },
+            {
+              "weight": 500,
+              "file": "noto-sans-sc-004-500-ac3fcd51df826b02.woff2",
+              "sha256": "ac3fcd51df826b0283e3e01d02aeaec4e222e9523faedb4cbf9d61b0eb70c6a8",
+              "bytes": 63696
+            },
+            {
+              "weight": 550,
+              "file": "noto-sans-sc-004-550-e48f4127f69e75d1.woff2",
+              "sha256": "e48f4127f69e75d184d53a927f25a9aaf2305c5715356429823c4cf709e3b2c0",
+              "bytes": 63564
+            },
+            {
+              "weight": 600,
+              "file": "noto-sans-sc-004-600-b6a4571f12c4d017.woff2",
+              "sha256": "b6a4571f12c4d01742d103570d9acefb2c6873f292b57cd7810e0c63b16f8e46",
+              "bytes": 62208
+            },
+            {
+              "weight": 650,
+              "file": "noto-sans-sc-004-650-af513af688b7d7b7.woff2",
+              "sha256": "af513af688b7d7b71ec6fcd072a1b44a59ebedab8804750a89dbd2844a999fa6",
+              "bytes": 63952
+            },
+            {
+              "weight": 850,
+              "file": "noto-sans-sc-004-850-013845dad778303d.woff2",
+              "sha256": "013845dad778303d1610cff60c358cb4e8ade4adbf87695a91ca1136ed30cbc4",
+              "bytes": 62784
+            }
+          ]
+        },
+        {
+          "family": "Noto Sans SC Cover 005",
+          "ranges": [[13404, 13915]],
+          "faces": [
+            {
+              "weight": 400,
+              "file": "noto-sans-sc-005-400-b2ce5d483e472667.woff2",
+              "sha256": "b2ce5d483e472667d2d130231c17331f5251094b725c6da18828238a92dcd967",
+              "bytes": 81832
+            },
+            {
+              "weight": 500,
+              "file": "noto-sans-sc-005-500-b8184a094d4dca55.woff2",
+              "sha256": "b8184a094d4dca5571432af38e2f5b63342de070bb715ce7b11eeb7718929cd7",
+              "bytes": 83084
+            },
+            {
+              "weight": 550,
+              "file": "noto-sans-sc-005-550-30a650ab824f048e.woff2",
+              "sha256": "30a650ab824f048e86eee4567b2ff0a8c513cdbaf64c981f8a54290072984545",
+              "bytes": 83196
+            },
+            {
+              "weight": 600,
+              "file": "noto-sans-sc-005-600-ecde36c3ca3d804b.woff2",
+              "sha256": "ecde36c3ca3d804b1524c0905ada9a13ca291f5c23ea9e52d917e06170a19d7d",
+              "bytes": 83376
+            },
+            {
+              "weight": 650,
+              "file": "noto-sans-sc-005-650-a97dfce09cd39056.woff2",
+              "sha256": "a97dfce09cd390565f14fc8986a85099495cabee8ef85e10f94cbaeed219666e",
+              "bytes": 83568
+            },
+            {
+              "weight": 850,
+              "file": "noto-sans-sc-005-850-845a73b57a5076eb.woff2",
+              "sha256": "845a73b57a5076eb6096fec2e2cd68bcc5a268705779c621df39b759c45a6db0",
+              "bytes": 84064
+            }
+          ]
+        },
+        {
+          "family": "Noto Sans SC Cover 006",
+          "ranges": [[13916, 14427]],
+          "faces": [
+            {
+              "weight": 400,
+              "file": "noto-sans-sc-006-400-2ec019ff15ed1551.woff2",
+              "sha256": "2ec019ff15ed155111647604a28809230e4b045122217267b0a310d3dec1985a",
+              "bytes": 86852
+            },
+            {
+              "weight": 500,
+              "file": "noto-sans-sc-006-500-be4b84f64e68eee8.woff2",
+              "sha256": "be4b84f64e68eee8e86a4c8c2ae51abd819b16d1ca30e0f7faf811d648f9fce7",
+              "bytes": 88300
+            },
+            {
+              "weight": 550,
+              "file": "noto-sans-sc-006-550-630c4bfa68f299eb.woff2",
+              "sha256": "630c4bfa68f299eb2c5b492391ab059da039d59c551021767c77b785a1c40f63",
+              "bytes": 88664
+            },
+            {
+              "weight": 600,
+              "file": "noto-sans-sc-006-600-e7360351dc949b5c.woff2",
+              "sha256": "e7360351dc949b5c29a73c932a581c2332b926e8d5028ebe549afe6240354c98",
+              "bytes": 88716
+            },
+            {
+              "weight": 650,
+              "file": "noto-sans-sc-006-650-f9dbf6a20c02cacc.woff2",
+              "sha256": "f9dbf6a20c02cacc8e09b80911c2e084a8cc28f9a7b9cd50db2eb9c1230cae6c",
+              "bytes": 89096
+            },
+            {
+              "weight": 850,
+              "file": "noto-sans-sc-006-850-821eff03e5fefeac.woff2",
+              "sha256": "821eff03e5fefeaca4230a91abcaf20cb0ec7e5e96a884cc4d983f543511a626",
+              "bytes": 89720
+            }
+          ]
+        },
+        {
+          "family": "Noto Sans SC Cover 007",
+          "ranges": [[14428, 14939]],
+          "faces": [
+            {
+              "weight": 400,
+              "file": "noto-sans-sc-007-400-06f5b7f518594375.woff2",
+              "sha256": "06f5b7f51859437579fc2e2238ee234f61e09ebc7a007f504374247aee75b4f9",
+              "bytes": 88224
+            },
+            {
+              "weight": 500,
+              "file": "noto-sans-sc-007-500-0df3c91e4ecbb27c.woff2",
+              "sha256": "0df3c91e4ecbb27c2adaa9392ca3faaa74f6266795de5d17ffc2d7729e7bb521",
+              "bytes": 89976
+            },
+            {
+              "weight": 550,
+              "file": "noto-sans-sc-007-550-b86e80f3f214b233.woff2",
+              "sha256": "b86e80f3f214b233a6a8bf97dd06ed6066d5765963303b2c5b2cd2ed498338aa",
+              "bytes": 90280
+            },
+            {
+              "weight": 600,
+              "file": "noto-sans-sc-007-600-be81b305b77c360a.woff2",
+              "sha256": "be81b305b77c360a8f0fe467cdf175d1de65fd70985e11ee99f68b69fdad4ba0",
+              "bytes": 90288
+            },
+            {
+              "weight": 650,
+              "file": "noto-sans-sc-007-650-c60a75d59478d3c9.woff2",
+              "sha256": "c60a75d59478d3c9f4f185eb67ef06f51dea3a8d198157c7f82bcde998fc0725",
+              "bytes": 90576
+            },
+            {
+              "weight": 850,
+              "file": "noto-sans-sc-007-850-2be2bc487a6706da.woff2",
+              "sha256": "2be2bc487a6706da525479440b86121a4fb04fa1522dafb9b004327fbe11f5c5",
+              "bytes": 91024
+            }
+          ]
+        },
+        {
+          "family": "Noto Sans SC Cover 008",
+          "ranges": [[14940, 15451]],
+          "faces": [
+            {
+              "weight": 400,
+              "file": "noto-sans-sc-008-400-71ada1c031806f9e.woff2",
+              "sha256": "71ada1c031806f9ee59e732696aa0bc6da66b9d2cb68e9d6eb17673a5ad6e9c6",
+              "bytes": 94156
+            },
+            {
+              "weight": 500,
+              "file": "noto-sans-sc-008-500-1dde594899f102d9.woff2",
+              "sha256": "1dde594899f102d9ac5692d54fa2fd796c9de2878239b98dac7d5f73a118d987",
+              "bytes": 95500
+            },
+            {
+              "weight": 550,
+              "file": "noto-sans-sc-008-550-f5896f1c02e7b848.woff2",
+              "sha256": "f5896f1c02e7b848538886d0177beb1d3b1791050257625f2dba171d62a8d6ba",
+              "bytes": 95676
+            },
+            {
+              "weight": 600,
+              "file": "noto-sans-sc-008-600-9727977d57020b09.woff2",
+              "sha256": "9727977d57020b0992ca19b4c3cb3d5f23646a7ae5a94014bc0742d5eccb9aea",
+              "bytes": 95988
+            },
+            {
+              "weight": 650,
+              "file": "noto-sans-sc-008-650-182943a83aec279c.woff2",
+              "sha256": "182943a83aec279cbf2cd10e01195acfda0a89afbd2eed6a7c5dc4a3cc7a4ee1",
+              "bytes": 96212
+            },
+            {
+              "weight": 850,
+              "file": "noto-sans-sc-008-850-647b0f005203000e.woff2",
+              "sha256": "647b0f005203000e7d10dcaf76ce6310b63c1b49edd85c75b7a2335abe741bce",
+              "bytes": 96320
+            }
+          ]
+        },
+        {
+          "family": "Noto Sans SC Cover 009",
+          "ranges": [[15452, 15963]],
+          "faces": [
+            {
+              "weight": 400,
+              "file": "noto-sans-sc-009-400-0008f156e6aaf341.woff2",
+              "sha256": "0008f156e6aaf341548b5f1aa661d6c60a9c0818ccc535fcbb65b6d18ba205dd",
+              "bytes": 96500
+            },
+            {
+              "weight": 500,
+              "file": "noto-sans-sc-009-500-96ea77fcc9bc6189.woff2",
+              "sha256": "96ea77fcc9bc6189667a9e94a7aa0eccb9c19454a1f31d7228c9297f4223506e",
+              "bytes": 98192
+            },
+            {
+              "weight": 550,
+              "file": "noto-sans-sc-009-550-8af1d50e16598835.woff2",
+              "sha256": "8af1d50e165988352dca558e00c01a45911902c0ab79eb0532d33d89a32579a1",
+              "bytes": 98440
+            },
+            {
+              "weight": 600,
+              "file": "noto-sans-sc-009-600-869a695bc6d61fe9.woff2",
+              "sha256": "869a695bc6d61fe9978b91291b5914674e8ba130bf8ef9812881b3532383ac8e",
+              "bytes": 98812
+            },
+            {
+              "weight": 650,
+              "file": "noto-sans-sc-009-650-52b3c283c75ef749.woff2",
+              "sha256": "52b3c283c75ef74938505a88b7a6e51b89d6eb796284fed48c1ed87ee33edf19",
+              "bytes": 99076
+            },
+            {
+              "weight": 850,
+              "file": "noto-sans-sc-009-850-9f71353af6031466.woff2",
+              "sha256": "9f71353af603146612ce8ffa6cc60a92543b50cf6f41d9732940e314c6430fda",
+              "bytes": 99436
+            }
+          ]
+        },
+        {
+          "family": "Noto Sans SC Cover 010",
+          "ranges": [[15964, 16475]],
+          "faces": [
+            {
+              "weight": 400,
+              "file": "noto-sans-sc-010-400-cb3b92fe87d9976e.woff2",
+              "sha256": "cb3b92fe87d9976e93496d0a1f045d8bc63bfca4464956eb556d7c6f747c4fae",
+              "bytes": 89012
+            },
+            {
+              "weight": 500,
+              "file": "noto-sans-sc-010-500-50d8e4e2583babbd.woff2",
+              "sha256": "50d8e4e2583babbd9e4078f59c34fcf4e65ea9b0f4ab68c849251faf9162f5fe",
+              "bytes": 90036
+            },
+            {
+              "weight": 550,
+              "file": "noto-sans-sc-010-550-c7264e3a5f8cdd83.woff2",
+              "sha256": "c7264e3a5f8cdd83bf8e97243fbf4a3a39efda8d14e1057988d659a53bd34a3e",
+              "bytes": 90464
+            },
+            {
+              "weight": 600,
+              "file": "noto-sans-sc-010-600-9b631ec6cf3f30e1.woff2",
+              "sha256": "9b631ec6cf3f30e1856385c93876047dc0170d195f38586dd359e36b102ed3d4",
+              "bytes": 90428
+            },
+            {
+              "weight": 650,
+              "file": "noto-sans-sc-010-650-e573eb0e0653750f.woff2",
+              "sha256": "e573eb0e0653750f2ce77b4e01072300f7b8f304b6dfb0594a94f5bd9df48beb",
+              "bytes": 90712
+            },
+            {
+              "weight": 850,
+              "file": "noto-sans-sc-010-850-c36e699ad942eb8b.woff2",
+              "sha256": "c36e699ad942eb8b036b5bc911655c6324ba99578e9e54750da91b7ce90dee4b",
+              "bytes": 90760
+            }
+          ]
+        },
+        {
+          "family": "Noto Sans SC Cover 011",
+          "ranges": [[16476, 16987]],
+          "faces": [
+            {
+              "weight": 400,
+              "file": "noto-sans-sc-011-400-08f65e3c1b9a17fb.woff2",
+              "sha256": "08f65e3c1b9a17fba81c5e65931ee0af34ccf610f52f4557625a92c2c466314b",
+              "bytes": 93104
+            },
+            {
+              "weight": 500,
+              "file": "noto-sans-sc-011-500-e9cb54eff9487c0c.woff2",
+              "sha256": "e9cb54eff9487c0cd2f8d5c2966cc1fc8a43e09d158112ee0a16fbddbf4c3d8a",
+              "bytes": 94720
+            },
+            {
+              "weight": 550,
+              "file": "noto-sans-sc-011-550-e119a0593f84ce46.woff2",
+              "sha256": "e119a0593f84ce46980d584d69aa1d33bb4f90df5f7efe8f847286301d8c214c",
+              "bytes": 95020
+            },
+            {
+              "weight": 600,
+              "file": "noto-sans-sc-011-600-0e20dc4dc08a82cf.woff2",
+              "sha256": "0e20dc4dc08a82cfc982242c2c3b3f467157c0aa024f0eadbfb22c0489b9196f",
+              "bytes": 95184
+            },
+            {
+              "weight": 650,
+              "file": "noto-sans-sc-011-650-235f5ca220656c9b.woff2",
+              "sha256": "235f5ca220656c9b0b464a0abef379e12e59df684c24f1578c247b59e44aee00",
+              "bytes": 95344
+            },
+            {
+              "weight": 850,
+              "file": "noto-sans-sc-011-850-799ac2b168dd43cf.woff2",
+              "sha256": "799ac2b168dd43cf48c528c2bf0411403a0c6c92fcf2e905606e33c6d5089535",
+              "bytes": 95156
+            }
+          ]
+        },
+        {
+          "family": "Noto Sans SC Cover 012",
+          "ranges": [[16988, 17499]],
+          "faces": [
+            {
+              "weight": 400,
+              "file": "noto-sans-sc-012-400-0e28d5e569029a51.woff2",
+              "sha256": "0e28d5e569029a51bce76423ee269af8c1eeefd47e96262427df807eec9528b2",
+              "bytes": 100380
+            },
+            {
+              "weight": 500,
+              "file": "noto-sans-sc-012-500-3846dd906a9572bd.woff2",
+              "sha256": "3846dd906a9572bda1aae55544472b18168e2dafca8bf3a5ab6d462f11334124",
+              "bytes": 102672
+            },
+            {
+              "weight": 550,
+              "file": "noto-sans-sc-012-550-9590a7ad100ec193.woff2",
+              "sha256": "9590a7ad100ec1938dbfd260fddad984bf9729a32105a59754f71e0b6c72855d",
+              "bytes": 103184
+            },
+            {
+              "weight": 600,
+              "file": "noto-sans-sc-012-600-fa883c83737a2f79.woff2",
+              "sha256": "fa883c83737a2f7993219608a79b77225f5108719078191db79e9eff2a330119",
+              "bytes": 103232
+            },
+            {
+              "weight": 650,
+              "file": "noto-sans-sc-012-650-1a0a44de3b842185.woff2",
+              "sha256": "1a0a44de3b842185a27192a523fd86017065d087573402e71470cee9f2c30802",
+              "bytes": 103932
+            },
+            {
+              "weight": 850,
+              "file": "noto-sans-sc-012-850-2226f433b7737b2a.woff2",
+              "sha256": "2226f433b7737b2a361a66066e5e47b221a36d1bc7d230a211d453fb2dbea7a7",
+              "bytes": 103520
+            }
+          ]
+        },
+        {
+          "family": "Noto Sans SC Cover 013",
+          "ranges": [[17500, 18011]],
+          "faces": [
+            {
+              "weight": 400,
+              "file": "noto-sans-sc-013-400-60c87cb81ccd8747.woff2",
+              "sha256": "60c87cb81ccd87471e398e7262f5969c897740acaa1d2a1affccde41a045a314",
+              "bytes": 94284
+            },
+            {
+              "weight": 500,
+              "file": "noto-sans-sc-013-500-51bb69640de6ac33.woff2",
+              "sha256": "51bb69640de6ac33f5eb49341f164d8ffbe853e66b1750439f5278d510fa3651",
+              "bytes": 95832
+            },
+            {
+              "weight": 550,
+              "file": "noto-sans-sc-013-550-1abb21214770c074.woff2",
+              "sha256": "1abb21214770c07455d3f461d3bf29a86685af9989dc28231f206e494aba0429",
+              "bytes": 96300
+            },
+            {
+              "weight": 600,
+              "file": "noto-sans-sc-013-600-9befb6b9188b5583.woff2",
+              "sha256": "9befb6b9188b5583632c5770f19d81e7d17441f5ebee8bc8e5a4d03bf9835146",
+              "bytes": 96456
+            },
+            {
+              "weight": 650,
+              "file": "noto-sans-sc-013-650-5fe7a231709d1ee2.woff2",
+              "sha256": "5fe7a231709d1ee2079e8cd127b42a7a80fd070a9bb3eaa16123337689f2f9dd",
+              "bytes": 96692
+            },
+            {
+              "weight": 850,
+              "file": "noto-sans-sc-013-850-f2605fa34d1bc8f1.woff2",
+              "sha256": "f2605fa34d1bc8f19cfc07fdc62bf0abb6af69a740e6f059dceda270e82d840e",
+              "bytes": 96984
+            }
+          ]
+        },
+        {
+          "family": "Noto Sans SC Cover 014",
+          "ranges": [[18012, 18523]],
+          "faces": [
+            {
+              "weight": 400,
+              "file": "noto-sans-sc-014-400-185e7ce6576e9295.woff2",
+              "sha256": "185e7ce6576e9295a66309c52d74470b3fd83c8b1e1ceb1f5ec9b92aa52b0870",
+              "bytes": 91344
+            },
+            {
+              "weight": 500,
+              "file": "noto-sans-sc-014-500-eadb527a366b2df1.woff2",
+              "sha256": "eadb527a366b2df17ab30fe890129db1307376e3ad521092840a39453a30c2fa",
+              "bytes": 92392
+            },
+            {
+              "weight": 550,
+              "file": "noto-sans-sc-014-550-a4e95b694ca5cfee.woff2",
+              "sha256": "a4e95b694ca5cfee0eab750f426e8f407a8e374be8326445d5706ba0a48f268e",
+              "bytes": 92984
+            },
+            {
+              "weight": 600,
+              "file": "noto-sans-sc-014-600-f20d58e5d58e218f.woff2",
+              "sha256": "f20d58e5d58e218f75e1da23a8e08e20d847bc895482a874ea3f09dea8dea98c",
+              "bytes": 92760
+            },
+            {
+              "weight": 650,
+              "file": "noto-sans-sc-014-650-d67ca8f58a99edc7.woff2",
+              "sha256": "d67ca8f58a99edc75ce78912a5d28e45d3bad6c74b4d3f326806b5145f6b7c47",
+              "bytes": 93404
+            },
+            {
+              "weight": 850,
+              "file": "noto-sans-sc-014-850-a977355e155c2dce.woff2",
+              "sha256": "a977355e155c2dceacf430fad20902215623fb23b1498ac8a7ceaf6aa8bb34c8",
+              "bytes": 93488
+            }
+          ]
+        },
+        {
+          "family": "Noto Sans SC Cover 015",
+          "ranges": [[18524, 19035]],
+          "faces": [
+            {
+              "weight": 400,
+              "file": "noto-sans-sc-015-400-4a4206785a52ea61.woff2",
+              "sha256": "4a4206785a52ea61ff015c6204e7fb07a80708e31c1e8d222131919eee13b6c4",
+              "bytes": 94064
+            },
+            {
+              "weight": 500,
+              "file": "noto-sans-sc-015-500-9751913df666f965.woff2",
+              "sha256": "9751913df666f9651f195dafb9031cbe88cd0bd70d2d65041083bbea33783ef8",
+              "bytes": 95592
+            },
+            {
+              "weight": 550,
+              "file": "noto-sans-sc-015-550-394ea64208b507d2.woff2",
+              "sha256": "394ea64208b507d2eefc2b0e799ee733e917ec35250764549403ac2d3caf1ed9",
+              "bytes": 95916
+            },
+            {
+              "weight": 600,
+              "file": "noto-sans-sc-015-600-6e8226fde125561e.woff2",
+              "sha256": "6e8226fde125561e93dead85ad558e9a6355ac04c7140439555585947ed3bdc5",
+              "bytes": 95552
+            },
+            {
+              "weight": 650,
+              "file": "noto-sans-sc-015-650-85a0d269333f3c5f.woff2",
+              "sha256": "85a0d269333f3c5f78f0409324c881c4fa49132bcfce6575a337641fe3843f4e",
+              "bytes": 96152
+            },
+            {
+              "weight": 850,
+              "file": "noto-sans-sc-015-850-b8c8333f38d4b991.woff2",
+              "sha256": "b8c8333f38d4b991baf5556a8abce47f05e0c7c765fed0d16b09942021fd1ef0",
+              "bytes": 96360
+            }
+          ]
+        },
+        {
+          "family": "Noto Sans SC Cover 016",
+          "ranges": [[19036, 19547]],
+          "faces": [
+            {
+              "weight": 400,
+              "file": "noto-sans-sc-016-400-a8b063433a8d24db.woff2",
+              "sha256": "a8b063433a8d24db4c46f9969f8bb8f16e3c0a7a2bdeea33b085695400611999",
+              "bytes": 104016
+            },
+            {
+              "weight": 500,
+              "file": "noto-sans-sc-016-500-e2aed2777c8ddaac.woff2",
+              "sha256": "e2aed2777c8ddaacea574b9f03d63b0b3f1dd164c2f06653cd7ee7c66af66d07",
+              "bytes": 105744
+            },
+            {
+              "weight": 550,
+              "file": "noto-sans-sc-016-550-ba69109e6877adc8.woff2",
+              "sha256": "ba69109e6877adc8a8f8cd3be137d6172927633d504246a7a4e5f10a5c33a481",
+              "bytes": 106196
+            },
+            {
+              "weight": 600,
+              "file": "noto-sans-sc-016-600-8304b81df72f10ff.woff2",
+              "sha256": "8304b81df72f10ff89235cf2b66fe9917fc7839036a0e3009e62994d8db38911",
+              "bytes": 106292
+            },
+            {
+              "weight": 650,
+              "file": "noto-sans-sc-016-650-4094e72494a3c604.woff2",
+              "sha256": "4094e72494a3c604bf67b0430064a63cfe21ec06b39c8466e9a96a8441b37f28",
+              "bytes": 106836
+            },
+            {
+              "weight": 850,
+              "file": "noto-sans-sc-016-850-543393bff1ec90d1.woff2",
+              "sha256": "543393bff1ec90d157a49bcc86b6c77d5934f9d6dd7df5b1b62d5a1da6d10046",
+              "bytes": 106984
+            }
+          ]
+        },
+        {
+          "family": "Noto Sans SC Cover 017",
+          "ranges": [[19548, 19893], [19968, 20133]],
+          "faces": [
+            {
+              "weight": 400,
+              "file": "noto-sans-sc-017-400-3ca1faf23fa1246a.woff2",
+              "sha256": "3ca1faf23fa1246a87225250f3bb74f6341c4544bb23e25aa06bd0d10ac82bad",
+              "bytes": 96036
+            },
+            {
+              "weight": 500,
+              "file": "noto-sans-sc-017-500-bbbd63a5b0cc61c1.woff2",
+              "sha256": "bbbd63a5b0cc61c1c58f6cdd131899bc0816d99efc1557855ed7f114b7173d47",
+              "bytes": 97296
+            },
+            {
+              "weight": 550,
+              "file": "noto-sans-sc-017-550-ced01b65fa4deffb.woff2",
+              "sha256": "ced01b65fa4deffbc53b4e5f696c0bf7ce3a7e60b323ff09ddce91c5ede22aa6",
+              "bytes": 97912
+            },
+            {
+              "weight": 600,
+              "file": "noto-sans-sc-017-600-8238eb58315b3283.woff2",
+              "sha256": "8238eb58315b3283d82f4d501dbc0fbeba691617ffd84f40d18f68ca75b9b41d",
+              "bytes": 98056
+            },
+            {
+              "weight": 650,
+              "file": "noto-sans-sc-017-650-4351d2a3ef85e53f.woff2",
+              "sha256": "4351d2a3ef85e53f175509429ab4d479d3b11457cf2be10a5120b0df448103b9",
+              "bytes": 98324
+            },
+            {
+              "weight": 850,
+              "file": "noto-sans-sc-017-850-ba39921b39990342.woff2",
+              "sha256": "ba39921b399903428aa782f7c90b333d193f48cbc53c3a887e4a4d11291b3396",
+              "bytes": 98560
+            }
+          ]
+        },
+        {
+          "family": "Noto Sans SC Cover 018",
+          "ranges": [[20134, 20645]],
+          "faces": [
+            {
+              "weight": 400,
+              "file": "noto-sans-sc-018-400-4c6d018629c41e2c.woff2",
+              "sha256": "4c6d018629c41e2cb6a9a080497a8f4c0a11003b4715a4cc261dd92ba9a605c5",
+              "bytes": 63952
+            },
+            {
+              "weight": 500,
+              "file": "noto-sans-sc-018-500-8a477e5e9de53e32.woff2",
+              "sha256": "8a477e5e9de53e323a04d26cceec806822ec4a7e408e73eb5c7026045e46208c",
+              "bytes": 64596
+            },
+            {
+              "weight": 550,
+              "file": "noto-sans-sc-018-550-6031fcf80cb0a3b4.woff2",
+              "sha256": "6031fcf80cb0a3b42b6aeac4b4266dfc4179d4299aaa7333aa18987d6b032acf",
+              "bytes": 64768
+            },
+            {
+              "weight": 600,
+              "file": "noto-sans-sc-018-600-1e1fb47454a5dd62.woff2",
+              "sha256": "1e1fb47454a5dd62a72e513d4e8bef73c5a6123407eccdd4a1df4156b58cfdc8",
+              "bytes": 64744
+            },
+            {
+              "weight": 650,
+              "file": "noto-sans-sc-018-650-cdb48e0106b88f21.woff2",
+              "sha256": "cdb48e0106b88f213c9e6e9ebf6e17007e8308909553c539811ce2995961628b",
+              "bytes": 64908
+            },
+            {
+              "weight": 850,
+              "file": "noto-sans-sc-018-850-b0634cf87296aec9.woff2",
+              "sha256": "b0634cf87296aec97e0c1dba437b6ca3ccb92bda49345b157938e474252ee2f8",
+              "bytes": 64964
+            }
+          ]
+        },
+        {
+          "family": "Noto Sans SC Cover 019",
+          "ranges": [[20646, 21157]],
+          "faces": [
+            {
+              "weight": 400,
+              "file": "noto-sans-sc-019-400-e94f510b55181986.woff2",
+              "sha256": "e94f510b55181986d606033c037996b0d1b9ca2510da84dd0e0b8f6292dbc4c4",
+              "bytes": 80328
+            },
+            {
+              "weight": 500,
+              "file": "noto-sans-sc-019-500-7cd1050f019191fe.woff2",
+              "sha256": "7cd1050f019191fea555b51f9c9e26e6a81ddd459539548716bc1bb024ddeffe",
+              "bytes": 81460
+            },
+            {
+              "weight": 550,
+              "file": "noto-sans-sc-019-550-16c861fd42fb89c9.woff2",
+              "sha256": "16c861fd42fb89c9d1d3752fb591584c2f3cf6dba5a0d4d5d8a4aed9550b978c",
+              "bytes": 81576
+            },
+            {
+              "weight": 600,
+              "file": "noto-sans-sc-019-600-1d81e519aef9cc39.woff2",
+              "sha256": "1d81e519aef9cc397b49a1289fe9f36bf4bba69f36a71407642ba5e75d739f92",
+              "bytes": 81668
+            },
+            {
+              "weight": 650,
+              "file": "noto-sans-sc-019-650-8d88bc50319ee982.woff2",
+              "sha256": "8d88bc50319ee9821821f28ae83484b6fe5dad5a085c279bd2df36f8125484ee",
+              "bytes": 81940
+            },
+            {
+              "weight": 850,
+              "file": "noto-sans-sc-019-850-130d2e1bfe29f8f2.woff2",
+              "sha256": "130d2e1bfe29f8f269a38f82d98113cb3b7472ba20ba6e31b37e7c18d32f5a8a",
+              "bytes": 82596
+            }
+          ]
+        },
+        {
+          "family": "Noto Sans SC Cover 020",
+          "ranges": [[21158, 21669]],
+          "faces": [
+            {
+              "weight": 400,
+              "file": "noto-sans-sc-020-400-7e6af293f7d1f486.woff2",
+              "sha256": "7e6af293f7d1f486273dc1844db3db58b11a71db5143992337926885309bb51e",
+              "bytes": 66932
+            },
+            {
+              "weight": 500,
+              "file": "noto-sans-sc-020-500-6b664817d9df7434.woff2",
+              "sha256": "6b664817d9df7434bb3ab3691cc72f9931a1c0d19a96c57cbaf650e6f9305de0",
+              "bytes": 67752
+            },
+            {
+              "weight": 550,
+              "file": "noto-sans-sc-020-550-12f5f68a10378e7f.woff2",
+              "sha256": "12f5f68a10378e7f9ba26613f8e6de02f162f3b9259ce36c27e8fabf4145fb48",
+              "bytes": 67924
+            },
+            {
+              "weight": 600,
+              "file": "noto-sans-sc-020-600-8c14f0ee6f922a64.woff2",
+              "sha256": "8c14f0ee6f922a642a34bf608b3b7244911f027daa4b37ce35f51b12e0a14335",
+              "bytes": 67920
+            },
+            {
+              "weight": 650,
+              "file": "noto-sans-sc-020-650-f91dbfea26bc62c7.woff2",
+              "sha256": "f91dbfea26bc62c75601c74b4f89081c452cfbbec354652f3012cbce8f7587c1",
+              "bytes": 68088
+            },
+            {
+              "weight": 850,
+              "file": "noto-sans-sc-020-850-86855f2739c2bc26.woff2",
+              "sha256": "86855f2739c2bc261a08b45a886d5bcd8718c6655f01067faf0715d6cfd2c8db",
+              "bytes": 68364
+            }
+          ]
+        },
+        {
+          "family": "Noto Sans SC Cover 021",
+          "ranges": [[21670, 22181]],
+          "faces": [
+            {
+              "weight": 400,
+              "file": "noto-sans-sc-021-400-b6d6950bb4b5066a.woff2",
+              "sha256": "b6d6950bb4b5066a17f6f55f63d538e5266c45731bba2023e44a01963b2fcc53",
+              "bytes": 76888
+            },
+            {
+              "weight": 500,
+              "file": "noto-sans-sc-021-500-24cd8f9b91774800.woff2",
+              "sha256": "24cd8f9b91774800cf7bd1694c1383aef045de1b1c4c3e4da8fecbfcbefedbaa",
+              "bytes": 77708
+            },
+            {
+              "weight": 550,
+              "file": "noto-sans-sc-021-550-19d34be0aa3ac8a7.woff2",
+              "sha256": "19d34be0aa3ac8a7e33fad767707a16e2c35752be31f8b1beef37fc0b73bf1cb",
+              "bytes": 77868
+            },
+            {
+              "weight": 600,
+              "file": "noto-sans-sc-021-600-0e90fab27e4b1c8d.woff2",
+              "sha256": "0e90fab27e4b1c8dd8c8d9d6182b810d7a20cfbd06a21aa9405873c4e5ed3be3",
+              "bytes": 78120
+            },
+            {
+              "weight": 650,
+              "file": "noto-sans-sc-021-650-2f052f1fee19978d.woff2",
+              "sha256": "2f052f1fee19978d3347d89d34a09ae2b030cf5715043c46f8288d83ac687b63",
+              "bytes": 78304
+            },
+            {
+              "weight": 850,
+              "file": "noto-sans-sc-021-850-a765991c9875766d.woff2",
+              "sha256": "a765991c9875766de91bd69e55155dfc1498d6136e10e85cdd63302877dc223c",
+              "bytes": 78648
+            }
+          ]
+        },
+        {
+          "family": "Noto Sans SC Cover 022",
+          "ranges": [[22182, 22693]],
+          "faces": [
+            {
+              "weight": 400,
+              "file": "noto-sans-sc-022-400-c8c015da7b2a7a85.woff2",
+              "sha256": "c8c015da7b2a7a858ebddda889725452859d6f7d14708924a7dd96a3e3a735e9",
+              "bytes": 72724
+            },
+            {
+              "weight": 500,
+              "file": "noto-sans-sc-022-500-9476b63f4ca22ad2.woff2",
+              "sha256": "9476b63f4ca22ad25736efb20584bae99d6e115d27ea8af26fad3e8de35591f5",
+              "bytes": 73792
+            },
+            {
+              "weight": 550,
+              "file": "noto-sans-sc-022-550-bbe437bab15e798a.woff2",
+              "sha256": "bbe437bab15e798aed64a99873ccd8ece467ace580264f617962d4271ed3a8cb",
+              "bytes": 74056
+            },
+            {
+              "weight": 600,
+              "file": "noto-sans-sc-022-600-86ecd1928dcbeeb5.woff2",
+              "sha256": "86ecd1928dcbeeb584fe38679db612d265212ec998c059f6db6ef2af395f729e",
+              "bytes": 74220
+            },
+            {
+              "weight": 650,
+              "file": "noto-sans-sc-022-650-693e2687d9eb263e.woff2",
+              "sha256": "693e2687d9eb263e28b189af8597f1cff1019ed6ef8003aea9cf7cf4da3408ab",
+              "bytes": 74284
+            },
+            {
+              "weight": 850,
+              "file": "noto-sans-sc-022-850-eefc0a5d09a96f94.woff2",
+              "sha256": "eefc0a5d09a96f942312cba9e8043ce4e1b344b5235134210297a1fef2c5cae5",
+              "bytes": 74580
+            }
+          ]
+        },
+        {
+          "family": "Noto Sans SC Cover 023",
+          "ranges": [[22694, 23205]],
+          "faces": [
+            {
+              "weight": 400,
+              "file": "noto-sans-sc-023-400-15e45a765d5c3d75.woff2",
+              "sha256": "15e45a765d5c3d75fe8cad6f842b7f31e1e8714f8a7dace08f08d0799d59f412",
+              "bytes": 81640
+            },
+            {
+              "weight": 500,
+              "file": "noto-sans-sc-023-500-a476a39e62c556a2.woff2",
+              "sha256": "a476a39e62c556a228c9661f4fc0eab4c4700ded849a88e71d9c1d687da32797",
+              "bytes": 82800
+            },
+            {
+              "weight": 550,
+              "file": "noto-sans-sc-023-550-a71a2fe7b0749872.woff2",
+              "sha256": "a71a2fe7b0749872b2b7ab7dbf59960bc960600fb3127717e202307f4983295d",
+              "bytes": 83280
+            },
+            {
+              "weight": 600,
+              "file": "noto-sans-sc-023-600-396effb73fdb87df.woff2",
+              "sha256": "396effb73fdb87df8c5ec0e109bd44ca7d6bd2c2c76aca22d10b44ecaccdc86f",
+              "bytes": 83368
+            },
+            {
+              "weight": 650,
+              "file": "noto-sans-sc-023-650-5dcb3e511e881597.woff2",
+              "sha256": "5dcb3e511e881597c12da0c71aab7d0c4b1c99647bbc705f94f1d5fa998d2f87",
+              "bytes": 83648
+            },
+            {
+              "weight": 850,
+              "file": "noto-sans-sc-023-850-687f36daeb0054be.woff2",
+              "sha256": "687f36daeb0054be80973975f6e1fe89407b47625b5b46372897e308f72efe18",
+              "bytes": 83860
+            }
+          ]
+        },
+        {
+          "family": "Noto Sans SC Cover 024",
+          "ranges": [[23206, 23717]],
+          "faces": [
+            {
+              "weight": 400,
+              "file": "noto-sans-sc-024-400-684479b725a3da36.woff2",
+              "sha256": "684479b725a3da3627184e37c331da4ef3f1390a991f51d43d0360e7fed7eb7e",
+              "bytes": 85360
+            },
+            {
+              "weight": 500,
+              "file": "noto-sans-sc-024-500-e4cb43172760db4f.woff2",
+              "sha256": "e4cb43172760db4fe5d9c1b0c3d4cef514db76d3d939f9fec67b8282d554436f",
+              "bytes": 86920
+            },
+            {
+              "weight": 550,
+              "file": "noto-sans-sc-024-550-a53673496165b2f4.woff2",
+              "sha256": "a53673496165b2f467b180a3840d7ab842e6a35c5088ea0be2a71fbc5854821f",
+              "bytes": 87032
+            },
+            {
+              "weight": 600,
+              "file": "noto-sans-sc-024-600-41505ee049155592.woff2",
+              "sha256": "41505ee04915559235fd93407632165f28149c806fa2a25d9b284e73d1f11cc5",
+              "bytes": 87224
+            },
+            {
+              "weight": 650,
+              "file": "noto-sans-sc-024-650-1b99742ed29e538e.woff2",
+              "sha256": "1b99742ed29e538e1bd33046ff27f01c181864c0ff916005120d051e6ab3d4c4",
+              "bytes": 87608
+            },
+            {
+              "weight": 850,
+              "file": "noto-sans-sc-024-850-92cd90dcbee907ca.woff2",
+              "sha256": "92cd90dcbee907cab766d9c7e2f361ed3360caef0e90d7680cba9eec41e90181",
+              "bytes": 88140
+            }
+          ]
+        },
+        {
+          "family": "Noto Sans SC Cover 025",
+          "ranges": [[23718, 24229]],
+          "faces": [
+            {
+              "weight": 400,
+              "file": "noto-sans-sc-025-400-8d507539185bac41.woff2",
+              "sha256": "8d507539185bac41465d96bf4ff421a69b58807cf8aafb6c36969812bb73454c",
+              "bytes": 76516
+            },
+            {
+              "weight": 500,
+              "file": "noto-sans-sc-025-500-01aab04047f1d31a.woff2",
+              "sha256": "01aab04047f1d31ac1adc9a178b1650849f382fe73b7f351fce02658e758ad0c",
+              "bytes": 77700
+            },
+            {
+              "weight": 550,
+              "file": "noto-sans-sc-025-550-cf530b5d627358af.woff2",
+              "sha256": "cf530b5d627358af74afee5f1da5a06c8b7a580fa589963b6b8362a980de046b",
+              "bytes": 77856
+            },
+            {
+              "weight": 600,
+              "file": "noto-sans-sc-025-600-93d0548a0829b6a0.woff2",
+              "sha256": "93d0548a0829b6a059b3c49cd515d1db64c7d590c6166a56344d250d67ed5732",
+              "bytes": 78012
+            },
+            {
+              "weight": 650,
+              "file": "noto-sans-sc-025-650-bf2871f7303c82b8.woff2",
+              "sha256": "bf2871f7303c82b883b2a11a709570ae7a54b25e6fc421ecaec62699254bf23d",
+              "bytes": 78192
+            },
+            {
+              "weight": 850,
+              "file": "noto-sans-sc-025-850-c9948918140d21d8.woff2",
+              "sha256": "c9948918140d21d8f717df4155f25ee2d24ae54a570f4fe0376b710d0741e0c7",
+              "bytes": 78636
+            }
+          ]
+        },
+        {
+          "family": "Noto Sans SC Cover 026",
+          "ranges": [[24230, 24741]],
+          "faces": [
+            {
+              "weight": 400,
+              "file": "noto-sans-sc-026-400-222a53db453fd9dd.woff2",
+              "sha256": "222a53db453fd9ddde3a412d75b4d6b342c11d94bbb3f8ad7f7986fa5958e7b4",
+              "bytes": 78156
+            },
+            {
+              "weight": 500,
+              "file": "noto-sans-sc-026-500-0589755d130755b6.woff2",
+              "sha256": "0589755d130755b668a689fd5f61e98a75269726e8ab96ca21ff45e33c1b0264",
+              "bytes": 79360
+            },
+            {
+              "weight": 550,
+              "file": "noto-sans-sc-026-550-d06a490cc48460aa.woff2",
+              "sha256": "d06a490cc48460aa181ad81327b1cf6aa01808a56f83e97446f961f913d34b00",
+              "bytes": 79560
+            },
+            {
+              "weight": 600,
+              "file": "noto-sans-sc-026-600-67461ebc80ca987a.woff2",
+              "sha256": "67461ebc80ca987adf64dfc9bfab7e0fec50301eab15bf9d1e5fe54e12c0778f",
+              "bytes": 79564
+            },
+            {
+              "weight": 650,
+              "file": "noto-sans-sc-026-650-567d013e295134a2.woff2",
+              "sha256": "567d013e295134a2b72dcad6152486d7b2b1b64f7198d960a9ea9efde7dc2e38",
+              "bytes": 80108
+            },
+            {
+              "weight": 850,
+              "file": "noto-sans-sc-026-850-551408958c233c37.woff2",
+              "sha256": "551408958c233c37516f9dd994f4c687c4e502c85a90315704e351df77e2ba62",
+              "bytes": 80364
+            }
+          ]
+        },
+        {
+          "family": "Noto Sans SC Cover 027",
+          "ranges": [[24742, 25253]],
+          "faces": [
+            {
+              "weight": 400,
+              "file": "noto-sans-sc-027-400-881ccfc15338bb7a.woff2",
+              "sha256": "881ccfc15338bb7a4fc5f9f8f1df17072784c076f286e4cc73973ab3ec985568",
+              "bytes": 89832
+            },
+            {
+              "weight": 500,
+              "file": "noto-sans-sc-027-500-f0f6480b86230a5a.woff2",
+              "sha256": "f0f6480b86230a5a2d4b6132bfa0f9a475c3bcae05d470b20a623f2c5dc1aab3",
+              "bytes": 91436
+            },
+            {
+              "weight": 550,
+              "file": "noto-sans-sc-027-550-f41efb72146d8926.woff2",
+              "sha256": "f41efb72146d89264066d90ee2f19f17749f293bf7a384561d6698aed79859ed",
+              "bytes": 91788
+            },
+            {
+              "weight": 600,
+              "file": "noto-sans-sc-027-600-4c23243e1a1b182b.woff2",
+              "sha256": "4c23243e1a1b182b2051770776daf73de401d8cf3744b8d2f71f7d7e43b07ee0",
+              "bytes": 91872
+            },
+            {
+              "weight": 650,
+              "file": "noto-sans-sc-027-650-fec4edf4237aac43.woff2",
+              "sha256": "fec4edf4237aac437eb90ef5f5445837c2c0f8791430a66421b476dbdc663354",
+              "bytes": 92080
+            },
+            {
+              "weight": 850,
+              "file": "noto-sans-sc-027-850-365cecd5635b8417.woff2",
+              "sha256": "365cecd5635b8417f558d9ca2568834be0809120a6eef9953b182e9ecef72a03",
+              "bytes": 92716
+            }
+          ]
+        },
+        {
+          "family": "Noto Sans SC Cover 028",
+          "ranges": [[25254, 25765]],
+          "faces": [
+            {
+              "weight": 400,
+              "file": "noto-sans-sc-028-400-8c652eaf14832c7e.woff2",
+              "sha256": "8c652eaf14832c7e704000a66a8dbb327c7ae36c85cf21621cdd4f3da2ff707f",
+              "bytes": 79864
+            },
+            {
+              "weight": 500,
+              "file": "noto-sans-sc-028-500-67b904832aad551b.woff2",
+              "sha256": "67b904832aad551b2fe7958960765a3d312e897392b5e3af06e386ead2c186a1",
+              "bytes": 80812
+            },
+            {
+              "weight": 550,
+              "file": "noto-sans-sc-028-550-29543070a3dee7f3.woff2",
+              "sha256": "29543070a3dee7f32f395395a72386d421aa1e3946ae89dd3989955be46229fb",
+              "bytes": 80916
+            },
+            {
+              "weight": 600,
+              "file": "noto-sans-sc-028-600-3a6ea88fe430bf90.woff2",
+              "sha256": "3a6ea88fe430bf90889aa4b1b46b52ab531e81da46bf740678bfb46e72c3d37e",
+              "bytes": 80928
+            },
+            {
+              "weight": 650,
+              "file": "noto-sans-sc-028-650-4987fbd810fd2153.woff2",
+              "sha256": "4987fbd810fd2153df63961c5000b49db2e224de42c09fc7c7ded7b89779c48d",
+              "bytes": 81264
+            },
+            {
+              "weight": 850,
+              "file": "noto-sans-sc-028-850-0a7e96c3575a9c64.woff2",
+              "sha256": "0a7e96c3575a9c64ceeef9f674e556ac1b098821d86e6d8dc0b4e97ee9f84959",
+              "bytes": 81332
+            }
+          ]
+        },
+        {
+          "family": "Noto Sans SC Cover 029",
+          "ranges": [[25766, 26277]],
+          "faces": [
+            {
+              "weight": 400,
+              "file": "noto-sans-sc-029-400-12ce30733f5677fd.woff2",
+              "sha256": "12ce30733f5677fd8744f7561ae38f5fa31c085ff0111bcbc4cdefa89fea5553",
+              "bytes": 87344
+            },
+            {
+              "weight": 500,
+              "file": "noto-sans-sc-029-500-5750d2e5f90844ac.woff2",
+              "sha256": "5750d2e5f90844ac8603637eff1225cc96acd4b19c2928120c211031b48dc455",
+              "bytes": 88560
+            },
+            {
+              "weight": 550,
+              "file": "noto-sans-sc-029-550-44b3d50b3495beb7.woff2",
+              "sha256": "44b3d50b3495beb77586585442f96d82e70482e11641979f70398e4be467e64f",
+              "bytes": 88684
+            },
+            {
+              "weight": 600,
+              "file": "noto-sans-sc-029-600-5b33ea01b7b51266.woff2",
+              "sha256": "5b33ea01b7b51266da6f291fd53a5268e5be68b19fab32a41dc7f40bae303117",
+              "bytes": 88788
+            },
+            {
+              "weight": 650,
+              "file": "noto-sans-sc-029-650-98fe5a9afceb4f1b.woff2",
+              "sha256": "98fe5a9afceb4f1b0e8451bd1ef3816ada54ab875ca4e3520b7ee1fb4e9a81af",
+              "bytes": 89128
+            },
+            {
+              "weight": 850,
+              "file": "noto-sans-sc-029-850-79fdb9ad468a391a.woff2",
+              "sha256": "79fdb9ad468a391ad303d01554f141f349f2be35c0c57bbc6ec8fdb2e9fd7f9d",
+              "bytes": 89504
+            }
+          ]
+        },
+        {
+          "family": "Noto Sans SC Cover 030",
+          "ranges": [[26278, 26789]],
+          "faces": [
+            {
+              "weight": 400,
+              "file": "noto-sans-sc-030-400-8d7073beb777317b.woff2",
+              "sha256": "8d7073beb777317b16f0e23ea47b4e6d07d5cf9ca9af630d2d77a94b0ad52fa1",
+              "bytes": 72920
+            },
+            {
+              "weight": 500,
+              "file": "noto-sans-sc-030-500-0d11786eeb00117e.woff2",
+              "sha256": "0d11786eeb00117e5609cb35aea82c5e7505efb347dfe8abd6163a43582a9838",
+              "bytes": 74032
+            },
+            {
+              "weight": 550,
+              "file": "noto-sans-sc-030-550-3d37fd57ae6456ce.woff2",
+              "sha256": "3d37fd57ae6456ce2f775a588d59909a99ca877b7e479f170bff22518b3444a1",
+              "bytes": 74060
+            },
+            {
+              "weight": 600,
+              "file": "noto-sans-sc-030-600-9294821e6b2785e5.woff2",
+              "sha256": "9294821e6b2785e55b37d1811ac1d951e38435dfb0777cb8160cb1724b5db01f",
+              "bytes": 73988
+            },
+            {
+              "weight": 650,
+              "file": "noto-sans-sc-030-650-8ac5fa971ff000c9.woff2",
+              "sha256": "8ac5fa971ff000c905ab16ff06bbb9d2835e4af56ba779efdc706a3490d7eb59",
+              "bytes": 74156
+            },
+            {
+              "weight": 850,
+              "file": "noto-sans-sc-030-850-a815ae37781a2e01.woff2",
+              "sha256": "a815ae37781a2e01384c21901c4caed13da8355c1319213c718c5cbf3ef01007",
+              "bytes": 74360
+            }
+          ]
+        },
+        {
+          "family": "Noto Sans SC Cover 031",
+          "ranges": [[26790, 27301]],
+          "faces": [
+            {
+              "weight": 400,
+              "file": "noto-sans-sc-031-400-f6432982d7c75ef0.woff2",
+              "sha256": "f6432982d7c75ef042d4b00cc46937d9f3d392e7260655ae1ed05b9baec639c1",
+              "bytes": 90228
+            },
+            {
+              "weight": 500,
+              "file": "noto-sans-sc-031-500-6190eee935c369bb.woff2",
+              "sha256": "6190eee935c369bbedb65199fd205c5b4a0936e94f642f5b8c009d347c339e0a",
+              "bytes": 91876
+            },
+            {
+              "weight": 550,
+              "file": "noto-sans-sc-031-550-8fd99c24e0139391.woff2",
+              "sha256": "8fd99c24e013939115adb14d9ab76c20f84103be823adf6bcde11666bd7785c2",
+              "bytes": 91996
+            },
+            {
+              "weight": 600,
+              "file": "noto-sans-sc-031-600-8aada130f758d140.woff2",
+              "sha256": "8aada130f758d140210c4d4f01ecf815146443eda748dd0dddf136f5232026a5",
+              "bytes": 91988
+            },
+            {
+              "weight": 650,
+              "file": "noto-sans-sc-031-650-2bfb2be46ce0087d.woff2",
+              "sha256": "2bfb2be46ce0087d29a211b37bb06d3aea96d58142ff3a4cae9cb7cc3061230a",
+              "bytes": 92288
+            },
+            {
+              "weight": 850,
+              "file": "noto-sans-sc-031-850-7017c2381a319bb1.woff2",
+              "sha256": "7017c2381a319bb100ee44420b2efbc20baef7ba21155535042d68c9c3b5f120",
+              "bytes": 92300
+            }
+          ]
+        },
+        {
+          "family": "Noto Sans SC Cover 032",
+          "ranges": [[27302, 27813]],
+          "faces": [
+            {
+              "weight": 400,
+              "file": "noto-sans-sc-032-400-a125c1d502833531.woff2",
+              "sha256": "a125c1d50283353129b1fca8aec43d046a70ac610faffd1332ba2eaf3097f484",
+              "bytes": 93380
+            },
+            {
+              "weight": 500,
+              "file": "noto-sans-sc-032-500-5ada3b6926625123.woff2",
+              "sha256": "5ada3b6926625123fb8fbba787d4f2bdb1ac50ac4a79802c7d59fc00e90985e5",
+              "bytes": 94768
+            },
+            {
+              "weight": 550,
+              "file": "noto-sans-sc-032-550-423375bf50fa34d8.woff2",
+              "sha256": "423375bf50fa34d85e0d737efd850648296ae7f5658534b372fd54c73d1c0caa",
+              "bytes": 95044
+            },
+            {
+              "weight": 600,
+              "file": "noto-sans-sc-032-600-4b4ca20899cbdf40.woff2",
+              "sha256": "4b4ca20899cbdf4001992d0422326c13949e144ffdf6ff007ca7bf9bdf5a452e",
+              "bytes": 95164
+            },
+            {
+              "weight": 650,
+              "file": "noto-sans-sc-032-650-86eb46d19f7aa601.woff2",
+              "sha256": "86eb46d19f7aa601b1903cea8341c36ee8a1f18c3b2c2caab01fd4a10cc7c47b",
+              "bytes": 95480
+            },
+            {
+              "weight": 850,
+              "file": "noto-sans-sc-032-850-5b0abc103e73a204.woff2",
+              "sha256": "5b0abc103e73a2042fd0e909dbaa7548630b4a13b26267dca14914304fd9686d",
+              "bytes": 95652
+            }
+          ]
+        },
+        {
+          "family": "Noto Sans SC Cover 033",
+          "ranges": [[27814, 28325]],
+          "faces": [
+            {
+              "weight": 400,
+              "file": "noto-sans-sc-033-400-0740feb1947bc64e.woff2",
+              "sha256": "0740feb1947bc64e17e41f9f5c8b26a0c19328522c543f487ac67addc5f83bdf",
+              "bytes": 75972
+            },
+            {
+              "weight": 500,
+              "file": "noto-sans-sc-033-500-3e57236bf10a5464.woff2",
+              "sha256": "3e57236bf10a5464fde9b874efaa208e2f4f7f8f4b495d0d9fd6adf749c7eac1",
+              "bytes": 77520
+            },
+            {
+              "weight": 550,
+              "file": "noto-sans-sc-033-550-79661916d198ce36.woff2",
+              "sha256": "79661916d198ce36dbbfe84d90ae53371a0154d9af4943800be4f5dd293da100",
+              "bytes": 77876
+            },
+            {
+              "weight": 600,
+              "file": "noto-sans-sc-033-600-86c0491492b987f5.woff2",
+              "sha256": "86c0491492b987f56bce8672ac25e889c1fc29a3e1f82b7301636166fe9d2f4a",
+              "bytes": 78172
+            },
+            {
+              "weight": 650,
+              "file": "noto-sans-sc-033-650-93db84990731ad0c.woff2",
+              "sha256": "93db84990731ad0c1d4a0ff1a4dd7012e9576e94cddfc0fdf221184050dc1a9f",
+              "bytes": 78388
+            },
+            {
+              "weight": 850,
+              "file": "noto-sans-sc-033-850-27eb2a3ad6a1c943.woff2",
+              "sha256": "27eb2a3ad6a1c94383a085d5208810158957219e0e82d5f1b9ef733b0726988f",
+              "bytes": 78384
+            }
+          ]
+        },
+        {
+          "family": "Noto Sans SC Cover 034",
+          "ranges": [[28326, 28837]],
+          "faces": [
+            {
+              "weight": 400,
+              "file": "noto-sans-sc-034-400-97d59fbfc1ae5d97.woff2",
+              "sha256": "97d59fbfc1ae5d97a5b4bebac5352723e940cc4a0aeeee5331e0b15d9e1939ec",
+              "bytes": 103344
+            },
+            {
+              "weight": 500,
+              "file": "noto-sans-sc-034-500-2c8ca53366ccf812.woff2",
+              "sha256": "2c8ca53366ccf812408e29b342013bb8db5afb4fbfd4b4ecfb9cd27fb1e9dd4f",
+              "bytes": 105480
+            },
+            {
+              "weight": 550,
+              "file": "noto-sans-sc-034-550-7bde45ec035d2d82.woff2",
+              "sha256": "7bde45ec035d2d824c198a42ddaed1a7cb5718a97d39df61f450a92db1cdd364",
+              "bytes": 105740
+            },
+            {
+              "weight": 600,
+              "file": "noto-sans-sc-034-600-91adf26e22b32c4c.woff2",
+              "sha256": "91adf26e22b32c4c82ec43ecd09072c70e65fa5c00a8f00788f461348084bef3",
+              "bytes": 106084
+            },
+            {
+              "weight": 650,
+              "file": "noto-sans-sc-034-650-c2c68e416246ffbb.woff2",
+              "sha256": "c2c68e416246ffbb3e0572fa8a7a7ff53b8f633931d3fac9bd893cc881f015e7",
+              "bytes": 106444
+            },
+            {
+              "weight": 850,
+              "file": "noto-sans-sc-034-850-5a5fa1c276a4657a.woff2",
+              "sha256": "5a5fa1c276a4657a346bafb49d0e38fa4a109ea64a517cebfcdac95d20a41990",
+              "bytes": 106632
+            }
+          ]
+        },
+        {
+          "family": "Noto Sans SC Cover 035",
+          "ranges": [[28838, 29349]],
+          "faces": [
+            {
+              "weight": 400,
+              "file": "noto-sans-sc-035-400-b0cf403636c43228.woff2",
+              "sha256": "b0cf403636c4322856be48b40d378c2a65403342c264f32f27d8a7a3f888c4f5",
+              "bytes": 92564
+            },
+            {
+              "weight": 500,
+              "file": "noto-sans-sc-035-500-af2e72e10cd88e5f.woff2",
+              "sha256": "af2e72e10cd88e5f248cdc09f828c52bda29ffa8ef86a22d4a027edf8479e089",
+              "bytes": 93960
+            },
+            {
+              "weight": 550,
+              "file": "noto-sans-sc-035-550-369c6d3ab6bd7388.woff2",
+              "sha256": "369c6d3ab6bd738841ca9af9ef3069c7cc5b1d84002ec9b00e97781975c81ccd",
+              "bytes": 94404
+            },
+            {
+              "weight": 600,
+              "file": "noto-sans-sc-035-600-4ad98a7d7092ff38.woff2",
+              "sha256": "4ad98a7d7092ff38f1ddf3ab64dd6e616a84fc5359f0670db1cb5efa519ca90f",
+              "bytes": 94608
+            },
+            {
+              "weight": 650,
+              "file": "noto-sans-sc-035-650-5ca1033b47ce888f.woff2",
+              "sha256": "5ca1033b47ce888fb31ea7c14f2b1cc4b89155e2bfe9230b648ae0eaf6f00e0e",
+              "bytes": 94968
+            },
+            {
+              "weight": 850,
+              "file": "noto-sans-sc-035-850-619932201ceae346.woff2",
+              "sha256": "619932201ceae3467b50159000e38a2ddf0dbd8c2f8ca2a02af5ad3068570c79",
+              "bytes": 95188
+            }
+          ]
+        },
+        {
+          "family": "Noto Sans SC Cover 036",
+          "ranges": [[29350, 29861]],
+          "faces": [
+            {
+              "weight": 400,
+              "file": "noto-sans-sc-036-400-e2ff40e2ff83a270.woff2",
+              "sha256": "e2ff40e2ff83a270d0f2e168b1f3a2f239c2a41faeb34d169b140182dca4298e",
+              "bytes": 82036
+            },
+            {
+              "weight": 500,
+              "file": "noto-sans-sc-036-500-6c46b0a81b69a138.woff2",
+              "sha256": "6c46b0a81b69a13883ed7173e99ff729d1c261fe60e00f14ece5d1b8c7111045",
+              "bytes": 83188
+            },
+            {
+              "weight": 550,
+              "file": "noto-sans-sc-036-550-2bd85c6ee9b98886.woff2",
+              "sha256": "2bd85c6ee9b988865a2f7e3ec3bf6407fa7531ed3d2b01992626ea067bb349d4",
+              "bytes": 83500
+            },
+            {
+              "weight": 600,
+              "file": "noto-sans-sc-036-600-fb6dbe3864130fa1.woff2",
+              "sha256": "fb6dbe3864130fa1f454a50a064c171b279a3a441688c0a67b44ce278eb1cb36",
+              "bytes": 83400
+            },
+            {
+              "weight": 650,
+              "file": "noto-sans-sc-036-650-dfc2691697a0ee3f.woff2",
+              "sha256": "dfc2691697a0ee3f4b983da6a90108e0171c1a30c740eb8790de8d49b02119ba",
+              "bytes": 83536
+            },
+            {
+              "weight": 850,
+              "file": "noto-sans-sc-036-850-608a83c0ccba25f3.woff2",
+              "sha256": "608a83c0ccba25f3e395cfa6711aaffd95236a8da95975bbabde17d0a37827f0",
+              "bytes": 83884
+            }
+          ]
+        },
+        {
+          "family": "Noto Sans SC Cover 037",
+          "ranges": [[29862, 30373]],
+          "faces": [
+            {
+              "weight": 400,
+              "file": "noto-sans-sc-037-400-c3ae1d1c50a55b6a.woff2",
+              "sha256": "c3ae1d1c50a55b6a41600945f3440195ea0b5b1a6c04ef2d56bf0eb86a8d2a7d",
+              "bytes": 89272
+            },
+            {
+              "weight": 500,
+              "file": "noto-sans-sc-037-500-7a41e633c6c2895f.woff2",
+              "sha256": "7a41e633c6c2895f64c59392d91fcc5c4513585f127735fd477f6bf5ad504c41",
+              "bytes": 90652
+            },
+            {
+              "weight": 550,
+              "file": "noto-sans-sc-037-550-dd3d9f201503dd4c.woff2",
+              "sha256": "dd3d9f201503dd4c3d049d30c17a85a06a3f87050eeaf9fe1de36b6cee781905",
+              "bytes": 91060
+            },
+            {
+              "weight": 600,
+              "file": "noto-sans-sc-037-600-854e22d0008dc53c.woff2",
+              "sha256": "854e22d0008dc53c7f5bf87e825a0c057bd0255c28feabc4ec418ffda8e5e608",
+              "bytes": 90992
+            },
+            {
+              "weight": 650,
+              "file": "noto-sans-sc-037-650-5d128d729ba75b3b.woff2",
+              "sha256": "5d128d729ba75b3b5d50455fd9a8dc79f80a4bdeee3243fc054b1e8fa64d0c36",
+              "bytes": 91416
+            },
+            {
+              "weight": 850,
+              "file": "noto-sans-sc-037-850-eba8bec2bec99774.woff2",
+              "sha256": "eba8bec2bec997746d94362a0f6ecb1caafef81c2cfc23153607f40a6c9f37d3",
+              "bytes": 91260
+            }
+          ]
+        },
+        {
+          "family": "Noto Sans SC Cover 038",
+          "ranges": [[30374, 30885]],
+          "faces": [
+            {
+              "weight": 400,
+              "file": "noto-sans-sc-038-400-0a68362298f4b1ed.woff2",
+              "sha256": "0a68362298f4b1ed2257ad2e7355c7a78948193a6d77d6eed134e93722a58bf0",
+              "bytes": 74092
+            },
+            {
+              "weight": 500,
+              "file": "noto-sans-sc-038-500-51d340b7eaf85825.woff2",
+              "sha256": "51d340b7eaf85825000d032cd87af3055d42d83a84021516ddf09bc285b9eef6",
+              "bytes": 75108
+            },
+            {
+              "weight": 550,
+              "file": "noto-sans-sc-038-550-a03816f45787bc27.woff2",
+              "sha256": "a03816f45787bc27ca6dc45dc84f278b45dcc094753c5c187fddc3e064675f4b",
+              "bytes": 75356
+            },
+            {
+              "weight": 600,
+              "file": "noto-sans-sc-038-600-67e10867c2b73f7e.woff2",
+              "sha256": "67e10867c2b73f7ec2f219451be4e11f0828b8162f9d9a14e17971cf999337c2",
+              "bytes": 75540
+            },
+            {
+              "weight": 650,
+              "file": "noto-sans-sc-038-650-16b118c1c8b62745.woff2",
+              "sha256": "16b118c1c8b62745db8fb55899594de8a5c25834c42697a14799d62654c0b8fb",
+              "bytes": 75552
+            },
+            {
+              "weight": 850,
+              "file": "noto-sans-sc-038-850-2c1ad85245e0f566.woff2",
+              "sha256": "2c1ad85245e0f5660ff0a0017afbd0db6d21a1db25d3c248a6ca62bb93e6199e",
+              "bytes": 75748
+            }
+          ]
+        },
+        {
+          "family": "Noto Sans SC Cover 039",
+          "ranges": [[30886, 31397]],
+          "faces": [
+            {
+              "weight": 400,
+              "file": "noto-sans-sc-039-400-92bdd717056b31ba.woff2",
+              "sha256": "92bdd717056b31baf9c0a0770f82e89e3d7a353e05cc4ae7e980dd2bb9f46bd1",
+              "bytes": 86896
+            },
+            {
+              "weight": 500,
+              "file": "noto-sans-sc-039-500-44a349a359227efc.woff2",
+              "sha256": "44a349a359227efcaf3ea8531ada329c20886f0860c168282fb9f8467942abb1",
+              "bytes": 88096
+            },
+            {
+              "weight": 550,
+              "file": "noto-sans-sc-039-550-30845c974bcd08b3.woff2",
+              "sha256": "30845c974bcd08b31cd8684ddc0b00ac9340d65748dc1c5734f79f999eb87390",
+              "bytes": 88632
+            },
+            {
+              "weight": 600,
+              "file": "noto-sans-sc-039-600-3327b663df8e16b9.woff2",
+              "sha256": "3327b663df8e16b9dab0ac6e489b13691e05ffd17b62fc807569867e82bfcee5",
+              "bytes": 88840
+            },
+            {
+              "weight": 650,
+              "file": "noto-sans-sc-039-650-bf906b34d67f516d.woff2",
+              "sha256": "bf906b34d67f516de45f37ce7e46d8e6e5035557cf40d5fceff5c7d9085e61ec",
+              "bytes": 89080
+            },
+            {
+              "weight": 850,
+              "file": "noto-sans-sc-039-850-f736ce60f2b3ba54.woff2",
+              "sha256": "f736ce60f2b3ba54eae1f378b2e5841be65d4fec1ed7d35f7ee03343093eb433",
+              "bytes": 88716
+            }
+          ]
+        },
+        {
+          "family": "Noto Sans SC Cover 040",
+          "ranges": [[31398, 31909]],
+          "faces": [
+            {
+              "weight": 400,
+              "file": "noto-sans-sc-040-400-baeb31065485ab06.woff2",
+              "sha256": "baeb31065485ab0661e48ae5ce3d583abe57989dd7fc0eb9de532a4c8661700f",
+              "bytes": 96024
+            },
+            {
+              "weight": 500,
+              "file": "noto-sans-sc-040-500-4ee18f4fea234723.woff2",
+              "sha256": "4ee18f4fea234723d5454e21565347948d7a38ab0070db45c703bae6beec274f",
+              "bytes": 97236
+            },
+            {
+              "weight": 550,
+              "file": "noto-sans-sc-040-550-710c65a51cd48c92.woff2",
+              "sha256": "710c65a51cd48c927ede80d61b45e61e7fe98333ce3cac40b04b6d42c548197c",
+              "bytes": 97472
+            },
+            {
+              "weight": 600,
+              "file": "noto-sans-sc-040-600-c66a1d573964b534.woff2",
+              "sha256": "c66a1d573964b5347c8f1d849752d318ea5071e1af4bc4048d5c1fe7c539fe5a",
+              "bytes": 97704
+            },
+            {
+              "weight": 650,
+              "file": "noto-sans-sc-040-650-d2685d5f9d59894c.woff2",
+              "sha256": "d2685d5f9d59894c4c33fc7b08a303a023e04850296c0aeb3ed5eab789a02db5",
+              "bytes": 97768
+            },
+            {
+              "weight": 850,
+              "file": "noto-sans-sc-040-850-b64e1542681f2664.woff2",
+              "sha256": "b64e1542681f26642c6ce0078a709d3f7c8688b22e9ec8aee4c10bd5daee4d86",
+              "bytes": 97616
+            }
+          ]
+        },
+        {
+          "family": "Noto Sans SC Cover 041",
+          "ranges": [[31910, 32421]],
+          "faces": [
+            {
+              "weight": 400,
+              "file": "noto-sans-sc-041-400-583ab3fb905c6330.woff2",
+              "sha256": "583ab3fb905c633016109e0083528bf64aa9373f32a20efa53526a06b5b1ff3b",
+              "bytes": 112916
+            },
+            {
+              "weight": 500,
+              "file": "noto-sans-sc-041-500-df91ef6d50f38212.woff2",
+              "sha256": "df91ef6d50f38212ca4792b927651d300bff3f0959a141debd5cda03b4a6ddaa",
+              "bytes": 116480
+            },
+            {
+              "weight": 550,
+              "file": "noto-sans-sc-041-550-4e2e4125d07bbbcf.woff2",
+              "sha256": "4e2e4125d07bbbcfe1a2a5be03cc48ef1d6c4d886e0e03d95ee95d3ce45a4904",
+              "bytes": 116984
+            },
+            {
+              "weight": 600,
+              "file": "noto-sans-sc-041-600-2e1d09c45f8fed71.woff2",
+              "sha256": "2e1d09c45f8fed7139a010079b86f0f4d1b5167ff878c0cda7006a702c1408fc",
+              "bytes": 117348
+            },
+            {
+              "weight": 650,
+              "file": "noto-sans-sc-041-650-3146e74feee1e47d.woff2",
+              "sha256": "3146e74feee1e47d5235acd7056afde0fa65364af7e7755983c2b98b95a66e57",
+              "bytes": 118180
+            },
+            {
+              "weight": 850,
+              "file": "noto-sans-sc-041-850-f553e5c634f0cab3.woff2",
+              "sha256": "f553e5c634f0cab3575e985004a72536bb1b172d7be53e25a8ee9ee6e53b1942",
+              "bytes": 117560
+            }
+          ]
+        },
+        {
+          "family": "Noto Sans SC Cover 042",
+          "ranges": [[32422, 32933]],
+          "faces": [
+            {
+              "weight": 400,
+              "file": "noto-sans-sc-042-400-7c33e809c68a1aa8.woff2",
+              "sha256": "7c33e809c68a1aa8b51f48cde778317e8dea8a406b15ac198dcd74cabb0a62c2",
+              "bytes": 90320
+            },
+            {
+              "weight": 500,
+              "file": "noto-sans-sc-042-500-e252a1ed200a98a9.woff2",
+              "sha256": "e252a1ed200a98a9a7ddd085936a871a441b4d7d6296c001f01f8ed2a15ebe09",
+              "bytes": 91840
+            },
+            {
+              "weight": 550,
+              "file": "noto-sans-sc-042-550-674486f3e180484d.woff2",
+              "sha256": "674486f3e180484df77bc57a59d0fe94849a0e23b2c1ebdd54fec2e89babe5f1",
+              "bytes": 92128
+            },
+            {
+              "weight": 600,
+              "file": "noto-sans-sc-042-600-c35e690b26c8fec9.woff2",
+              "sha256": "c35e690b26c8fec9cddd544ee95c24cdc43999e4634171322568c7141121535c",
+              "bytes": 92208
+            },
+            {
+              "weight": 650,
+              "file": "noto-sans-sc-042-650-f19ff7bef0510811.woff2",
+              "sha256": "f19ff7bef05108112a98e75aba77f7f68702e45c42b2a31420bba2790cf9b574",
+              "bytes": 92508
+            },
+            {
+              "weight": 850,
+              "file": "noto-sans-sc-042-850-98dae2f22e3fdd22.woff2",
+              "sha256": "98dae2f22e3fdd225715f01bf103e057672215914cd418da9dcd47a78172b50b",
+              "bytes": 92596
+            }
+          ]
+        },
+        {
+          "family": "Noto Sans SC Cover 043",
+          "ranges": [[32934, 33445]],
+          "faces": [
+            {
+              "weight": 400,
+              "file": "noto-sans-sc-043-400-ec1463089057948c.woff2",
+              "sha256": "ec1463089057948c00c93322e7a3c41054dcae561b9c7fa027c1fe1590c9c6aa",
+              "bytes": 83840
+            },
+            {
+              "weight": 500,
+              "file": "noto-sans-sc-043-500-f5b07d00e77d0bcc.woff2",
+              "sha256": "f5b07d00e77d0bcc5fcb44baf3b4deac7f577330ccbec2bc986a6eeb875cc9ff",
+              "bytes": 84736
+            },
+            {
+              "weight": 550,
+              "file": "noto-sans-sc-043-550-cdcdd57bde228216.woff2",
+              "sha256": "cdcdd57bde22821608668e8ec4c54b4135ca78385220c0d60f89f10a5031eadf",
+              "bytes": 85284
+            },
+            {
+              "weight": 600,
+              "file": "noto-sans-sc-043-600-10da86a6718b7518.woff2",
+              "sha256": "10da86a6718b7518733ad67667e13e32b7ca88717c1cba874b2b22a0eefc9a4b",
+              "bytes": 85420
+            },
+            {
+              "weight": 650,
+              "file": "noto-sans-sc-043-650-503d030ea51a8178.woff2",
+              "sha256": "503d030ea51a817891d0adc63d7c288aeb3652852de65381adbc71d183c6968c",
+              "bytes": 85888
+            },
+            {
+              "weight": 850,
+              "file": "noto-sans-sc-043-850-7d289f42a4197a96.woff2",
+              "sha256": "7d289f42a4197a9642a12b0972d87fcdc554b89b38b0d70d6d32b521b08f4281",
+              "bytes": 85700
+            }
+          ]
+        },
+        {
+          "family": "Noto Sans SC Cover 044",
+          "ranges": [[33446, 33957]],
+          "faces": [
+            {
+              "weight": 400,
+              "file": "noto-sans-sc-044-400-d80bd691daecc53c.woff2",
+              "sha256": "d80bd691daecc53c12ff322a60f246a4c490db17979194747e4d28902b0c7150",
+              "bytes": 69676
+            },
+            {
+              "weight": 500,
+              "file": "noto-sans-sc-044-500-9fa865bf671c1c16.woff2",
+              "sha256": "9fa865bf671c1c161d1ff1cefc6c73e0439073fe5425eaadf4602492b14bf0f2",
+              "bytes": 70636
+            },
+            {
+              "weight": 550,
+              "file": "noto-sans-sc-044-550-75fd31ad32b6ded9.woff2",
+              "sha256": "75fd31ad32b6ded9b036318fe382d5521c850b4cc381d73a8f13e55e14afac31",
+              "bytes": 71000
+            },
+            {
+              "weight": 600,
+              "file": "noto-sans-sc-044-600-1908388802f49595.woff2",
+              "sha256": "1908388802f49595370e0497528d65f464d77a8585ae8117c7a194bd582fd8fb",
+              "bytes": 71076
+            },
+            {
+              "weight": 650,
+              "file": "noto-sans-sc-044-650-9c1f4b4ebe3ea1bd.woff2",
+              "sha256": "9c1f4b4ebe3ea1bd8a6a55759a55fbc7617249eae25280f7b4ace7d9d1ef1efb",
+              "bytes": 71148
+            },
+            {
+              "weight": 850,
+              "file": "noto-sans-sc-044-850-59886bd56a6ae455.woff2",
+              "sha256": "59886bd56a6ae455fb6e74a6b60fdb05079e525d77d071c07bd2f7799fcab036",
+              "bytes": 71796
+            }
+          ]
+        },
+        {
+          "family": "Noto Sans SC Cover 045",
+          "ranges": [[33958, 34469]],
+          "faces": [
+            {
+              "weight": 400,
+              "file": "noto-sans-sc-045-400-d45a0aee2040c5e4.woff2",
+              "sha256": "d45a0aee2040c5e44fe4a4d5d8c81b27f9ea5715cde62be079a70073420587f0",
+              "bytes": 96884
+            },
+            {
+              "weight": 500,
+              "file": "noto-sans-sc-045-500-6c43554078a1762b.woff2",
+              "sha256": "6c43554078a1762bd345063d8388814dd8bc2375d47f4eb8eb63dbadf7cc813d",
+              "bytes": 98144
+            },
+            {
+              "weight": 550,
+              "file": "noto-sans-sc-045-550-c94967a487016118.woff2",
+              "sha256": "c94967a487016118b3b878f23b184895c98252cd097055622331c72adee5f521",
+              "bytes": 98656
+            },
+            {
+              "weight": 600,
+              "file": "noto-sans-sc-045-600-3dfdb451f3734515.woff2",
+              "sha256": "3dfdb451f37345157ab315ad18ffd5de7f6d79b1acdf54d485e4615ea7eca3cf",
+              "bytes": 98800
+            },
+            {
+              "weight": 650,
+              "file": "noto-sans-sc-045-650-3ec312b64157d0d7.woff2",
+              "sha256": "3ec312b64157d0d777053003d75d9164f4762cd4e9771eaf75928cb7672a5c32",
+              "bytes": 99108
+            },
+            {
+              "weight": 850,
+              "file": "noto-sans-sc-045-850-57d86609e8957432.woff2",
+              "sha256": "57d86609e8957432325a0dc6a471bcb7b60c253cf62bc706b256c01f512522f7",
+              "bytes": 99140
+            }
+          ]
+        },
+        {
+          "family": "Noto Sans SC Cover 046",
+          "ranges": [[34470, 34981]],
+          "faces": [
+            {
+              "weight": 400,
+              "file": "noto-sans-sc-046-400-5ee38b78a42a2385.woff2",
+              "sha256": "5ee38b78a42a238538b3432e8cb4adea8a5f5afcb239bad732f57211b8402ccf",
+              "bytes": 91912
+            },
+            {
+              "weight": 500,
+              "file": "noto-sans-sc-046-500-7d6558fabe5ad105.woff2",
+              "sha256": "7d6558fabe5ad1053a6412c144b6ee1d5a680e7e84752ea3713a7ec368f79690",
+              "bytes": 93672
+            },
+            {
+              "weight": 550,
+              "file": "noto-sans-sc-046-550-eda73eea33dd8211.woff2",
+              "sha256": "eda73eea33dd8211f84cc3c2b2d724f7c6732deebd276b54a9d2288b2d2aa04f",
+              "bytes": 93848
+            },
+            {
+              "weight": 600,
+              "file": "noto-sans-sc-046-600-1033444897724a39.woff2",
+              "sha256": "1033444897724a391595b5edbf7c276c9443b70f5ac6488b9c868f49091e177b",
+              "bytes": 94084
+            },
+            {
+              "weight": 650,
+              "file": "noto-sans-sc-046-650-b86f4b1c3ba88333.woff2",
+              "sha256": "b86f4b1c3ba883334467d8bd492e96f39e94ff6fec6ed083de07750772e252e8",
+              "bytes": 94360
+            },
+            {
+              "weight": 850,
+              "file": "noto-sans-sc-046-850-2daa019a034b542f.woff2",
+              "sha256": "2daa019a034b542f254dcf9155acfb20f16b05e313b422017a8a21dde7463ccc",
+              "bytes": 94260
+            }
+          ]
+        },
+        {
+          "family": "Noto Sans SC Cover 047",
+          "ranges": [[34982, 35493]],
+          "faces": [
+            {
+              "weight": 400,
+              "file": "noto-sans-sc-047-400-46abb60120242ae4.woff2",
+              "sha256": "46abb60120242ae4edbef09ad497af4a13f62212cdc41391984fefd0d384ecb1",
+              "bytes": 88844
+            },
+            {
+              "weight": 500,
+              "file": "noto-sans-sc-047-500-d4bc4ca7934e5ced.woff2",
+              "sha256": "d4bc4ca7934e5cedd9d1c0a13ada1d1e2972a748b51ea1250e8074de593bfcae",
+              "bytes": 90020
+            },
+            {
+              "weight": 550,
+              "file": "noto-sans-sc-047-550-d20e52540437807b.woff2",
+              "sha256": "d20e52540437807bc32ffb8a73cfed8796c29523f2e14927ef53868da7db1406",
+              "bytes": 90148
+            },
+            {
+              "weight": 600,
+              "file": "noto-sans-sc-047-600-feed8d1c61aa2a62.woff2",
+              "sha256": "feed8d1c61aa2a627c3a0f1cd34962a76996cacb8ebe817b9d043f145e2f90e1",
+              "bytes": 90128
+            },
+            {
+              "weight": 650,
+              "file": "noto-sans-sc-047-650-a4948196a0533234.woff2",
+              "sha256": "a4948196a0533234a9a0b393ecf49332e1fa4250cb504ce7f5ba321f9e683909",
+              "bytes": 90572
+            },
+            {
+              "weight": 850,
+              "file": "noto-sans-sc-047-850-5d5b4d2eb4c657d4.woff2",
+              "sha256": "5d5b4d2eb4c657d416284c0ed9271406bcc67f66ad14be3414e6840e3621d9b1",
+              "bytes": 90488
+            }
+          ]
+        },
+        {
+          "family": "Noto Sans SC Cover 048",
+          "ranges": [[35494, 36005]],
+          "faces": [
+            {
+              "weight": 400,
+              "file": "noto-sans-sc-048-400-e1b618d4f4ea423a.woff2",
+              "sha256": "e1b618d4f4ea423a82b381e3325a3b53896f98b3271d4802260ae50205c6fedf",
+              "bytes": 89964
+            },
+            {
+              "weight": 500,
+              "file": "noto-sans-sc-048-500-474743854335fd1b.woff2",
+              "sha256": "474743854335fd1b4061fda3e9cb052acb28143e6b0ad0f18ce074bb9ed71269",
+              "bytes": 91052
+            },
+            {
+              "weight": 550,
+              "file": "noto-sans-sc-048-550-8c8b3f57ed3033ab.woff2",
+              "sha256": "8c8b3f57ed3033abd564fdcede1d7da737062cb15562d1c8a4b1f237f6b2db5c",
+              "bytes": 91412
+            },
+            {
+              "weight": 600,
+              "file": "noto-sans-sc-048-600-d1666ce3abbf3d6b.woff2",
+              "sha256": "d1666ce3abbf3d6b44f8fa1bffdaaabd3642c510dfc06fbf3f2d6dffb7d2e32e",
+              "bytes": 91468
+            },
+            {
+              "weight": 650,
+              "file": "noto-sans-sc-048-650-83d7a3f7ace5fccc.woff2",
+              "sha256": "83d7a3f7ace5fccc544fad3db3691d6b9f1472c284b486d2a2aa6e5cbf10431b",
+              "bytes": 91948
+            },
+            {
+              "weight": 850,
+              "file": "noto-sans-sc-048-850-24625c0f9b843108.woff2",
+              "sha256": "24625c0f9b8431081b26623ea1df3a9b7e41a3dc761797f902ba2a8e8777c2cc",
+              "bytes": 91888
+            }
+          ]
+        },
+        {
+          "family": "Noto Sans SC Cover 049",
+          "ranges": [[36006, 36517]],
+          "faces": [
+            {
+              "weight": 400,
+              "file": "noto-sans-sc-049-400-8b83781fc4b24487.woff2",
+              "sha256": "8b83781fc4b24487f85905a2733404ecb489ce668b8505ab32a44d1639fb82d1",
+              "bytes": 85040
+            },
+            {
+              "weight": 500,
+              "file": "noto-sans-sc-049-500-0ed83bdc499aa4d7.woff2",
+              "sha256": "0ed83bdc499aa4d707c1363ba9c924b830a4fc7e91c815e98c0fc266b919f32c",
+              "bytes": 86252
+            },
+            {
+              "weight": 550,
+              "file": "noto-sans-sc-049-550-e6653b4d66050101.woff2",
+              "sha256": "e6653b4d66050101edad2e205c7966a9a1a5d06b1f7f44ef7a532b94fcd55106",
+              "bytes": 86276
+            },
+            {
+              "weight": 600,
+              "file": "noto-sans-sc-049-600-b57a400dbadc02a8.woff2",
+              "sha256": "b57a400dbadc02a824de767cbd2db3dc51a00129761f9837e109839e5abe4fd1",
+              "bytes": 86436
+            },
+            {
+              "weight": 650,
+              "file": "noto-sans-sc-049-650-add9f2707b715592.woff2",
+              "sha256": "add9f2707b7155925ee6f32a1218de30a7d2a17f2560c843a503d1b6f4c4806d",
+              "bytes": 86736
+            },
+            {
+              "weight": 850,
+              "file": "noto-sans-sc-049-850-ef1011c49d4dde3f.woff2",
+              "sha256": "ef1011c49d4dde3fe02715a0c19709f9f3f1ab8b758375451e124a7485e65ef4",
+              "bytes": 86536
+            }
+          ]
+        },
+        {
+          "family": "Noto Sans SC Cover 050",
+          "ranges": [[36518, 37029]],
+          "faces": [
+            {
+              "weight": 400,
+              "file": "noto-sans-sc-050-400-40c53858e0d15f5a.woff2",
+              "sha256": "40c53858e0d15f5a4ef34345fb1dbb129271c1b01fcf9fe0a64b0d0528b28bc0",
+              "bytes": 80032
+            },
+            {
+              "weight": 500,
+              "file": "noto-sans-sc-050-500-24ae1f64b57c7433.woff2",
+              "sha256": "24ae1f64b57c7433216e68cdda0afabc7c82b4f804d9f21b19d33f7919b89fda",
+              "bytes": 81328
+            },
+            {
+              "weight": 550,
+              "file": "noto-sans-sc-050-550-69d1051440a340bf.woff2",
+              "sha256": "69d1051440a340bf3e4eafa8e7958182bec61f5fef236f073fcf3a8bb6e0e8db",
+              "bytes": 81504
+            },
+            {
+              "weight": 600,
+              "file": "noto-sans-sc-050-600-cd4958941540b1b6.woff2",
+              "sha256": "cd4958941540b1b6eea7c7c8d9d4d0627e4247a1fb8ed8cc16fb19e6dd367d34",
+              "bytes": 81584
+            },
+            {
+              "weight": 650,
+              "file": "noto-sans-sc-050-650-ada8fa8961623d39.woff2",
+              "sha256": "ada8fa8961623d398f2aa893c22724e618d9720850792671675278e8a16ed358",
+              "bytes": 81912
+            },
+            {
+              "weight": 850,
+              "file": "noto-sans-sc-050-850-a72286c9a4e2efce.woff2",
+              "sha256": "a72286c9a4e2efcea13c6b46165a49a46f9418de8cb3bec34ae2475cf53319bb",
+              "bytes": 81904
+            }
+          ]
+        },
+        {
+          "family": "Noto Sans SC Cover 051",
+          "ranges": [[37030, 37541]],
+          "faces": [
+            {
+              "weight": 400,
+              "file": "noto-sans-sc-051-400-8eae473b7e497877.woff2",
+              "sha256": "8eae473b7e497877cd5b36bacabfd3fb42de58fa9b406ed4699bbbcf4a374616",
+              "bytes": 83084
+            },
+            {
+              "weight": 500,
+              "file": "noto-sans-sc-051-500-5c4be56cd7b9fdf5.woff2",
+              "sha256": "5c4be56cd7b9fdf554b6b953906fb1eb764a29f725e803fca9d6afa3b3cc4f49",
+              "bytes": 84420
+            },
+            {
+              "weight": 550,
+              "file": "noto-sans-sc-051-550-a1e6cf2cb9feec50.woff2",
+              "sha256": "a1e6cf2cb9feec50f96ae23eeec5648f17893d3782a0fcf48a0a44c8f15552ef",
+              "bytes": 84796
+            },
+            {
+              "weight": 600,
+              "file": "noto-sans-sc-051-600-ddf6acc1efb6ec46.woff2",
+              "sha256": "ddf6acc1efb6ec46df1c792270278ce3ea62faed9411c4538656056eab079796",
+              "bytes": 84772
+            },
+            {
+              "weight": 650,
+              "file": "noto-sans-sc-051-650-c2d4011064a5a54b.woff2",
+              "sha256": "c2d4011064a5a54b1a0802365dfced08be09b3e08df857521ba4395c0fbf2932",
+              "bytes": 85000
+            },
+            {
+              "weight": 850,
+              "file": "noto-sans-sc-051-850-cd02cf0591c1eb19.woff2",
+              "sha256": "cd02cf0591c1eb19d607301ca5ccd2c314eef3d00f6a73acf579b631db9799e6",
+              "bytes": 85032
+            }
+          ]
+        },
+        {
+          "family": "Noto Sans SC Cover 052",
+          "ranges": [[37542, 38053]],
+          "faces": [
+            {
+              "weight": 400,
+              "file": "noto-sans-sc-052-400-e55a439165bc196c.woff2",
+              "sha256": "e55a439165bc196c87379dbb4165b38d45421935b050a78abea9a57a4e75dccd",
+              "bytes": 99072
+            },
+            {
+              "weight": 500,
+              "file": "noto-sans-sc-052-500-4a32c47cd77870f0.woff2",
+              "sha256": "4a32c47cd77870f0ce179329f33252bb27ca4e08b57d28fd2d940c665a80afbb",
+              "bytes": 100588
+            },
+            {
+              "weight": 550,
+              "file": "noto-sans-sc-052-550-e864f634291096cc.woff2",
+              "sha256": "e864f634291096cce438bc1b3994117bac850b78eb323cada1ad0e842e33b1eb",
+              "bytes": 100912
+            },
+            {
+              "weight": 600,
+              "file": "noto-sans-sc-052-600-39e9603195aa73d1.woff2",
+              "sha256": "39e9603195aa73d1c628f8bb16d524bc5f4f14d70715d51d7b576bccc4c3f07f",
+              "bytes": 100928
+            },
+            {
+              "weight": 650,
+              "file": "noto-sans-sc-052-650-9bc3b618e68f449f.woff2",
+              "sha256": "9bc3b618e68f449f0d39b1a4e5b13ae5a7a64957dd6340fba6ce37ff1e3cd1ca",
+              "bytes": 101212
+            },
+            {
+              "weight": 850,
+              "file": "noto-sans-sc-052-850-c4898951b1069a4f.woff2",
+              "sha256": "c4898951b1069a4fe578bc67163636429a7d24fccce5230694d9a1fd892a5292",
+              "bytes": 100768
+            }
+          ]
+        },
+        {
+          "family": "Noto Sans SC Cover 053",
+          "ranges": [[38054, 38565]],
+          "faces": [
+            {
+              "weight": 400,
+              "file": "noto-sans-sc-053-400-a5441cfb70dabc57.woff2",
+              "sha256": "a5441cfb70dabc574cefcf02a046a5413d1df61ce24bcbfc43f4692873121e81",
+              "bytes": 80288
+            },
+            {
+              "weight": 500,
+              "file": "noto-sans-sc-053-500-7449615a82a03cc7.woff2",
+              "sha256": "7449615a82a03cc7d0e34f30c9e1444f8a2fc20a2b2d6ebca784bc88967cee1e",
+              "bytes": 81924
+            },
+            {
+              "weight": 550,
+              "file": "noto-sans-sc-053-550-28862688ef163f73.woff2",
+              "sha256": "28862688ef163f738e60f03346b90f97cb7b3b34388d7ad2ea4b2f12f07216b9",
+              "bytes": 82008
+            },
+            {
+              "weight": 600,
+              "file": "noto-sans-sc-053-600-d6b3721e28dd1345.woff2",
+              "sha256": "d6b3721e28dd1345c3b7c2d0f36f9a08cc66dbecaf47c11d65f5fd7ba168bf0f",
+              "bytes": 82160
+            },
+            {
+              "weight": 650,
+              "file": "noto-sans-sc-053-650-7043aa0b1017e89d.woff2",
+              "sha256": "7043aa0b1017e89db2d1d495cfbfecda4a96ac139c8c64a87982288cf52a4f51",
+              "bytes": 82644
+            },
+            {
+              "weight": 850,
+              "file": "noto-sans-sc-053-850-7ff1c450d24f6d34.woff2",
+              "sha256": "7ff1c450d24f6d34273a004854fc8bcce4481da638ecd4d13285d31d56fc98d5",
+              "bytes": 82384
+            }
+          ]
+        },
+        {
+          "family": "Noto Sans SC Cover 054",
+          "ranges": [[38566, 39077]],
+          "faces": [
+            {
+              "weight": 400,
+              "file": "noto-sans-sc-054-400-bcdc54e4d5a9561e.woff2",
+              "sha256": "bcdc54e4d5a9561ef8278e7fd8ede06de80ffdeb9b78e451cbc1292d47ffa993",
+              "bytes": 87572
+            },
+            {
+              "weight": 500,
+              "file": "noto-sans-sc-054-500-f244c00c1ba543de.woff2",
+              "sha256": "f244c00c1ba543def2299837209f8135c4268e72bfc4808e505c7ce193d4583b",
+              "bytes": 88812
+            },
+            {
+              "weight": 550,
+              "file": "noto-sans-sc-054-550-8dfc8c46691007b8.woff2",
+              "sha256": "8dfc8c46691007b873a78c5e892e44b3d45427f13c6ab50fa9ea1642b99892eb",
+              "bytes": 89048
+            },
+            {
+              "weight": 600,
+              "file": "noto-sans-sc-054-600-2e906ee6fbfd35e2.woff2",
+              "sha256": "2e906ee6fbfd35e2fbaa115e3ae81e518ffb1377323ec2fe66f20067dfc04d9d",
+              "bytes": 89404
+            },
+            {
+              "weight": 650,
+              "file": "noto-sans-sc-054-650-ed388e5d8a8f9df8.woff2",
+              "sha256": "ed388e5d8a8f9df89229d9ff921d66363f03fd5bad0cc9da49c633f677afee15",
+              "bytes": 89604
+            },
+            {
+              "weight": 850,
+              "file": "noto-sans-sc-054-850-6ab73b0b0acc8d43.woff2",
+              "sha256": "6ab73b0b0acc8d43805c52b67e744c461ab43be993d6f7b674d96cc600b64891",
+              "bytes": 89636
+            }
+          ]
+        },
+        {
+          "family": "Noto Sans SC Cover 055",
+          "ranges": [[39078, 39589]],
+          "faces": [
+            {
+              "weight": 400,
+              "file": "noto-sans-sc-055-400-9c3fc7af6ed94e19.woff2",
+              "sha256": "9c3fc7af6ed94e19b801d91dc06723999645e40814ef4348ebbd3d0c5c7f28bd",
+              "bytes": 100352
+            },
+            {
+              "weight": 500,
+              "file": "noto-sans-sc-055-500-4fcfebd180f1f081.woff2",
+              "sha256": "4fcfebd180f1f0811097d3c0557f3ed2cc15d8bbd2bc940aa2dfa9bc1e154c32",
+              "bytes": 101092
+            },
+            {
+              "weight": 550,
+              "file": "noto-sans-sc-055-550-28ded23f4443d947.woff2",
+              "sha256": "28ded23f4443d947de8b67beb9187d40ce59b019ca7e629cd09bb8ecaae32806",
+              "bytes": 101608
+            },
+            {
+              "weight": 600,
+              "file": "noto-sans-sc-055-600-b0af54a994e409c7.woff2",
+              "sha256": "b0af54a994e409c7abcbd505811321df1b6bc4b5bd48811ef31eb65c452a100a",
+              "bytes": 101672
+            },
+            {
+              "weight": 650,
+              "file": "noto-sans-sc-055-650-0640498152288251.woff2",
+              "sha256": "06404981522882518b7fb6ac5f16aa9cf95be74432d325da2901476060d19e59",
+              "bytes": 102456
+            },
+            {
+              "weight": 850,
+              "file": "noto-sans-sc-055-850-a8acf2d83ddbcf11.woff2",
+              "sha256": "a8acf2d83ddbcf11db7df069a757b9fcee9aa7bfd6ca8977c881d01909cbca75",
+              "bytes": 101356
+            }
+          ]
+        },
+        {
+          "family": "Noto Sans SC Cover 056",
+          "ranges": [[39590, 40101]],
+          "faces": [
+            {
+              "weight": 400,
+              "file": "noto-sans-sc-056-400-7aeba9254cba5c1f.woff2",
+              "sha256": "7aeba9254cba5c1f3409541df9cc5c502acf7e432c07b182fd872ba8d9efbbe8",
+              "bytes": 100600
+            },
+            {
+              "weight": 500,
+              "file": "noto-sans-sc-056-500-a712a7fa821e950c.woff2",
+              "sha256": "a712a7fa821e950c12c4f1a92c03beb37ea25d3958457a5d523c8db900cb5806",
+              "bytes": 102096
+            },
+            {
+              "weight": 550,
+              "file": "noto-sans-sc-056-550-bf13ff2b6a2884d5.woff2",
+              "sha256": "bf13ff2b6a2884d56baa83e9ac74c69ed03e978d9a859e0fb6e4f40dc1f80746",
+              "bytes": 102376
+            },
+            {
+              "weight": 600,
+              "file": "noto-sans-sc-056-600-110a3c3bfba40560.woff2",
+              "sha256": "110a3c3bfba405600d0ea0b5a628265e2b9fb20edf3b996f0ec5566bd075bb99",
+              "bytes": 102788
+            },
+            {
+              "weight": 650,
+              "file": "noto-sans-sc-056-650-e9f6e4df47d5a001.woff2",
+              "sha256": "e9f6e4df47d5a001712baba199729612e7188aeebcacdd707316784db991bc79",
+              "bytes": 103076
+            },
+            {
+              "weight": 850,
+              "file": "noto-sans-sc-056-850-4c819dbe1c3b7df1.woff2",
+              "sha256": "4c819dbe1c3b7df16b945af8b14774e1cb00ca0b8cd375435a92aa9f28d0f29b",
+              "bytes": 102984
+            }
+          ]
+        },
+        {
+          "family": "Noto Sans SC Cover 057",
+          "ranges": [[40102, 40613]],
+          "faces": [
+            {
+              "weight": 400,
+              "file": "noto-sans-sc-057-400-a62fb3fc21cd2179.woff2",
+              "sha256": "a62fb3fc21cd2179c2b0bd565419f64903e229a174a62adf1c8fd863bc8d476f",
+              "bytes": 107568
+            },
+            {
+              "weight": 500,
+              "file": "noto-sans-sc-057-500-6547e36e9afc1c13.woff2",
+              "sha256": "6547e36e9afc1c13dc2fd01e898c0b66e2163c117a2abc221c0772604e0d5d81",
+              "bytes": 109344
+            },
+            {
+              "weight": 550,
+              "file": "noto-sans-sc-057-550-2b05e522bbf29b52.woff2",
+              "sha256": "2b05e522bbf29b52b90882e36f6eaa063fd78d64d7492d3ddaaafd9b258b3c3e",
+              "bytes": 109716
+            },
+            {
+              "weight": 600,
+              "file": "noto-sans-sc-057-600-dc5265777e91f760.woff2",
+              "sha256": "dc5265777e91f7609bf117c26b7f9e25d7778edeb01f712bb484b12fb46a2218",
+              "bytes": 109512
+            },
+            {
+              "weight": 650,
+              "file": "noto-sans-sc-057-650-affef76dc90f4478.woff2",
+              "sha256": "affef76dc90f4478cf510d592a4c1a2be1bb5c6fdd22f6c31a0cb9fad2d53a6d",
+              "bytes": 110280
+            },
+            {
+              "weight": 850,
+              "file": "noto-sans-sc-057-850-df001f09d10a782d.woff2",
+              "sha256": "df001f09d10a782d25de19a734986d8dc52c19696228a63af18361fb9a8adbc8",
+              "bytes": 109680
+            }
+          ]
+        },
+        {
+          "family": "Noto Sans SC Cover 058",
+          "ranges": [
+            [40614, 40943],
+            [63744, 63747],
+            [63749, 63750],
+            [63755, 63756],
+            [63765, 63765],
+            [63767, 63770],
+            [63777, 63777],
+            [63788, 63789],
+            [63791, 63791],
+            [63793, 63797],
+            [63799, 63802],
+            [63811, 63811],
+            [63815, 63818],
+            [63822, 63822],
+            [63826, 63827],
+            [63838, 63838],
+            [63842, 63847],
+            [63854, 63854],
+            [63858, 63858],
+            [63860, 63860],
+            [63862, 63862],
+            [63865, 63867],
+            [63870, 63872],
+            [63876, 63877],
+            [63882, 63884],
+            [63886, 63886],
+            [63891, 63891],
+            [63893, 63893],
+            [63896, 63896],
+            [63918, 63918],
+            [63923, 63923],
+            [63927, 63927],
+            [63931, 63931],
+            [63933, 63934],
+            [63936, 63936],
+            [63941, 63942],
+            [63952, 63952],
+            [63960, 63961],
+            [63964, 63968],
+            [63970, 63972],
+            [63975, 63975],
+            [63977, 63977],
+            [63985, 63985],
+            [63988, 63989],
+            [63994, 63994],
+            [63997, 63997],
+            [63999, 63999],
+            [64002, 64002],
+            [64005, 64008],
+            [64010, 64010],
+            [64012, 64015],
+            [64017, 64017],
+            [64019, 64020],
+            [64024, 64024],
+            [64031, 64033],
+            [64035, 64036],
+            [64039, 64041],
+            [64047, 64047],
+            [64051, 64053],
+            [64055, 64056],
+            [64058, 64058],
+            [64071, 64071],
+            [64073, 64073],
+            [64075, 64075],
+            [64093, 64094],
+            [64256, 64260],
+            [65040, 65049],
+            [65072, 65106],
+            [65108, 65117]
+          ],
+          "faces": [
+            {
+              "weight": 400,
+              "file": "noto-sans-sc-058-400-e34073e5cb7e0691.woff2",
+              "sha256": "e34073e5cb7e0691c94b75dcdc39e461c731bc9a828fc0e61ec827cdb95cadce",
+              "bytes": 90588
+            },
+            {
+              "weight": 500,
+              "file": "noto-sans-sc-058-500-461f08f3221848a7.woff2",
+              "sha256": "461f08f3221848a74b4ec6e4d338253ac616bfa5df8e14bb32abd87cecbaf0eb",
+              "bytes": 91568
+            },
+            {
+              "weight": 550,
+              "file": "noto-sans-sc-058-550-5b57fe26c114bdc1.woff2",
+              "sha256": "5b57fe26c114bdc1c996e97ede4f325b09672f3cb449f821aaf4d0791ac67d1d",
+              "bytes": 91864
+            },
+            {
+              "weight": 600,
+              "file": "noto-sans-sc-058-600-857d89f87042e9fe.woff2",
+              "sha256": "857d89f87042e9fe2ae7c3e628405e09fd474d63b2b8e899d51da94429ae363e",
+              "bytes": 92232
+            },
+            {
+              "weight": 650,
+              "file": "noto-sans-sc-058-650-b9bad839a0866120.woff2",
+              "sha256": "b9bad839a08661208d113cea60d97c6e99c683275ff39c2cbdda2621914179fd",
+              "bytes": 92704
+            },
+            {
+              "weight": 850,
+              "file": "noto-sans-sc-058-850-2a2473e8e9346065.woff2",
+              "sha256": "2a2473e8e93460653eefbe3b457ef77906bfdaabb1b7271ce838c57488f034d1",
+              "bytes": 92940
+            }
+          ]
+        },
+        {
+          "family": "Noto Sans SC Cover 059",
+          "ranges": [
+            [65118, 65126],
+            [65128, 65131],
+            [65281, 65439],
+            [65441, 65470],
+            [65474, 65479],
+            [65482, 65487],
+            [65490, 65495],
+            [65498, 65500],
+            [65504, 65510],
+            [65512, 65518],
+            [127232, 127244],
+            [127248, 127340],
+            [127344, 127404],
+            [127488, 127490],
+            [127504, 127547],
+            [127552, 127560],
+            [127568, 127569],
+            [131207, 131207],
+            [131209, 131209],
+            [131276, 131276],
+            [131428, 131428],
+            [132648, 132648],
+            [132726, 132726],
+            [134352, 134352],
+            [136090, 136090],
+            [136211, 136211],
+            [136663, 136663],
+            [141711, 141711],
+            [144843, 144843],
+            [146583, 146584],
+            [146979, 146979],
+            [147966, 147966],
+            [147982, 147982],
+            [149737, 149737],
+            [149979, 149979],
+            [150017, 150017],
+            [150141, 150141],
+            [150217, 150217],
+            [152882, 152882],
+            [152930, 152930],
+            [153000, 153000],
+            [154327, 154327],
+            [155351, 155351],
+            [156193, 156193],
+            [156813, 156813],
+            [157302, 157302],
+            [157564, 157564],
+            [158033, 158033],
+            [158556, 158556],
+            [158753, 158753],
+            [161970, 161970],
+            [163503, 163503],
+            [163767, 163767],
+            [163833, 163833],
+            [164872, 164872],
+            [165496, 165496],
+            [165525, 165525],
+            [165856, 165856],
+            [166729, 166729],
+            [166983, 166983],
+            [166991, 166991],
+            [166993, 166993],
+            [166996, 166996],
+            [167439, 167439],
+            [167577, 167577],
+            [169599, 169599]
+          ],
+          "faces": [
+            {
+              "weight": 400,
+              "file": "noto-sans-sc-059-400-88516152468ba06f.woff2",
+              "sha256": "88516152468ba06f9a064dfe2d7c4446eb8f2d223a380a3c8ca98a175d29507f",
+              "bytes": 59012
+            },
+            {
+              "weight": 500,
+              "file": "noto-sans-sc-059-500-b145063d5a4dcedf.woff2",
+              "sha256": "b145063d5a4dcedf34cf8d72f9890b2ff4f3a71b0735732dbc2f820c4f329771",
+              "bytes": 59236
+            },
+            {
+              "weight": 550,
+              "file": "noto-sans-sc-059-550-e0974ef3c3010aed.woff2",
+              "sha256": "e0974ef3c3010aede72175dc270fa67eb938ccc718a2996e30202771382355f5",
+              "bytes": 59200
+            },
+            {
+              "weight": 600,
+              "file": "noto-sans-sc-059-600-8fe9510e9c289808.woff2",
+              "sha256": "8fe9510e9c289808586d0175844805f50a743090b0fe55fb8691281681797cb2",
+              "bytes": 59224
+            },
+            {
+              "weight": 650,
+              "file": "noto-sans-sc-059-650-f2f5e70b56fff6b0.woff2",
+              "sha256": "f2f5e70b56fff6b09e834372b1b21036ac4c8407d9b17de105a807d30365fced",
+              "bytes": 59264
+            },
+            {
+              "weight": 850,
+              "file": "noto-sans-sc-059-850-f2aabbf0eb0deca9.woff2",
+              "sha256": "f2aabbf0eb0deca9204df992f8f9b9069616e2a7ea9247bb1acb9010d9611a68",
+              "bytes": 59840
+            }
+          ]
+        },
+        {
+          "family": "Noto Sans SC Cover 060",
+          "ranges": [
+            [170000, 170000],
+            [171902, 171902],
+            [171907, 171907],
+            [171916, 171916],
+            [174045, 174045],
+            [174331, 174331],
+            [174359, 174359],
+            [174640, 174640],
+            [174646, 174646],
+            [174680, 174680],
+            [176034, 176034],
+            [176423, 176424],
+            [176439, 176440],
+            [176621, 176621],
+            [176896, 176896],
+            [176995, 176995],
+            [177007, 177007],
+            [177010, 177010],
+            [177021, 177021],
+            [177156, 177156],
+            [177168, 177168],
+            [177171, 177171],
+            [177249, 177249],
+            [177383, 177383],
+            [177391, 177391],
+            [177398, 177398],
+            [177401, 177401],
+            [177421, 177422],
+            [177462, 177462],
+            [177582, 177583],
+            [177587, 177587],
+            [177639, 177639],
+            [177652, 177652],
+            [177692, 177693],
+            [177702, 177704],
+            [177706, 177706],
+            [177708, 177708],
+            [177813, 177814],
+            [177837, 177837],
+            [177901, 177901],
+            [178089, 178089],
+            [178117, 178117],
+            [178150, 178150],
+            [178169, 178169],
+            [178172, 178172],
+            [178182, 178182],
+            [178186, 178186],
+            [178204, 178204],
+            [178360, 178360],
+            [178887, 178887],
+            [179039, 179039],
+            [179042, 179042],
+            [179068, 179068],
+            [179075, 179075],
+            [179227, 179227],
+            [179575, 179575],
+            [179591, 179591],
+            [179703, 179703],
+            [179753, 179753],
+            [180265, 180266],
+            [180393, 180393],
+            [180426, 180426],
+            [180693, 180693],
+            [180697, 180697],
+            [180729, 180729],
+            [180860, 180860],
+            [180872, 180872],
+            [180900, 180900],
+            [181015, 181015],
+            [181083, 181083],
+            [181089, 181089],
+            [181092, 181092],
+            [181384, 181384],
+            [181396, 181396],
+            [181399, 181399],
+            [181570, 181570],
+            [181779, 181779],
+            [181784, 181784],
+            [181793, 181793],
+            [181801, 181801],
+            [181803, 181805],
+            [181807, 181807],
+            [181826, 181826],
+            [181834, 181835],
+            [182060, 182060],
+            [182063, 182063],
+            [182175, 182175],
+            [182209, 182209],
+            [182269, 182269],
+            [182489, 182489],
+            [182494, 182494],
+            [182497, 182497],
+            [182515, 182515],
+            [182535, 182535],
+            [182538, 182538],
+            [182557, 182557],
+            [182786, 182786],
+            [182798, 182798],
+            [182909, 182909],
+            [182953, 182953],
+            [183081, 183081],
+            [183085, 183086],
+            [183089, 183089],
+            [183096, 183097],
+            [183099, 183099],
+            [183103, 183103],
+            [183105, 183105],
+            [183114, 183114],
+            [183118, 183118],
+            [183130, 183131],
+            [183140, 183140],
+            [183145, 183145],
+            [183148, 183148],
+            [183151, 183151],
+            [183155, 183155],
+            [183158, 183158],
+            [183160, 183160],
+            [183164, 183164],
+            [183217, 183217],
+            [183231, 183232],
+            [183246, 183246],
+            [183382, 183382],
+            [183391, 183391],
+            [183541, 183542],
+            [183549, 183549],
+            [183551, 183551],
+            [183554, 183555],
+            [183562, 183562],
+            [183691, 183691],
+            [183693, 183693],
+            [183695, 183696],
+            [183711, 183712],
+            [183720, 183720],
+            [183725, 183726],
+            [183765, 183765],
+            [183832, 183832],
+            [183834, 183834],
+            [183843, 183843],
+            [183846, 183846],
+            [183850, 183850],
+            [183932, 183932],
+            [183944, 183944],
+            [183955, 183955],
+            [185668, 185668],
+            [194692, 194692],
+            [194742, 194742],
+            [200413, 200414],
+            [200812, 200812]
+          ],
+          "faces": [
+            {
+              "weight": 400,
+              "file": "noto-sans-sc-060-400-bb78c3a89c2d67fd.woff2",
+              "sha256": "bb78c3a89c2d67fd0ddf11657bbd713a2532c4909207d4c48e6b89b934a421c9",
+              "bytes": 35020
+            },
+            {
+              "weight": 500,
+              "file": "noto-sans-sc-060-500-ea3aec50a6674d27.woff2",
+              "sha256": "ea3aec50a6674d27a48bd7ea3513dc239591c5479f35b4a0f8e8c17d7b24e44f",
+              "bytes": 35380
+            },
+            {
+              "weight": 550,
+              "file": "noto-sans-sc-060-550-d9fe0f3c29b21e74.woff2",
+              "sha256": "d9fe0f3c29b21e74838fc975fcb3143326c80d5df3db5d6df9958dbb5d01d5cd",
+              "bytes": 35488
+            },
+            {
+              "weight": 600,
+              "file": "noto-sans-sc-060-600-24e57f31fd5e3bb0.woff2",
+              "sha256": "24e57f31fd5e3bb032b5aa97334e79c2debbe24547952b78f53d38480b8e480f",
+              "bytes": 35544
+            },
+            {
+              "weight": 650,
+              "file": "noto-sans-sc-060-650-f2f8e55de2564139.woff2",
+              "sha256": "f2f8e55de2564139620a7c8d23820f40d56ae7f394273123f0ac89abe9e75a16",
+              "bytes": 35648
+            },
+            {
+              "weight": 850,
+              "file": "noto-sans-sc-060-850-61eafbf2277c8785.woff2",
+              "sha256": "61eafbf2277c878513fd237b6cd16b89399173cf5d490fe4a1c989cc05b46ae8",
+              "bytes": 35520
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "noto-serif-sc",
+      "family": "Noto Serif SC",
+      "codepoints": 30928,
+      "source_url": "https://raw.githubusercontent.com/google/fonts/main/ofl/notoserifsc/NotoSerifSC%5Bwght%5D.ttf",
+      "source_sha256": "050080d9255a86808f2945bffac582b31ef32bc36411ce29563b4961670c66f9",
+      "license": "notoserifsc-OFL.txt",
+      "shards": [
+        {
+          "family": "Noto Serif SC Cover 000",
+          "ranges": [
+            [32, 126],
+            [160, 259],
+            [272, 275],
+            [282, 283],
+            [296, 299],
+            [323, 324],
+            [327, 328],
+            [332, 335],
+            [338, 339],
+            [360, 365],
+            [402, 402],
+            [416, 417],
+            [431, 432],
+            [461, 476],
+            [504, 505],
+            [593, 593],
+            [609, 609],
+            [699, 699],
+            [711, 711],
+            [713, 715],
+            [729, 729],
+            [746, 747],
+            [768, 769],
+            [772, 772],
+            [775, 775],
+            [780, 780],
+            [913, 929],
+            [931, 937],
+            [945, 969],
+            [1025, 1025],
+            [1040, 1103],
+            [1105, 1105],
+            [7742, 7743],
+            [7840, 7929],
+            [8194, 8195],
+            [8208, 8214],
+            [8216, 8218],
+            [8220, 8222],
+            [8224, 8226],
+            [8229, 8231],
+            [8240, 8240],
+            [8242, 8243],
+            [8245, 8245],
+            [8249, 8252],
+            [8258, 8258],
+            [8263, 8265],
+            [8273, 8273],
+            [8308, 8308],
+            [8361, 8361],
+            [8363, 8364],
+            [8413, 8414],
+            [8448, 8448],
+            [8451, 8451],
+            [8453, 8453],
+            [8457, 8458],
+            [8463, 8463]
+          ],
+          "faces": [
+            {
+              "weight": 500,
+              "file": "noto-serif-sc-000-500-37db769924386b0f.woff2",
+              "sha256": "37db769924386b0f4f918fce5cd83f3e705a738e645288a1bddbc80a9cb04fd5",
+              "bytes": 62520
+            },
+            {
+              "weight": 550,
+              "file": "noto-serif-sc-000-550-681a1d574881cd23.woff2",
+              "sha256": "681a1d574881cd2309c0901b8762656a1a22e793873e8e4edde323c6797399ea",
+              "bytes": 62484
+            }
+          ]
+        },
+        {
+          "family": "Noto Serif SC Cover 001",
+          "ranges": [
+            [8467, 8467],
+            [8470, 8470],
+            [8481, 8482],
+            [8486, 8487],
+            [8491, 8491],
+            [8494, 8494],
+            [8501, 8501],
+            [8507, 8507],
+            [8544, 8555],
+            [8560, 8571],
+            [8592, 8601],
+            [8632, 8633],
+            [8644, 8646],
+            [8651, 8652],
+            [8656, 8656],
+            [8658, 8658],
+            [8660, 8660],
+            [8678, 8681],
+            [8693, 8693],
+            [8704, 8704],
+            [8706, 8707],
+            [8709, 8715],
+            [8719, 8719],
+            [8721, 8723],
+            [8725, 8725],
+            [8730, 8730],
+            [8733, 8736],
+            [8739, 8739],
+            [8741, 8750],
+            [8756, 8759],
+            [8765, 8765],
+            [8771, 8771],
+            [8773, 8773],
+            [8776, 8776],
+            [8780, 8780],
+            [8800, 8802],
+            [8804, 8807],
+            [8810, 8811],
+            [8814, 8815],
+            [8818, 8819],
+            [8822, 8823],
+            [8834, 8839],
+            [8842, 8843],
+            [8853, 8857],
+            [8864, 8864],
+            [8869, 8869],
+            [8895, 8895],
+            [8922, 8923],
+            [8943, 8943],
+            [8965, 8967],
+            [8978, 8978],
+            [8984, 8984],
+            [9001, 9002],
+            [9136, 9137],
+            [9150, 9164],
+            [9166, 9166],
+            [9178, 9179],
+            [9251, 9251],
+            [9312, 9643],
+            [9649, 9651],
+            [9654, 9655],
+            [9660, 9661],
+            [9664, 9665],
+            [9670, 9671],
+            [9673, 9676],
+            [9678, 9681]
+          ],
+          "faces": [
+            {
+              "weight": 500,
+              "file": "noto-serif-sc-001-500-014dba5c6d4acfb2.woff2",
+              "sha256": "014dba5c6d4acfb2b5815c72354b47266928414e1621e5f471885512a7799a76",
+              "bytes": 24528
+            },
+            {
+              "weight": 550,
+              "file": "noto-serif-sc-001-550-877670f0121eeebe.woff2",
+              "sha256": "877670f0121eeebed681ccfdc650b424d7f3e684b43c41d707b1a027e6248c32",
+              "bytes": 24456
+            }
+          ]
+        },
+        {
+          "family": "Noto Serif SC Cover 002",
+          "ranges": [
+            [9682, 9683],
+            [9698, 9702],
+            [9711, 9711],
+            [9728, 9731],
+            [9733, 9734],
+            [9737, 9737],
+            [9742, 9743],
+            [9750, 9751],
+            [9756, 9759],
+            [9775, 9775],
+            [9792, 9794],
+            [9824, 9839],
+            [9842, 9853],
+            [9888, 9888],
+            [9917, 9918],
+            [9986, 9986],
+            [10003, 10003],
+            [10010, 10010],
+            [10045, 10045],
+            [10047, 10048],
+            [10070, 10070],
+            [10102, 10131],
+            [10145, 10145],
+            [10548, 10549],
+            [10687, 10687],
+            [10746, 10747],
+            [11013, 11015],
+            [11034, 11034],
+            [11157, 11157],
+            [11834, 11835],
+            [11904, 11929],
+            [11931, 12019],
+            [12032, 12245],
+            [12272, 12283],
+            [12288, 12350]
+          ],
+          "faces": [
+            {
+              "weight": 500,
+              "file": "noto-serif-sc-002-500-4b49fc214d57aa14.woff2",
+              "sha256": "4b49fc214d57aa14b936c364cffd35ad2cb80d029cdd9cbc08aafae4b16a000b",
+              "bytes": 58368
+            },
+            {
+              "weight": 550,
+              "file": "noto-serif-sc-002-550-88d96ed111f13706.woff2",
+              "sha256": "88d96ed111f13706270c5d35bd6a8aa7d3ae05020b1279ba97c6c6f36054281d",
+              "bytes": 58400
+            }
+          ]
+        },
+        {
+          "family": "Noto Serif SC Cover 003",
+          "ranges": [
+            [12351, 12351],
+            [12353, 12438],
+            [12441, 12543],
+            [12549, 12591],
+            [12593, 12643],
+            [12645, 12686],
+            [12688, 12731],
+            [12736, 12771],
+            [12784, 12830],
+            [12832, 12890]
+          ],
+          "faces": [
+            {
+              "weight": 500,
+              "file": "noto-serif-sc-003-500-50da4fc324361e07.woff2",
+              "sha256": "50da4fc324361e075e9cf6b02260813c00389c2708c7bed8fa0d1776e90641c2",
+              "bytes": 140172
+            },
+            {
+              "weight": 550,
+              "file": "noto-serif-sc-003-550-3893a9929c51676f.woff2",
+              "sha256": "3893a9929c51676f9329aae8b5c8c1cdfe69f898f09872cd60507fd1cfb6b187",
+              "bytes": 139868
+            }
+          ]
+        },
+        {
+          "family": "Noto Serif SC Cover 004",
+          "ranges": [[12891, 13099], [13101, 13403]],
+          "faces": [
+            {
+              "weight": 500,
+              "file": "noto-serif-sc-004-500-00d72bf932ad26ce.woff2",
+              "sha256": "00d72bf932ad26ce61558a13fb339f69e3384f9a55b3af0226b15782e2a6f932",
+              "bytes": 93276
+            },
+            {
+              "weight": 550,
+              "file": "noto-serif-sc-004-550-b48e50dfa2881ba8.woff2",
+              "sha256": "b48e50dfa2881ba82c92bbf6330f7097e62964a8deb5130e10800bbdccd33606",
+              "bytes": 93480
+            }
+          ]
+        },
+        {
+          "family": "Noto Serif SC Cover 005",
+          "ranges": [[13404, 13915]],
+          "faces": [
+            {
+              "weight": 500,
+              "file": "noto-serif-sc-005-500-00f357f3473848ca.woff2",
+              "sha256": "00f357f3473848ca695a41537dc43109c191263fa62044e1b3681d040f0bec52",
+              "bytes": 109864
+            },
+            {
+              "weight": 550,
+              "file": "noto-serif-sc-005-550-b5e76552e1b841d5.woff2",
+              "sha256": "b5e76552e1b841d5d2c6a2c3231e8db9788aeac2d9513349f67d2effeb1c449c",
+              "bytes": 110440
+            }
+          ]
+        },
+        {
+          "family": "Noto Serif SC Cover 006",
+          "ranges": [[13916, 14427]],
+          "faces": [
+            {
+              "weight": 500,
+              "file": "noto-serif-sc-006-500-a86f80ced170813f.woff2",
+              "sha256": "a86f80ced170813fc2321b66b1d0ce370542c17bcf7a7ceba9b17ed9530782aa",
+              "bytes": 111316
+            },
+            {
+              "weight": 550,
+              "file": "noto-serif-sc-006-550-9c01a7354ee9cfc8.woff2",
+              "sha256": "9c01a7354ee9cfc8594c848916e811aaa86a9daf672ab25e33bb818ab00d20b8",
+              "bytes": 111660
+            }
+          ]
+        },
+        {
+          "family": "Noto Serif SC Cover 007",
+          "ranges": [[14428, 14939]],
+          "faces": [
+            {
+              "weight": 500,
+              "file": "noto-serif-sc-007-500-3f89c682edeeec15.woff2",
+              "sha256": "3f89c682edeeec15242df6950f179abe9a7be6ffb77e1409f2370f12daaaefdc",
+              "bytes": 110196
+            },
+            {
+              "weight": 550,
+              "file": "noto-serif-sc-007-550-f8b774bf42d3cac4.woff2",
+              "sha256": "f8b774bf42d3cac4f405c37d16bf9be77c9f338b75a08d989f611f27d32f74a5",
+              "bytes": 110472
+            }
+          ]
+        },
+        {
+          "family": "Noto Serif SC Cover 008",
+          "ranges": [[14940, 15451]],
+          "faces": [
+            {
+              "weight": 500,
+              "file": "noto-serif-sc-008-500-8a9c5e38efdd7e44.woff2",
+              "sha256": "8a9c5e38efdd7e446c7902a2878acde40d113e644d1ceb6319363d1d5f007aad",
+              "bytes": 119272
+            },
+            {
+              "weight": 550,
+              "file": "noto-serif-sc-008-550-3040a017a81f54ef.woff2",
+              "sha256": "3040a017a81f54efee2d16f7c987e78c310dd12d30c9925c29aed7a677a62f1c",
+              "bytes": 119724
+            }
+          ]
+        },
+        {
+          "family": "Noto Serif SC Cover 009",
+          "ranges": [[15452, 15963]],
+          "faces": [
+            {
+              "weight": 500,
+              "file": "noto-serif-sc-009-500-768236b61fc6d371.woff2",
+              "sha256": "768236b61fc6d371e60e2a476db0dcc72aab35f50d09af95fe87fb7e1705c6a5",
+              "bytes": 129220
+            },
+            {
+              "weight": 550,
+              "file": "noto-serif-sc-009-550-86518251299488ed.woff2",
+              "sha256": "86518251299488edb7a87cc1e11dbc238acdde48f9956a1cf0424afebec8b915",
+              "bytes": 129564
+            }
+          ]
+        },
+        {
+          "family": "Noto Serif SC Cover 010",
+          "ranges": [[15964, 16475]],
+          "faces": [
+            {
+              "weight": 500,
+              "file": "noto-serif-sc-010-500-d907daaf77d98074.woff2",
+              "sha256": "d907daaf77d98074305da5c9c7c314e35db638b783b528e2dbeed4039cfba7f5",
+              "bytes": 109756
+            },
+            {
+              "weight": 550,
+              "file": "noto-serif-sc-010-550-5fba3f176c28ffba.woff2",
+              "sha256": "5fba3f176c28ffbac9814340390e6cff79ca64912f08afb931b4aab479725bcd",
+              "bytes": 110100
+            }
+          ]
+        },
+        {
+          "family": "Noto Serif SC Cover 011",
+          "ranges": [[16476, 16987]],
+          "faces": [
+            {
+              "weight": 500,
+              "file": "noto-serif-sc-011-500-f8f3a4cb75cd08e1.woff2",
+              "sha256": "f8f3a4cb75cd08e1e50ec8796a1a3591e4369d042e81b15ef972c4da4d3e1c82",
+              "bytes": 116056
+            },
+            {
+              "weight": 550,
+              "file": "noto-serif-sc-011-550-76ee9c58404861f7.woff2",
+              "sha256": "76ee9c58404861f79a5a68037766f3fab3764dc46c47f77c552e25cd5064bc71",
+              "bytes": 116388
+            }
+          ]
+        },
+        {
+          "family": "Noto Serif SC Cover 012",
+          "ranges": [[16988, 17499]],
+          "faces": [
+            {
+              "weight": 500,
+              "file": "noto-serif-sc-012-500-48c05257a466b29f.woff2",
+              "sha256": "48c05257a466b29f7885553f7b416ecf233eb404d4332382b459f07e060fbc28",
+              "bytes": 122040
+            },
+            {
+              "weight": 550,
+              "file": "noto-serif-sc-012-550-2f2f22e2d68da9d0.woff2",
+              "sha256": "2f2f22e2d68da9d0947c302555d7c1e48b4870f834f894f78252ff587def43b6",
+              "bytes": 122644
+            }
+          ]
+        },
+        {
+          "family": "Noto Serif SC Cover 013",
+          "ranges": [[17500, 18011]],
+          "faces": [
+            {
+              "weight": 500,
+              "file": "noto-serif-sc-013-500-e67f6c8b9fb65f36.woff2",
+              "sha256": "e67f6c8b9fb65f36a1ed3d70f002a0944f7f9586edcb3e9515fafc88d9738a2f",
+              "bytes": 122600
+            },
+            {
+              "weight": 550,
+              "file": "noto-serif-sc-013-550-bfc5bf7c502dd724.woff2",
+              "sha256": "bfc5bf7c502dd724e70e156d99d55aba56bf2b13b6073893f8b0ce2fc5dc4d29",
+              "bytes": 122932
+            }
+          ]
+        },
+        {
+          "family": "Noto Serif SC Cover 014",
+          "ranges": [[18012, 18523]],
+          "faces": [
+            {
+              "weight": 500,
+              "file": "noto-serif-sc-014-500-f87deaee7be96f31.woff2",
+              "sha256": "f87deaee7be96f31d0bb55e9a352c2e2cba314eece82959b2d64b4cfe0af5321",
+              "bytes": 116044
+            },
+            {
+              "weight": 550,
+              "file": "noto-serif-sc-014-550-aad2f572712e12ed.woff2",
+              "sha256": "aad2f572712e12ed0d1b5edb046f3d1fe4ede3e03e0abedffe1b8786f4a93424",
+              "bytes": 116300
+            }
+          ]
+        },
+        {
+          "family": "Noto Serif SC Cover 015",
+          "ranges": [[18524, 19035]],
+          "faces": [
+            {
+              "weight": 500,
+              "file": "noto-serif-sc-015-500-ec86211d2c28abbe.woff2",
+              "sha256": "ec86211d2c28abbe4fb37273d593f2a454922f308d31e9833aa8b8637a59ec51",
+              "bytes": 122776
+            },
+            {
+              "weight": 550,
+              "file": "noto-serif-sc-015-550-4dbdd8620a9d59d2.woff2",
+              "sha256": "4dbdd8620a9d59d25528603a862a215dab169d7c371d2c92ff99a4cec9a43e97",
+              "bytes": 123184
+            }
+          ]
+        },
+        {
+          "family": "Noto Serif SC Cover 016",
+          "ranges": [[19036, 19547]],
+          "faces": [
+            {
+              "weight": 500,
+              "file": "noto-serif-sc-016-500-7db143653c45d990.woff2",
+              "sha256": "7db143653c45d990509b24f15f60bb31096b093e7c5e55bab1397ee4267a2b8f",
+              "bytes": 131424
+            },
+            {
+              "weight": 550,
+              "file": "noto-serif-sc-016-550-88be09d5c3f34e77.woff2",
+              "sha256": "88be09d5c3f34e773cf0314a1b200d2537a2fc239ce4bba153143054b4236d60",
+              "bytes": 132048
+            }
+          ]
+        },
+        {
+          "family": "Noto Serif SC Cover 017",
+          "ranges": [[19548, 19903], [19968, 20123]],
+          "faces": [
+            {
+              "weight": 500,
+              "file": "noto-serif-sc-017-500-560f2d91fea21398.woff2",
+              "sha256": "560f2d91fea213988902a20ab0ee38dda1ee673488ddc5bbcb02ab9e7fc0cff9",
+              "bytes": 121880
+            },
+            {
+              "weight": 550,
+              "file": "noto-serif-sc-017-550-7ba32901a05fdde5.woff2",
+              "sha256": "7ba32901a05fdde50defd6041f6009c55eb1e0f3e3c2d38d6b7eb178964cb420",
+              "bytes": 122436
+            }
+          ]
+        },
+        {
+          "family": "Noto Serif SC Cover 018",
+          "ranges": [[20124, 20635]],
+          "faces": [
+            {
+              "weight": 500,
+              "file": "noto-serif-sc-018-500-42cb4ee8b36c0e18.woff2",
+              "sha256": "42cb4ee8b36c0e185924925c724ea3baf711a00227bb36600c0a7b6914d477ce",
+              "bytes": 82700
+            },
+            {
+              "weight": 550,
+              "file": "noto-serif-sc-018-550-6318037bc3d19513.woff2",
+              "sha256": "6318037bc3d1951388f652897ab0072028f0b70004402a613171ce12e690e6f8",
+              "bytes": 83260
+            }
+          ]
+        },
+        {
+          "family": "Noto Serif SC Cover 019",
+          "ranges": [[20636, 21147]],
+          "faces": [
+            {
+              "weight": 500,
+              "file": "noto-serif-sc-019-500-17a27435472a5081.woff2",
+              "sha256": "17a27435472a50814c732eb73b9e79177daf3c5a8fd8fd9e25f2c343c64da240",
+              "bytes": 108580
+            },
+            {
+              "weight": 550,
+              "file": "noto-serif-sc-019-550-6dea4f100ec9a2d6.woff2",
+              "sha256": "6dea4f100ec9a2d6191dc50e507a632906e561e81b7da14c73dd16be624c4bf2",
+              "bytes": 108908
+            }
+          ]
+        },
+        {
+          "family": "Noto Serif SC Cover 020",
+          "ranges": [[21148, 21659]],
+          "faces": [
+            {
+              "weight": 500,
+              "file": "noto-serif-sc-020-500-7ca7566eccf65f6a.woff2",
+              "sha256": "7ca7566eccf65f6af52acd5fbe6b9e1868667854d25c33ad7c1482da84858aad",
+              "bytes": 87844
+            },
+            {
+              "weight": 550,
+              "file": "noto-serif-sc-020-550-b19a2bdd8215958e.woff2",
+              "sha256": "b19a2bdd8215958e3370f6728b83632c33103cb4e0c542339a39dbe8c239c5dd",
+              "bytes": 88128
+            }
+          ]
+        },
+        {
+          "family": "Noto Serif SC Cover 021",
+          "ranges": [[21660, 22171]],
+          "faces": [
+            {
+              "weight": 500,
+              "file": "noto-serif-sc-021-500-197b171ff6890f24.woff2",
+              "sha256": "197b171ff6890f24049af7f224cfe54306b040baf3287a93bef80f2c24b5400a",
+              "bytes": 108656
+            },
+            {
+              "weight": 550,
+              "file": "noto-serif-sc-021-550-a49e7c2bba9ed293.woff2",
+              "sha256": "a49e7c2bba9ed29354b6d6672456ec3501e19cb468271c88c201fc4272e6d47c",
+              "bytes": 109072
+            }
+          ]
+        },
+        {
+          "family": "Noto Serif SC Cover 022",
+          "ranges": [[22172, 22683]],
+          "faces": [
+            {
+              "weight": 500,
+              "file": "noto-serif-sc-022-500-260d1e607b361219.woff2",
+              "sha256": "260d1e607b36121953548aa6283545b9c97dee921dedb84f53cd90c9b6e9fa2a",
+              "bytes": 103124
+            },
+            {
+              "weight": 550,
+              "file": "noto-serif-sc-022-550-d4931ba3c2a41fc9.woff2",
+              "sha256": "d4931ba3c2a41fc9d4be99e7921647003c727292c81d3269ff1af4581b0dc6a5",
+              "bytes": 103360
+            }
+          ]
+        },
+        {
+          "family": "Noto Serif SC Cover 023",
+          "ranges": [[22684, 23195]],
+          "faces": [
+            {
+              "weight": 500,
+              "file": "noto-serif-sc-023-500-29414082a374ba15.woff2",
+              "sha256": "29414082a374ba15870c19620d094ff57239b695e3f596d95fde746672034bb9",
+              "bytes": 109112
+            },
+            {
+              "weight": 550,
+              "file": "noto-serif-sc-023-550-adac4453f6257ddd.woff2",
+              "sha256": "adac4453f6257ddd4dbc55db505cf10f139539ef69bd0ffd97727aba882646de",
+              "bytes": 109160
+            }
+          ]
+        },
+        {
+          "family": "Noto Serif SC Cover 024",
+          "ranges": [[23196, 23707]],
+          "faces": [
+            {
+              "weight": 500,
+              "file": "noto-serif-sc-024-500-071ca36e2f3f0a27.woff2",
+              "sha256": "071ca36e2f3f0a278bada0cf29b0727f2488984cdffead5d2eabd15f327f835e",
+              "bytes": 117044
+            },
+            {
+              "weight": 550,
+              "file": "noto-serif-sc-024-550-08a609523c37d8f9.woff2",
+              "sha256": "08a609523c37d8f9c0328b5ef87a91989adf100ae99a7e65bb02f7846ddf7f89",
+              "bytes": 117692
+            }
+          ]
+        },
+        {
+          "family": "Noto Serif SC Cover 025",
+          "ranges": [[23708, 24219]],
+          "faces": [
+            {
+              "weight": 500,
+              "file": "noto-serif-sc-025-500-ec016eaa812de408.woff2",
+              "sha256": "ec016eaa812de4082248bcef338d8796b20e296c289464761662947a67bc3aef",
+              "bytes": 109132
+            },
+            {
+              "weight": 550,
+              "file": "noto-serif-sc-025-550-1e76ef50aeb8d313.woff2",
+              "sha256": "1e76ef50aeb8d3135cbe03e264ba8328978d23c5436fd768df73921ebd429522",
+              "bytes": 109300
+            }
+          ]
+        },
+        {
+          "family": "Noto Serif SC Cover 026",
+          "ranges": [[24220, 24731]],
+          "faces": [
+            {
+              "weight": 500,
+              "file": "noto-serif-sc-026-500-0ea4b3906671f3d9.woff2",
+              "sha256": "0ea4b3906671f3d9f6dd2ed3a9a60dcd82a781c0d45bcfc179072337e793701d",
+              "bytes": 101676
+            },
+            {
+              "weight": 550,
+              "file": "noto-serif-sc-026-550-e9dbd9cd0b186a52.woff2",
+              "sha256": "e9dbd9cd0b186a52a162a7827d5e789bbd88864dad9ecded93c1ea6758a2a0d1",
+              "bytes": 101800
+            }
+          ]
+        },
+        {
+          "family": "Noto Serif SC Cover 027",
+          "ranges": [[24732, 25243]],
+          "faces": [
+            {
+              "weight": 500,
+              "file": "noto-serif-sc-027-500-b098ced07609b497.woff2",
+              "sha256": "b098ced07609b49775e2159bec56a0f69a73944f406918ab25e8cafc6efac6ea",
+              "bytes": 116972
+            },
+            {
+              "weight": 550,
+              "file": "noto-serif-sc-027-550-00a1df2e9fd37426.woff2",
+              "sha256": "00a1df2e9fd3742656a541d91295dd867033a0b4713fa5b87fc6757b5afb621f",
+              "bytes": 117240
+            }
+          ]
+        },
+        {
+          "family": "Noto Serif SC Cover 028",
+          "ranges": [[25244, 25755]],
+          "faces": [
+            {
+              "weight": 500,
+              "file": "noto-serif-sc-028-500-27c68cfe43e513f1.woff2",
+              "sha256": "27c68cfe43e513f1261432b8726d2c8fe3b32e405af894e0915418a3f2400f01",
+              "bytes": 106116
+            },
+            {
+              "weight": 550,
+              "file": "noto-serif-sc-028-550-0e0bb401c05e2544.woff2",
+              "sha256": "0e0bb401c05e25441741b60fb920b14532a418f3690af562a660270e7e899f48",
+              "bytes": 106836
+            }
+          ]
+        },
+        {
+          "family": "Noto Serif SC Cover 029",
+          "ranges": [[25756, 26267]],
+          "faces": [
+            {
+              "weight": 500,
+              "file": "noto-serif-sc-029-500-80f945fce8d28e4b.woff2",
+              "sha256": "80f945fce8d28e4bbefe0b2bef5ab9efb65de358b97fd37c41a06870936ea0e4",
+              "bytes": 118544
+            },
+            {
+              "weight": 550,
+              "file": "noto-serif-sc-029-550-4fabd420c8d317a8.woff2",
+              "sha256": "4fabd420c8d317a82687a7c3467ac572f741cd6ba33348e73f202cfe9d220813",
+              "bytes": 119036
+            }
+          ]
+        },
+        {
+          "family": "Noto Serif SC Cover 030",
+          "ranges": [[26268, 26779]],
+          "faces": [
+            {
+              "weight": 500,
+              "file": "noto-serif-sc-030-500-e3cd322a2e382fdc.woff2",
+              "sha256": "e3cd322a2e382fdcae57be62ed59562da59e5e5a15900a5638bea3e17589302c",
+              "bytes": 95272
+            },
+            {
+              "weight": 550,
+              "file": "noto-serif-sc-030-550-ab1422706c68b597.woff2",
+              "sha256": "ab1422706c68b597cfdf5465fba6e9975b6f9137a50c5447dd5ee6046103da22",
+              "bytes": 95440
+            }
+          ]
+        },
+        {
+          "family": "Noto Serif SC Cover 031",
+          "ranges": [[26780, 27291]],
+          "faces": [
+            {
+              "weight": 500,
+              "file": "noto-serif-sc-031-500-414c0f3e7f2580cf.woff2",
+              "sha256": "414c0f3e7f2580cff991fecc856b309ae95b46cbeec1354b0f43614009a690f6",
+              "bytes": 119096
+            },
+            {
+              "weight": 550,
+              "file": "noto-serif-sc-031-550-d02fbd68ff5a599b.woff2",
+              "sha256": "d02fbd68ff5a599b6ec11f1751dda815ce539b232cacd561e78d061847ef7f60",
+              "bytes": 119504
+            }
+          ]
+        },
+        {
+          "family": "Noto Serif SC Cover 032",
+          "ranges": [[27292, 27803]],
+          "faces": [
+            {
+              "weight": 500,
+              "file": "noto-serif-sc-032-500-5a88c99a4d513058.woff2",
+              "sha256": "5a88c99a4d513058d75bb7777eb7bf16b2fecc398879f87499f896731f3c131b",
+              "bytes": 126772
+            },
+            {
+              "weight": 550,
+              "file": "noto-serif-sc-032-550-4328b90b134b64d2.woff2",
+              "sha256": "4328b90b134b64d2eade52fff9167272b021c6bb9fe4930bde01e253bb02fcab",
+              "bytes": 126904
+            }
+          ]
+        },
+        {
+          "family": "Noto Serif SC Cover 033",
+          "ranges": [[27804, 28315]],
+          "faces": [
+            {
+              "weight": 500,
+              "file": "noto-serif-sc-033-500-42fb483938c39ce4.woff2",
+              "sha256": "42fb483938c39ce433c738e527165d0da3702ff801aa2340bee13e1d00853c7a",
+              "bytes": 109264
+            },
+            {
+              "weight": 550,
+              "file": "noto-serif-sc-033-550-bd70c464c26225e3.woff2",
+              "sha256": "bd70c464c26225e31ac8de92fb92cc62b5b5909c46b270274a3764771a3062ff",
+              "bytes": 109700
+            }
+          ]
+        },
+        {
+          "family": "Noto Serif SC Cover 034",
+          "ranges": [[28316, 28827]],
+          "faces": [
+            {
+              "weight": 500,
+              "file": "noto-serif-sc-034-500-c08ff240f900a4ef.woff2",
+              "sha256": "c08ff240f900a4effe74f68c2b44838b96d8df08fdd2d5383f65cd3a2cabfa8a",
+              "bytes": 148124
+            },
+            {
+              "weight": 550,
+              "file": "noto-serif-sc-034-550-3c0cfd414b3bdc0e.woff2",
+              "sha256": "3c0cfd414b3bdc0e4ab29f1951377ae1916e6a0aad46dca868a1010a10373ea0",
+              "bytes": 148568
+            }
+          ]
+        },
+        {
+          "family": "Noto Serif SC Cover 035",
+          "ranges": [[28828, 29339]],
+          "faces": [
+            {
+              "weight": 500,
+              "file": "noto-serif-sc-035-500-10875a9d13cc6116.woff2",
+              "sha256": "10875a9d13cc6116966125a69a0019f3f79ce3c663ed9385ac14bd7ded35e66d",
+              "bytes": 121348
+            },
+            {
+              "weight": 550,
+              "file": "noto-serif-sc-035-550-94ea2ec2bbcb3714.woff2",
+              "sha256": "94ea2ec2bbcb37140b6e101b4b22a31d7c71de6a9b93316086d7bf48d1b4beb3",
+              "bytes": 121788
+            }
+          ]
+        },
+        {
+          "family": "Noto Serif SC Cover 036",
+          "ranges": [[29340, 29851]],
+          "faces": [
+            {
+              "weight": 500,
+              "file": "noto-serif-sc-036-500-ede321fed0177aaa.woff2",
+              "sha256": "ede321fed0177aaa4ee1627a7d80852645acfafa6c40f493dd7c6381eb1f6938",
+              "bytes": 107552
+            },
+            {
+              "weight": 550,
+              "file": "noto-serif-sc-036-550-cb37d75b2e0f6359.woff2",
+              "sha256": "cb37d75b2e0f6359bb4f44c3efaf454f1c69594132cb7534fb59a2d05e9ce15d",
+              "bytes": 107852
+            }
+          ]
+        },
+        {
+          "family": "Noto Serif SC Cover 037",
+          "ranges": [[29852, 30363]],
+          "faces": [
+            {
+              "weight": 500,
+              "file": "noto-serif-sc-037-500-848f49f512c691dc.woff2",
+              "sha256": "848f49f512c691dcd252e0c461a3daea01a3312b19867a58c01dda3d12f25e9d",
+              "bytes": 116124
+            },
+            {
+              "weight": 550,
+              "file": "noto-serif-sc-037-550-7c059c30a618f71f.woff2",
+              "sha256": "7c059c30a618f71fefdfd61cae6061c21fb600c702083cd776978d147fae950a",
+              "bytes": 116492
+            }
+          ]
+        },
+        {
+          "family": "Noto Serif SC Cover 038",
+          "ranges": [[30364, 30875]],
+          "faces": [
+            {
+              "weight": 500,
+              "file": "noto-serif-sc-038-500-10cde1608cd84db7.woff2",
+              "sha256": "10cde1608cd84db7f6460195c39654bc2a8ac0fa2ed283c510c7d8ce060febce",
+              "bytes": 102664
+            },
+            {
+              "weight": 550,
+              "file": "noto-serif-sc-038-550-ab9fc1669b1a998d.woff2",
+              "sha256": "ab9fc1669b1a998d77936acca0275398bd51d36477231359dc618a20b9b79696",
+              "bytes": 103084
+            }
+          ]
+        },
+        {
+          "family": "Noto Serif SC Cover 039",
+          "ranges": [[30876, 31387]],
+          "faces": [
+            {
+              "weight": 500,
+              "file": "noto-serif-sc-039-500-0be639971acca1a9.woff2",
+              "sha256": "0be639971acca1a9974be6306b010bc0c9dc2b5a8cba5ebff489f5668f080f42",
+              "bytes": 119932
+            },
+            {
+              "weight": 550,
+              "file": "noto-serif-sc-039-550-3f9116fc94fbfa29.woff2",
+              "sha256": "3f9116fc94fbfa292f794add1bcc93c1c4d0b6315ff7ebe87d97ad310c63736e",
+              "bytes": 120136
+            }
+          ]
+        },
+        {
+          "family": "Noto Serif SC Cover 040",
+          "ranges": [[31388, 31899]],
+          "faces": [
+            {
+              "weight": 500,
+              "file": "noto-serif-sc-040-500-7c01b2d9965a9432.woff2",
+              "sha256": "7c01b2d9965a94324c8d4e8ed26f0c6502b5a56d806cea9cb57bb6a10d979fb9",
+              "bytes": 125708
+            },
+            {
+              "weight": 550,
+              "file": "noto-serif-sc-040-550-0b79a82dce90b681.woff2",
+              "sha256": "0b79a82dce90b681e5f990db9036b9c91674a5ee7561d70cc5512e1dc080be58",
+              "bytes": 126364
+            }
+          ]
+        },
+        {
+          "family": "Noto Serif SC Cover 041",
+          "ranges": [[31900, 32411]],
+          "faces": [
+            {
+              "weight": 500,
+              "file": "noto-serif-sc-041-500-783215d4d09ec486.woff2",
+              "sha256": "783215d4d09ec48692f633e6ccfcd1e42b9e7c3c8108bfee7bce24b429fd20b3",
+              "bytes": 151588
+            },
+            {
+              "weight": 550,
+              "file": "noto-serif-sc-041-550-524a6e7bca121feb.woff2",
+              "sha256": "524a6e7bca121feb913cec5b356b2705cfeb7e34ac33fb39aba977c4151be4aa",
+              "bytes": 151728
+            }
+          ]
+        },
+        {
+          "family": "Noto Serif SC Cover 042",
+          "ranges": [[32412, 32923]],
+          "faces": [
+            {
+              "weight": 500,
+              "file": "noto-serif-sc-042-500-aed32354afad63ad.woff2",
+              "sha256": "aed32354afad63adcfcc3acd894558b86c0a68cb55a5eac2f3e80ff5c50f8370",
+              "bytes": 120736
+            },
+            {
+              "weight": 550,
+              "file": "noto-serif-sc-042-550-6b0ae3264134fa23.woff2",
+              "sha256": "6b0ae3264134fa2354b6e395039242d99eb3097c5f20fa320d31d19d43bc8cea",
+              "bytes": 120860
+            }
+          ]
+        },
+        {
+          "family": "Noto Serif SC Cover 043",
+          "ranges": [[32924, 33435]],
+          "faces": [
+            {
+              "weight": 500,
+              "file": "noto-serif-sc-043-500-dbe512f6545a6f0c.woff2",
+              "sha256": "dbe512f6545a6f0c8f3e551fa6711e7640052fcf7ab9130f6a7485e6f5bda198",
+              "bytes": 110288
+            },
+            {
+              "weight": 550,
+              "file": "noto-serif-sc-043-550-2a86eeb212c3d8a0.woff2",
+              "sha256": "2a86eeb212c3d8a05e33ff7ebaec925e4c8957e9b55f1bcbfb7671f5ad809e3d",
+              "bytes": 110784
+            }
+          ]
+        },
+        {
+          "family": "Noto Serif SC Cover 044",
+          "ranges": [[33436, 33947]],
+          "faces": [
+            {
+              "weight": 500,
+              "file": "noto-serif-sc-044-500-8863d3d065faad6a.woff2",
+              "sha256": "8863d3d065faad6a036c86927bcd5766dcc0e70ff86169f01fd3f475f5f6137f",
+              "bytes": 94208
+            },
+            {
+              "weight": 550,
+              "file": "noto-serif-sc-044-550-c56f7c6035f0e126.woff2",
+              "sha256": "c56f7c6035f0e126ec626df1994f94b503c7128a0050608b2a0bc38fe3a7fc86",
+              "bytes": 94712
+            }
+          ]
+        },
+        {
+          "family": "Noto Serif SC Cover 045",
+          "ranges": [[33948, 34459]],
+          "faces": [
+            {
+              "weight": 500,
+              "file": "noto-serif-sc-045-500-f58db25a6603e62d.woff2",
+              "sha256": "f58db25a6603e62d8e1dc8daa8896a508fdad65157a4fed457e6eedad9040b84",
+              "bytes": 135336
+            },
+            {
+              "weight": 550,
+              "file": "noto-serif-sc-045-550-2b0000bb16b0b0bc.woff2",
+              "sha256": "2b0000bb16b0b0bc70eda1cd1bdf67f28e879cb6486ccd315faaef4f5f781394",
+              "bytes": 135972
+            }
+          ]
+        },
+        {
+          "family": "Noto Serif SC Cover 046",
+          "ranges": [[34460, 34971]],
+          "faces": [
+            {
+              "weight": 500,
+              "file": "noto-serif-sc-046-500-43e59f0991efe6d4.woff2",
+              "sha256": "43e59f0991efe6d4e6b29dd8c6eef55e34dfd246a62188c7950368cbef94e953",
+              "bytes": 126068
+            },
+            {
+              "weight": 550,
+              "file": "noto-serif-sc-046-550-cd886fa0909e78ae.woff2",
+              "sha256": "cd886fa0909e78ae3ec4b4b4f61dc59caaa6aa1d587eaa877aa394d1573ff8a9",
+              "bytes": 126696
+            }
+          ]
+        },
+        {
+          "family": "Noto Serif SC Cover 047",
+          "ranges": [[34972, 35483]],
+          "faces": [
+            {
+              "weight": 500,
+              "file": "noto-serif-sc-047-500-c0eae1dfb5654847.woff2",
+              "sha256": "c0eae1dfb5654847596c6855f9be7b2ba06f39f9563e293b3e0d0ece69402304",
+              "bytes": 116988
+            },
+            {
+              "weight": 550,
+              "file": "noto-serif-sc-047-550-d44f90e89f6b59bb.woff2",
+              "sha256": "d44f90e89f6b59bb7e8555dfc6429c8983f4b5317168e7658d7f00a120dcd005",
+              "bytes": 117052
+            }
+          ]
+        },
+        {
+          "family": "Noto Serif SC Cover 048",
+          "ranges": [[35484, 35995]],
+          "faces": [
+            {
+              "weight": 500,
+              "file": "noto-serif-sc-048-500-232893125d78d9e2.woff2",
+              "sha256": "232893125d78d9e2ea548a6ac6c1b8c353c853f43f0577414d73d408ead44a1d",
+              "bytes": 118552
+            },
+            {
+              "weight": 550,
+              "file": "noto-serif-sc-048-550-4e88c6259786380b.woff2",
+              "sha256": "4e88c6259786380b9ccc2d3b87c3302e2d7b60381092e98b1867e308c4cbc0cc",
+              "bytes": 118960
+            }
+          ]
+        },
+        {
+          "family": "Noto Serif SC Cover 049",
+          "ranges": [[35996, 36507]],
+          "faces": [
+            {
+              "weight": 500,
+              "file": "noto-serif-sc-049-500-5735e49c783008d4.woff2",
+              "sha256": "5735e49c783008d48fe6338b57756f4733cc14144dd917d3c3b591cc8f7b0059",
+              "bytes": 115612
+            },
+            {
+              "weight": 550,
+              "file": "noto-serif-sc-049-550-286628096c6cfcf0.woff2",
+              "sha256": "286628096c6cfcf070831823e173627f165c77040b9d9ef5ed4fea5b2a56a235",
+              "bytes": 115696
+            }
+          ]
+        },
+        {
+          "family": "Noto Serif SC Cover 050",
+          "ranges": [[36508, 37019]],
+          "faces": [
+            {
+              "weight": 500,
+              "file": "noto-serif-sc-050-500-4dde4a42309fac8e.woff2",
+              "sha256": "4dde4a42309fac8e09571d30771ae36f79fbe9cac3118a1535b91ff51e345f06",
+              "bytes": 110812
+            },
+            {
+              "weight": 550,
+              "file": "noto-serif-sc-050-550-04d40b3e03f05ef3.woff2",
+              "sha256": "04d40b3e03f05ef3cb2a8595490e2de059ce5b9130ac45d6d8c2c5c3ecb36d0c",
+              "bytes": 111740
+            }
+          ]
+        },
+        {
+          "family": "Noto Serif SC Cover 051",
+          "ranges": [[37020, 37531]],
+          "faces": [
+            {
+              "weight": 500,
+              "file": "noto-serif-sc-051-500-6388f6983407c880.woff2",
+              "sha256": "6388f6983407c8808ec8545666e1f018e88c7c43b39e1ec0b96ffe6c21090a75",
+              "bytes": 112960
+            },
+            {
+              "weight": 550,
+              "file": "noto-serif-sc-051-550-91f7cb342eff82f4.woff2",
+              "sha256": "91f7cb342eff82f461fac3e5a29c15a2232432a3f26f0ba91aae76c69137a4e8",
+              "bytes": 113256
+            }
+          ]
+        },
+        {
+          "family": "Noto Serif SC Cover 052",
+          "ranges": [[37532, 38043]],
+          "faces": [
+            {
+              "weight": 500,
+              "file": "noto-serif-sc-052-500-51c93c8645740c72.woff2",
+              "sha256": "51c93c8645740c72ad5ca466ef28e4ca9ff50e509f73415548d9a374e449b642",
+              "bytes": 140492
+            },
+            {
+              "weight": 550,
+              "file": "noto-serif-sc-052-550-4241191fa3589a02.woff2",
+              "sha256": "4241191fa3589a027d33e0da772d6764a685f44ff3aeb7bf0a088f66baedd135",
+              "bytes": 141056
+            }
+          ]
+        },
+        {
+          "family": "Noto Serif SC Cover 053",
+          "ranges": [[38044, 38555]],
+          "faces": [
+            {
+              "weight": 500,
+              "file": "noto-serif-sc-053-500-2ddac63997543ff1.woff2",
+              "sha256": "2ddac63997543ff12161e5566e0705070a8ce0730019a1a15259b207443ea2b4",
+              "bytes": 107612
+            },
+            {
+              "weight": 550,
+              "file": "noto-serif-sc-053-550-db20644825e5ef70.woff2",
+              "sha256": "db20644825e5ef70988cbbc360aa0bb57b1ab5ef5ca7dbee05d011349655346b",
+              "bytes": 107928
+            }
+          ]
+        },
+        {
+          "family": "Noto Serif SC Cover 054",
+          "ranges": [[38556, 39067]],
+          "faces": [
+            {
+              "weight": 500,
+              "file": "noto-serif-sc-054-500-94a6faf0cfaa31f6.woff2",
+              "sha256": "94a6faf0cfaa31f69eea4bdcf7dd45d9afc1668a69a5b3be3fbbff13553c637b",
+              "bytes": 125452
+            },
+            {
+              "weight": 550,
+              "file": "noto-serif-sc-054-550-85c885ab3085011c.woff2",
+              "sha256": "85c885ab3085011c57953737c96f6304ce1875d3517c6e08e10a32f801304858",
+              "bytes": 125636
+            }
+          ]
+        },
+        {
+          "family": "Noto Serif SC Cover 055",
+          "ranges": [[39068, 39579]],
+          "faces": [
+            {
+              "weight": 500,
+              "file": "noto-serif-sc-055-500-3ce153be83d18d12.woff2",
+              "sha256": "3ce153be83d18d1207c004204b6d66c3b8fa84552e2ab02eed6dff42fb45d0a0",
+              "bytes": 139516
+            },
+            {
+              "weight": 550,
+              "file": "noto-serif-sc-055-550-e2fa02032500189a.woff2",
+              "sha256": "e2fa02032500189a22f912ed1bf9542ee6c0f61c2d4904232835297413b85d71",
+              "bytes": 140000
+            }
+          ]
+        },
+        {
+          "family": "Noto Serif SC Cover 056",
+          "ranges": [[39580, 40091]],
+          "faces": [
+            {
+              "weight": 500,
+              "file": "noto-serif-sc-056-500-8fb685a948d4ad4c.woff2",
+              "sha256": "8fb685a948d4ad4cac12d9088a5bce6b95d86432f87f632e9a72798c24fa4cab",
+              "bytes": 142448
+            },
+            {
+              "weight": 550,
+              "file": "noto-serif-sc-056-550-d306288331bfc976.woff2",
+              "sha256": "d306288331bfc9766dc8cd0ff0935aa53e40e76977620f64d43d83eb8652293d",
+              "bytes": 142904
+            }
+          ]
+        },
+        {
+          "family": "Noto Serif SC Cover 057",
+          "ranges": [[40092, 40603]],
+          "faces": [
+            {
+              "weight": 500,
+              "file": "noto-serif-sc-057-500-925e5cc7af1ff8a0.woff2",
+              "sha256": "925e5cc7af1ff8a06ecdccc49e5f81b5f766f5b8d8fd8570a4817822fa8161dc",
+              "bytes": 138576
+            },
+            {
+              "weight": 550,
+              "file": "noto-serif-sc-057-550-c5af8b2475471d52.woff2",
+              "sha256": "c5af8b2475471d52f2069b2d5922bffceca41b9a95292d00e8074e194b294a95",
+              "bytes": 139144
+            }
+          ]
+        },
+        {
+          "family": "Noto Serif SC Cover 058",
+          "ranges": [
+            [40604, 40959],
+            [63745, 63747],
+            [63749, 63750],
+            [63754, 63756],
+            [63765, 63770],
+            [63773, 63775],
+            [63788, 63789],
+            [63791, 63791],
+            [63793, 63797],
+            [63799, 63799],
+            [63801, 63802],
+            [63811, 63811],
+            [63815, 63816],
+            [63818, 63818],
+            [63822, 63822],
+            [63826, 63827],
+            [63838, 63838],
+            [63842, 63848],
+            [63854, 63854],
+            [63858, 63860],
+            [63862, 63862],
+            [63865, 63867],
+            [63870, 63872],
+            [63876, 63877],
+            [63882, 63884],
+            [63886, 63886],
+            [63889, 63889],
+            [63891, 63891],
+            [63893, 63893],
+            [63896, 63896],
+            [63899, 63900],
+            [63902, 63903],
+            [63909, 63909],
+            [63918, 63918],
+            [63925, 63925],
+            [63927, 63928],
+            [63930, 63931],
+            [63933, 63934],
+            [63936, 63936],
+            [63941, 63942],
+            [63952, 63952],
+            [63960, 63962],
+            [63964, 63972],
+            [63975, 63975],
+            [63977, 63977],
+            [63985, 63985],
+            [63988, 63989],
+            [63994, 63995],
+            [63997, 63997],
+            [63999, 63999],
+            [64002, 64002],
+            [64005, 64008],
+            [64010, 64010],
+            [64012, 64015],
+            [64017, 64017],
+            [64019, 64020],
+            [64024, 64024],
+            [64031, 64033],
+            [64035, 64036],
+            [64039, 64041],
+            [64047, 64047],
+            [64051, 64053],
+            [64055, 64056],
+            [64058, 64058],
+            [64071, 64071],
+            [64073, 64073],
+            [64075, 64075],
+            [64092, 64094],
+            [64256, 64260],
+            [65040, 65049],
+            [65072, 65075]
+          ],
+          "faces": [
+            {
+              "weight": 500,
+              "file": "noto-serif-sc-058-500-265ff6ea0b8543a5.woff2",
+              "sha256": "265ff6ea0b8543a5da0962ceb821b53dc8d63bb634701e0ce956e2798b632486",
+              "bytes": 136232
+            },
+            {
+              "weight": 550,
+              "file": "noto-serif-sc-058-550-0084c6b30342921a.woff2",
+              "sha256": "0084c6b30342921ac565890ae322d14df33a351386d3b08550fe6fd66a712df0",
+              "bytes": 137032
+            }
+          ]
+        },
+        {
+          "family": "Noto Serif SC Cover 059",
+          "ranges": [
+            [65076, 65106],
+            [65108, 65126],
+            [65128, 65131],
+            [65281, 65439],
+            [65441, 65470],
+            [65474, 65479],
+            [65482, 65487],
+            [65490, 65495],
+            [65498, 65500],
+            [65504, 65510],
+            [65512, 65518],
+            [127232, 127244],
+            [127248, 127340],
+            [127344, 127404],
+            [127488, 127490],
+            [127504, 127547],
+            [127552, 127560],
+            [127568, 127569],
+            [131207, 131207],
+            [131209, 131209],
+            [131276, 131276],
+            [131428, 131428],
+            [132648, 132648],
+            [132726, 132726],
+            [134352, 134352],
+            [136090, 136090],
+            [136211, 136211]
+          ],
+          "faces": [
+            {
+              "weight": 500,
+              "file": "noto-serif-sc-059-500-99bcb7319aaaffff.woff2",
+              "sha256": "99bcb7319aaaffff9b959070edf5e939a90850ea516a2f27a5c5b9f67013c49f",
+              "bytes": 79572
+            },
+            {
+              "weight": 550,
+              "file": "noto-serif-sc-059-550-2d35bb8b5ff518b3.woff2",
+              "sha256": "2d35bb8b5ff518b3ee6aae41f39968a1893fcbc8c196d290d841a9697301d711",
+              "bytes": 79520
+            }
+          ]
+        },
+        {
+          "family": "Noto Serif SC Cover 060",
+          "ranges": [
+            [136663, 136663],
+            [141711, 141711],
+            [144843, 144843],
+            [146583, 146584],
+            [146979, 146979],
+            [147966, 147966],
+            [147982, 147982],
+            [149737, 149737],
+            [149979, 149979],
+            [150017, 150017],
+            [150141, 150141],
+            [150217, 150217],
+            [152882, 152882],
+            [152930, 152930],
+            [153000, 153000],
+            [155351, 155351],
+            [156193, 156193],
+            [156813, 156813],
+            [157302, 157302],
+            [157564, 157564],
+            [158033, 158033],
+            [158556, 158556],
+            [158753, 158753],
+            [161970, 161970],
+            [163503, 163503],
+            [163833, 163833],
+            [164872, 164872],
+            [165496, 165496],
+            [165525, 165525],
+            [165856, 165856],
+            [166729, 166729],
+            [166983, 166983],
+            [166991, 166991],
+            [166993, 166993],
+            [166996, 166996],
+            [167439, 167439],
+            [167577, 167577],
+            [169599, 169599],
+            [170000, 170000],
+            [171902, 171902],
+            [171907, 171907],
+            [171916, 171916],
+            [174045, 174045],
+            [174331, 174331],
+            [174359, 174359],
+            [174640, 174640],
+            [174646, 174646],
+            [174680, 174680],
+            [176034, 176034],
+            [176423, 176424],
+            [176439, 176440],
+            [176621, 176621],
+            [176896, 176896],
+            [176995, 176995],
+            [177007, 177007],
+            [177010, 177010],
+            [177021, 177021],
+            [177156, 177156],
+            [177168, 177168],
+            [177171, 177171],
+            [177249, 177249],
+            [177383, 177383],
+            [177391, 177391],
+            [177398, 177398],
+            [177401, 177401],
+            [177421, 177422],
+            [177462, 177462],
+            [177582, 177583],
+            [177587, 177587],
+            [177639, 177639],
+            [177652, 177652],
+            [177692, 177693],
+            [177702, 177704],
+            [177706, 177706],
+            [177708, 177708],
+            [177813, 177814],
+            [177837, 177837],
+            [177901, 177901],
+            [178089, 178089],
+            [178117, 178117],
+            [178150, 178150],
+            [178169, 178169],
+            [178172, 178172],
+            [178182, 178182],
+            [178186, 178186],
+            [178204, 178204],
+            [178360, 178360],
+            [178887, 178887],
+            [179039, 179039],
+            [179042, 179042],
+            [179068, 179068],
+            [179075, 179075],
+            [179227, 179227],
+            [179575, 179575],
+            [179591, 179591],
+            [179703, 179703],
+            [179753, 179753],
+            [180265, 180266],
+            [180393, 180393],
+            [180426, 180426],
+            [180693, 180693],
+            [180697, 180697],
+            [180729, 180729],
+            [180860, 180860],
+            [180872, 180872],
+            [180900, 180900],
+            [181015, 181015],
+            [181083, 181083],
+            [181089, 181089],
+            [181092, 181092],
+            [181384, 181384],
+            [181396, 181396],
+            [181399, 181399],
+            [181570, 181570],
+            [181779, 181779],
+            [181784, 181784],
+            [181793, 181793],
+            [181801, 181801],
+            [181803, 181805],
+            [181807, 181807],
+            [181826, 181826],
+            [181834, 181835],
+            [182060, 182060],
+            [182063, 182063],
+            [182175, 182175],
+            [182209, 182209],
+            [182269, 182269],
+            [182489, 182489],
+            [182494, 182494],
+            [182497, 182497],
+            [182515, 182515],
+            [182535, 182535],
+            [182538, 182538],
+            [182557, 182557],
+            [182786, 182786],
+            [182798, 182798],
+            [182909, 182909],
+            [182953, 182953],
+            [183081, 183081],
+            [183085, 183086],
+            [183089, 183089],
+            [183096, 183097],
+            [183099, 183099],
+            [183103, 183103],
+            [183105, 183105],
+            [183114, 183114],
+            [183118, 183118],
+            [183130, 183131],
+            [183140, 183140],
+            [183145, 183145],
+            [183148, 183148],
+            [183151, 183151],
+            [183155, 183155],
+            [183158, 183158],
+            [183160, 183160],
+            [183164, 183164],
+            [183217, 183217],
+            [183231, 183232],
+            [183246, 183246],
+            [183382, 183382],
+            [183391, 183391],
+            [183541, 183542],
+            [183549, 183549],
+            [183551, 183551],
+            [183554, 183555],
+            [183562, 183562],
+            [183691, 183691],
+            [183693, 183693],
+            [183695, 183696],
+            [183711, 183712],
+            [183720, 183720],
+            [183725, 183726],
+            [183765, 183765],
+            [183832, 183832],
+            [183834, 183834],
+            [183843, 183843],
+            [183846, 183846],
+            [183850, 183850],
+            [183932, 183932],
+            [183944, 183944],
+            [183955, 183955],
+            [185668, 185668],
+            [194680, 194680],
+            [194692, 194692],
+            [194742, 194742],
+            [194848, 194848]
+          ],
+          "faces": [
+            {
+              "weight": 500,
+              "file": "noto-serif-sc-060-500-ca7f6c8fea06fc44.woff2",
+              "sha256": "ca7f6c8fea06fc44dbc76affb050771763f00dccad6c1951d1529f6f52fe5a7d",
+              "bytes": 51796
+            },
+            {
+              "weight": 550,
+              "file": "noto-serif-sc-060-550-d7c7eaeeabb1eb0b.woff2",
+              "sha256": "d7c7eaeeabb1eb0bad04d601dda11cf941e69c78d28101648744a9a66fb198b5",
+              "bytes": 52004
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "space-grotesk",
+      "family": "Space Grotesk",
+      "codepoints": 735,
+      "source_url": "https://raw.githubusercontent.com/google/fonts/main/ofl/spacegrotesk/SpaceGrotesk%5Bwght%5D.ttf",
+      "source_sha256": "acad6de1fc93436f5c0f1f4137751ef04f1aea3063e7036535970ffcfbd79f72",
+      "license": "spacegrotesk-OFL.txt",
+      "shards": [
+        {
+          "family": "Space Grotesk Cover 000",
+          "ranges": [
+            [13, 13],
+            [32, 126],
+            [160, 384],
+            [399, 399],
+            [402, 402],
+            [416, 417],
+            [431, 432],
+            [452, 476],
+            [486, 487],
+            [490, 491],
+            [506, 539],
+            [554, 557],
+            [560, 563],
+            [567, 567],
+            [579, 579],
+            [593, 593],
+            [601, 601],
+            [697, 700],
+            [702, 703],
+            [710, 716],
+            [728, 733],
+            [768, 772],
+            [774, 780],
+            [783, 783],
+            [785, 786],
+            [795, 795],
+            [803, 804],
+            [806, 808],
+            [814, 814],
+            [817, 817],
+            [821, 824],
+            [916, 916],
+            [937, 937],
+            [960, 960],
+            [3647, 3647],
+            [7688, 7689],
+            [7692, 7695],
+            [7700, 7703],
+            [7708, 7709],
+            [7712, 7713],
+            [7716, 7717],
+            [7722, 7723],
+            [7726, 7727],
+            [7734, 7739],
+            [7746, 7753],
+            [7756, 7763],
+            [7770, 7785],
+            [7788, 7789]
+          ],
+          "faces": [
+            {
+              "weight": 500,
+              "file": "space-grotesk-000-500-7340aae49341f408.woff2",
+              "sha256": "7340aae49341f4088ed1713f25be92b3e52c87c55bb194128aecdda07c77c236",
+              "bytes": 23404
+            },
+            {
+              "weight": 600,
+              "file": "space-grotesk-000-600-cfa626e4b5afffaf.woff2",
+              "sha256": "cfa626e4b5afffaf57b976f8e441beeaf0c2842c0715d075d14826f3f63cbc34",
+              "bytes": 23400
+            },
+            {
+              "weight": 700,
+              "file": "space-grotesk-000-700-344b2d709fe59c9b.woff2",
+              "sha256": "344b2d709fe59c9bc4c624ea26a9d0e4a74426d1302d962f8f9e537e4d806b8e",
+              "bytes": 22584
+            }
+          ]
+        },
+        {
+          "family": "Space Grotesk Cover 001",
+          "ranges": [
+            [7790, 7791],
+            [7800, 7803],
+            [7808, 7813],
+            [7822, 7823],
+            [7826, 7827],
+            [7831, 7831],
+            [7838, 7838],
+            [7840, 7929],
+            [8199, 8203],
+            [8208, 8208],
+            [8210, 8213],
+            [8216, 8218],
+            [8220, 8222],
+            [8224, 8226],
+            [8230, 8230],
+            [8240, 8240],
+            [8242, 8243],
+            [8249, 8250],
+            [8260, 8260],
+            [8274, 8274],
+            [8304, 8305],
+            [8308, 8313],
+            [8317, 8329],
+            [8333, 8334],
+            [8340, 8340],
+            [8353, 8353],
+            [8355, 8356],
+            [8358, 8359],
+            [8361, 8361],
+            [8363, 8365],
+            [8369, 8370],
+            [8373, 8373],
+            [8377, 8378],
+            [8380, 8381],
+            [8383, 8383],
+            [8467, 8467],
+            [8470, 8470],
+            [8480, 8480],
+            [8482, 8482],
+            [8486, 8486],
+            [8494, 8494],
+            [8531, 8532],
+            [8539, 8542],
+            [8592, 8601],
+            [8706, 8706],
+            [8709, 8710],
+            [8719, 8719],
+            [8721, 8722],
+            [8725, 8725],
+            [8729, 8730],
+            [8734, 8734],
+            [8747, 8747],
+            [8776, 8776],
+            [8800, 8800],
+            [8804, 8805],
+            [9674, 9674],
+            [10216, 10217],
+            [57650, 57651],
+            [64256, 64260]
+          ],
+          "faces": [
+            {
+              "weight": 500,
+              "file": "space-grotesk-001-500-9e81ae5b79c27236.woff2",
+              "sha256": "9e81ae5b79c272360ca1c7df20eee15f5d863bcbb64f10588b6bbbcf9f433fff",
+              "bytes": 9720
+            },
+            {
+              "weight": 600,
+              "file": "space-grotesk-001-600-272469e2bcd14639.woff2",
+              "sha256": "272469e2bcd1463961bfa5027b1c1a786e0a6f090278fa009029d68cdc57b045",
+              "bytes": 9784
+            },
+            {
+              "weight": 700,
+              "file": "space-grotesk-001-700-05407a08c5eb5262.woff2",
+              "sha256": "05407a08c5eb5262dcf94ac01060e5908b707ae1f47c8a713fb5cf2c37d21dc2",
+              "bytes": 9324
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
