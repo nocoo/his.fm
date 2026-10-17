@@ -33,7 +33,7 @@ export async function exportCover(source: string, episodeNumber: number, themeId
   const height = artwork.naturalHeight * scale;
   context.drawImage(artwork, (size - width) / 2, (size - height) / 2, width, height);
   context.drawImage(overlay, 0, 0, size, size);
-  context.fillStyle = frame.ink;
+  context.fillStyle = frame.episode.fill;
   context.font = `500 ${frame.episode.fontSize}px "Space Grotesk"`;
   context.textAlign = 'left';
   context.textBaseline = 'alphabetic';

@@ -8,7 +8,8 @@
       "episode": {
         "x": 1303,
         "y": 145,
-        "fontSize": 61
+        "fontSize": 61,
+        "fill": "#F3F3EC"
       }
     },
     "interval": {
@@ -18,7 +19,8 @@
       "episode": {
         "x": 150,
         "y": 1239,
-        "fontSize": 52
+        "fontSize": 52,
+        "fill": "#1C211A"
       }
     },
     "soft-landing": {
@@ -28,7 +30,8 @@
       "episode": {
         "x": 1102,
         "y": 164,
-        "fontSize": 44
+        "fontSize": 44,
+        "fill": "#423048"
       }
     },
     "human-sample": {
@@ -38,7 +41,8 @@
       "episode": {
         "x": 97,
         "y": 1184,
-        "fontSize": 59
+        "fontSize": 59,
+        "fill": "#20241E"
       }
     },
     "stillwood": {
@@ -48,7 +52,8 @@
       "episode": {
         "x": 142,
         "y": 1184,
-        "fontSize": 48
+        "fontSize": 48,
+        "fill": "#ECEBE1"
       }
     },
     "tidal-hours": {
@@ -58,7 +63,8 @@
       "episode": {
         "x": 72,
         "y": 266,
-        "fontSize": 44
+        "fontSize": 44,
+        "fill": "#344C57"
       }
     },
     "window-seat": {
@@ -68,7 +74,8 @@
       "episode": {
         "x": 111,
         "y": 255,
-        "fontSize": 42
+        "fontSize": 42,
+        "fill": "#E9E7DF"
       }
     },
     "alpine-bloom": {
@@ -78,7 +85,8 @@
       "episode": {
         "x": 97,
         "y": 1184,
-        "fontSize": 45
+        "fontSize": 45,
+        "fill": "#404F50"
       }
     }
   }
