@@ -77,6 +77,8 @@ describe('podcast feeds', () => {
       expect(xml).not.toContain('<itunes:image');
       expect(xml).not.toContain('<itunes:owner');
       expect(xml).not.toContain('<itunes:name');
+      expect(xml).not.toContain('<atom:author');
+      expect(xml).not.toContain('<atom:uri');
       expect(xml).not.toContain(site.defaultOgImageUrl);
       expect(xml).toContain('<itunes:author>his.fm</itunes:author>');
       expect(xml).toContain('<itunes:category text="Technology" />');
@@ -96,6 +98,19 @@ describe('podcast feeds', () => {
     expect(xml).toContain('<itunes:email>confirmed-owner@example.test</itunes:email>');
     expect(xml).toContain('<itunes:author>Existing producer</itunes:author>');
     expect(xml).toContain('<itunes:name>Existing producer</itunes:name>');
+  });
+
+  it('emits atom:author with the configured homepage and omits it when empty', async () => {
+    site.podcastAuthor = '李征';
+    site.podcastAuthorUrl = 'https://lizheng.dev';
+    const withUrl = await buildRssFeed(db, origin, mediaBase, media().bucket);
+    expect(withUrl).toContain(
+      '<atom:author><atom:name>李征</atom:name><atom:uri>https://lizheng.dev</atom:uri></atom:author>',
+    );
+    site.podcastAuthorUrl = '';
+    const withoutUrl = await buildRssFeed(db, origin, mediaBase, media().bucket);
+    expect(withoutUrl).not.toContain('<atom:author');
+    expect(withoutUrl).not.toContain('<atom:uri');
   });
 
   it.each([
