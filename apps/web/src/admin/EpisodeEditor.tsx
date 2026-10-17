@@ -11,6 +11,7 @@ import {
 import { ArrowLeft, ArrowUpRight, Save, Trash2 } from 'lucide-react';
 import { type FormEvent, useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
+import { FramedCover } from '../components/FramedCover';
 import type { Episode } from '../shared/episode';
 import { CategorySelect } from './categories/CategorySelect';
 import { MarkdownEditor } from './markdown/MarkdownEditor';
@@ -31,6 +32,7 @@ export function EpisodeEditor() {
   const [dirty, setDirty] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [coverPreview, setCoverPreview] = useState('');
   useUnsavedChanges(dirty);
   // biome-ignore lint/correctness/useExhaustiveDependencies: The retry key intentionally restarts the request.
   useEffect(() => {
@@ -52,6 +54,9 @@ export function EpisodeEditor() {
       });
     return () => controller.abort();
   }, [id, attempt]);
+  useEffect(() => {
+    setCoverPreview(episode?.coverUrl ?? emptyEpisode.coverUrl);
+  }, [episode?.coverUrl]);
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (pending || episode?.sourceProductionId || (id && !episode)) return;
@@ -258,8 +263,21 @@ export function EpisodeEditor() {
                     error={errors.coverUrl}
                     hint="使用 HTTPS 地址，或 /images/、/media/ 开头的站内路径。"
                   >
-                    <Input id="coverUrl" name="coverUrl" defaultValue={value.coverUrl} required />
+                    <Input
+                      id="coverUrl"
+                      name="coverUrl"
+                      defaultValue={value.coverUrl}
+                      required
+                      onChange={(event) => setCoverPreview(event.target.value)}
+                    />
                   </Field>
+                  {coverPreview.trim() && (
+                    <FramedCover
+                      className="studio-cover"
+                      src={coverPreview.trim()}
+                      alt={`${value.title || '节目'}的封面预览`}
+                    />
+                  )}
                   <Field
                     label="音频地址"
                     htmlFor="audioUrl"

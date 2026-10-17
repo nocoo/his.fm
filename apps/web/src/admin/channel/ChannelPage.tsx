@@ -5,6 +5,7 @@ import { Save } from 'lucide-react';
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useSearchParams } from 'react-router';
+import { FramedCover } from '../../components/FramedCover';
 import { CategoryEditor } from '../categories/CategoryPage';
 import { useCategories } from '../categories/useCategories';
 import { MarkdownEditor } from '../markdown/MarkdownEditor';
@@ -142,6 +143,14 @@ function PromptEditor({
                   用我的草稿更新
                 </Button>
               </div>
+            </LayerCard>
+          )}
+          {promptKey === 'cover' && (
+            <LayerCard padding="md" className="channel-cover-specimen">
+              <p className="admin-muted">
+                上传与存储的是无框原图；公开页面、工作室预览与下载成品会叠加当前网站主题的透明品牌框。
+              </p>
+              <FramedCover className="studio-cover" src="/images/episode-01.webp" alt="品牌框叠加示意" />
             </LayerCard>
           )}
           <LayerCard padding="none" className="channel-sheet">
