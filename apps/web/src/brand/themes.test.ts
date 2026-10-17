@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { defaultCoverFrame, themeCoverFrameSrc, themes } from './themes';
 import { themeIds } from '../shared/appearance';
+import { defaultCoverFrame, themeCoverFrameSrc, themes } from './themes';
 
 describe('theme cover frames', () => {
   it('falls back to the shared brand frame when a theme has no override', () => {

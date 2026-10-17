@@ -1,4 +1,4 @@
-import { type ImgHTMLAttributes, useEffect, useState } from 'react';
+import { type ImgHTMLAttributes, useState } from 'react';
 import { themeCoverFrameSrc } from '../brand/themes';
 import type { ThemeId } from '../shared/appearance';
 import { useResolvedThemeId } from '../shared/useResolvedThemeId';
@@ -27,12 +27,9 @@ export function FramedCover({
 }: FramedCoverProps) {
   const resolvedTheme = useResolvedThemeId(themeId);
   const frameSrc = themeCoverFrameSrc(resolvedTheme);
-  const [frameFailed, setFrameFailed] = useState(false);
+  const [failedFrame, setFailedFrame] = useState<string | null>(null);
   const [coverFailed, setCoverFailed] = useState(false);
-
-  useEffect(() => {
-    setFrameFailed(false);
-  }, [frameSrc]);
+  const frameFailed = failedFrame === frameSrc;
 
   if (coverFailed) return null;
 
@@ -57,7 +54,7 @@ export function FramedCover({
           src={frameSrc}
           alt=""
           aria-hidden="true"
-          onError={() => setFrameFailed(true)}
+          onError={() => setFailedFrame(frameSrc)}
         />
       )}
     </div>
