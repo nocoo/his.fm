@@ -11,6 +11,7 @@ export default defineConfig({
   reporter: [['list'], ['html', { open: 'never' }]],
   use: {
     baseURL: process.env.HISFM_E2E_BASE_URL ?? 'https://hisfm.dev.hexly.ai',
+    ignoreHTTPSErrors: true,
     channel: 'chrome',
     screenshot: 'only-on-failure',
     trace: 'retain-on-failure',
