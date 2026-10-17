@@ -57,3 +57,36 @@ The export decoder accepts static PNG/JPEG/WebP originals up to **4 MiB**, **4,0
 Takumi WASM renders the composition with static cover-only font shards from `/brand/fonts/cover/`. The loader selects only the required glyphs and exact weights, limits selected font bytes to 2 MiB, and reads them through ASSETS. These files are separate from browser variable fonts and are not embedded wholesale in the Worker. The renderer is freed after every request. Local memory measurements support the bounded export envelope but do not certify every input, total isolate memory or Workers Free CPU suitability.
 
 The owner still reviews the generated original and the downloaded composition. The upload endpoint validates actual PNG/JPEG/WebP bytes and size; it does not claim to detect a frame visually.
+
+## Public RSS and share artwork
+
+`node scripts/generate-share-art.mjs` reproducibly generates two committed,
+theme-independent Stillwood brand JPEGs: `/brand/share.jpg` (1200 x 630) and
+`/brand/podcast.jpg` (3000 x 3000). They use the archived outlined Stillwood
+wordmark, a thin inset border and a deterministic flax paper texture, with no
+other copy. Outputs are flattened sRGB JPEGs without ICC or EXIF metadata.
+Empty SEO artwork settings use these assets in code; generation never changes
+saved settings or uploads assets to R2.
+
+Public `GET|HEAD /episodes/{id}/art.jpg` renders the current website theme's
+exact framed composition, including saved title, episode number and category.
+The default is 1400 square; `?size=N` accepts integers from 1400 through 3000.
+`GET|HEAD /episodes/{id}/share.jpg` renders 1200 x 630, cover-cropping the original
+full-bleed under the theme-independent Stillwood border and wordmark. It contains
+no episode copy or title panel and accepts no query parameters.
+
+Both routes use only currently published, non-future episode snapshots, return
+404 for private/missing episodes, and bypass the named public cache. Every
+request renders on demand with `Cache-Control: no-store`; no composite is stored.
+Native Images streams trusted R2 or bundled sources (up to 20 MB), cropping the
+real original to the theme's artwork window before Takumi composition. Square
+composition and effective image detail are capped at the existing 1600-square
+export resolution; requested sizes above 1600 are explicitly upscaled by native
+Images to the final JPEG dimensions. This keeps WASM bounded: a full 3000-square
+WASM composition exceeds the Workers memory budget. Larger originals supply more
+detail up to the composition cap; no thumbnail replaces the original. Existing
+1024 originals are upscaled, not given additional source detail. Landscape
+artwork uses native cropping followed by a bounded 1200 x 630 JPEG render.
+The separate authenticated PNG export retains its 4 MiB / 4MP source guards.
+Render contention returns 503; source/asset/decode failures remain explicit.
+Directory acceptance still requires live Apple/Spotify validation.

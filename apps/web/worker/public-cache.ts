@@ -1,4 +1,5 @@
 import { themeIdSchema } from '../src/shared/appearance';
+import { episodeArtRoute } from './episode-art';
 import { routeEpisodeThumbnail } from './episode-thumbnails';
 import { HttpError, json } from './http';
 import { maybeServePublicHtml } from './public-html';
@@ -9,6 +10,7 @@ const publicPage = /^\/(?:about|episodes(?:\/[^/]+){0,2})?$/;
 export function cacheablePublicRequest(request: Request): boolean {
   const url = new URL(request.url);
   if (!['GET', 'HEAD'].includes(request.method) || url.origin !== 'https://his.fm') return false;
+  if (episodeArtRoute.test(url.pathname)) return false;
   if (thumbnailRoute.test(url.pathname)) return !url.search;
   if (!publicPage.test(url.pathname)) return false;
   const seen = new Set<string>();

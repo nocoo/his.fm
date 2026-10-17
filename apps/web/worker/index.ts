@@ -3,6 +3,7 @@ import { discoveryLinks, routeAgent, routeDiscovery } from './agent-api';
 import { getAppearance } from './appearance';
 import { accessLogin, authenticate, isLocal, localLogin, logout } from './auth';
 import { getCategory, listCategories } from './categories';
+import { episodeArtRoute, routeEpisodeArt } from './episode-art';
 import { routeEpisodeThumbnail } from './episode-thumbnails';
 import { getEpisode, listEpisodes } from './episodes';
 import { buildCategoryRssFeed, buildRssFeed } from './feed';
@@ -71,6 +72,8 @@ async function route(request: Request, env: Env, ctx?: ExecutionContext): Promis
     url.pathname = path.replace(/\/+$/, '');
     return Response.redirect(url.href, 308);
   }
+  const episodeArt = episodeArtRoute.exec(path);
+  if (episodeArt) return routeEpisodeArt(request, env, episodeArt[1], episodeArt[2] as 'art' | 'share');
   if (ctx && env.ENVIRONMENT !== 'local' && cacheablePublicRequest(request)) {
     const cached = await ctx.exports.PublicContent.fetch(new Request(url, { method: 'GET' }));
     const response = new Response(request.method === 'HEAD' ? null : cached.body, cached);

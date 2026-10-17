@@ -696,3 +696,20 @@ reproduced the lifecycle violation deterministically. Drain each response into
 owned bytes before awaiting image analysis, and enable that assertion for the
 workerd fixture. Preserve rendering, geometry, memory and coverage checks; a
 retry or longer timeout is not a response-lifetime fix.
+
+## 2026-10-18: Measure the largest public artwork in a cold Worker
+
+A 3000-square JPEG composition passed Node output checks but consumed 214 MiB
+of WASM linear memory in cold workerd, above the entire Workers budget. Even a
+full-size transparent overlay exceeded that budget. A native draw alternative
+then passed dimension checks but lost the original locally: the pinned Miniflare
+Images implementation ignores draw layers. Real all-theme pixel comparisons
+caught this. Crop the original natively, cap the complete shared composition at
+1600 and explicitly upscale larger JPEG outputs. Document the effective-detail
+cap, retain cold-workerd memory tests, and distinguish linear-memory measurements
+from total-isolate certification. Output dimensions alone do not verify pixels.
+
+A raster test initially called Sharp stats after extract without materializing
+the crop; stats inspected the original image. Encode the crop to an owned buffer
+before measuring pixels. Native Images also defaults to scale-down: explicitly
+select squeeze for overlay upscaling, and verify actual maximum-size JPEG bytes.
