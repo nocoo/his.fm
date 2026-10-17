@@ -2,6 +2,32 @@
 
 All notable changes to his.fm are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions use the owner’s patch-only deployment policy in `AGENTS.md`, with the authoritative version in `package.json`.
 
+## 2.5.0 - 2026-10-17
+
+The owner explicitly requested this minor release (Y+1). The comparison baseline is the deployed release v2.4.9.
+
+### Added
+
+- Server-render public page bodies with the shared React route tree, request-scoped published data, client hydration and revalidation. Keep headings, summaries, show notes and episode links readable without JavaScript; exclude drafts, transcripts and audit fields from public bootstrap data.
+- Add authenticated episode and production `cover.png` endpoints and studio download controls. Return one 1600 x 1600 PNG using the selected theme, saved metadata and clean original without mutating content or media. Share artwork windows, title wrapping and typography with public/admin previews; enforce read scopes, saved-version checks, trusted sources, static-image limits and bounded rendering.
+- Add dedicated podcast cover/contact settings and an explicit Person/Organization author choice, plus a web manifest and Apple touch icon using the existing identity.
+
+### Changed
+
+- Restore all eight themes' hero proportions, typography, decoration and cover compositions with self-hosted fonts. Preserve real programme metadata, centered artwork crops, clean source images and the unified public navigation identity.
+- Align studio theme-card content and preview/download controls across desktop, tablet, phone and light/dark modes. Reduce Interval cover titles and align its footer metadata; add a fine outer border to Tidal Hours covers.
+
+### Fixed
+
+- Remove light seams around artwork, balance cover title spacing and keep primary-color hover actions inside their artwork. Preserve the requested raster font family when multiple static glyph families are loaded.
+- Resolve RSS enclosure lengths from trusted R2 metadata, omit missing/non-audio/unsupported enclosures, normalize historical fractional durations, emit boolean explicit values and valid iTunes taxonomy, and escape description markup safely. Preserve omitted SEO fields in partial updates instead of resetting them to defaults.
+- Return real public 404s, normalize trailing slashes before SSR, and revalidate public data after studio navigation. Add HSTS/CSP headers, responsive hero preloads and appropriate asset caching without claiming a new Lighthouse score.
+
+### Deployment Notes
+
+- No new D1 migrations relative to v2.4.9. Public routing now runs Worker-first without asset SPA fallback; deployment includes the Worker and its frame/font assets.
+- Podcast directory submission still requires an owner-approved contact email and a verified 1400-3000px RGB JPEG/PNG cover. Finished-cover exports accept static sources up to 4 MiB and 4MP; local workerd validation is not certification of every production CPU or memory workload.
+
 ## 2.4.9 - 2026-10-17
 
 ### Changed
