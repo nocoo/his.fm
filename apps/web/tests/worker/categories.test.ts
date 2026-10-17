@@ -302,6 +302,30 @@ it('keeps alias chain through successive category renames', async () => {
   expect(await resolveCategoryAlias(env.DB, 'rename-step-b')).toBe('rename-step-c');
 });
 
+it('preserves outbound alias when a stale rename targets a reclaimed legacy id', async () => {
+  const category = await create();
+  const originalId = category.id;
+  await routeCategories(
+    request('PUT', { version: 1, nextId: 'renamed-once', name: 'Once' }),
+    env,
+    human,
+    originalId,
+  );
+  await expect(
+    routeCategories(
+      request('PUT', { version: 1, nextId: originalId, name: 'stale back' }),
+      env,
+      human,
+      'renamed-once',
+    ),
+  ).rejects.toMatchObject({ status: 409 });
+  expect(
+    await env.DB.prepare('SELECT category_id AS categoryId FROM category_id_aliases WHERE alias = ?')
+      .bind(originalId)
+      .first<{ categoryId: string }>(),
+  ).toEqual({ categoryId: 'renamed-once' });
+});
+
 it('rejects stale rename versions without leaving duplicate categories or moved references', async () => {
   const category = await create();
   await routeCategories(request('PUT', { version: 1, name: '已改名' }), env, human, category.id);
