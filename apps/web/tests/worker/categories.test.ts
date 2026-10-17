@@ -277,9 +277,11 @@ it('rejects stale rename versions without leaving duplicate categories or moved 
 });
 it('rejects reserved nextId values used by admin routes', async () => {
   const category = await create();
-  await expect(
-    routeCategories(request('PUT', { version: 1, nextId: 'new' }), env, human, category.id),
-  ).rejects.toMatchObject({ status: 400 });
+  for (const nextId of ['new', 'all']) {
+    await expect(
+      routeCategories(request('PUT', { version: 1, nextId }), env, human, category.id),
+    ).rejects.toMatchObject({ status: 400 });
+  }
 });
 it('does not move episode or production references when rename uses a stale version and nextId is already taken', async () => {
   const category = await create();

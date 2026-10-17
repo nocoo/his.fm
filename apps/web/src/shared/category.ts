@@ -15,7 +15,7 @@ export const categoryIcons = [
   'sparkles',
 ] as const;
 export const categoryColors = ['slate', 'blue', 'violet', 'teal', 'amber', 'rose'] as const;
-export const categoryReservedIds = ['new'] as const;
+export const categoryReservedIds = ['new', 'all'] as const;
 export const categoryIdSchema = z
   .string()
   .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/)
