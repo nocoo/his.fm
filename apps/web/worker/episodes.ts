@@ -12,6 +12,7 @@ import type { Actor } from '../src/shared/production';
 import { requireScope } from './authorization';
 import { getCategory } from './categories';
 import { resolveEpisodeNumberForCreate, resolveEpisodePatchEpisodeNumber } from './episode-numbering';
+import { resolveCategoryAlias } from './episode-public';
 import { HttpError, json } from './http';
 import { readJson } from './production-body';
 
@@ -68,10 +69,30 @@ function fromRow(row: EpisodeRow): Episode {
   };
 }
 
+async function fetchPublishedRow(db: D1Database, lookup: { category?: string; slug: string }) {
+  const now = new Date().toISOString();
+  if (lookup.category) {
+    const category = await resolveCategoryAlias(db, lookup.category);
+    return db
+      .prepare(
+        "SELECT * FROM episodes WHERE category = ? AND slug = ? AND status = 'published' AND published_at <= ?",
+      )
+      .bind(category, lookup.slug, now)
+      .first<EpisodeRow>();
+  }
+  return db
+    .prepare(
+      "SELECT * FROM episodes WHERE slug = ? AND status = 'published' AND published_at <= ? ORDER BY published_at DESC LIMIT 1",
+    )
+    .bind(lookup.slug, now)
+    .first<EpisodeRow>();
+}
+
 export async function listEpisodes(
   db: D1Database,
   publishedOnly: boolean,
   actor?: Actor,
+  origin = 'https://his.fm',
 ): Promise<Array<Episode | PublicEpisode>> {
   if (!publishedOnly) {
     if (!actor) throw new HttpError(403, 'Missing scope: episodes:read');
@@ -86,7 +107,7 @@ export async function listEpisodes(
     : statement
   ).all<EpisodeRow>();
   const episodes = result.results.map(fromRow);
-  return publishedOnly ? episodes.map(projectPublicEpisode) : episodes;
+  return publishedOnly ? episodes.map((episode) => projectPublicEpisode(episode, origin)) : episodes;
 }
 
 export async function getEpisode(
@@ -94,20 +115,19 @@ export async function getEpisode(
   key: string,
   publishedOnly: boolean,
   actor?: Actor,
+  options: { category?: string; origin?: string } = {},
 ): Promise<Episode | PublicEpisode> {
+  const origin = options.origin ?? 'https://his.fm';
   if (!publishedOnly) {
     if (!actor) throw new HttpError(403, 'Missing scope: episodes:read');
     requireScope(actor, 'episodes:read');
+    const row = await db.prepare('SELECT * FROM episodes WHERE id = ?').bind(key).first<EpisodeRow>();
+    if (!row) throw new HttpError(404, '这期节目不存在');
+    return fromRow(row);
   }
-  const statement = publishedOnly
-    ? db
-        .prepare("SELECT * FROM episodes WHERE slug = ? AND status = 'published' AND published_at <= ?")
-        .bind(key, new Date().toISOString())
-    : db.prepare('SELECT * FROM episodes WHERE id = ?').bind(key);
-  const row = await statement.first<EpisodeRow>();
+  const row = await fetchPublishedRow(db, { category: options.category, slug: key });
   if (!row) throw new HttpError(404, '这期节目不存在');
-  const episode = fromRow(row);
-  return publishedOnly ? projectPublicEpisode(episode) : episode;
+  return projectPublicEpisode(fromRow(row), origin);
 }
 
 async function readInput(request: Request, update: boolean) {
@@ -249,11 +269,8 @@ export async function mutateEpisode(request: Request, db: D1Database, actor: Act
     if (!row) throw new HttpError(409, '节目已被修改，请刷新后重试');
     return respond(row, id ? 200 : 201);
   } catch (error) {
-    if (error instanceof Error && /UNIQUE constraint failed: episodes\.slug/.test(error.message)) {
-      throw new HttpError(409, '这个链接名称已被另一集使用');
-    }
     if (error instanceof Error && /UNIQUE constraint failed: episodes\.category/.test(error.message)) {
-      throw new HttpError(409, '该栏目下已有相同期数');
+      throw new HttpError(409, '该栏目下已有相同期数或链接名称');
     }
     throw error;
   }

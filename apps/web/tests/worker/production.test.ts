@@ -585,7 +585,7 @@ describe('scope-authorized publication snapshots', () => {
   it('rolls back the publication record on conflicting public slug or identity', async () => {
     const first = await insert(readyFixture());
     await publishProduction(env.DB, first, publication, human);
-    const duplicate = await insert(readyFixture({ id: 'duplicate-id' }));
+    const duplicate = await insert(readyFixture({ id: 'duplicate-id', episodeNumber: 9 }));
     await expect(publishProduction(env.DB, duplicate, publication, human)).rejects.toMatchObject({
       status: 409,
     });

@@ -95,7 +95,7 @@ export function Hero({ featured, episodeLabel }: { featured?: PublicEpisode; epi
         </span>
       </div>
       {featured && (
-        <PublicLink to={`/episodes/${featured.slug}`} className="hero-feature">
+        <PublicLink to={`/episodes/${featured.category}/${featured.slug}`} className="hero-feature">
           <span className="hero-feature-number">
             {episodeLabel}
             <small>{featured.audioUrl ? '本期声音' : '本期摘要'}</small>

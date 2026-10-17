@@ -25,7 +25,7 @@ const episode: Episode = {
 
 describe('public episode projection', () => {
   it('removes transcript while preserving catalogue fields', () => {
-    const publicEpisode = projectPublicEpisode(episode);
+    const publicEpisode = projectPublicEpisode(episode, 'https://his.fm');
     expect(publicEpisode).toMatchObject({
       id: episode.id,
       slug: episode.slug,
@@ -34,6 +34,7 @@ describe('public episode projection', () => {
       showNotes: episode.showNotes,
     });
     expect(publicEpisode).not.toHaveProperty('transcript');
+    expect(publicEpisode.canonical).toContain('/episodes/learning/sample-episode');
     expect(JSON.stringify(publicEpisode)).not.toContain('逐字稿');
   });
 });

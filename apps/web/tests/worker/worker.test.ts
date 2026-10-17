@@ -166,7 +166,7 @@ describe('public podcast catalog', () => {
     const episode = await create();
     await create({ slug: 'draft', status: 'draft', publishedAt: null, episodeNumber: undefined });
     await create({ slug: 'future', publishedAt: '2999-01-01T00:00:00.000Z', episodeNumber: undefined });
-    const publicEpisode = projectPublicEpisode(episode);
+    const publicEpisode = projectPublicEpisode(episode, origin);
     const list = await call('/api/episodes');
     expect(await list.json()).toEqual({ episodes: [publicEpisode] });
     expect((await call('/api/episodes/draft')).status).toBe(404);
@@ -176,6 +176,34 @@ describe('public podcast catalog', () => {
     expect((await call('/api/episodes')).headers.get('Cache-Control')).toBe('no-store');
   });
 
+  it('redirects legacy episode URLs to category paths', async () => {
+    const episode = await create();
+    const response = await call(`/episodes/${episode.slug}`);
+    expect(response.status).toBe(301);
+    expect(response.headers.get('Location')).toContain(`/episodes/${episode.category}/${episode.slug}`);
+    const head = await call(`/episodes/${episode.slug}`, { method: 'HEAD' });
+    expect(head.status).toBe(301);
+  });
+
+  it('redirects renamed category segments on nested episode URLs', async () => {
+    const episode = await create();
+    await env.DB.prepare('INSERT INTO category_id_aliases (alias, category_id) VALUES (?, ?)')
+      .bind('legacy-category', episode.category)
+      .run();
+    const response = await call(`/episodes/legacy-category/${episode.slug}`);
+    expect(response.status).toBe(301);
+    expect(response.headers.get('Location')).toContain(`/episodes/${episode.category}/${episode.slug}`);
+  });
+
+  it('resolves nested public episode API paths', async () => {
+    const episode = await create();
+    const nested = await call(`/api/episodes/${episode.category}/${episode.slug}`);
+    expect(nested.status).toBe(200);
+    const legacy = await call(`/api/episodes/${episode.slug}`);
+    expect(legacy.status).toBe(200);
+    expect(((await nested.json()) as { episode: Episode }).episode.slug).toBe(episode.slug);
+  });
+
   it('exposes mentions on public episode JSON without transcript', async () => {
     const episode = await create();
     const listed = (await (await call('/api/episodes')).json()) as { episodes: Episode[] };
@@ -183,6 +211,17 @@ describe('public podcast catalog', () => {
     const detail = (await (await call(`/api/episodes/${episode.slug}`)).json()) as { episode: Episode };
     expect(detail.episode.mentions).toEqual(input.mentions);
     expect(detail.episode).not.toHaveProperty('transcript');
+  });
+
+  it('rejects duplicate manual episode numbers when creating productions', async () => {
+    const first = await call('/admin/api/productions', { method: 'POST', ...body(brief) });
+    expect(first.status).toBe(201);
+    const duplicate = await call('/admin/api/productions', {
+      method: 'POST',
+      ...body({ ...brief, slug: 'another-slug', episodeNumber: brief.episodeNumber }),
+    });
+    expect(duplicate.status).toBe(409);
+    expect(await duplicate.json()).toEqual({ error: '该栏目下已有相同期数' });
   });
 
   it('includes mentions in RSS item descriptions', async () => {
@@ -368,7 +407,7 @@ describe('editor CRUD', () => {
       ...body({ ...input, episodeNumber: undefined }),
     });
     expect(duplicate.status).toBe(409);
-    expect(await duplicate.json()).toEqual({ error: '这个链接名称已被另一集使用' });
+    expect(await duplicate.json()).toEqual({ error: '该栏目下已有相同期数或链接名称' });
     expect(
       (
         await call(`/admin/api/episodes/${other.id}`, {

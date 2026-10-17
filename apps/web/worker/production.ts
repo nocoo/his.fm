@@ -364,35 +364,56 @@ export async function routeProductions(
       requireScope(actor, 'productions:write');
       const brief = await readJson(request, briefCreateSchema);
       await getCategory(env.DB, brief.category);
-      const episodeNumber = await resolveEpisodeNumberForCreate(env.DB, brief.category, brief.episodeNumber);
       const now = new Date().toISOString();
-      const production = appendEvent(
-        {
-          ...brief,
-          mentions: brief.mentions ?? [],
-          episodeNumber,
-          id: crypto.randomUUID(),
-          version: 1,
-          stage: 'draft',
-          transcript: '',
-          scriptVersion: 0,
-          description: '',
-          summary: '',
-          assets: { cover: null, audio: null },
-          approvals: { brief: null, script: null, final: null },
-          publications: [],
-          events: [],
-          createdAt: now,
-          updatedAt: now,
-        },
-        actor,
-        'create',
-      );
-      const insert = env.DB.prepare(
-        'INSERT INTO productions (id, version, stage, data, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
-      ).bind(production.id, production.version, production.stage, JSON.stringify(production), now, now);
-      await env.DB.batch([categoryFence(env.DB, brief.category), insert]);
-      return respond(production, 201);
+      const productionId = crypto.randomUUID();
+      const maxAttempts = brief.episodeNumber === undefined ? 8 : 1;
+      for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        const episodeNumber = await resolveEpisodeNumberForCreate(
+          env.DB,
+          brief.category,
+          brief.episodeNumber,
+        );
+        const production = appendEvent(
+          {
+            ...brief,
+            mentions: brief.mentions ?? [],
+            episodeNumber,
+            id: productionId,
+            version: 1,
+            stage: 'draft',
+            transcript: '',
+            scriptVersion: 0,
+            description: '',
+            summary: '',
+            assets: { cover: null, audio: null },
+            approvals: { brief: null, script: null, final: null },
+            publications: [],
+            events: [],
+            createdAt: now,
+            updatedAt: now,
+          },
+          actor,
+          'create',
+        );
+        const insert = env.DB.prepare(
+          'INSERT INTO productions (id, version, stage, data, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
+        ).bind(production.id, production.version, production.stage, JSON.stringify(production), now, now);
+        try {
+          await env.DB.batch([categoryFence(env.DB, brief.category), insert]);
+          return respond(production, 201);
+        } catch (error) {
+          const conflict =
+            error instanceof Error &&
+            /UNIQUE constraint failed/.test(error.message) &&
+            /productions/.test(error.message);
+          if (brief.episodeNumber !== undefined) {
+            if (conflict) throw new HttpError(409, '该栏目下已有相同期数');
+            throw error;
+          }
+          if (!conflict) throw error;
+        }
+      }
+      throw new HttpError(503, '栏目期数暂时无法分配，请稍后重试');
     }
     throw new HttpError(405, '不支持这个请求方式');
   }

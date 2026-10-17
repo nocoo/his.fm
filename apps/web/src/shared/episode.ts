@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { categoryIdSchema } from './category';
+import { episodeCanonicalUrl } from './episode-url';
 import { mentionsSchema } from './mentions';
 
 const mediaUrl = z
@@ -78,9 +79,9 @@ export type Episode = EpisodeInput & {
 };
 
 /** Public catalogue and pages never include the full transcript. */
-export type PublicEpisode = Omit<Episode, 'transcript'>;
+export type PublicEpisode = Omit<Episode, 'transcript'> & { canonical: string };
 
-export function projectPublicEpisode(episode: Episode): PublicEpisode {
+export function projectPublicEpisode(episode: Episode, origin = 'https://his.fm'): PublicEpisode {
   const { transcript: _transcript, ...publicEpisode } = episode;
-  return publicEpisode;
+  return { ...publicEpisode, canonical: episodeCanonicalUrl(origin, episode) };
 }

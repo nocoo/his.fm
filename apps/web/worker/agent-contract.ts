@@ -4,7 +4,12 @@ import { version } from '../../../package.json';
 import { appearanceSchema, appearanceUpdateSchema } from '../src/shared/appearance';
 import { categoryInputSchema, categoryMutationSchema, categorySchema } from '../src/shared/category';
 import { channelProfileSchema, channelUpdateSchema, editorialPriority } from '../src/shared/channel';
-import { episodeDisplaySchema, episodeInputSchema, episodeUpdateSchema } from '../src/shared/episode';
+import {
+  episodeCreateSchema,
+  episodeDisplaySchema,
+  episodeInputSchema,
+  episodeUpdateSchema,
+} from '../src/shared/episode';
 import {
   actionNames,
   agentActionSchema,
@@ -647,7 +652,7 @@ export function agentOpenApi(origin: string) {
             ['episodes:write'],
             201,
           ),
-          requestBody: body(episodeInputSchema),
+          requestBody: body(episodeCreateSchema),
         },
       },
       '/episodes/{id}': {

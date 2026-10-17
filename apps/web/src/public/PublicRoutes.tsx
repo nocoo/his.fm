@@ -17,6 +17,7 @@ import { BrandSymbol, Wordmark } from '../brand/Brand';
 import { themeMedia } from '../brand/themes';
 import { AudioPlayer } from '../components/AudioPlayer';
 import type { PublicEpisode } from '../shared/episode';
+import { episodePublicPath } from '../shared/episode-url';
 import { podcastEpisodeMentionsJsonLd } from '../shared/mentions-format';
 import { ReadingText } from '../shared/ReadingText';
 import { PublicLink as Link, PublicNavLink as NavLink, SiteAppearance, useAppearance } from './Appearance';
@@ -169,7 +170,12 @@ function EpisodeCard({ episode }: { episode: PublicEpisode }) {
   const label = episodeDisplayLabel(episode, categories);
   return (
     <article className="episode-card">
-      <Link to={`/episodes/${episode.slug}`} className="episode-art" tabIndex={-1} aria-hidden="true">
+      <Link
+        to={episodePublicPath(episode.category, episode.slug)}
+        className="episode-art"
+        tabIndex={-1}
+        aria-hidden="true"
+      >
         <EpisodeCover episode={episode} />
         <span className="art-arrow">
           <ArrowUpRight size={25} />
@@ -183,7 +189,7 @@ function EpisodeCard({ episode }: { episode: PublicEpisode }) {
         </span>
       </div>
       <h3>
-        <Link to={`/episodes/${episode.slug}`}>{episode.title}</Link>
+        <Link to={episodePublicPath(episode.category, episode.slug)}>{episode.title}</Link>
       </h3>
       <p>{episode.summary}</p>
       <div className="episode-bottom">
@@ -360,14 +366,21 @@ function Catalogue() {
   );
 }
 
+const defaultMetaDescription = 'his.fm，一档给开发者的中文播客。聊 AI，聊工作，也聊屏幕之外正在发生的生活。';
+
 function EpisodeDetail() {
-  const { slug } = useParams();
+  const { categoryId, slug } = useParams();
   const { episodes, categories, loading, error } = useLibrary();
-  const episode = episodes.find((item) => item.slug === slug);
+  const episode = episodes.find(
+    (item) => item.slug === slug && (!categoryId || item.category === categoryId),
+  );
   const [copyState, setCopyState] = useState('');
   useEffect(() => {
     if (!episode) {
       document.title = '节目详情 · his.fm';
+      document
+        .querySelector<HTMLMetaElement>('meta[name="description"]')
+        ?.setAttribute('content', defaultMetaDescription);
       return;
     }
     document.title = `${episodeDisplayLabel(episode, categories)} · ${episode.title} · his.fm`;
@@ -388,6 +401,9 @@ function EpisodeDetail() {
     document.head.appendChild(script);
     return () => {
       document.getElementById(scriptId)?.remove();
+      document
+        .querySelector<HTMLMetaElement>('meta[name="description"]')
+        ?.setAttribute('content', defaultMetaDescription);
     };
   }, [episode, categories]);
   // biome-ignore lint/correctness/useExhaustiveDependencies: Each episode resets share state on navigation.
@@ -603,6 +619,7 @@ export function PublicRoutes() {
       <Route element={<Layout />}>
         <Route index element={<Home />} />
         <Route path="episodes" element={<Catalogue />} />
+        <Route path="episodes/:categoryId/:slug" element={<EpisodeDetail />} />
         <Route path="episodes/:slug" element={<EpisodeDetail />} />
         <Route path="about" element={<About />} />
         <Route path="*" element={<NotFound />} />

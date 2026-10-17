@@ -75,7 +75,6 @@ export function NewProduction() {
       {categories.error && <Failure error={categories.error} retry={() => void categories.load()} />}
       {initialBrief && (
         <BriefForm
-          key={`${initialBrief.category}-${initialBrief.episodeNumber}`}
           value={initialBrief}
           pending={pending}
           suggestEpisodeNumber={suggestEpisodeNumber}

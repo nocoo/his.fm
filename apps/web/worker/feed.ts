@@ -1,4 +1,5 @@
 import type { PublicEpisode } from '../src/shared/episode';
+import { episodePublicPath } from '../src/shared/episode-url';
 import { mentionsShowNotesHtml } from '../src/shared/mentions-format';
 import { listEpisodes } from './episodes';
 
@@ -22,7 +23,7 @@ export async function buildRssFeed(db: D1Database, origin: string): Promise<stri
   const episodes = (await listEpisodes(db, true)) as PublicEpisode[];
   const items = episodes
     .map((episode) => {
-      const link = `${origin}/episodes/${episode.slug}`;
+      const link = `${origin}${episodePublicPath(episode.category, episode.slug)}`;
       return `<item>
   <title>${escapeXml(episode.title)}</title>
   <link>${link}</link>

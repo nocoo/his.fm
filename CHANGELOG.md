@@ -2,6 +2,19 @@
 
 All notable changes to his.fm are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions use the owner’s patch-only deployment policy in `AGENTS.md`, with the authoritative version in `package.json`.
 
+## 2.4.7 - 2026-10-17
+
+### Added
+
+- Public episode URLs at `/episodes/<category>/<slug>` with Worker-first routing, legacy `/episodes/<slug>` **301** redirects, and `category_id_aliases` so renamed category IDs keep old paths working.
+- Unique `(category, slug)` on episodes; public and API lookup resolve category plus slug.
+
+### Changed
+
+- Migration **0016** ranks episode numbers jointly across episodes and unlinked productions in each category; linked productions inherit their episode number.
+- Production create allocates episode numbers atomically against `productions(category, episode_number)` with retry on conflict; manual duplicate numbers return **409**.
+- OpenAPI episode create marks `episodeNumber` optional; admin brief mentions use `safeParse`; new production form no longer remounts when the suggested number loads; episode detail pages reset the meta description on leave.
+
 ## 2.4.6 - 2026-10-17
 
 ### Added

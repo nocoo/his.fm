@@ -246,6 +246,11 @@ it('renames category id and updates episode and production references', async ()
     category: { id: nextId, name: '迁移后的栏目', version: 2 },
   });
   expect(await getCategory(env.DB, nextId)).toMatchObject({ id: nextId, version: 2 });
+  expect(
+    await env.DB.prepare('SELECT category_id AS categoryId FROM category_id_aliases WHERE alias = ?')
+      .bind(category.id)
+      .first<{ categoryId: string }>(),
+  ).toEqual({ categoryId: nextId });
   await expect(getCategory(env.DB, category.id)).rejects.toMatchObject({ status: 404 });
   expect(
     await env.DB.prepare('SELECT category FROM episodes WHERE id=?')

@@ -66,6 +66,8 @@ describe('Cloudflare configuration', () => {
       expect(worker.assets.runWorkerFirst).toEqual([
         '/api/*',
         '/feed.xml',
+        '/episodes',
+        '/episodes/*',
         '/.well-known/api-catalog',
         '/llms.txt',
         '/admin',

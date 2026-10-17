@@ -74,7 +74,7 @@ export function BriefForm({
           const result = readBrief(new FormData(event.currentTarget), sources);
           setError(result.error);
           if (result.data && !draft.conflicts.length) {
-            const mentions = mentionsSchema.parse(
+            const mentionsResult = mentionsSchema.safeParse(
               draft.value.mentions
                 .filter((mention) => mention.name.trim() || mention.description.trim() || mention.url)
                 .map((mention) => ({
@@ -83,7 +83,11 @@ export function BriefForm({
                   ...(mention.url?.trim() ? { url: mention.url.trim() } : {}),
                 })),
             );
-            const brief = { ...result.data, mentions };
+            if (!mentionsResult.success) {
+              setError(mentionsResult.error.issues[0]?.message ?? '请检查提及信息');
+              return;
+            }
+            const brief = { ...result.data, mentions: mentionsResult.data };
             const complete =
               (event.nativeEvent as SubmitEvent).submitter?.getAttribute('value') === 'complete';
             if (complete && onComplete) await onComplete(brief);

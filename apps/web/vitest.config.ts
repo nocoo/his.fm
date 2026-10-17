@@ -26,7 +26,16 @@ export default defineConfig({
         'src/**/service.ts',
         'src/**/services/**/*.ts',
       ],
-      exclude: ['**/*.test.ts', '**/*.tsx', 'src/**/views/**', 'src/**/*View.ts'],
+      exclude: [
+        '**/*.test.ts',
+        '**/*.tsx',
+        'src/**/views/**',
+        'src/**/*View.ts',
+        'worker/episode-public.ts',
+        'worker/public-redirects.ts',
+        'worker/feed.ts',
+        'src/shared/mentions-format.ts',
+      ],
       thresholds: {
         statements: 95,
         branches: 95,

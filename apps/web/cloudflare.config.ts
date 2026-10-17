@@ -21,6 +21,8 @@ export default defineConfig(({ mode }) => {
         runWorkerFirst: [
           '/api/*',
           '/feed.xml',
+          '/episodes',
+          '/episodes/*',
           '/.well-known/api-catalog',
           '/llms.txt',
           '/admin',

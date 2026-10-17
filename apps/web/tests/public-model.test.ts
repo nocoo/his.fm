@@ -4,14 +4,15 @@ import {
   categoryLabel,
   dateLabel,
   durationLabel,
+  episodeDisplayLabel,
   filterEpisodes,
   getAppearance,
   getCategories,
   getEpisodes,
 } from '../src/public/model';
-import type { Episode } from '../src/shared/episode';
+import { type Episode, projectPublicEpisode } from '../src/shared/episode';
 
-const episodes: Episode[] = [
+const rawEpisodes: Episode[] = [
   {
     id: '1',
     version: 1,
@@ -55,6 +56,7 @@ const episodes: Episode[] = [
     mentions: [],
   },
 ];
+const episodes = rawEpisodes.map((episode) => projectPublicEpisode(episode, 'https://his.fm.test'));
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -123,6 +125,7 @@ describe('listening room', () => {
         { id: 'manager-notes', name: '主理人手札', icon: 'briefcase-business', color: 'blue' },
       ]),
     ).toBe('主理人手札');
+    expect(episodeDisplayLabel(episodes[0], [])).toContain('栏目 EP.');
   });
   it('loads published episodes and forwards cancellation', async () => {
     const controller = new AbortController();

@@ -561,7 +561,7 @@ describe('manual assets and safe detach', () => {
     );
     expect((await call(`${path}/assets/audio?version=${production.version}`, 'PUT', wav)).status).toBe(409);
     expect((await getProduction(env.DB, production.id)).assets.audio).toEqual(readyFixture().assets.audio);
-    await insert(fixture({ id: 'draft' }));
+    await insert(fixture({ id: 'draft', episodeNumber: 9, slug: 'draft-audio-test' }));
     expect((await call('/productions/draft/assets/audio?version=1', 'PUT', wav)).status).toBe(409);
   });
 
