@@ -13,6 +13,7 @@ import {
 type EpisodeUpdate = z.infer<typeof episodeUpdateSchema>;
 
 import type { Actor } from '../src/shared/production';
+import { parseSeoOverride } from '../src/shared/seo';
 import { requireScope } from './authorization';
 import { getCategory } from './categories';
 import {
@@ -24,6 +25,32 @@ import {
 import { resolveCategoryAlias } from './episode-public';
 import { HttpError, json } from './http';
 import { readJson } from './production-body';
+import { getSiteSeo } from './seo-store';
+
+async function categoryNames(db: D1Database) {
+  const categories = await db.prepare('SELECT id, name FROM categories').all<{ id: string; name: string }>();
+  return new Map(categories.results.map((row) => [row.id, row.name]));
+}
+
+async function projectPublishedEpisode(db: D1Database, episode: Episode, origin: string) {
+  const site = await getSiteSeo(db);
+  const names = await categoryNames(db);
+  return projectPublicEpisode(episode, origin, {
+    site,
+    categoryName: names.get(episode.category) ?? episode.category,
+  });
+}
+
+async function projectPublishedEpisodes(db: D1Database, episodes: Episode[], origin: string) {
+  const site = await getSiteSeo(db);
+  const names = await categoryNames(db);
+  return episodes.map((episode) =>
+    projectPublicEpisode(episode, origin, {
+      site,
+      categoryName: names.get(episode.category) ?? episode.category,
+    }),
+  );
+}
 
 type EpisodeRow = Omit<
   Episode,
@@ -37,6 +64,7 @@ type EpisodeRow = Omit<
   | 'updatedAt'
   | 'tags'
   | 'mentions'
+  | 'seo'
   | 'featured'
 > & {
   source_production_id: string | null;
@@ -50,6 +78,7 @@ type EpisodeRow = Omit<
   updated_at: string;
   tags: string;
   mentions: string;
+  seo: string;
   featured: number;
 };
 
@@ -68,6 +97,7 @@ function fromRow(row: EpisodeRow): Episode {
     category: row.category,
     tags: JSON.parse(row.tags),
     mentions: JSON.parse(row.mentions),
+    seo: parseSeoOverride(row.seo),
     durationSeconds: row.duration_seconds,
     audioUrl: row.audio_url,
     status: row.status,
@@ -78,9 +108,11 @@ function fromRow(row: EpisodeRow): Episode {
   };
 }
 
-async function fetchPublishedRow(db: D1Database, lookup: { category?: string; slug: string }) {
+type EpisodeLookup = { category?: string; slug?: string; id?: string };
+
+async function fetchPublishedRow(db: D1Database, lookup: EpisodeLookup) {
   const now = new Date().toISOString();
-  if (lookup.category) {
+  if (lookup.category && lookup.slug) {
     const category = await resolveCategoryAlias(db, lookup.category);
     return db
       .prepare(
@@ -89,12 +121,15 @@ async function fetchPublishedRow(db: D1Database, lookup: { category?: string; sl
       .bind(category, lookup.slug, now)
       .first<EpisodeRow>();
   }
-  return db
-    .prepare(
-      "SELECT * FROM episodes WHERE slug = ? AND status = 'published' AND published_at <= ? ORDER BY published_at DESC LIMIT 1",
-    )
-    .bind(lookup.slug, now)
-    .first<EpisodeRow>();
+  if (lookup.slug) {
+    return db
+      .prepare(
+        "SELECT * FROM episodes WHERE slug = ? AND status = 'published' AND published_at <= ? ORDER BY published_at DESC LIMIT 1",
+      )
+      .bind(lookup.slug, now)
+      .first<EpisodeRow>();
+  }
+  return null;
 }
 
 export async function listEpisodes(
@@ -116,7 +151,7 @@ export async function listEpisodes(
     : statement
   ).all<EpisodeRow>();
   const episodes = result.results.map(fromRow);
-  return publishedOnly ? episodes.map((episode) => projectPublicEpisode(episode, origin)) : episodes;
+  return publishedOnly ? await projectPublishedEpisodes(db, episodes, origin) : episodes;
 }
 
 export async function getEpisode(
@@ -136,7 +171,30 @@ export async function getEpisode(
   }
   const row = await fetchPublishedRow(db, { category: options.category, slug: key });
   if (!row) throw new HttpError(404, '这期节目不存在');
-  return projectPublicEpisode(fromRow(row), origin);
+  return projectPublishedEpisode(db, fromRow(row), origin);
+}
+
+export async function getPublishedEpisodeBundle(
+  db: D1Database,
+  category: string,
+  slug: string,
+  origin: string,
+) {
+  const row = await fetchPublishedRow(db, { category, slug });
+  if (!row) throw new HttpError(404, '这期节目不存在');
+  const episode = fromRow(row);
+  return { episode: await projectPublishedEpisode(db, episode, origin), seo: episode.seo };
+}
+
+export async function listPublishedEpisodesInCategory(db: D1Database, categoryId: string) {
+  const category = await resolveCategoryAlias(db, categoryId);
+  const result = await db
+    .prepare(
+      "SELECT * FROM episodes WHERE category = ? AND status = 'published' AND published_at <= ? ORDER BY published_at DESC, episode_number DESC",
+    )
+    .bind(category, new Date().toISOString())
+    .all<EpisodeRow>();
+  return result.results.map(fromRow);
 }
 
 async function readInput(request: Request, update: boolean) {
@@ -188,6 +246,7 @@ function inputValues(input: EpisodeInput) {
     input.category,
     JSON.stringify(input.tags),
     JSON.stringify(input.mentions),
+    JSON.stringify(input.seo ?? {}),
     input.durationSeconds,
     input.audioUrl,
     input.status,
@@ -269,7 +328,7 @@ export async function mutateEpisode(request: Request, db: D1Database, actor: Act
     const statements = [
       db
         .prepare(
-          'UPDATE episodes SET slug = ?, episode_number = ?, title = ?, summary = ?, transcript = ?, show_notes = ?, cover_url = ?, category = ?, tags = ?, mentions = ?, duration_seconds = ?, audio_url = ?, status = ?, featured = ?, published_at = ?, updated_at = ?, write_id = ?, version = version + 1 WHERE id = ? AND version = ? AND source_production_id IS NULL',
+          'UPDATE episodes SET slug = ?, episode_number = ?, title = ?, summary = ?, transcript = ?, show_notes = ?, cover_url = ?, category = ?, tags = ?, mentions = ?, seo = ?, duration_seconds = ?, audio_url = ?, status = ?, featured = ?, published_at = ?, updated_at = ?, write_id = ?, version = version + 1 WHERE id = ? AND version = ? AND source_production_id IS NULL',
         )
         .bind(...inputValues(payload), now, writeId, id, expectedVersion),
     ];
@@ -304,7 +363,7 @@ export async function mutateEpisode(request: Request, db: D1Database, actor: Act
     (episodeNumber) =>
       db
         .prepare(
-          'INSERT INTO episodes (slug, episode_number, title, summary, transcript, show_notes, cover_url, category, tags, mentions, duration_seconds, audio_url, status, featured, published_at, created_at, updated_at, write_id, id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *',
+          'INSERT INTO episodes (slug, episode_number, title, summary, transcript, show_notes, cover_url, category, tags, mentions, seo, duration_seconds, audio_url, status, featured, published_at, created_at, updated_at, write_id, id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *',
         )
         .bind(...inputValues({ ...input, episodeNumber }), now, now, writeId, newId),
     input.episodeNumber,

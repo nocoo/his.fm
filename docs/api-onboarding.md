@@ -5,7 +5,7 @@ his.fm is a podcast content-management site. External clients create text, artwo
 ## Connect
 
 - API base: `https://his.fm/api/agent`.
-- Public discovery: `/api/agent`, `/.well-known/api-catalog`, `/llms.txt`.
+- Public discovery: `/api/agent`, `/.well-known/api-catalog`, `/llms.txt`, `/llms-full.txt`, `/sitemap.xml`, `/robots.txt`, `/feed.xml`, `/feeds/{categoryId}.xml`.
 - OpenAPI 3.1: `/api/agent/openapi.json`. Read actual paths and `x-required-scopes`; do not guess endpoints.
 - Obtain a token from the owner at `/admin/connections`; send `Authorization: Bearer <token>` over HTTPS. Never put it in a URL, prompt, log, source file or browser bundle.
 - Verify with `GET /me`, then `GET /capabilities`. Discovery being reachable does not prove authentication.
@@ -25,7 +25,7 @@ Use only the environment explicitly authorized by the owner. Local and productio
 | Publication records | `publications:read`, `publications:write`, `publications:delete` |
 | Standalone episodes | `episodes:read`, `episodes:write`, `episodes:delete`, `episodes:publish` |
 | Categories | `categories:read`, `categories:write`, `categories:delete` |
-| Prompts | `prompts:read`, `prompts:write` |
+| Prompts and site SEO | `prompts:read`, `prompts:write` (`GET`/`PUT /seo` for defaults, RSS metadata and global page overrides) |
 | Appearance | `appearance:read`, `appearance:write` |
 | Bumpers | `bumpers:read`, `bumpers:write`, `bumpers:delete` |
 | Media storage | `storage:read`, `storage:write`, `storage:delete` |

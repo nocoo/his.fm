@@ -140,6 +140,7 @@ beforeAll(async () => {
     '0019_episode_slug_per_category.sql',
     '0020_episode_number_claims.sql',
     '0021_write_id.sql',
+    '0022_seo.sql',
   ]) {
     const sql = readFileSync(new URL(`../../migrations/${file}`, import.meta.url), 'utf8');
     await env.DB.batch(

@@ -12,6 +12,7 @@ test('category editor preserves Markdown, icon/color selection, stale drafts and
     icon: 'book-open',
     color: 'teal',
     prompt: '# 栏目\n先讲结论。',
+    seo: {},
     version: 1,
     updatedAt: '2026-10-05T00:00:00Z',
     updatedBy: 'owner',

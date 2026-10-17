@@ -17,6 +17,7 @@ export const emptyEpisode: EpisodeInput = {
   featured: false,
   publishedAt: null,
   mentions: [],
+  seo: {},
 };
 
 export function toLocalDateTime(value: string | null): string {

@@ -6,7 +6,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 import { version } from '../../../../package.json';
 import { type Appearance, appearanceSchema, themeIds } from '../../src/shared/appearance';
 import { channelProfileSchema } from '../../src/shared/channel';
-import { type Episode, type EpisodeInput, projectPublicEpisode } from '../../src/shared/episode';
+import type { Episode, EpisodeInput, projectPublicEpisode } from '../../src/shared/episode';
 import type { Production } from '../../src/shared/production';
 import worker from '../../worker';
 import { productionCapabilities } from '../../worker/agent-api';
@@ -46,6 +46,7 @@ const input: EpisodeInput = {
       url: 'https://his.fm/',
     },
   ],
+  seo: {},
 };
 
 let miniflare: Miniflare;
@@ -166,9 +167,19 @@ describe('public podcast catalog', () => {
     const episode = await create();
     await create({ slug: 'draft', status: 'draft', publishedAt: null, episodeNumber: undefined });
     await create({ slug: 'future', publishedAt: '2999-01-01T00:00:00.000Z', episodeNumber: undefined });
-    const publicEpisode = projectPublicEpisode(episode, origin);
     const list = await call('/api/episodes');
-    expect(await list.json()).toEqual({ episodes: [publicEpisode] });
+    const listBody = (await list.json()) as { episodes: ReturnType<typeof projectPublicEpisode>[] };
+    expect(listBody.episodes).toHaveLength(1);
+    expect(listBody.episodes[0]).toMatchObject({
+      id: episode.id,
+      slug: episode.slug,
+      canonical: expect.stringContaining(`/episodes/${episode.category}/${episode.slug}`),
+      pageSeo: expect.objectContaining({
+        title: expect.stringContaining(episode.title),
+        canonical: expect.stringContaining(episode.slug),
+      }),
+    });
+    const publicEpisode = listBody.episodes[0];
     expect((await call('/api/episodes/draft')).status).toBe(404);
     expect((await call('/api/episodes/future')).status).toBe(404);
     expect((await call('/api/episodes/missing')).status).toBe(404);
@@ -362,6 +373,36 @@ describe('public podcast catalog', () => {
     expect(await duplicate.json()).toEqual({ error: '该栏目下已有相同期数' });
   });
 
+  it('rejects unknown category feeds and supports site seo HEAD', async () => {
+    expect((await call('/feeds/unknown-category.xml')).status).toBe(404);
+    expect((await call('/api/site-seo', { method: 'HEAD' })).status).toBe(200);
+  });
+
+  it('serves robots, sitemap, site seo and category feeds', async () => {
+    const episode = await create();
+    const robots = await call('/robots.txt');
+    expect(robots.status).toBe(200);
+    expect(await robots.text()).toContain(`${origin}/sitemap.xml`);
+    const sitemap = await call('/sitemap.xml');
+    expect(sitemap.status).toBe(200);
+    expect(await sitemap.text()).toContain(`/episodes/${episode.category}/${episode.slug}`);
+    const siteSeo = await call('/api/site-seo');
+    expect(siteSeo.status).toBe(200);
+    expect(((await siteSeo.json()) as { seo: { defaultTitle: string } }).seo.defaultTitle).toContain(
+      'his.fm',
+    );
+    const categoryFeed = await call(`/feeds/${episode.category}.xml`);
+    expect(categoryFeed.status).toBe(200);
+    expect(await categoryFeed.text()).toContain('<itunes:author>');
+  });
+
+  it('includes audio enclosures when episodes have playable media', async () => {
+    await create({ audioUrl: '/media/sample.mp3' });
+    const xml = await (await call('/feed.xml')).text();
+    expect(xml).toContain('<enclosure');
+    expect(xml).toContain('sample.mp3');
+  });
+
   it('includes mentions in RSS item descriptions', async () => {
     await create();
     const feed = await call('/feed.xml');
@@ -384,6 +425,47 @@ describe('public podcast catalog', () => {
     expect(detail.episode).not.toHaveProperty('transcript');
     const admin = (await (await call(`/admin/api/episodes/${episode.id}`)).json()) as { episode: Episode };
     expect(admin.episode.transcript).toBe(episode.transcript);
+  });
+
+  it('serves llms-full, admin site seo and agent seo routes', async () => {
+    await create();
+    const full = await call('/llms-full.txt');
+    expect(full.status).toBe(200);
+    expect(await full.text()).toContain('Episodes by category');
+    const seo = await call('/admin/api/seo');
+    expect(seo.status).toBe(200);
+    const current = (await seo.json()) as { seo: { version: number } };
+    const updated = await call('/admin/api/seo', {
+      method: 'PUT',
+      ...body({ version: current.seo.version, defaultTitle: 'his.fm · SEO 测试' }),
+    });
+    expect(updated.status).toBe(200);
+    expect(((await updated.json()) as { seo: { defaultTitle: string } }).seo.defaultTitle).toBe(
+      'his.fm · SEO 测试',
+    );
+    expect(
+      (
+        await call('/admin/api/seo', {
+          method: 'PUT',
+          ...body({ version: current.seo.version, defaultTitle: 'stale' }),
+        })
+      ).status,
+    ).toBe(409);
+  });
+
+  it('redirects legacy episode URLs to category paths', async () => {
+    const episode = await create();
+    const response = await call(`/episodes/${episode.slug}`);
+    expect(response.status).toBe(301);
+    expect(response.headers.get('Location')).toContain(`/episodes/${episode.category}/${episode.slug}`);
+  });
+
+  it('injects SEO tags into public HTML responses', async () => {
+    const episode = await create();
+    const html = await (await call(`/episodes/${episode.category}/${episode.slug}`)).text();
+    expect(html).toContain('property="og:title"');
+    expect(html).toContain('application/ld+json');
+    expect(html).toContain(episode.title);
   });
 
   it('checks database liveness and handles public asset and unknown routes', async () => {

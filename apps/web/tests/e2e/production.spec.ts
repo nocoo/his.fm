@@ -242,6 +242,7 @@ function snapshot(sourceProductionId: string | null): Episode {
     category: 'life',
     tags: [],
     mentions: [],
+    seo: {},
     summary: '已发布节目',
     transcript: production.transcript,
     showNotes: production.description,

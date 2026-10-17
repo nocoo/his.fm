@@ -45,6 +45,7 @@ const episodes: Episode[] = [
   category: 'test-category',
   tags: ['测试'],
   mentions: [],
+  seo: {},
   durationSeconds: index ? 45 : 90,
   audioUrl: `/media/player-${id}.wav`,
   status: 'published',

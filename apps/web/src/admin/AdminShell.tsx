@@ -36,6 +36,7 @@ import {
   PanelLeft,
   Plug,
   Plus,
+  Search,
   Tags,
 } from 'lucide-react';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
@@ -74,6 +75,7 @@ export function AdminShell({ session, children }: { session: Session; children: 
   const settings = Boolean(settingsTitle[location.pathname]) || categories;
   const channel = location.pathname === '/admin/channel';
   const appearance = location.pathname === '/admin/appearance';
+  const seo = location.pathname === '/admin/seo';
   const voicePreview = location.pathname === '/admin/voice-preview';
   const storage = location.pathname === '/admin/storage';
   const creating = location.pathname === '/admin/productions/new';
@@ -82,29 +84,31 @@ export function AdminShell({ session, children }: { session: Session; children: 
     location.pathname.startsWith('/admin/productions/') &&
     query.has('source') &&
     (!query.get('section') || query.get('section') === 'metadata');
-  const title = appearance
-    ? '品牌外观'
-    : voicePreview
-      ? '音色预览'
-      : sourceOpen
-        ? '素材详情'
-        : storage
-          ? '资源管理'
-          : channel
-            ? '提示词'
-            : isList
-              ? '节目库'
-              : settings
-                ? categories
-                  ? '栏目管理'
-                  : (settingsTitle[location.pathname] ?? '工作室')
-                : catalog
-                  ? location.pathname.endsWith('/new')
-                    ? '新建节目'
-                    : '编辑节目'
-                  : creating
-                    ? '新建节目'
-                    : '节目详情';
+  const title = seo
+    ? '搜索与分享'
+    : appearance
+      ? '品牌外观'
+      : voicePreview
+        ? '音色预览'
+        : sourceOpen
+          ? '素材详情'
+          : storage
+            ? '资源管理'
+            : channel
+              ? '提示词'
+              : isList
+                ? '节目库'
+                : settings
+                  ? categories
+                    ? '栏目管理'
+                    : (settingsTitle[location.pathname] ?? '工作室')
+                  : catalog
+                    ? location.pathname.endsWith('/new')
+                      ? '新建节目'
+                      : '编辑节目'
+                    : creating
+                      ? '新建节目'
+                      : '节目详情';
   function go(path: string) {
     navigate(path);
     if (compact) setCollapsed(true);
@@ -161,6 +165,7 @@ export function AdminShell({ session, children }: { session: Session; children: 
       label: '品牌外观',
       items: [
         { href: '/admin/appearance', label: '品牌外观', icon: Palette, active: appearance },
+        { href: '/admin/seo', label: '搜索与分享', icon: Search, active: seo },
         {
           href: '/admin/voice-preview',
           label: '音色预览',

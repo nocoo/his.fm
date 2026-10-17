@@ -10,6 +10,7 @@ import { type Category, categoryColors, categoryIcons, type PublicCategory } fro
 import { MarkdownEditor } from '../markdown/MarkdownEditor';
 import { Confirm, Failure } from '../production/controls';
 import { ReadingText } from '../production/ReadingText';
+import { SeoOverrideFields } from '../seo/SeoOverrideFields';
 import { CategoryBadge, categoryIconComponents } from './CategoryBadge';
 import { categoryService } from './service';
 import { useCategories } from './useCategories';
@@ -195,6 +196,18 @@ export function CategoryEditor({
                 />
               </Field>
               <CategoryBadge category={{ id, ...vm.value, name: vm.value.name || '栏目预览' }} />
+            </LayerCard>
+          )}
+          {!promptOnly && (
+            <LayerCard className="studio-stack">
+              <strong>栏目 SEO</strong>
+              <p className="admin-muted">作用于栏目列表筛选页与栏目 RSS。</p>
+              <SeoOverrideFields
+                idPrefix={`category-${id}`}
+                disabled={vm.pending}
+                value={vm.value.seo ?? {}}
+                onChange={(seo) => vm.setValue({ ...vm.value, seo })}
+              />
             </LayerCard>
           )}
           {vm.conflict && (

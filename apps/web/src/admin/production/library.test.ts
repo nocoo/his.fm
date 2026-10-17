@@ -13,6 +13,7 @@ function episode(changes: Partial<Episode> = {}): Episode {
     category: 'life',
     tags: ['tag'],
     mentions: [],
+    seo: {},
     summary: 'Summary',
     transcript: '',
     showNotes: '',

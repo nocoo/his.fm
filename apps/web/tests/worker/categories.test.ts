@@ -334,6 +334,7 @@ it('does not move episode or production references when rename uses a stale vers
       icon: category.icon,
       color: category.color,
       prompt: category.prompt,
+      seo: category.seo,
     }),
   ).rejects.toMatchObject({ status: 409 });
   expect(
@@ -458,6 +459,7 @@ it('maps duplicate nextId insert races to conflict responses', async () => {
       icon: category.icon,
       color: category.color,
       prompt: category.prompt,
+      seo: category.seo,
     }),
   ).rejects.toMatchObject({ status: 409 });
   expect(await getCategory(env.DB, category.id)).toMatchObject({ id: category.id, version: 1 });

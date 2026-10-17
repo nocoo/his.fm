@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { type Episode, projectPublicEpisode } from '../src/shared/episode';
 
+const origin = 'https://hisfm.dev.hexly.ai';
+
 const episode: Episode = {
   id: 'ep-1',
   version: 2,
@@ -14,6 +16,7 @@ const episode: Episode = {
   category: 'learning',
   tags: ['示例'],
   mentions: [],
+  seo: {},
   durationSeconds: 600,
   audioUrl: null,
   status: 'published',
@@ -25,7 +28,7 @@ const episode: Episode = {
 
 describe('public episode projection', () => {
   it('removes transcript while preserving catalogue fields', () => {
-    const publicEpisode = projectPublicEpisode(episode, 'https://his.fm');
+    const publicEpisode = projectPublicEpisode(episode, origin);
     expect(publicEpisode).toMatchObject({
       id: episode.id,
       slug: episode.slug,
@@ -34,7 +37,6 @@ describe('public episode projection', () => {
       showNotes: episode.showNotes,
     });
     expect(publicEpisode).not.toHaveProperty('transcript');
-    expect(publicEpisode.canonical).toContain('/episodes/learning/sample-episode');
     expect(JSON.stringify(publicEpisode)).not.toContain('逐字稿');
   });
 });

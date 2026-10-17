@@ -1,10 +1,14 @@
-import type { PublicEpisode } from '../src/shared/episode';
+import type { Episode, PublicEpisode } from '../src/shared/episode';
 import { episodeCanonicalUrl } from '../src/shared/episode-url';
+import { parseSeoOverride } from '../src/shared/seo';
 import { HttpError } from './http';
 
 type EpisodeRow = {
-  category: string;
+  id: string;
   slug: string;
+  category: string;
+  status: string;
+  published_at: string | null;
 };
 
 export async function resolveCategoryAlias(db: D1Database, categoryId: string): Promise<string> {
@@ -28,11 +32,34 @@ export async function findPublishedEpisodeBySlug(
   return row ? { category: row.category, slug: row.slug } : null;
 }
 
+export async function findPublishedEpisodeByCategorySlug(
+  db: D1Database,
+  categoryId: string,
+  slug: string,
+): Promise<boolean> {
+  const category = await resolveCategoryAlias(db, categoryId);
+  const row = await db
+    .prepare(
+      "SELECT id FROM episodes WHERE category = ? AND slug = ? AND status = 'published' AND published_at <= ?",
+    )
+    .bind(category, slug, new Date().toISOString())
+    .first();
+  return Boolean(row);
+}
+
 export function withPublicEpisodeFields(
   episode: PublicEpisode,
   origin: string,
 ): PublicEpisode & { canonical: string } {
   return { ...episode, canonical: episodeCanonicalUrl(origin, episode) };
+}
+
+export function episodeSeoFromRow(raw: string) {
+  return parseSeoOverride(raw);
+}
+
+export function mergeEpisodeSeo(episode: Episode, seoRaw: string) {
+  return { ...episode, seo: parseSeoOverride(seoRaw) };
 }
 
 export function redirect(location: string, permanent = true) {

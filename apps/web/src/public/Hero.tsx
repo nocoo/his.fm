@@ -2,6 +2,7 @@ import { ArrowDown, ArrowUpRight, Headphones } from 'lucide-react';
 import { BrandSymbol, Wordmark } from '../brand/Brand';
 import { themeMedia, themes } from '../brand/themes';
 import type { PublicEpisode } from '../shared/episode';
+import { episodePublicPath } from '../shared/episode-url';
 import { PublicLink, useAppearance } from './Appearance';
 import { durationLabel } from './model';
 
@@ -95,7 +96,7 @@ export function Hero({ featured, episodeLabel }: { featured?: PublicEpisode; epi
         </span>
       </div>
       {featured && (
-        <PublicLink to={`/episodes/${featured.category}/${featured.slug}`} className="hero-feature">
+        <PublicLink to={episodePublicPath(featured.category, featured.slug)} className="hero-feature">
           <span className="hero-feature-number">
             {episodeLabel}
             <small>{featured.audioUrl ? '本期声音' : '本期摘要'}</small>
