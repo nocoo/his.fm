@@ -24,7 +24,6 @@ const production = {
   stage: 'draft',
   title,
   slug: 'how-to-live-better',
-  episodeNumber: 1,
   category: 'manager-notes',
   tags: ['AI 学习', '工作节奏', '睡眠', '注意力', '休息'],
   targetDurationSeconds: 600,
@@ -70,9 +69,21 @@ const marker = 'hisfm-real-production-example-v1';
 const localGuard =
   mode === '--local' ? ` AND NOT EXISTS (SELECT 1 FROM local_seed_runs WHERE name = ${quote(marker)})` : '';
 const productionGuard = `NOT EXISTS (SELECT 1 FROM productions WHERE json_extract(data, '$.slug') = ${quote(production.slug)})${localGuard}`;
+const productionData = quote(JSON.stringify(production));
 const sql = [
-  `INSERT OR IGNORE INTO productions (id, version, stage, data, created_at, updated_at, write_id) SELECT ${quote(production.id)}, 1, 'draft', ${quote(JSON.stringify(production))}, ${quote(now)}, ${quote(now)}, lower(hex(randomblob(16))) WHERE ${productionGuard};`,
-  `INSERT OR IGNORE INTO episode_number_claims (category, episode_number, holder_id, holder_kind) SELECT ${quote(production.category)}, ${production.episodeNumber}, ${quote(production.id)}, 'production' WHERE ${productionGuard};`,
+  `INSERT OR IGNORE INTO productions (id, version, stage, data, created_at, updated_at, write_id)
+   SELECT ${quote(production.id)}, 1, 'draft', json_set(${productionData}, '$.episodeNumber', (
+     SELECT COALESCE(MAX(episode_number), 0) + 1 FROM episode_number_claims WHERE category = ${quote(production.category)}
+   )), ${quote(now)}, ${quote(now)}, lower(hex(randomblob(16)))
+   WHERE ${productionGuard};`,
+  `INSERT INTO episode_number_claims (category, episode_number, holder_id, holder_kind)
+   SELECT json_extract(data, '$.category'), CAST(json_extract(data, '$.episodeNumber') AS INTEGER), id, 'production'
+   FROM productions
+   WHERE id = ${quote(production.id)}
+   AND NOT EXISTS (
+     SELECT 1 FROM episode_number_claims existing
+     WHERE existing.holder_kind = 'production' AND existing.holder_id = productions.id
+   );`,
 ];
 if (mode === '--local')
   sql.push(
