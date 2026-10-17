@@ -6,6 +6,7 @@ import {
   storageKeySchema,
   storageKind,
 } from '../src/shared/storage';
+import { collectReferenceKeys } from '../src/shared/storage-references';
 import { parseWav } from './audio';
 import { requireScope } from './authorization';
 import { HttpError, json } from './http';
@@ -15,27 +16,7 @@ import { readBytes, readJson } from './production-body';
 import { mediaUrl } from './production-store';
 
 const retentionMs = 24 * 60 * 60 * 1000;
-const siteHosts = new Set(['his.fm', 'hisfm.dev.hexly.ai', 'localhost', '127.0.0.1']);
-/** Stops greedy matches before the next reference in CJK prose or markup. */
-const storageReferencePattern =
-  /(?:https?:\/\/[^\s<>"'()`[\]，。；：、！？「」《》（）,;]+|\/(?:media|images)\/[^\s<>"'()`[\]，。；：、！？「」《》（）,;]+)/g;
 type References = { keys: Map<string, Set<string>> };
-
-function storageKeyFromReference(token: string): string | null {
-  try {
-    const url = new URL(token.replace(/[.,;!，。；！]+$/, ''), 'https://his.fm');
-    let path = '';
-    if (url.origin === 'https://f.no.mt') path = url.pathname.slice(1);
-    else if (siteHosts.has(url.hostname)) {
-      if (url.pathname.startsWith('/media/')) path = url.pathname.slice(7);
-      else if (url.pathname.startsWith('/images/')) path = url.pathname.slice(1);
-    }
-    if (!path) return null;
-    return decodeURIComponent(path);
-  } catch {
-    return null;
-  }
-}
 
 function collect(value: unknown, label: string, keys: References['keys'], property = '') {
   if (typeof value === 'string') {
@@ -45,10 +26,7 @@ function collect(value: unknown, label: string, keys: References['keys'], proper
       keys.set(key, labels);
     };
     if (['key', 'introKey', 'outroKey'].includes(property)) add(value);
-    for (const match of value.matchAll(storageReferencePattern)) {
-      const key = storageKeyFromReference(match[0]);
-      if (key) add(key);
-    }
+    for (const key of collectReferenceKeys(value)) add(key);
   } else if (Array.isArray(value)) {
     for (const item of value) collect(item, label, keys);
   } else if (value && typeof value === 'object') {
