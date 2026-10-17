@@ -17,7 +17,9 @@ let writes: string[];
 let errors: string[];
 
 test.beforeEach(async ({ page, baseURL }) => {
-  expect(baseURL).toBe('http://127.0.0.1:27056');
+  expect(['127.0.0.1', 'localhost', '[::1]', 'hisfm.dev.hexly.ai']).toContain(
+    new URL(baseURL ?? '').hostname,
+  );
   writes = [];
   errors = [];
   page.on('pageerror', (error) => errors.push(error.message));

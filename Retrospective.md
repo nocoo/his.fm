@@ -735,3 +735,13 @@ Keep the original stream bounded through native Images, then apply the shared
 focal-point geometry to its bounded intermediate in SVG. Verify square, portrait,
 landscape and edge-clamped pixels in the actual runtime instead of assuming
 generated types prove emulator behavior. No environment-specific fallback is needed.
+
+Changing the SVG helper's artwork argument also required updating the embedded
+workerd test source, which static typechecking cannot inspect. The enabled commit
+hook caught that stale call; update all callers, including generated test strings,
+and measure the new bounded intermediate in the deployed-like memory test.
+
+The initial social-preview browser suite also pinned its temporary validation
+port. That passed the targeted run but rejected the repository's default Caddy
+URL and the final preview port. Guard local hostnames instead, while honoring
+Playwright's configured base URL and keeping the no-content-write tripwire.
