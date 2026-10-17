@@ -429,6 +429,21 @@ describe('public podcast catalog', () => {
     expect(xml).toContain('sample.mp3');
     expect(xml).toContain('type="audio/mpeg"');
     expect(xml).toContain(`length="${bytes.byteLength}"`);
+    const categoryXml = await (await call('/feeds/manager-notes.xml')).text();
+    expect(categoryXml).toContain('type="audio/mpeg"');
+    expect(categoryXml).toContain(`length="${bytes.byteLength}"`);
+  });
+
+  it('does not 301 legacy category ids on feeds or the catalogue query string', async () => {
+    await env.DB.prepare('INSERT INTO category_id_aliases (alias, category_id) VALUES (?, ?)')
+      .bind('legacy-category-id', 'life')
+      .run();
+    const feed = await call('/feeds/legacy-category-id.xml');
+    expect(feed.status).toBe(404);
+    expect(feed.headers.get('Location')).toBeNull();
+    const catalogue = await call('/episodes?category=legacy-category-id');
+    expect(catalogue.status).toBe(200);
+    expect(catalogue.headers.get('Location')).toBeNull();
   });
 
   it('includes mentions in RSS item descriptions', async () => {
