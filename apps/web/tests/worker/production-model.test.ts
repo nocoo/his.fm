@@ -81,17 +81,21 @@ describe('production approvals and revision state machine', () => {
     const reopener: Actor = { ...agent, scopes: ['productions:write', 'productions:reopen'] };
     const ready = readyFixture();
     const copy = structuredClone(ready);
-    for (const fields of [{ category: 'work' }, { transcript: 'Revised script' }, { summary: 'New summary' }])
+    for (const fields of [
+      { category: 'manager-notes' },
+      { transcript: 'Revised script' },
+      { summary: 'New summary' },
+    ])
       expect(() => applyPatch(ready, fields, approver)).toThrow('阶段');
-    expect(() => applyPatch({ ...ready, stage: 'production' }, { category: 'work' }, approver)).toThrow(
-      'productions:reopen',
-    );
+    expect(() =>
+      applyPatch({ ...ready, stage: 'production' }, { category: 'manager-notes' }, approver),
+    ).toThrow('productions:reopen');
     expect(() => applyPatch({ ...ready, stage: 'production' }, { transcript: 'Changed' }, approver)).toThrow(
       'productions:reopen',
     );
     expect(() => editAssets(ready, approver)).toThrow('阶段');
     expect(ready).toEqual(copy);
-    expect(applyPatch(ready, { category: 'work' }, reopener)).toMatchObject({
+    expect(applyPatch(ready, { category: 'manager-notes' }, reopener)).toMatchObject({
       stage: 'draft',
       scriptVersion: 2,
       approvals: { brief: null, script: null, final: null },
@@ -118,15 +122,15 @@ describe('production approvals and revision state machine', () => {
     production = applyPatch(production, { transcript: 'Approved script' }, fullAgent);
     production = applyAction(production, { version: 1, action: 'approve_script' }, fullAgent);
     expect(production.approvals.script?.by).toBe(fullAgent.name);
-    const revised = applyPatch(readyFixture(), { category: 'work' }, fullAgent);
+    const revised = applyPatch(readyFixture(), { category: 'manager-notes' }, fullAgent);
     expect(revised.stage).toBe('draft');
     expect(revised.approvals).toEqual({ brief: null, script: null, final: null });
     expect(applyAction(readyFixture(), { version: 1, action: 'reopen_assets' }, fullAgent).stage).toBe(
       'production',
     );
-    expect(() => applyPatch(readyFixture({ stage: 'production' }), { category: 'work' }, agent)).toThrow(
-      'productions:reopen',
-    );
+    expect(() =>
+      applyPatch(readyFixture({ stage: 'production' }), { category: 'manager-notes' }, agent),
+    ).toThrow('productions:reopen');
     expect(() => applyPatch(fixture(), { intent: 'No grant' }, { ...agent, scopes: [] })).toThrow(
       'productions:write',
     );
@@ -329,8 +333,8 @@ describe('audit and production prompts', () => {
         updatedBy: 'Owner',
       },
       {
-        id: 'work',
-        name: '店长手札',
+        id: 'manager-notes',
+        name: '主理人手札',
         icon: 'briefcase-business',
         color: 'blue',
         prompt: '栏目风格',

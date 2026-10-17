@@ -43,7 +43,7 @@ async function studio(page: Page, initial = fixture()) {
     if (path === '/categories')
       return send({
         categories: [
-          { id: 'work', name: '店长手札', icon: 'briefcase-business', color: 'blue' },
+          { id: 'manager-notes', name: '主理人手札', icon: 'briefcase-business', color: 'blue' },
           { id: 'life', name: '生活留白', icon: 'leaf', color: 'amber' },
         ],
       });

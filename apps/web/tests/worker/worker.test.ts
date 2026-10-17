@@ -32,7 +32,7 @@ const input: EpisodeInput = {
   transcript: '今天先到这里，明天从下一步开始。',
   showNotes: '00:00 从停下来的地方继续',
   coverUrl: '/images/episode-01.webp',
-  category: 'work',
+  category: 'manager-notes',
   tags: ['工作节奏'],
   durationSeconds: 600,
   audioUrl: null,

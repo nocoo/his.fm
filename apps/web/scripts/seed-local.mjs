@@ -21,7 +21,7 @@ const published = [
     title: '下班后，还要追多少个 AI？',
     summary:
       '十一点半，收藏夹又多了一条教程。沿着《高性价比人生指南》，聊聊睡眠、消息与那个总觉得自己还不够努力的晚上。',
-    category: 'work',
+    category: 'manager-notes',
     tags: ['AI 学习', '工作节奏', '注意力'],
     duration: 600,
     transcript,
@@ -77,7 +77,7 @@ const published = [
     slug: 'leave-a-small-note-for-tomorrow',
     title: '给明天的自己，留一条小纸条',
     summary: '不写宏大的计划，只记下今天停在哪里。关于上下文、交接，以及一个不必从零开始的早晨。',
-    category: 'work',
+    category: 'manager-notes',
     tags: ['工作习惯', '上下文', '明天再说'],
     duration: 660,
     transcript:

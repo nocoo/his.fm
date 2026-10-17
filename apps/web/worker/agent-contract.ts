@@ -2,7 +2,7 @@ import { grantsSchema, principalSchema, type Scope } from '@his-fm/contracts';
 import { z } from 'zod';
 import { version } from '../../../package.json';
 import { appearanceSchema, appearanceUpdateSchema } from '../src/shared/appearance';
-import { categoryInputSchema, categorySchema, categoryUpdateSchema } from '../src/shared/category';
+import { categoryInputSchema, categoryMutationSchema, categorySchema } from '../src/shared/category';
 import { channelProfileSchema, channelUpdateSchema, editorialPriority } from '../src/shared/channel';
 import { episodeDisplaySchema, episodeInputSchema, episodeUpdateSchema } from '../src/shared/episode';
 import {
@@ -472,13 +472,11 @@ export function agentOpenApi(origin: string) {
         put: {
           ...operation(
             'updateCategory',
-            'Update category metadata by version; changing its prompt additionally requires prompts:write; returned prompt needs prompts:read',
+            'Update category metadata by version; optional nextId renames the stable ID and updates episode/production references atomically; changing its prompt additionally requires prompts:write; returned prompt needs prompts:read',
             schema(z.object({ category: categoryProjection })),
             ['categories:write'],
           ),
-          requestBody: body(
-            categoryUpdateSchema.partial({ name: true, icon: true, color: true, prompt: true }),
-          ),
+          requestBody: body(categoryMutationSchema),
         },
         delete: {
           ...operation(

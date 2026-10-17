@@ -68,6 +68,34 @@ export async function routeCategories(request: Request, env: Env, actor: Actor, 
     const input = await readJson(request, categoryMutationSchema);
     const current = await getCategory(env.DB, id);
     if (input.prompt !== undefined && input.prompt !== current.prompt) requireScope(actor, 'prompts:write');
+    const nextId = input.nextId?.trim();
+    if (nextId && nextId !== id) {
+      if (await env.DB.prepare('SELECT 1 FROM categories WHERE id=?').bind(nextId).first())
+        throw new HttpError(409, '栏目 ID 已被占用，请换一个标识');
+      const now = new Date().toISOString();
+      const merged = {
+        name: input.name ?? current.name,
+        icon: input.icon ?? current.icon,
+        color: input.color ?? current.color,
+        prompt: input.prompt ?? current.prompt,
+      };
+      const nextVersion = current.version + 1;
+      const results = await env.DB.batch([
+        env.DB.prepare(
+          `INSERT INTO categories (id,name,icon,color,prompt,version,updated_at,updated_by) VALUES (?,?,?,?,?,?,?,?)`,
+        ).bind(nextId, merged.name, merged.icon, merged.color, merged.prompt, nextVersion, now, actor.name),
+        env.DB.prepare(
+          'UPDATE episodes SET category=?, version=version+1, updated_at=? WHERE category=?',
+        ).bind(nextId, now, id),
+        env.DB.prepare(
+          "UPDATE productions SET data=json_set(data,'$.category',?), version=version+1, updated_at=? WHERE json_extract(data,'$.category')=?",
+        ).bind(nextId, now, id),
+        env.DB.prepare('DELETE FROM categories WHERE id=? AND version=?').bind(id, input.version),
+      ]);
+      if (results[3].meta.changes !== 1)
+        throw new HttpError(409, '栏目已被修改或删除，草稿已保留，请刷新后对照');
+      return json({ category: project(await getCategory(env.DB, nextId)) });
+    }
     const category = await env.DB.prepare(
       `UPDATE categories SET name=?,icon=?,color=?,prompt=?,version=version+1,updated_at=?,updated_by=? WHERE id=? AND version=? RETURNING ${fields}`,
     )

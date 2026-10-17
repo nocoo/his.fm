@@ -4,10 +4,14 @@ All notable changes to his.fm are documented here. The format follows [Keep a Ch
 
 ## 2.4.4 - 2026-10-17
 
+### Added
+
+- Let owners rename category stable IDs through `PUT /api/agent/categories/:id` with optional `nextId`, updating episode foreign keys and production `category` fields atomically. The studio category editor exposes the ID field beside display metadata.
+- Restore **音色预览** under **品牌外观**, pairing Gemini and ElevenLabs voices with the fixed comparison transcript. Play existing `reference/voices/*.wav` samples in-admin; show placeholders when ElevenLabs reference files are not uploaded yet (no in-site generation).
+
 ### Changed
 
-- Rebrand the `learning` column public name to **每日手冲**, rename published `daily-news-*` episode titles, summaries, transcripts and tags from **每日新闻**, and align learning intro bumper catalogue copy. Episode slugs stay unchanged.
-- Rebrand the `work` column (team/personal AI transformation) public name from **工作之间** to **店长手札**. Stable category IDs are unchanged.
+- Seed new environments with category `manager-notes` (**主理人手札**) and `learning` (**每日手冲**). Existing deployments rename IDs and display names through the category API; episode copy and bumper text are edited through episode, production and bumper APIs.
 
 ## 2.4.3 - 2026-10-16
 

@@ -12,7 +12,7 @@ export const emptyBrief: ProductionBrief = {
   title: '',
   slug: '',
   episodeNumber: 1,
-  category: 'work',
+  category: 'manager-notes',
   tags: [],
   targetDurationSeconds: 600,
   sources: [],

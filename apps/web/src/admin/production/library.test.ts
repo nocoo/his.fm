@@ -77,7 +77,12 @@ describe('unified program library', () => {
     const rows = programLibrary(
       [
         fixture(),
-        readyFixture({ id: 'ready', episodeNumber: 9, category: 'work', updatedAt: '2026-09-26T00:00:00Z' }),
+        readyFixture({
+          id: 'ready',
+          episodeNumber: 9,
+          category: 'manager-notes',
+          updatedAt: '2026-09-26T00:00:00Z',
+        }),
       ],
       [episode({ episodeNumber: 9, tags: ['KEYWORD'], updatedAt: '2026-09-27T00:00:00Z' })],
     );
@@ -87,7 +92,9 @@ describe('unified program library', () => {
       'production:production-test',
     ]);
     expect(filterLibrary(rows, ' keyword ', 'all', 'life')).toHaveLength(1);
-    expect(filterLibrary(rows, '', 'ready', 'work').map((row) => row.id)).toEqual(['production:ready']);
+    expect(filterLibrary(rows, '', 'ready', 'manager-notes').map((row) => row.id)).toEqual([
+      'production:ready',
+    ]);
     expect(filterLibrary(rows, 'missing', 'all', 'all')).toEqual([]);
     expect(filterLibrary(rows, '', 'all', 'all')).toEqual(rows);
   });

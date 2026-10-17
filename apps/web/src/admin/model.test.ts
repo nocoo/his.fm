@@ -19,7 +19,7 @@ function validForm() {
     transcript: '你好，欢迎收听 his.fm。',
     showNotes: '阅读记录',
     coverUrl: 'https://f.no.mt/images/episode-01.webp',
-    category: 'work',
+    category: 'manager-notes',
     tags: 'AI， 日常, 休息,,',
     durationMinutes: '10.5',
     audioUrl: '',

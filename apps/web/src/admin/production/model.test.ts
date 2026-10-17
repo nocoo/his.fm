@@ -142,7 +142,7 @@ describe('program delete policy', () => {
         id: 'production:1',
         title: 't',
         episodeNumber: 1,
-        category: 'work',
+        category: 'manager-notes',
         summary: '',
         tags: [],
         coverUrl: null,

@@ -8,6 +8,7 @@ import worker from '../../worker/index';
 import { routeProductions } from '../../worker/production';
 import { applyPatch } from '../../worker/production-model';
 import { productionPrompts } from '../../worker/production-prompts';
+import { getProduction } from '../../worker/production-store';
 import { defaultPrompts } from '../../worker/prompt-defaults';
 import { agent, brief, type fixture, human, readyFixture } from './production-fixture';
 
@@ -69,18 +70,22 @@ beforeEach(async () => {
     [
       'DELETE FROM productions',
       'DELETE FROM episodes',
-      "DELETE FROM categories WHERE id NOT IN ('work','learning','life','conversations')",
+      "DELETE FROM categories WHERE id NOT IN ('manager-notes','learning','life','conversations')",
     ].map((sql) => env.DB.prepare(sql)),
   );
 });
 it('keeps original identities, returns public metadata without prompts, and validates icon/color inputs', async () => {
   expect((await listCategories(env.DB)).map((c) => c.id)).toEqual([
-    'work',
+    'manager-notes',
     'learning',
     'life',
     'conversations',
   ]);
-  expect(await getCategory(env.DB, 'work')).toMatchObject({ name: '店长手札', prompt: '', version: 1 });
+  expect(await getCategory(env.DB, 'manager-notes')).toMatchObject({
+    name: '主理人手札',
+    prompt: '',
+    version: 1,
+  });
   expect(await getCategory(env.DB, 'learning')).toMatchObject({ name: '每日手冲', version: 1 });
   const category = await create();
   expect(category).toMatchObject({ ...input, version: 1 });
@@ -183,6 +188,56 @@ it('accepts new categories in productions, prevents deleting referenced categori
   const changed = applyPatch(readyFixture(), { category: category.id }, human);
   expect(changed.stage).toBe('draft');
   expect(changed.approvals).toEqual({ brief: null, script: null, final: null });
+});
+it('renames category id and updates episode and production references', async () => {
+  const category = await create();
+  const productionResponse = await routeProductions(
+    request('POST', { ...brief, category: category.id }),
+    env,
+    '/productions',
+    human,
+  );
+  assert(productionResponse);
+  const { production } = (await productionResponse.json()) as { production: ReturnType<typeof fixture> };
+  await env.DB.prepare(
+    'INSERT INTO episodes (id, slug, episode_number, title, summary, transcript, show_notes, cover_url, category, tags, duration_seconds, status, featured, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+  )
+    .bind(
+      'episode-category-rename',
+      'category-rename',
+      1,
+      '栏目迁移',
+      '摘要',
+      '',
+      '',
+      '/images/episode-01.webp',
+      category.id,
+      '[]',
+      0,
+      'draft',
+      0,
+      '2026-09-25T00:00:00.000Z',
+      '2026-09-25T00:00:00.000Z',
+    )
+    .run();
+  const nextId = 'renamed-category';
+  const response = await routeCategories(
+    request('PUT', { version: 1, nextId, name: '迁移后的栏目' }),
+    env,
+    human,
+    category.id,
+  );
+  expect(await response.json()).toMatchObject({
+    category: { id: nextId, name: '迁移后的栏目', version: 2 },
+  });
+  expect(await getCategory(env.DB, nextId)).toMatchObject({ id: nextId, version: 2 });
+  await expect(getCategory(env.DB, category.id)).rejects.toMatchObject({ status: 404 });
+  expect(
+    await env.DB.prepare('SELECT category FROM episodes WHERE id=?')
+      .bind('episode-category-rename')
+      .first<{ category: string }>(),
+  ).toEqual({ category: nextId });
+  expect((await getProduction(env.DB, production.id)).category).toBe(nextId);
 });
 it('protects owner category writes with authentication and same-origin checks', async () => {
   expect((await worker.fetch(request(), env)).status).toBe(401);

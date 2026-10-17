@@ -9,7 +9,7 @@ CREATE TABLE categories (
   updated_by TEXT NOT NULL
 );
 INSERT INTO categories (id, name, icon, color, updated_at, updated_by) VALUES
-  ('work', '店长手札', 'briefcase-business', 'blue', strftime('%Y-%m-%dT%H:%M:%fZ','now'), 'his.fm'),
+  ('manager-notes', '主理人手札', 'briefcase-business', 'blue', strftime('%Y-%m-%dT%H:%M:%fZ','now'), 'his.fm'),
   ('learning', '每日手冲', 'book-open', 'teal', strftime('%Y-%m-%dT%H:%M:%fZ','now'), 'his.fm'),
   ('life', '生活留白', 'leaf', 'amber', strftime('%Y-%m-%dT%H:%M:%fZ','now'), 'his.fm'),
   ('conversations', '一起聊聊', 'messages-square', 'rose', strftime('%Y-%m-%dT%H:%M:%fZ','now'), 'his.fm');

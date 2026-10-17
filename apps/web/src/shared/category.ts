@@ -28,6 +28,7 @@ export const categoryInputSchema = z.strictObject({
 export const categoryUpdateSchema = categoryInputSchema.extend({ version: z.number().int().positive() });
 export const categoryCreateSchema = categoryInputSchema.partial({ prompt: true });
 export const categoryMutationSchema = categoryUpdateSchema
+  .extend({ nextId: categoryIdSchema.optional() })
   .partial({ name: true, icon: true, color: true, prompt: true })
   .refine((value) => Object.keys(value).some((key) => key !== 'version'), '请提供需要修改的栏目字段');
 export const categorySchema = categoryUpdateSchema.extend({
