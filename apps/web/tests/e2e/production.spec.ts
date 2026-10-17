@@ -859,7 +859,7 @@ test('sidebar separates content, brand and settings with a highlighted website s
   const github = page.getByRole('link', { name: 'GitHub 仓库', exact: true });
   const groups = [
     ['内容制作', ['节目库', '新建节目', '栏目管理', '提示词', '贴片库']],
-    ['品牌外观', ['品牌外观']],
+    ['品牌外观', ['品牌外观', '音色预览']],
     ['全站设置', ['连接管理', '资源管理']],
   ] as const;
   const expectGroups = async () => {
