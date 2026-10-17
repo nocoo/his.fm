@@ -273,7 +273,9 @@ export async function mutateEpisode(request: Request, db: D1Database, actor: Act
         .bind(...inputValues(payload), now, id, expectedVersion),
     ];
     if (claimChanged) {
-      statements.push(...episodeClaimReplaceStatements(db, id, newVersion, input.category, episodeNumber));
+      statements.push(
+        ...episodeClaimReplaceStatements(db, id, newVersion, now, input.category, episodeNumber),
+      );
     }
     try {
       const results = await db.batch(statements);

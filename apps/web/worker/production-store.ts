@@ -1,7 +1,11 @@
 import { hasScope } from '@his-fm/contracts';
 import type { Actor, Production } from '../src/shared/production';
 import { categoryFence, getCategory } from './categories';
-import { productionClaimReplaceStatements, publishedSnapshotMatchesProduction } from './episode-numbering';
+import {
+  productionClaimReleaseStatement,
+  productionClaimReplaceStatements,
+  publishedSnapshotMatchesProduction,
+} from './episode-numbering';
 import { HttpError } from './http';
 
 export function mediaUrl(env: Pick<Env, 'ENVIRONMENT'>, key: string) {
@@ -75,9 +79,18 @@ export async function saveProduction(db: D1Database, production: Production, exp
     numberingChanged &&
     (await publishedSnapshotMatchesProduction(db, next.id, next.category, next.episodeNumber));
   const statements = [categoryFence(db, next.category), updateStatement(db, next, expectedVersion)];
-  if (numberingChanged && !snapshotOwnsNumber) {
+  if (numberingChanged && snapshotOwnsNumber) {
+    statements.push(productionClaimReleaseStatement(db, next.id, next.version, next.updatedAt));
+  } else if (numberingChanged) {
     statements.push(
-      ...productionClaimReplaceStatements(db, next.id, next.version, next.category, next.episodeNumber),
+      ...productionClaimReplaceStatements(
+        db,
+        next.id,
+        next.version,
+        next.updatedAt,
+        next.category,
+        next.episodeNumber,
+      ),
     );
   }
   try {

@@ -35,28 +35,46 @@ async function episodeNumberTaken(
   return true;
 }
 
+const productionWriteFenceSql = `EXISTS (
+  SELECT 1 FROM productions WHERE id = ? AND version = ? AND updated_at = ?
+)`;
+
+const standaloneEpisodeWriteFenceSql = `EXISTS (
+  SELECT 1 FROM episodes WHERE id = ? AND version = ? AND updated_at = ? AND source_production_id IS NULL
+)`;
+
+export function productionClaimReleaseStatement(
+  db: D1Database,
+  productionId: string,
+  newVersion: number,
+  writtenUpdatedAt: string,
+) {
+  return db
+    .prepare(
+      `DELETE FROM episode_number_claims
+       WHERE holder_kind = 'production' AND holder_id = ?
+       AND ${productionWriteFenceSql}`,
+    )
+    .bind(productionId, productionId, newVersion, writtenUpdatedAt);
+}
+
 export function productionClaimReplaceStatements(
   db: D1Database,
   productionId: string,
   newVersion: number,
+  writtenUpdatedAt: string,
   category: string,
   episodeNumber: number,
 ) {
   return [
-    db
-      .prepare(
-        `DELETE FROM episode_number_claims
-         WHERE holder_kind = 'production' AND holder_id = ?
-         AND EXISTS (SELECT 1 FROM productions WHERE id = ? AND version = ?)`,
-      )
-      .bind(productionId, productionId, newVersion),
+    productionClaimReleaseStatement(db, productionId, newVersion, writtenUpdatedAt),
     db
       .prepare(
         `INSERT INTO episode_number_claims (category, episode_number, holder_id, holder_kind)
          SELECT ?, ?, ?, 'production'
-         WHERE EXISTS (SELECT 1 FROM productions WHERE id = ? AND version = ?)`,
+         WHERE ${productionWriteFenceSql}`,
       )
-      .bind(category, episodeNumber, productionId, productionId, newVersion),
+      .bind(category, episodeNumber, productionId, productionId, newVersion, writtenUpdatedAt),
   ];
 }
 
@@ -64,6 +82,7 @@ export function episodeClaimReplaceStatements(
   db: D1Database,
   episodeId: string,
   newVersion: number,
+  writtenUpdatedAt: string,
   category: string,
   episodeNumber: number,
 ) {
@@ -72,16 +91,16 @@ export function episodeClaimReplaceStatements(
       .prepare(
         `DELETE FROM episode_number_claims
          WHERE holder_kind = 'episode' AND holder_id = ?
-         AND EXISTS (SELECT 1 FROM episodes WHERE id = ? AND version = ? AND source_production_id IS NULL)`,
+         AND ${standaloneEpisodeWriteFenceSql}`,
       )
-      .bind(episodeId, episodeId, newVersion),
+      .bind(episodeId, episodeId, newVersion, writtenUpdatedAt),
     db
       .prepare(
         `INSERT INTO episode_number_claims (category, episode_number, holder_id, holder_kind)
          SELECT ?, ?, ?, 'episode'
-         WHERE EXISTS (SELECT 1 FROM episodes WHERE id = ? AND version = ? AND source_production_id IS NULL)`,
+         WHERE ${standaloneEpisodeWriteFenceSql}`,
       )
-      .bind(category, episodeNumber, episodeId, episodeId, newVersion),
+      .bind(category, episodeNumber, episodeId, episodeId, newVersion, writtenUpdatedAt),
   ];
 }
 
