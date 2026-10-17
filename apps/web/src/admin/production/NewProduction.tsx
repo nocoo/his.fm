@@ -3,6 +3,7 @@ import { PageHeader } from '@nocoo/basalt/components/page-header';
 import { ArrowLeft } from 'lucide-react';
 import { useLayoutEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router';
+import { useCategories } from '../categories/useCategories';
 import { errorMessage } from '../model';
 import { BriefForm } from './BriefForm';
 import { Failure } from './controls';
@@ -15,10 +16,12 @@ export function NewProduction() {
   const [query] = useSearchParams();
   const source = query.get('source');
   const view = useRef<HTMLDivElement>(null);
+  const categories = useCategories();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState('');
   const [dirty, setDirty] = useState(false);
   useUnsavedChanges(dirty);
+  const defaultCategoryId = categories.categories[0]?.id;
   // biome-ignore lint/correctness/useExhaustiveDependencies: Only reset the content island when opening a source subpage.
   useLayoutEffect(() => {
     view.current?.closest('.admin-content-island')?.scrollTo({ top: 0, behavior: 'instant' });
@@ -45,25 +48,28 @@ export function NewProduction() {
         />
       )}
       {error && <Failure error={error} />}
-      <BriefForm
-        value={emptyBrief}
-        pending={pending}
-        onDirty={setDirty}
-        onSave={async (brief) => {
-          if (pending) return;
-          setPending(true);
-          setError('');
-          try {
-            const { production } = await productionService.create(brief);
-            setDirty(false);
-            navigate(`/admin/productions/${production.id}`, { replace: true });
-          } catch (cause) {
-            setError(errorMessage(cause));
-          } finally {
-            setPending(false);
-          }
-        }}
-      />
+      {categories.error && <Failure error={categories.error} retry={() => void categories.load()} />}
+      {defaultCategoryId && (
+        <BriefForm
+          value={emptyBrief(defaultCategoryId)}
+          pending={pending}
+          onDirty={setDirty}
+          onSave={async (brief) => {
+            if (pending) return;
+            setPending(true);
+            setError('');
+            try {
+              const { production } = await productionService.create(brief);
+              setDirty(false);
+              navigate(`/admin/productions/${production.id}`, { replace: true });
+            } catch (cause) {
+              setError(errorMessage(cause));
+            } finally {
+              setPending(false);
+            }
+          }}
+        />
+      )}
     </div>
   );
 }

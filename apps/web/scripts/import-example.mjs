@@ -25,7 +25,7 @@ const production = {
   title,
   slug: 'how-to-live-better',
   episodeNumber: 1,
-  category: 'work',
+  category: 'manager-notes',
   tags: ['AI 学习', '工作节奏', '睡眠', '注意力', '休息'],
   targetDurationSeconds: 600,
   sources: [

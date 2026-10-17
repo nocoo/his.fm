@@ -20,7 +20,7 @@ const draft = {
 
 describe('episode input boundaries', () => {
   it('supports all categories, valid HTTPS media and nested local keys', () => {
-    for (const category of ['work', 'learning', 'life', 'conversations', 'new-category']) {
+    for (const category of ['manager-notes', 'learning', 'life', 'conversations', 'new-category']) {
       expect(episodeInputSchema.parse({ ...draft, category }).category).toBe(category);
     }
     for (const coverUrl of ['https://cdn.example.com/image.webp', '/media/covers/episode-01.webp']) {

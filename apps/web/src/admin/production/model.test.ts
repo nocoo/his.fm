@@ -33,7 +33,7 @@ describe('production brief form', () => {
     expect(readBrief(form(validForm), sources)).toEqual({
       error: '',
       data: {
-        ...emptyBrief,
+        ...emptyBrief('life'),
         title: '一次真实的对话',
         slug: 'a-real-conversation',
         episodeNumber: 7,
@@ -142,7 +142,7 @@ describe('program delete policy', () => {
         id: 'production:1',
         title: 't',
         episodeNumber: 1,
-        category: 'work',
+        category: 'manager-notes',
         summary: '',
         tags: [],
         coverUrl: null,

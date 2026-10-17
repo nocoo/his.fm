@@ -254,7 +254,7 @@ describe('production scope enforcement and projections', () => {
         (await call(`${path}/actions`, 'POST', { version: 1, action, feedback: 'No authority' }, agent))
           .status,
       ).toBe(403);
-    expect((await call(path, 'PUT', { version: 1, category: 'work' }, agent)).status).toBe(403);
+    expect((await call(path, 'PUT', { version: 1, category: 'manager-notes' }, agent)).status).toBe(403);
     expect((await call(`${path}/assets/cover?version=1`, 'PUT', png, agent)).status).toBe(403);
     expect((await call(`${path}/assets/audio?version=1`, 'PUT', wav, agent)).status).toBe(403);
     expect(

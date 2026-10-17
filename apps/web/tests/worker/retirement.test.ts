@@ -89,7 +89,7 @@ it('retires native state without losing business grants, prompt bodies, publishe
       )
       .run();
     await env.DB.prepare(
-      "INSERT INTO episodes(id,slug,episode_number,title,summary,transcript,show_notes,cover_url,category,status,created_at,updated_at,audio_url,published_at,source_production_id) VALUES ('public','public',1,'Existing','Summary','Script','Notes','https://f.no.mt/cover.png','work','published','before','before','https://f.no.mt/audio.wav','2026-09-24T00:00:00.000Z',?)",
+      "INSERT INTO episodes(id,slug,episode_number,title,summary,transcript,show_notes,cover_url,category,status,created_at,updated_at,audio_url,published_at,source_production_id) VALUES ('public','public',1,'Existing','Summary','Script','Notes','https://f.no.mt/cover.png','manager-notes','published','before','before','https://f.no.mt/audio.wav','2026-09-24T00:00:00.000Z',?)",
     )
       .bind(completed.id)
       .run();

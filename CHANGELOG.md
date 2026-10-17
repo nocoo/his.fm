@@ -2,6 +2,17 @@
 
 All notable changes to his.fm are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions use the owner’s patch-only deployment policy in `AGENTS.md`, with the authoritative version in `package.json`.
 
+## 2.4.4 - 2026-10-17
+
+### Added
+
+- Let owners rename category stable IDs through `PUT /api/agent/categories/:id` with optional `nextId`, updating episode foreign keys and production `category` fields atomically. The studio category editor exposes the ID field beside display metadata.
+- Restore **音色预览** under **品牌外观**, pairing Gemini and ElevenLabs voices with the fixed comparison transcript. Play existing `reference/voices/*.wav` samples in-admin; show placeholders when ElevenLabs reference files are not uploaded yet (no in-site generation).
+
+### Changed
+
+- Seed new environments with category `manager-notes` (**主理人手札**) and `learning` (**每日手冲**). Existing deployments rename IDs and display names through the category API; episode copy and bumper text are edited through episode, production and bumper APIs.
+
 ## 2.4.3 - 2026-10-16
 
 ### Changed

@@ -591,7 +591,7 @@ describe('scope-authorized publication snapshots', () => {
     expect((await getProduction(env.DB, duplicate.id)).publications).toHaveLength(0);
     await env.DB.prepare('DELETE FROM episodes').run();
     await env.DB.prepare(
-      "INSERT INTO episodes (id, slug, episode_number, title, summary, transcript, show_notes, cover_url, category, tags, duration_seconds, status, featured, created_at, updated_at) VALUES (?, 'unrelated-manual', 1, 'Manual', 'Summary', '', '', '/images/episode-01.webp', 'work', '[]', 0, 'draft', 0, '', '')",
+      "INSERT INTO episodes (id, slug, episode_number, title, summary, transcript, show_notes, cover_url, category, tags, duration_seconds, status, featured, created_at, updated_at) VALUES (?, 'unrelated-manual', 1, 'Manual', 'Summary', '', '', '/images/episode-01.webp', 'manager-notes', '[]', 0, 'draft', 0, '', '')",
     )
       .bind(duplicate.id)
       .run();

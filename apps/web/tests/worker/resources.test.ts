@@ -156,8 +156,8 @@ it('fails closed on every private controller without grants, including internal 
     () => getEpisode(env.DB, 'missing', false, unscoped),
     () => mutateEpisode(request('POST', draft), env.DB, unscoped),
     () => routeCategories(request('POST'), env, unscoped),
-    () => routeCategories(request('PUT'), env, unscoped, 'work'),
-    () => routeCategories(request('DELETE'), env, unscoped, 'work'),
+    () => routeCategories(request('PUT'), env, unscoped, 'manager-notes'),
+    () => routeCategories(request('DELETE'), env, unscoped, 'manager-notes'),
     () => routeChannel(request('PUT'), env, unscoped),
     () => routeAppearance(request('PUT'), env, unscoped),
     () => routeBumpers(request('POST'), env, unscoped),
@@ -501,7 +501,7 @@ it('revalidates private category and speech snapshot references before storage d
   const categoryObject = await env.MEDIA.put('uploads/category-reference.webp', 'fixture');
   const speechObject = await env.MEDIA.put('uploads/speech-reference.wav', 'fixture');
   if (!categoryObject || !speechObject) throw new Error('Fixture upload failed');
-  await env.DB.prepare("UPDATE categories SET prompt=? WHERE id='work'")
+  await env.DB.prepare("UPDATE categories SET prompt=? WHERE id='manager-notes'")
     .bind(`![Reference](/media/${categoryObject.key})`)
     .run();
   await env.DB.prepare("INSERT INTO media_provenance VALUES ('reference',?)")
@@ -531,6 +531,6 @@ it('revalidates private category and speech snapshot references before storage d
     expect(await env.MEDIA.head(categoryObject.key)).not.toBeNull();
     expect(await env.MEDIA.head(speechObject.key)).not.toBeNull();
   } finally {
-    await env.DB.prepare("UPDATE categories SET prompt='' WHERE id='work'").run();
+    await env.DB.prepare("UPDATE categories SET prompt='' WHERE id='manager-notes'").run();
   }
 });

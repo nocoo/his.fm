@@ -79,7 +79,7 @@ Standalone `/episodes` supports POST/GET and `/:id` GET/PUT/DELETE. PUT includes
 
 ## Other modules and safe deletion
 
-- Categories: GET/POST `/categories`, GET/PUT/DELETE `/categories/:id`. Private reads need `categories:read`; prompts additionally need `prompts:read`. PUT is partial plus version and preserves omitted prompt. Changing a prompt additionally needs `prompts:write`; referenced categories cannot be deleted.
+- Categories: GET/POST `/categories`, GET/PUT/DELETE `/categories/:id`. Private reads need `categories:read`; prompts additionally need `prompts:read`. PUT is partial plus version and preserves omitted prompt. Optional `nextId` renames the stable ID and updates episode/production references in one transaction. Changing a prompt additionally needs `prompts:write`; referenced categories cannot be deleted.
 - Channel: GET/PUT `/channel`; PUT accepts version plus content and/or the complete known prompt bundle. Writes need `prompts:write`; write-only responses return only version.
 - Appearance: GET/PUT `/appearance`; PUT uses current version and a known theme ID.
 - Storage: GET `/storage?cursor=...` must follow all cursors. GET/HEAD `/storage/object?key=...` streams single byte ranges. DELETE `/storage/object?key=...&version=...` or POST `/storage/cleanup` with `{items:[{key,version}]}` needs `storage:delete` and reports per-object results, not unconditional deletion.

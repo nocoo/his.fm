@@ -22,7 +22,7 @@ const episodes: Episode[] = [
     transcript: '',
     showNotes: '',
     coverUrl: '/images/episode-01.webp',
-    category: 'work',
+    category: 'manager-notes',
     tags: ['开发者'],
     durationSeconds: 600,
     audioUrl: null,
@@ -106,7 +106,7 @@ describe('website appearance', () => {
 describe('listening room', () => {
   it('combines category and case-insensitive title, summary and tag search', () => {
     expect(filterEpisodes(episodes, 'all', '')).toHaveLength(2);
-    expect(filterEpisodes(episodes, 'work', '  ai ')).toEqual([episodes[0]]);
+    expect(filterEpisodes(episodes, 'manager-notes', '  ai ')).toEqual([episodes[0]]);
     expect(filterEpisodes(episodes, 'all', '路边')).toEqual([episodes[1]]);
     expect(filterEpisodes(episodes, 'all', '开发者')).toEqual([episodes[0]]);
     expect(filterEpisodes(episodes, 'life', 'AI')).toEqual([]);
@@ -117,8 +117,10 @@ describe('listening room', () => {
     expect(durationLabel(601)).toBe('11 分钟');
     expect(durationLabel(0)).toBe('时长待定');
     expect(
-      categoryLabel('work', [{ id: 'work', name: '工作之间', icon: 'briefcase-business', color: 'blue' }]),
-    ).toBe('工作之间');
+      categoryLabel('manager-notes', [
+        { id: 'manager-notes', name: '主理人手札', icon: 'briefcase-business', color: 'blue' },
+      ]),
+    ).toBe('主理人手札');
   });
   it('loads published episodes and forwards cancellation', async () => {
     const controller = new AbortController();

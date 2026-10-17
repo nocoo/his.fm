@@ -9,7 +9,7 @@ export const emptyEpisode: EpisodeInput = {
   transcript: '',
   showNotes: '',
   coverUrl: 'https://f.no.mt/images/episode-01.webp',
-  category: 'work',
+  category: 'manager-notes',
   tags: [],
   durationSeconds: 600,
   audioUrl: null,

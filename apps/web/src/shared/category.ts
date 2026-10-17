@@ -15,10 +15,12 @@ export const categoryIcons = [
   'sparkles',
 ] as const;
 export const categoryColors = ['slate', 'blue', 'violet', 'teal', 'amber', 'rose'] as const;
+export const categoryReservedIds = ['new'] as const;
 export const categoryIdSchema = z
   .string()
   .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/)
-  .max(120);
+  .max(120)
+  .refine((id) => !(categoryReservedIds as readonly string[]).includes(id), '栏目 ID 为系统保留标识');
 export const categoryInputSchema = z.strictObject({
   name: z.string().trim().min(1).max(80),
   icon: z.enum(categoryIcons),
@@ -28,6 +30,7 @@ export const categoryInputSchema = z.strictObject({
 export const categoryUpdateSchema = categoryInputSchema.extend({ version: z.number().int().positive() });
 export const categoryCreateSchema = categoryInputSchema.partial({ prompt: true });
 export const categoryMutationSchema = categoryUpdateSchema
+  .extend({ nextId: categoryIdSchema.optional() })
   .partial({ name: true, icon: true, color: true, prompt: true })
   .refine((value) => Object.keys(value).some((key) => key !== 'version'), '请提供需要修改的栏目字段');
 export const categorySchema = categoryUpdateSchema.extend({

@@ -98,7 +98,7 @@ export function CategoryEditor({
     const result = await vm.save(version);
     if (result) {
       toast.success('栏目已保存');
-      if (id === 'new') navigate(`/admin/categories/${result.id}`, { replace: true });
+      if (id === 'new' || result.id !== id) navigate(`/admin/categories/${result.id}`, { replace: true });
     }
   };
   const saveButton = (
@@ -148,6 +148,16 @@ export function CategoryEditor({
           {!promptOnly && (
             <LayerCard className="studio-stack">
               <div className="category-fields">
+                <Field label="栏目 ID" htmlFor="category-id">
+                  <Input
+                    id="category-id"
+                    value={vm.nextId}
+                    maxLength={120}
+                    disabled={vm.pending || id === 'new'}
+                    onChange={(event) => vm.setNextId(event.target.value)}
+                  />
+                  <p className="admin-muted">小写英文与连字符；保存时会同步更新已关联节目与制作任务。</p>
+                </Field>
                 <Field label="栏目名称" htmlFor="category-name" required>
                   <Input
                     id="category-name"

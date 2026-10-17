@@ -8,6 +8,7 @@ import { themeIdSchema, themeIds } from '../../shared/appearance';
 import { getEnvironment } from '../environment';
 import { Failure } from '../production/controls';
 import { useAppearanceSettings } from './useAppearanceSettings';
+import { VoicePreviewSection } from './VoicePreview';
 import './appearance.css';
 
 export default function AppearancePage() {
@@ -140,6 +141,7 @@ export default function AppearancePage() {
           <p className="admin-muted appearance-note">
             选择后可先预览，应用后所有访客使用同一风格。节目内容与已发布的封面原图保持完整。
           </p>
+          <VoicePreviewSection />
         </>
       )}
     </div>

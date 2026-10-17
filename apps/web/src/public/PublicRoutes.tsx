@@ -202,7 +202,7 @@ function Home() {
     <>
       <Hero featured={featured} />
       <div className="pace-line" aria-hidden="true">
-        <span>工作之间</span>
+        <span>主理人手札</span>
         <i />
         <Headphones size={18} strokeWidth={1.5} />
         <i />
