@@ -2,6 +2,17 @@
 
 All notable changes to his.fm are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions use the owner’s patch-only deployment policy in `AGENTS.md`, with the authoritative version in `package.json`.
 
+## 2.4.6 - 2026-10-17
+
+### Added
+
+- Episode **mentions** on briefs and programmes: `{name, description, url?}` (max 50), edited in admin, copied to published snapshots, rendered on public pages, RSS show notes, JSON-LD `Thing` entries, and public `/api/episodes` JSON.
+- Per-category **episode numbers** with studio display `栏目名 EP.NN`, unique `(category, episode_number)`, and optional explicit assignment on create.
+
+### Changed
+
+- Public catalogue, pages, RSS, JSON-LD, `llms.txt`, and `/api/episodes` no longer expose full **transcripts**; admin and Agent APIs retain them.
+
 ## 2.4.5 - 2026-10-17
 
 ### Changed

@@ -1,7 +1,7 @@
 import { publicAppearanceSchema, type ThemeId } from '../shared/appearance';
 import type { PublicCategory } from '../shared/category';
+import type { PublicEpisode } from '../shared/episode';
 import { formatEpisodeLabel } from '../shared/episode-display';
-import type { Episode, PublicEpisode } from '../shared/episode';
 
 export function filterEpisodes(episodes: PublicEpisode[], category: string, query: string) {
   const search = query.trim().toLocaleLowerCase();
@@ -21,7 +21,9 @@ export function episodeDisplayLabel(
   categories: PublicCategory[],
 ): string {
   const name = categoryLabel(episode.category, categories);
-  return name ? formatEpisodeLabel(name, episode.episodeNumber) : formatEpisodeLabel('栏目', episode.episodeNumber);
+  return name
+    ? formatEpisodeLabel(name, episode.episodeNumber)
+    : formatEpisodeLabel('栏目', episode.episodeNumber);
 }
 export async function getCategories(signal?: AbortSignal): Promise<PublicCategory[]> {
   const response = await fetch('/api/categories', { signal });

@@ -2,7 +2,6 @@ import { AudioError, hasScope } from '@his-fm/contracts';
 import {
   type Actor,
   briefCreateSchema,
-  briefSchema,
   type Production,
   productionActionSchema,
   productionAudioBindSchema,
@@ -19,8 +18,8 @@ import {
 } from './audio';
 import { requireScope } from './authorization';
 import { categoryFence, getCategory } from './categories';
-import { resolveEpisodeNumberForCreate, resolveProductionPatchEpisodeNumber } from './episode-numbering';
 import { getChannel } from './channel';
+import { resolveEpisodeNumberForCreate, resolveProductionPatchEpisodeNumber } from './episode-numbering';
 import { HttpError, json } from './http';
 import { rasterType } from './media-validation';
 import { readBytes, readJson } from './production-body';
@@ -29,6 +28,7 @@ import { productionPrompts } from './production-prompts';
 import {
   appendEvent,
   getProduction,
+  hydrateProduction,
   mediaUrl,
   nextVersion,
   projectProduction,
@@ -257,10 +257,10 @@ export async function publishProduction(
   );
   const eventId = next.events.at(-1)?.id;
   const snapshot = db
-    .prepare(`INSERT INTO episodes (id, slug, episode_number, title, summary, transcript, show_notes, cover_url, category, tags, duration_seconds, audio_url, status, featured, published_at, created_at, updated_at, source_production_id, version)
-    SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'published', 0, ?, ?, ?, ?, 1
+    .prepare(`INSERT INTO episodes (id, slug, episode_number, title, summary, transcript, show_notes, cover_url, category, tags, mentions, duration_seconds, audio_url, status, featured, published_at, created_at, updated_at, source_production_id, version)
+    SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'published', 0, ?, ?, ?, ?, 1
     WHERE EXISTS (SELECT 1 FROM productions WHERE id = ? AND version = ? AND json_extract(data, '$.events[#-1].id') = ?)
-    ON CONFLICT(source_production_id) DO UPDATE SET slug = excluded.slug, episode_number = excluded.episode_number, title = excluded.title, summary = excluded.summary, transcript = excluded.transcript, show_notes = excluded.show_notes, cover_url = excluded.cover_url, category = excluded.category, tags = excluded.tags, duration_seconds = excluded.duration_seconds, audio_url = excluded.audio_url, status = excluded.status, published_at = excluded.published_at, updated_at = excluded.updated_at, version = episodes.version + 1`)
+    ON CONFLICT(source_production_id) DO UPDATE SET slug = excluded.slug, episode_number = excluded.episode_number, title = excluded.title, summary = excluded.summary, transcript = excluded.transcript, show_notes = excluded.show_notes, cover_url = excluded.cover_url, category = excluded.category, tags = excluded.tags, mentions = excluded.mentions, duration_seconds = excluded.duration_seconds, audio_url = excluded.audio_url, status = excluded.status, published_at = excluded.published_at, updated_at = excluded.updated_at, version = episodes.version + 1`)
     .bind(
       next.id,
       next.slug,
@@ -272,6 +272,7 @@ export async function publishProduction(
       next.assets.cover?.url,
       next.category,
       JSON.stringify(next.tags),
+      JSON.stringify(next.mentions ?? []),
       next.assets.audio?.durationSeconds,
       next.assets.audio?.url,
       input.publishedAt,
@@ -353,21 +354,22 @@ export async function routeProductions(
       const { results } = await env.DB.prepare('SELECT data FROM productions ORDER BY updated_at DESC').all<{
         data: string;
       }>();
-      return json({ productions: results.map((row) => projectProduction(JSON.parse(row.data), actor)) });
+      return json({
+        productions: results.map((row) =>
+          projectProduction(hydrateProduction(JSON.parse(row.data) as Production), actor),
+        ),
+      });
     }
     if (request.method === 'POST') {
       requireScope(actor, 'productions:write');
       const brief = await readJson(request, briefCreateSchema);
       await getCategory(env.DB, brief.category);
-      const episodeNumber = await resolveEpisodeNumberForCreate(
-        env.DB,
-        brief.category,
-        brief.episodeNumber,
-      );
+      const episodeNumber = await resolveEpisodeNumberForCreate(env.DB, brief.category, brief.episodeNumber);
       const now = new Date().toISOString();
       const production = appendEvent(
         {
           ...brief,
+          mentions: brief.mentions ?? [],
           episodeNumber,
           id: crypto.randomUUID(),
           version: 1,
@@ -412,11 +414,22 @@ export async function routeProductions(
     );
   if (operation === 'actions' && request.method === 'POST') {
     const action = await readJson(request, productionActionSchema);
-    let changes = action.changes;
+    const changes = action.changes;
     if (changes) {
+      const patch = changes;
       const current = await getProduction(env.DB, id);
-      const episodeNumber = await resolveProductionPatchEpisodeNumber(env.DB, current, changes);
-      changes = { ...changes, episodeNumber };
+      const editedKeys = Object.keys(patch);
+      const episodeNumber = await resolveProductionPatchEpisodeNumber(env.DB, current, patch);
+      const merged = { ...patch, episodeNumber };
+      const production = await updateProduction(
+        env.DB,
+        id,
+        actor,
+        action.action,
+        (current) => applyAction(applyPatch(current, merged, actor, editedKeys), action, actor),
+        { expectedVersion: action.version, feedback: action.feedback },
+      );
+      return respond(production);
     }
     const production = await updateProduction(
       env.DB,
@@ -424,7 +437,7 @@ export async function routeProductions(
       actor,
       action.action,
       (current) => {
-        return applyAction(changes ? applyPatch(current, changes, actor) : current, action, actor);
+        return applyAction(current, action, actor);
       },
       { expectedVersion: action.version, feedback: action.feedback },
     );
@@ -499,7 +512,7 @@ export async function routeProductions(
       id,
       actor,
       'edit',
-      (production) => applyPatch(production, { ...fields, episodeNumber }, actor),
+      (production) => applyPatch(production, { ...fields, episodeNumber }, actor, Object.keys(fields)),
       { expectedVersion: version },
     );
     return respond(production);

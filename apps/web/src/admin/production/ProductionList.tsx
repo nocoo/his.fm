@@ -288,7 +288,9 @@ export function ProductionList() {
                     <Cover row={row} />
                     <div className="library-card-copy">
                       <div className="studio-row">
-                        <span className="admin-number">{episodeLabel(categoryName(row), row.episodeNumber)}</span>
+                        <span className="admin-number">
+                          {episodeLabel(categoryName(row), row.episodeNumber)}
+                        </span>
                         <Status row={row} />
                       </div>
                       <h2>{row.title}</h2>

@@ -241,6 +241,7 @@ function snapshot(sourceProductionId: string | null): Episode {
     episodeNumber: 8,
     category: 'life',
     tags: [],
+    mentions: [],
     summary: '已发布节目',
     transcript: production.transcript,
     showNotes: production.description,

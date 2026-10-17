@@ -2,10 +2,12 @@ import { Button, Field, Input, LayerCard } from '@nocoo/basalt';
 import { Plus } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
+import { mentionsSchema } from '../../shared/mentions';
 import type { ProductionBrief } from '../../shared/production';
 import { CategorySelect } from '../categories/CategorySelect';
 import { DraftConflicts } from '../draft/DraftConflicts';
 import { useDraft } from '../draft/useDraft';
+import { MentionsEditor } from '../MentionsEditor';
 import { MarkdownEditor } from '../markdown/MarkdownEditor';
 import { Failure } from './controls';
 import { readBrief } from './model';
@@ -39,6 +41,7 @@ export function BriefForm({
     targetDurationSeconds: value.targetDurationSeconds,
     tags: value.tags.join('，'),
     sources: value.sources,
+    mentions: value.mentions,
   });
   const { sources, category } = draft.value;
   const previousCategory = useRef(category);
@@ -71,10 +74,20 @@ export function BriefForm({
           const result = readBrief(new FormData(event.currentTarget), sources);
           setError(result.error);
           if (result.data && !draft.conflicts.length) {
+            const mentions = mentionsSchema.parse(
+              draft.value.mentions
+                .filter((mention) => mention.name.trim() || mention.description.trim() || mention.url)
+                .map((mention) => ({
+                  name: mention.name.trim(),
+                  description: mention.description.trim(),
+                  ...(mention.url?.trim() ? { url: mention.url.trim() } : {}),
+                })),
+            );
+            const brief = { ...result.data, mentions };
             const complete =
               (event.nativeEvent as SubmitEvent).submitter?.getAttribute('value') === 'complete';
-            if (complete && onComplete) await onComplete(result.data);
-            else await onSave(result.data);
+            if (complete && onComplete) await onComplete(brief);
+            else await onSave(brief);
           }
         }}
       >
@@ -185,6 +198,14 @@ export function BriefForm({
               </Field>
             </LayerCard.Body>
           </LayerCard>
+          <MentionsEditor
+            value={draft.value.mentions}
+            disabled={pending}
+            onChange={(mentions) => {
+              draft.change('mentions', mentions);
+              onDirty(true);
+            }}
+          />
           <LayerCard padding="none">
             <LayerCard.Header className="studio-row">
               <strong>原始素材 · {sources.length} / 30</strong>

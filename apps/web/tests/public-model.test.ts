@@ -31,6 +31,7 @@ const episodes: Episode[] = [
     publishedAt: '2026-09-25T08:00:00Z',
     createdAt: '',
     updatedAt: '',
+    mentions: [],
   },
   {
     id: '2',
@@ -51,6 +52,7 @@ const episodes: Episode[] = [
     publishedAt: null,
     createdAt: '',
     updatedAt: '',
+    mentions: [],
   },
 ];
 

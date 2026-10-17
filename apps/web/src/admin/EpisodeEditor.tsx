@@ -13,7 +13,9 @@ import { type FormEvent, useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { FramedCover } from '../components/FramedCover';
 import type { Episode } from '../shared/episode';
+import { type Mention, mentionsSchema } from '../shared/mentions';
 import { CategorySelect } from './categories/CategorySelect';
+import { MentionsEditor } from './MentionsEditor';
 import { MarkdownEditor } from './markdown/MarkdownEditor';
 import { emptyEpisode, errorMessage, readEpisodeForm, toLocalDateTime } from './model';
 import { Confirm } from './production/controls';
@@ -33,6 +35,7 @@ export function EpisodeEditor() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [coverPreview, setCoverPreview] = useState('');
+  const [mentions, setMentions] = useState<Mention[]>(emptyEpisode.mentions);
   useUnsavedChanges(dirty);
   // biome-ignore lint/correctness/useExhaustiveDependencies: The retry key intentionally restarts the request.
   useEffect(() => {
@@ -45,7 +48,10 @@ export function EpisodeEditor() {
     const controller = new AbortController();
     adminService
       .get(id, controller.signal)
-      .then(({ episode: result }) => setEpisode(result))
+      .then(({ episode: result }) => {
+        setEpisode(result);
+        setMentions(result.mentions);
+      })
       .catch((cause: unknown) => {
         if (!controller.signal.aborted) setError(errorMessage(cause));
       })
@@ -64,12 +70,28 @@ export function EpisodeEditor() {
     setErrors(result.errors ?? {});
     setError('');
     if (!result.data) return;
+    let parsedMentions: Mention[];
+    try {
+      parsedMentions = mentionsSchema.parse(
+        mentions
+          .filter((mention) => mention.name.trim() || mention.description.trim() || mention.url)
+          .map((mention) => ({
+            name: mention.name.trim(),
+            description: mention.description.trim(),
+            ...(mention.url?.trim() ? { url: mention.url.trim() } : {}),
+          })),
+      );
+    } catch {
+      setErrors({ mentions: '请检查「本期提到」的名称、说明和链接格式' });
+      return;
+    }
     setPending(true);
     try {
+      const payload = { ...result.data, mentions: parsedMentions };
       const { episode: saved } =
         id && episode
-          ? await adminService.update(id, result.data, episode.version)
-          : await adminService.create(result.data);
+          ? await adminService.update(id, payload, episode.version)
+          : await adminService.create(payload);
       setEpisode(saved);
       setDirty(false);
       toast.success(saved.status === 'published' ? '节目已发布，网站内容已更新' : '草稿已保存');
@@ -251,6 +273,19 @@ export function EpisodeEditor() {
                   </Field>
                 </LayerCard.Body>
               </LayerCard>
+              <MentionsEditor
+                value={mentions}
+                disabled={pending}
+                onChange={(next) => {
+                  setMentions(next);
+                  setDirty(true);
+                }}
+              />
+              {errors.mentions && (
+                <div className="admin-error-banner" role="alert">
+                  {errors.mentions}
+                </div>
+              )}
               <LayerCard padding="none">
                 <LayerCard.Header>
                   <strong>封面与声音</strong>

@@ -18,7 +18,15 @@ export default defineConfig(({ mode }) => {
       exports: local ? undefined : { AgentHub: exports.durableObject({ state: 'deleted' }) },
       assets: {
         notFoundHandling: 'single-page-application',
-        runWorkerFirst: ['/api/*', '/.well-known/api-catalog', '/llms.txt', '/admin', '/admin/*', '/media/*'],
+        runWorkerFirst: [
+          '/api/*',
+          '/feed.xml',
+          '/.well-known/api-catalog',
+          '/llms.txt',
+          '/admin',
+          '/admin/*',
+          '/media/*',
+        ],
       },
       env: {
         ENVIRONMENT: bindings.text<string>(local ? 'local' : 'production'),

@@ -3,13 +3,13 @@ import { PageHeader } from '@nocoo/basalt/components/page-header';
 import { ArrowLeft } from 'lucide-react';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router';
-import { useCategories } from '../categories/useCategories';
-import { errorMessage } from '../model';
-import { BriefForm } from './BriefForm';
-import { Failure } from './controls';
 import type { Episode } from '../../shared/episode';
 import type { Production } from '../../shared/production';
+import { useCategories } from '../categories/useCategories';
+import { errorMessage } from '../model';
 import { adminService } from '../service';
+import { BriefForm } from './BriefForm';
+import { Failure } from './controls';
 import { emptyBrief, nextEpisodeNumberForCategory } from './model';
 import { productionService } from './service';
 import { useUnsavedChanges } from './useUnsavedChanges';
@@ -25,9 +25,7 @@ export function NewProduction() {
   const [dirty, setDirty] = useState(false);
   useUnsavedChanges(dirty);
   const defaultCategoryId = categories.categories[0]?.id;
-  const [catalog, setCatalog] = useState<{ productions: Production[]; episodes: Episode[] } | null>(
-    null,
-  );
+  const [catalog, setCatalog] = useState<{ productions: Production[]; episodes: Episode[] } | null>(null);
   useEffect(() => {
     const controller = new AbortController();
     void Promise.all([productionService.list(controller.signal), adminService.list(controller.signal)])
@@ -45,10 +43,7 @@ export function NewProduction() {
     [catalog],
   );
   const initialBrief = useMemo(
-    () =>
-      defaultCategoryId
-        ? emptyBrief(defaultCategoryId, suggestEpisodeNumber(defaultCategoryId))
-        : null,
+    () => (defaultCategoryId ? emptyBrief(defaultCategoryId, suggestEpisodeNumber(defaultCategoryId)) : null),
     [defaultCategoryId, suggestEpisodeNumber],
   );
   // biome-ignore lint/correctness/useExhaustiveDependencies: Only reset the content island when opening a source subpage.

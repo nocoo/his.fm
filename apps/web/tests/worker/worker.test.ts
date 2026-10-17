@@ -6,7 +6,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 import { version } from '../../../../package.json';
 import { type Appearance, appearanceSchema, themeIds } from '../../src/shared/appearance';
 import { channelProfileSchema } from '../../src/shared/channel';
-import type { Episode, EpisodeInput } from '../../src/shared/episode';
+import { type Episode, type EpisodeInput, projectPublicEpisode } from '../../src/shared/episode';
 import type { Production } from '../../src/shared/production';
 import worker from '../../worker';
 import { productionCapabilities } from '../../worker/agent-api';
@@ -39,6 +39,13 @@ const input: EpisodeInput = {
   status: 'published',
   featured: false,
   publishedAt: '2026-09-01T08:00:00.000Z',
+  mentions: [
+    {
+      name: 'his.fm',
+      description: '这档播客的主站。',
+      url: 'https://his.fm/',
+    },
+  ],
 };
 
 let miniflare: Miniflare;
@@ -157,15 +164,49 @@ afterAll(async () => {
 describe('public podcast catalog', () => {
   it('keeps drafts and future episodes private while exposing published content', async () => {
     const episode = await create();
-    await create({ slug: 'draft', status: 'draft', publishedAt: null });
-    await create({ slug: 'future', publishedAt: '2999-01-01T00:00:00.000Z' });
+    await create({ slug: 'draft', status: 'draft', publishedAt: null, episodeNumber: undefined });
+    await create({ slug: 'future', publishedAt: '2999-01-01T00:00:00.000Z', episodeNumber: undefined });
+    const publicEpisode = projectPublicEpisode(episode);
     const list = await call('/api/episodes');
-    expect(await list.json()).toEqual({ episodes: [episode] });
+    expect(await list.json()).toEqual({ episodes: [publicEpisode] });
     expect((await call('/api/episodes/draft')).status).toBe(404);
     expect((await call('/api/episodes/future')).status).toBe(404);
     expect((await call('/api/episodes/missing')).status).toBe(404);
-    expect(await (await call(`/api/episodes/${episode.slug}`)).json()).toEqual({ episode });
+    expect(await (await call(`/api/episodes/${episode.slug}`)).json()).toEqual({ episode: publicEpisode });
     expect((await call('/api/episodes')).headers.get('Cache-Control')).toBe('no-store');
+  });
+
+  it('exposes mentions on public episode JSON without transcript', async () => {
+    const episode = await create();
+    const listed = (await (await call('/api/episodes')).json()) as { episodes: Episode[] };
+    expect(listed.episodes[0]?.mentions).toEqual(input.mentions);
+    const detail = (await (await call(`/api/episodes/${episode.slug}`)).json()) as { episode: Episode };
+    expect(detail.episode.mentions).toEqual(input.mentions);
+    expect(detail.episode).not.toHaveProperty('transcript');
+  });
+
+  it('includes mentions in RSS item descriptions', async () => {
+    await create();
+    const feed = await call('/feed.xml');
+    expect(feed.status).toBe(200);
+    expect(feed.headers.get('Content-Type')).toContain('application/rss+xml');
+    const xml = await feed.text();
+    expect(xml).toContain('本期提到');
+    expect(xml).toContain('his.fm — 这档播客的主站。');
+    expect(xml).toContain('https://his.fm/');
+  });
+
+  it('omits transcript from public episode JSON while admin and agent APIs retain it', async () => {
+    const episode = await create();
+    expect(episode.transcript.length).toBeGreaterThan(0);
+    const listed = (await (await call('/api/episodes')).json()) as { episodes: Record<string, unknown>[] };
+    expect(listed.episodes[0]).not.toHaveProperty('transcript');
+    const detail = (await (await call(`/api/episodes/${episode.slug}`)).json()) as {
+      episode: Record<string, unknown>;
+    };
+    expect(detail.episode).not.toHaveProperty('transcript');
+    const admin = (await (await call(`/admin/api/episodes/${episode.id}`)).json()) as { episode: Episode };
+    expect(admin.episode.transcript).toBe(episode.transcript);
   });
 
   it('checks database liveness and handles public asset and unknown routes', async () => {
@@ -321,8 +362,11 @@ describe('editor CRUD', () => {
 
   it('enforces unique slugs and leaves existing content intact on conflicts', async () => {
     const original = await create();
-    const other = await create({ slug: 'other' });
-    const duplicate = await call('/admin/api/episodes', { method: 'POST', ...body(input) });
+    const other = await create({ slug: 'other', episodeNumber: undefined });
+    const duplicate = await call('/admin/api/episodes', {
+      method: 'POST',
+      ...body({ ...input, episodeNumber: undefined }),
+    });
     expect(duplicate.status).toBe(409);
     expect(await duplicate.json()).toEqual({ error: '这个链接名称已被另一集使用' });
     expect(

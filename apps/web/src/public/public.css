@@ -615,6 +615,30 @@ html:has(.public-site) body {
   margin-block: 18px;
   overflow-wrap: anywhere;
 }
+.public-site .episode-mentions {
+  margin-top: 1.5rem;
+}
+
+.public-site .episode-mentions h2 {
+  font-size: 1rem;
+  margin: 0 0 0.75rem;
+}
+
+.public-site .episode-mentions ul {
+  margin: 0;
+  padding-left: 1.1rem;
+}
+
+.public-site .episode-mentions li {
+  margin-bottom: 0.45rem;
+}
+
+.public-site .episode-license {
+  margin-top: 1.25rem;
+  font-size: 0.92rem;
+  color: hsl(var(--public-muted-foreground, 42% 8% / 0.72));
+}
+
 .public-site .detail-summary {
   font-size: 14px;
   line-height: 1.95;

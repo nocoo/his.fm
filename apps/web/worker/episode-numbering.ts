@@ -43,16 +43,27 @@ async function episodeNumberTaken(
     episodeSql += ' AND (source_production_id IS NULL OR source_production_id != ?)';
     episodeBinds.push(exclude.productionId);
   }
-  if (await db.prepare(episodeSql).bind(...episodeBinds).first()) return true;
+  if (
+    await db
+      .prepare(episodeSql)
+      .bind(...episodeBinds)
+      .first()
+  )
+    return true;
 
   let productionSql =
-    'SELECT id FROM productions WHERE json_extract(data, \'$.category\') = ? AND CAST(json_extract(data, \'$.episodeNumber\') AS INTEGER) = ?';
+    "SELECT id FROM productions WHERE json_extract(data, '$.category') = ? AND CAST(json_extract(data, '$.episodeNumber') AS INTEGER) = ?";
   const productionBinds: (string | number)[] = [category, episodeNumber];
   if (exclude.productionId) {
     productionSql += ' AND id != ?';
     productionBinds.push(exclude.productionId);
   }
-  return Boolean(await db.prepare(productionSql).bind(...productionBinds).first());
+  return Boolean(
+    await db
+      .prepare(productionSql)
+      .bind(...productionBinds)
+      .first(),
+  );
 }
 
 export async function assertEpisodeNumberAvailable(

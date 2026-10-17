@@ -2,10 +2,11 @@ import { hasScope } from '@his-fm/contracts';
 import {
   type Episode,
   type EpisodeInput,
-  episodeDisplaySchema,
   episodeCreateSchema,
-  episodeInputSchema,
+  episodeDisplaySchema,
   episodeUpdateSchema,
+  type PublicEpisode,
+  projectPublicEpisode,
 } from '../src/shared/episode';
 import type { Actor } from '../src/shared/production';
 import { requireScope } from './authorization';
@@ -25,6 +26,7 @@ type EpisodeRow = Omit<
   | 'createdAt'
   | 'updatedAt'
   | 'tags'
+  | 'mentions'
   | 'featured'
 > & {
   source_production_id: string | null;
@@ -37,6 +39,7 @@ type EpisodeRow = Omit<
   created_at: string;
   updated_at: string;
   tags: string;
+  mentions: string;
   featured: number;
 };
 
@@ -54,6 +57,7 @@ function fromRow(row: EpisodeRow): Episode {
     coverUrl: row.cover_url,
     category: row.category,
     tags: JSON.parse(row.tags),
+    mentions: JSON.parse(row.mentions),
     durationSeconds: row.duration_seconds,
     audioUrl: row.audio_url,
     status: row.status,
@@ -64,7 +68,11 @@ function fromRow(row: EpisodeRow): Episode {
   };
 }
 
-export async function listEpisodes(db: D1Database, publishedOnly: boolean, actor?: Actor) {
+export async function listEpisodes(
+  db: D1Database,
+  publishedOnly: boolean,
+  actor?: Actor,
+): Promise<Array<Episode | PublicEpisode>> {
   if (!publishedOnly) {
     if (!actor) throw new HttpError(403, 'Missing scope: episodes:read');
     requireScope(actor, 'episodes:read');
@@ -77,10 +85,16 @@ export async function listEpisodes(db: D1Database, publishedOnly: boolean, actor
     ? statement.bind(new Date().toISOString())
     : statement
   ).all<EpisodeRow>();
-  return result.results.map(fromRow);
+  const episodes = result.results.map(fromRow);
+  return publishedOnly ? episodes.map(projectPublicEpisode) : episodes;
 }
 
-export async function getEpisode(db: D1Database, key: string, publishedOnly: boolean, actor?: Actor) {
+export async function getEpisode(
+  db: D1Database,
+  key: string,
+  publishedOnly: boolean,
+  actor?: Actor,
+): Promise<Episode | PublicEpisode> {
   if (!publishedOnly) {
     if (!actor) throw new HttpError(403, 'Missing scope: episodes:read');
     requireScope(actor, 'episodes:read');
@@ -92,7 +106,8 @@ export async function getEpisode(db: D1Database, key: string, publishedOnly: boo
     : db.prepare('SELECT * FROM episodes WHERE id = ?').bind(key);
   const row = await statement.first<EpisodeRow>();
   if (!row) throw new HttpError(404, '这期节目不存在');
-  return fromRow(row);
+  const episode = fromRow(row);
+  return publishedOnly ? projectPublicEpisode(episode) : episode;
 }
 
 async function readInput(request: Request, update: boolean) {
@@ -143,6 +158,7 @@ function inputValues(input: EpisodeInput) {
     input.coverUrl,
     input.category,
     JSON.stringify(input.tags),
+    JSON.stringify(input.mentions),
     input.durationSeconds,
     input.audioUrl,
     input.status,
@@ -203,29 +219,30 @@ export async function mutateEpisode(request: Request, db: D1Database, actor: Act
   )
     requireScope(actor, 'episodes:publish');
   await getCategory(db, input.category);
-  const episodeNumber = id && current
-    ? await resolveEpisodePatchEpisodeNumber(
-        db,
-        {
-          id: current.id,
-          category: current.category,
-          episodeNumber: current.episode_number,
-        },
-        { category: input.category, episodeNumber: input.episodeNumber },
-      )
-    : await resolveEpisodeNumberForCreate(db, input.category, input.episodeNumber);
+  const episodeNumber =
+    id && current
+      ? await resolveEpisodePatchEpisodeNumber(
+          db,
+          {
+            id: current.id,
+            category: current.category,
+            episodeNumber: current.episode_number,
+          },
+          { category: input.category, episodeNumber: input.episodeNumber },
+        )
+      : await resolveEpisodeNumberForCreate(db, input.category, input.episodeNumber);
   const payload = { ...input, episodeNumber };
   const now = new Date().toISOString();
   try {
     const statement = id
       ? db
           .prepare(
-            'UPDATE episodes SET slug = ?, episode_number = ?, title = ?, summary = ?, transcript = ?, show_notes = ?, cover_url = ?, category = ?, tags = ?, duration_seconds = ?, audio_url = ?, status = ?, featured = ?, published_at = ?, updated_at = ?, version = version + 1 WHERE id = ? AND version = ? AND source_production_id IS NULL RETURNING *',
+            'UPDATE episodes SET slug = ?, episode_number = ?, title = ?, summary = ?, transcript = ?, show_notes = ?, cover_url = ?, category = ?, tags = ?, mentions = ?, duration_seconds = ?, audio_url = ?, status = ?, featured = ?, published_at = ?, updated_at = ?, version = version + 1 WHERE id = ? AND version = ? AND source_production_id IS NULL RETURNING *',
           )
           .bind(...inputValues(payload), now, id, 'version' in input ? input.version : null)
       : db
           .prepare(
-            'INSERT INTO episodes (slug, episode_number, title, summary, transcript, show_notes, cover_url, category, tags, duration_seconds, audio_url, status, featured, published_at, created_at, updated_at, id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *',
+            'INSERT INTO episodes (slug, episode_number, title, summary, transcript, show_notes, cover_url, category, tags, mentions, duration_seconds, audio_url, status, featured, published_at, created_at, updated_at, id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *',
           )
           .bind(...inputValues(payload), now, now, crypto.randomUUID());
     const row = await statement.first<EpisodeRow>();

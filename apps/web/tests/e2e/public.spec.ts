@@ -1,7 +1,7 @@
 import { mkdir } from 'node:fs/promises';
 import { expect, test } from '@playwright/test';
 
-test('listeners can browse, filter and read the complete first episode', async ({ page }) => {
+test('listeners can browse, filter and read episode summaries without transcripts', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
   await page.goto('/?theme=interval');
@@ -24,17 +24,20 @@ test('listeners can browse, filter and read the complete first episode', async (
   await page.getByRole('link', { name: '下班后，还要追多少个 AI？', exact: true }).click();
   const pageTitle = page.locator('.detail-intro').getByRole('heading', { level: 1 });
   await expect(pageTitle).toHaveText('下班后，还要追多少个 AI？');
-  const notes = page.getByRole('tabpanel', { name: '本期摘要' });
-  await expect(notes.getByRole('heading', { level: 1 })).toHaveText('下班后，还要追多少个 AI？');
-  const source = notes.getByRole('link', { name: 'HowToLiveBetter：《高性价比人生指南》', exact: true });
+  const reading = page.locator('#reading-panel');
+  await expect(reading.getByRole('heading', { level: 1 })).toHaveText('下班后，还要追多少个 AI？');
+  const source = reading.getByRole('link', { name: 'HowToLiveBetter：《高性价比人生指南》', exact: true });
   await expect(source).toHaveAttribute('href', 'https://github.com/eternity4719/HowToLiveBetter');
   await expect(source).toHaveAttribute('target', '_blank');
   await expect(source).toHaveAttribute('rel', 'noopener noreferrer');
   await expect(page.getByText('声音正在准备中')).toBeVisible();
   await expect(page.locator('audio')).toHaveCount(0);
-  await page.getByRole('tab', { name: '逐字稿' }).click();
-  await expect(page.getByRole('tab', { name: '逐字稿' })).toHaveAttribute('aria-selected', 'true');
-  expect((await page.getByRole('tabpanel').innerText()).length).toBeGreaterThan(2400);
+  await expect(page.getByRole('tab', { name: '逐字稿' })).toHaveCount(0);
+  const apiEpisode = await page.request.get('/api/episodes/how-many-ai-tools-after-work');
+  expect(apiEpisode.ok()).toBe(true);
+  const body = (await apiEpisode.json()) as { episode: Record<string, unknown> };
+  expect(body.episode).not.toHaveProperty('transcript');
+  expect(JSON.stringify(body.episode)).not.toMatch(/逐字稿|transcript/i);
   await page.reload();
   await expect(pageTitle).toHaveText('下班后，还要追多少个 AI？');
   await page.goto('/episodes/missing-episode');

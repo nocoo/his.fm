@@ -4,6 +4,7 @@ import { getAppearance } from './appearance';
 import { accessLogin, authenticate, isLocal, localLogin, logout } from './auth';
 import { listCategories } from './categories';
 import { getEpisode, listEpisodes } from './episodes';
+import { buildRssFeed } from './feed';
 import { HttpError, json, requireSameOrigin } from './http';
 import { routeManagement } from './management';
 import { streamMedia } from './media';
@@ -34,6 +35,17 @@ async function route(request: Request, env: Env): Promise<Response> {
     if (request.method !== 'GET') throw new HttpError(405, '不支持这个请求方式');
     await env.DB.prepare('SELECT 1').first();
     return json({ status: 'ok', service: 'his.fm', version, revision: __BUILD_REVISION__ });
+  }
+  if (path === '/feed.xml') {
+    if (request.method !== 'GET' && request.method !== 'HEAD') throw new HttpError(405, '不支持这个请求方式');
+    const body = await buildRssFeed(env.DB, url.origin);
+    const response = new Response(body, {
+      headers: {
+        'Content-Type': 'application/rss+xml; charset=utf-8',
+        'Cache-Control': 'public, max-age=600',
+      },
+    });
+    return request.method === 'HEAD' ? new Response(null, response) : response;
   }
   if (path === '/api/episodes') {
     if (request.method !== 'GET') throw new HttpError(405, '不支持这个请求方式');

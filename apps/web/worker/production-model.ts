@@ -66,12 +66,14 @@ export function applyPatch(
   production: Production,
   fields: Partial<ProductionBrief & Pick<Production, 'transcript' | 'summary' | 'description'>>,
   actor: Actor,
+  editedKeys?: string[],
 ): Production {
   requireScope(actor, 'productions:write');
   if (!canReopen(actor)) {
     requireStage(production, 'draft', 'scripting', 'production');
     const allowed = agentEditableFields[production.stage];
-    if (Object.keys(fields).some((key) => !allowed.includes(key)))
+    const keys = editedKeys ?? Object.keys(fields);
+    if (keys.some((key) => !allowed.includes(key)))
       throw new HttpError(409, '当前字段需要 productions:reopen 权限');
   }
   const changed = Object.keys(fields).filter(
@@ -81,7 +83,9 @@ export function applyPatch(
   );
   if (!changed.length) return production;
   const briefChanged = changed.some((key) =>
-    ['title', 'episodeNumber', 'targetDurationSeconds', 'sources', 'intent', 'category'].includes(key),
+    ['title', 'episodeNumber', 'targetDurationSeconds', 'sources', 'intent', 'category', 'mentions'].includes(
+      key,
+    ),
   );
   const scriptChanged = changed.includes('transcript');
   if (briefChanged && production.approvals.brief && !canReopen(actor))

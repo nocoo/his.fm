@@ -7,6 +7,10 @@ export function mediaUrl(env: Pick<Env, 'ENVIRONMENT'>, key: string) {
   return `${env.ENVIRONMENT === 'local' ? '/media' : 'https://f.no.mt'}/${key}`;
 }
 
+export function hydrateProduction(production: Production): Production {
+  return { ...production, mentions: production.mentions ?? [] };
+}
+
 export function projectProduction(
   production: Production,
   actor: Actor,
@@ -26,7 +30,7 @@ export async function getProduction(db: D1Database, id: string): Promise<Product
     .bind(id)
     .first<{ data: string }>();
   if (!row) throw new HttpError(404, '制作任务不存在');
-  return JSON.parse(row.data) as Production;
+  return hydrateProduction(JSON.parse(row.data) as Production);
 }
 
 export function appendEvent(production: Production, actor: Actor, action: string, feedback = ''): Production {

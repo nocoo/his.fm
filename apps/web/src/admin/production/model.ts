@@ -17,9 +17,7 @@ export function nextEpisodeNumberForCategory(
 ): number {
   const numbers = [
     ...productions
-      .filter(
-        (production) => production.category === category && production.id !== excludeProductionId,
-      )
+      .filter((production) => production.category === category && production.id !== excludeProductionId)
       .map((production) => production.episodeNumber),
     ...episodes.filter((episode) => episode.category === category).map((episode) => episode.episodeNumber),
   ];
@@ -40,6 +38,7 @@ export function emptyBrief(categoryId: string, episodeNumber = 1): ProductionBri
     targetDurationSeconds: 600,
     sources: [],
     intent: '',
+    mentions: [],
   };
 }
 export const actionLabels: Record<ProductionAction['action'], string> = {

@@ -17,11 +17,13 @@ import { BrandSymbol, Wordmark } from '../brand/Brand';
 import { themeMedia } from '../brand/themes';
 import { AudioPlayer } from '../components/AudioPlayer';
 import type { PublicEpisode } from '../shared/episode';
+import { podcastEpisodeMentionsJsonLd } from '../shared/mentions-format';
 import { ReadingText } from '../shared/ReadingText';
 import { PublicLink as Link, PublicNavLink as NavLink, SiteAppearance, useAppearance } from './Appearance';
 import { EpisodeCover } from './EpisodeCover';
+import { EpisodeMentions } from './EpisodeMentions';
 import { Hero, ThemeImage } from './Hero';
-import { categoryLabel, dateLabel, durationLabel, episodeDisplayLabel, filterEpisodes } from './model';
+import { dateLabel, durationLabel, episodeDisplayLabel, filterEpisodes } from './model';
 import { Reveal } from './Reveal';
 import { useEpisodes } from './useEpisodes';
 import './hero.css';
@@ -370,10 +372,23 @@ function EpisodeDetail() {
     }
     document.title = `${episodeDisplayLabel(episode, categories)} · ${episode.title} · his.fm`;
     const description = document.querySelector<HTMLMetaElement>('meta[name="description"]');
-    description?.setAttribute(
-      'content',
-      `${episodeDisplayLabel(episode, categories)} · ${episode.summary}`,
-    );
+    description?.setAttribute('content', `${episodeDisplayLabel(episode, categories)} · ${episode.summary}`);
+    const scriptId = 'episode-jsonld';
+    document.getElementById(scriptId)?.remove();
+    const script = document.createElement('script');
+    script.id = scriptId;
+    script.type = 'application/ld+json';
+    script.text = JSON.stringify({
+      '@context': 'https://schema.org',
+      '@type': 'PodcastEpisode',
+      name: episode.title,
+      description: episode.summary,
+      ...(episode.mentions.length ? { mentions: podcastEpisodeMentionsJsonLd(episode.mentions) } : {}),
+    });
+    document.head.appendChild(script);
+    return () => {
+      document.getElementById(scriptId)?.remove();
+    };
   }, [episode, categories]);
   // biome-ignore lint/correctness/useExhaustiveDependencies: Each episode resets share state on navigation.
   useEffect(() => {
@@ -411,8 +426,7 @@ function EpisodeDetail() {
               </Reveal>
               <Reveal className="detail-intro">
                 <p className="eyebrow">
-                  {episodeDisplayLabel(episode, categories)} <span> / </span>{' '}
-                  {dateLabel(episode.publishedAt)}
+                  {episodeDisplayLabel(episode, categories)} <span> / </span> {dateLabel(episode.publishedAt)}
                 </p>
                 <h1>{episode.title}</h1>
                 <p className="detail-summary">{episode.summary}</p>
@@ -421,6 +435,18 @@ function EpisodeDetail() {
                     <span key={tag}>{tag}</span>
                   ))}
                 </div>
+                <EpisodeMentions mentions={episode.mentions} />
+                <p className="episode-license">
+                  文字内容采用{' '}
+                  <a
+                    href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh"
+                    rel="license noopener noreferrer"
+                    target="_blank"
+                  >
+                    知识共享 署名-非商业性使用-相同方式共享 4.0
+                  </a>{' '}
+                  许可。
+                </p>
                 {!episode.audioUrl && (
                   <div className="recording-note">
                     <BrandSymbol />
@@ -455,10 +481,7 @@ function EpisodeDetail() {
               <div className="episode-writing">
                 <h2 className="sr-only">本期摘要</h2>
                 <div id="reading-panel">
-                  <ReadingText
-                    className="readable-text"
-                    text={episode.showNotes || episode.summary}
-                  />
+                  <ReadingText className="readable-text" text={episode.showNotes || episode.summary} />
                 </div>
               </div>
             </div>

@@ -1,7 +1,7 @@
 import { FramedCover } from '../components/FramedCover';
-import type { Episode } from '../shared/episode';
+import type { PublicEpisode } from '../shared/episode';
 
-export function EpisodeCover({ episode, priority = false }: { episode: Episode; priority?: boolean }) {
+export function EpisodeCover({ episode, priority = false }: { episode: PublicEpisode; priority?: boolean }) {
   return (
     <FramedCover
       className="episode-cover"

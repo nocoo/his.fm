@@ -44,6 +44,7 @@ const episodes: Episode[] = [
   coverUrl: '/images/player-test.png',
   category: 'test-category',
   tags: ['测试'],
+  mentions: [],
   durationSeconds: index ? 45 : 90,
   audioUrl: `/media/player-${id}.wav`,
   status: 'published',
