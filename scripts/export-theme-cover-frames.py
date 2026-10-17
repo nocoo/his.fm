@@ -57,18 +57,14 @@ def digest(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def export_frames(destination: Path, layout_path: Path, quiet: bool = False) -> dict[str, str]:
+def export_frames(destination: Path, layout_path: Path, quiet: bool = False) -> None:
     assets.prepare_fonts()
     destination.mkdir(parents=True, exist_ok=True)
     layouts: dict[str, dict] = {}
-    digests: dict[str, str] = {}
     for brand in pages.BRANDS:
         theme_id = THEME_BY_BRAND[brand['id']]
         content = assets.overlay_frame(brand)
-        svg_path = destination / f'{theme_id}.svg'
-        svg_text = svg_body(content)
-        svg_path.write_text(svg_text)
-        digests[theme_id] = hashlib.sha256(svg_text.encode()).hexdigest()
+        (destination / f'{theme_id}.svg').write_text(svg_body(content))
         paper, ink, accent = [c for _, c in brand['palette'][:3]]
         badge = EPISODE_BADGE[theme_id]
         scale = EXPORT_SIZE / SOURCE_SIZE
@@ -88,9 +84,7 @@ def export_frames(destination: Path, layout_path: Path, quiet: bool = False) -> 
             print(f'wrote {theme_id}.svg from docs/design {brand["slug"]} ({brand["name"]})')
     layout_path.write_text(json.dumps({'size': EXPORT_SIZE, 'themes': layouts}, indent=2) + '\n')
     if not quiet:
-        rel = layout_path.relative_to(ROOT) if layout_path.is_relative_to(ROOT) else layout_path
-        print(f'wrote {rel}')
-    return digests
+        print(f'wrote {layout_path.relative_to(ROOT)}')
 
 
 def verify_committed(destination: Path, layout_path: Path) -> int:
