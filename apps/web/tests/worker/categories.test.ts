@@ -150,6 +150,21 @@ it('updates with optimistic versions and rejects stale writes while preserving I
     ),
   ).rejects.toMatchObject({ status: 409 });
 });
+it('creates productions when only legacy work category ids exist', async () => {
+  await env.DB.prepare("UPDATE categories SET id='work', name='工作' WHERE id='manager-notes'").run();
+  try {
+    const response = await routeProductions(
+      request('POST', { ...brief, category: 'work' }),
+      env,
+      '/productions',
+      human,
+    );
+    assert(response);
+    expect(response.status).toBe(201);
+  } finally {
+    await env.DB.prepare("UPDATE categories SET id='manager-notes', name='主理人手札' WHERE id='work'").run();
+  }
+});
 it('accepts new categories in productions, prevents deleting referenced categories and injects ordered prompts', async () => {
   const category = await create();
   const response = await routeProductions(
@@ -265,6 +280,54 @@ it('rejects reserved nextId values used by admin routes', async () => {
   await expect(
     routeCategories(request('PUT', { version: 1, nextId: 'new' }), env, human, category.id),
   ).rejects.toMatchObject({ status: 400 });
+});
+it('does not move episode or production references when rename uses a stale version and nextId is already taken', async () => {
+  const category = await create();
+  await routeCategories(request('PUT', { version: 1, name: '已改名' }), env, human, category.id);
+  const productionResponse = await routeProductions(
+    request('POST', { ...brief, category: category.id }),
+    env,
+    '/productions',
+    human,
+  );
+  assert(productionResponse);
+  const { production } = (await productionResponse.json()) as { production: ReturnType<typeof fixture> };
+  await env.DB.prepare(
+    'INSERT INTO episodes (id, slug, episode_number, title, summary, transcript, show_notes, cover_url, category, tags, duration_seconds, status, featured, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+  )
+    .bind(
+      'episode-stale-rename-race',
+      'stale-rename-race',
+      1,
+      '栏目迁移竞态',
+      '摘要',
+      '',
+      '',
+      '/images/episode-01.webp',
+      category.id,
+      '[]',
+      0,
+      'draft',
+      0,
+      '2026-09-25T00:00:00.000Z',
+      '2026-09-25T00:00:00.000Z',
+    )
+    .run();
+  await expect(
+    renameCategoryId(env.DB, human, category.id, 'learning', 1, {
+      name: category.name,
+      icon: category.icon,
+      color: category.color,
+      prompt: category.prompt,
+    }),
+  ).rejects.toMatchObject({ status: 409 });
+  expect(
+    await env.DB.prepare('SELECT category FROM episodes WHERE id=?')
+      .bind('episode-stale-rename-race')
+      .first<{ category: string }>(),
+  ).toEqual({ category: category.id });
+  expect((await getProduction(env.DB, production.id)).category).toBe(category.id);
+  expect(await getCategory(env.DB, 'learning')).toMatchObject({ id: 'learning', version: 1 });
 });
 it('maps duplicate nextId insert races to conflict responses', async () => {
   const category = await create();

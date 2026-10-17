@@ -40,6 +40,7 @@ export async function renameCategoryId(
   merged: Pick<Category, 'name' | 'icon' | 'color' | 'prompt'>,
 ): Promise<Category> {
   const now = new Date().toISOString();
+  const renamedVersion = inputVersion + 1;
   let results: Awaited<ReturnType<D1Database['batch']>>;
   try {
     results = await db.batch([
@@ -64,9 +65,10 @@ export async function renameCategoryId(
         .prepare(
           `UPDATE episodes SET category=?, version=version+1, updated_at=?
          WHERE category=?
-         AND EXISTS (SELECT 1 FROM categories WHERE id=?)`,
+         AND EXISTS (SELECT 1 FROM categories WHERE id=? AND version=?)
+         AND EXISTS (SELECT 1 FROM categories WHERE id=? AND version=?)`,
         )
-        .bind(nextId, now, id, nextId),
+        .bind(nextId, now, id, nextId, renamedVersion, id, inputVersion),
       db
         .prepare(
           `UPDATE productions SET
@@ -80,15 +82,16 @@ export async function renameCategoryId(
            version=version+1,
            updated_at=?
          WHERE json_extract(data,'$.category')=?
-         AND EXISTS (SELECT 1 FROM categories WHERE id=?)`,
+         AND EXISTS (SELECT 1 FROM categories WHERE id=? AND version=?)
+         AND EXISTS (SELECT 1 FROM categories WHERE id=? AND version=?)`,
         )
-        .bind(nextId, now, now, id, nextId),
+        .bind(nextId, now, now, id, nextId, renamedVersion, id, inputVersion),
       db
         .prepare(
           `DELETE FROM categories WHERE id=? AND version=?
-         AND EXISTS (SELECT 1 FROM categories WHERE id=?)`,
+         AND EXISTS (SELECT 1 FROM categories WHERE id=? AND version=?)`,
         )
-        .bind(id, inputVersion, nextId),
+        .bind(id, inputVersion, nextId, renamedVersion),
     ]);
   } catch (error) {
     if (categoryIdTaken(error)) throw new HttpError(409, '栏目 ID 已被占用，请换一个标识');
