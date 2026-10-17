@@ -39,11 +39,15 @@ SET data = json_set(
     SELECT episode_number
     FROM episodes
     WHERE source_production_id = productions.id
+      AND episodes.category = json_extract(productions.data, '$.category')
     LIMIT 1
   )
 )
 WHERE EXISTS (
-  SELECT 1 FROM episodes WHERE source_production_id = productions.id
+  SELECT 1
+  FROM episodes
+  WHERE source_production_id = productions.id
+    AND episodes.category = json_extract(productions.data, '$.category')
 );
 
 WITH combined AS (
@@ -64,7 +68,12 @@ WITH combined AS (
     p.created_at,
     p.id
   FROM productions p
-  WHERE NOT EXISTS (SELECT 1 FROM episodes e WHERE e.source_production_id = p.id)
+  WHERE NOT EXISTS (
+    SELECT 1
+    FROM episodes e
+    WHERE e.source_production_id = p.id
+      AND e.category = json_extract(p.data, '$.category')
+  )
 ),
 ranked AS (
   SELECT
