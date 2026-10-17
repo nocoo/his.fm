@@ -16,6 +16,9 @@ import { mediaUrl } from './production-store';
 
 const retentionMs = 24 * 60 * 60 * 1000;
 const siteHosts = new Set(['his.fm', 'hisfm.dev.hexly.ai', 'localhost', '127.0.0.1']);
+/** Stops greedy matches before the next reference in CJK prose or markup. */
+const storageReferencePattern =
+  /(?:https?:\/\/[^\s<>"'()`[\]，。；：、！？「」《》（）,;]+|\/(?:media|images)\/[^\s<>"'()`[\]，。；：、！？「」《》（）,;]+)/g;
 type References = { keys: Map<string, Set<string>> };
 
 function storageKeyFromReference(token: string): string | null {
@@ -42,7 +45,7 @@ function collect(value: unknown, label: string, keys: References['keys'], proper
       keys.set(key, labels);
     };
     if (['key', 'introKey', 'outroKey'].includes(property)) add(value);
-    for (const match of value.matchAll(/https?:\/\/[^\s<>"'()`[\]]+|\/(?:media|images)\/[^\s<>"'()`[\]]+/g)) {
+    for (const match of value.matchAll(storageReferencePattern)) {
       const key = storageKeyFromReference(match[0]);
       if (key) add(key);
     }
