@@ -26,7 +26,14 @@ import { PublicLink as Link, PublicNavLink as NavLink, SiteAppearance, useAppear
 import { EpisodeCover } from './EpisodeCover';
 import { EpisodeMentions } from './EpisodeMentions';
 import { Hero, ThemeImage } from './Hero';
-import { dateLabel, durationLabel, episodeDisplayLabel, filterEpisodes } from './model';
+import {
+  catalogueCategoryFromSearch,
+  catalogueSearchParamsForCategory,
+  dateLabel,
+  durationLabel,
+  episodeDisplayLabel,
+  filterEpisodes,
+} from './model';
 import { Reveal } from './Reveal';
 import { useEpisodes } from './useEpisodes';
 import { PublicSiteSeoProvider, usePublicSiteSeo } from './usePublicSiteSeo';
@@ -289,13 +296,12 @@ function Catalogue() {
   const { episodes, categories } = useLibrary();
   const site = usePublicSiteSeo();
   const origin = window.location.origin;
-  const [searchParams] = useSearchParams();
-  const [category, setCategory] = useState('all');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const category = catalogueCategoryFromSearch(searchParams.get('category'));
   const [query, setQuery] = useState('');
-  useEffect(() => {
-    const fromQuery = searchParams.get('category');
-    if (fromQuery) setCategory(fromQuery);
-  }, [searchParams]);
+  const setCategoryFilter = (next: string) => {
+    setSearchParams(catalogueSearchParamsForCategory(searchParams, next), { replace: true });
+  };
   const filtered = filterEpisodes(episodes, category, query);
   const activeCategory = category === 'all' ? undefined : categories.find((item) => item.id === category);
   useEffect(() => {
@@ -321,7 +327,7 @@ function Catalogue() {
             type="button"
             className={category === 'all' ? 'selected' : ''}
             aria-pressed={category === 'all'}
-            onClick={() => setCategory('all')}
+            onClick={() => setCategoryFilter('all')}
           >
             全部 <span>{episodes.length.toString().padStart(2, '0')}</span>
           </button>
@@ -331,7 +337,7 @@ function Catalogue() {
               type="button"
               aria-pressed={category === item.id}
               className={category === item.id ? 'selected' : ''}
-              onClick={() => setCategory(item.id)}
+              onClick={() => setCategoryFilter(item.id)}
             >
               {item.name}
             </button>
@@ -368,7 +374,7 @@ function Catalogue() {
               type="button"
               className="pill-button dark"
               onClick={() => {
-                setCategory('all');
+                setCategoryFilter('all');
                 setQuery('');
               }}
             >

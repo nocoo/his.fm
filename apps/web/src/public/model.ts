@@ -3,6 +3,17 @@ import type { PublicCategory } from '../shared/category';
 import type { PublicEpisode } from '../shared/episode';
 import { formatEpisodeLabel } from '../shared/episode-display';
 
+export function catalogueCategoryFromSearch(category: string | null) {
+  return category ?? 'all';
+}
+
+export function catalogueSearchParamsForCategory(searchParams: URLSearchParams, next: string) {
+  const params = new URLSearchParams(searchParams);
+  if (next === 'all') params.delete('category');
+  else params.set('category', next);
+  return params;
+}
+
 export function filterEpisodes(episodes: PublicEpisode[], category: string, query: string) {
   const search = query.trim().toLocaleLowerCase();
   return episodes.filter(

@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   appearanceHref,
+  catalogueCategoryFromSearch,
+  catalogueSearchParamsForCategory,
   categoryLabel,
   dateLabel,
   durationLabel,
@@ -116,6 +118,13 @@ describe('listening room', () => {
     expect(filterEpisodes(episodes, 'all', '路边')).toEqual([episodes[1]]);
     expect(filterEpisodes(episodes, 'all', '开发者')).toEqual([episodes[0]]);
     expect(filterEpisodes(episodes, 'life', 'AI')).toEqual([]);
+    expect(catalogueCategoryFromSearch(null)).toBe('all');
+    expect(catalogueCategoryFromSearch('manager-notes')).toBe('manager-notes');
+    const params = new URLSearchParams('category=life&q=1');
+    expect(catalogueSearchParamsForCategory(params, 'manager-notes').toString()).toBe(
+      'category=manager-notes&q=1',
+    );
+    expect(catalogueSearchParamsForCategory(params, 'all').toString()).toBe('q=1');
   });
   it('formats dates consistently in Shanghai and represents unfinished media honestly', () => {
     expect(dateLabel('2026-09-24T22:00:00Z')).toBe('2026.09.25');
