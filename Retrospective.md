@@ -745,3 +745,12 @@ The initial social-preview browser suite also pinned its temporary validation
 port. That passed the targeted run but rejected the repository's default Caddy
 URL and the final preview port. Guard local hostnames instead, while honoring
 Playwright's configured base URL and keeping the no-content-write tripwire.
+
+The max review found two recovery gaps: a transient share-image 503 stayed locked
+to its stable URL, and episode previews could substitute a category ID after a
+failed lookup. Offer a same-URL image retry without navigating or saving, and
+resolve category metadata inside the shared preview with loading/error/retry
+states. Test failure followed by recovery, not just the successful initial render.
+The browser recovery test additionally caught the failed selector's missing form
+entry clearing the preview category during an unrelated title edit. Preserve the
+current category when its input is temporarily absent; absence is not an edit.

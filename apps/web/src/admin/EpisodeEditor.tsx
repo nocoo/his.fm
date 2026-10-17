@@ -165,7 +165,6 @@ export function EpisodeEditor() {
         <EpisodeSocialPreview
           episode={episode}
           saved={episode}
-          categoryName={categories.find((item) => item.id === episode.category)?.name ?? episode.category}
           notice="预览当前节目发布快照。内容修改请前往制作记录；草稿或未来发布时间的快照不加载公开分享图。"
         />
       </div>
@@ -235,7 +234,7 @@ export function EpisodeEditor() {
             setCoverCopy({
               title: String(data.get('title') ?? ''),
               episodeNumber: Number(data.get('episodeNumber')),
-              category: String(data.get('category') ?? ''),
+              category: String(data.get('category') ?? coverCopy.category),
               summary: String(data.get('summary') ?? ''),
               slug: String(data.get('slug') ?? ''),
             });
@@ -539,7 +538,6 @@ export function EpisodeEditor() {
             updatedAt: episode?.updatedAt ?? '',
           }}
           saved={episode ?? undefined}
-          categoryName={categories.find((item) => item.id === coverCopy.category)?.name ?? coverCopy.category}
         />
       )}
       {deleteOpen && episode && (

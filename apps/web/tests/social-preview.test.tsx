@@ -110,7 +110,7 @@ describe('studio social previews', () => {
   it('resolves edited episode metadata from real site settings and keeps drafts image-free', async () => {
     const draft = { ...episode, title: '正在编辑', seo: { description: '自定义分享描述', noindex: true } };
     await act(async () => {
-      root.render(<EpisodeSocialPreview episode={draft} categoryName="生活" />);
+      root.render(<EpisodeSocialPreview episode={draft} />);
     });
     expect(container.querySelector('.social-card-title')?.textContent).toContain(
       `正在编辑${site.titleSuffix}`,
@@ -120,17 +120,66 @@ describe('studio social previews', () => {
     expect(container.textContent).toContain('noindex, follow');
     expect(siteSeoService.read).toHaveBeenCalledWith(expect.any(AbortSignal));
     await act(async () => {
-      root.render(<EpisodeSocialPreview episode={episode} saved={episode} categoryName="生活" />);
+      root.render(<EpisodeSocialPreview episode={episode} saved={episode} />);
     });
     expect(container.querySelector('img')?.getAttribute('src')).toBe(
       `${window.location.origin}/episodes/production-test/share.jpg`,
     );
   });
 
+  it('retries a failed image at the same URL without losing edited metadata or requesting drafts', async () => {
+    const props = episodeSocialPreview(
+      site,
+      'https://his.fm',
+      { ...episode, title: '未保存的标题' },
+      '生活',
+      episode,
+    );
+    await act(async () => root.render(<SocialPreview {...props} notice="编辑中" />));
+    const image = container.querySelector('img');
+    act(() => image?.dispatchEvent(new Event('error')));
+    const retry = [...container.querySelectorAll('button')].find(
+      (button) => button.textContent === '重新加载分享图片',
+    );
+    expect(retry).toBeDefined();
+    await act(async () => retry?.click());
+    const recovered = container.querySelector('img');
+    expect(recovered).not.toBe(image);
+    expect(recovered?.getAttribute('src')).toBe(props.seo.ogImageUrl);
+    act(() => recovered?.dispatchEvent(new Event('load')));
+    expect(container.querySelector('.social-card-title')?.textContent).toContain('未保存的标题');
+    expect(container.textContent).not.toContain('重新加载分享图片');
+    act(() => recovered?.dispatchEvent(new Event('error')));
+    await act(async () => root.render(<SocialPreview {...props} imageAvailable={false} notice="草稿" />));
+    expect(container.querySelector('img')).toBeNull();
+    expect(container.textContent).not.toContain('重新加载分享图片');
+  });
+
+  it('waits for category recovery instead of rendering an ID as the public label', async () => {
+    vi.mocked(categoryService.list).mockRejectedValueOnce(new Error('Categories unavailable'));
+    const draft = { ...episode, title: '保留的编辑' };
+    await act(async () => root.render(<EpisodeSocialPreview episode={draft} saved={episode} />));
+    expect(container.textContent).toContain('Categories unavailable');
+    expect(container.querySelector('.social-card')).toBeNull();
+    await act(async () => container.querySelector('button')?.click());
+    expect(container.querySelector('.social-card-title')?.textContent).toBe(
+      `生活 EP.08 · 保留的编辑${site.titleSuffix}`,
+    );
+    expect(categoryService.list).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not guess a label for a missing category', async () => {
+    await act(async () =>
+      root.render(<EpisodeSocialPreview episode={{ ...episode, category: 'missing' }} />),
+    );
+    expect(container.querySelector('.social-card')).toBeNull();
+    expect(container.textContent).toContain('请先选择有效栏目');
+  });
+
   it('uses production URLs for production data viewed through a local studio', async () => {
     localStorage.setItem('hisfm-admin-environment', 'production');
     await act(async () => {
-      root.render(<EpisodeSocialPreview episode={episode} saved={episode} categoryName="生活" />);
+      root.render(<EpisodeSocialPreview episode={episode} saved={episode} />);
     });
     expect(container.querySelector('img')?.getAttribute('src')).toBe(
       'https://his.fm/episodes/production-test/share.jpg',
@@ -141,11 +190,11 @@ describe('studio social previews', () => {
   it('does not request future publication images or invent an unsaved record image URL', async () => {
     const future = { ...episode, publishedAt: '2999-01-01T00:00:00Z' };
     await act(async () => {
-      root.render(<EpisodeSocialPreview episode={future} saved={future} categoryName="生活" />);
+      root.render(<EpisodeSocialPreview episode={future} saved={future} />);
     });
     expect(container.querySelector('img')).toBeNull();
     await act(async () => {
-      root.render(<EpisodeSocialPreview episode={{ ...episode, id: '' }} categoryName="生活" />);
+      root.render(<EpisodeSocialPreview episode={{ ...episode, id: '' }} />);
     });
     expect(container.textContent).toContain('保存节目后生成分享图地址');
     expect(container.textContent).not.toContain('/episodes//share.jpg');
@@ -155,7 +204,7 @@ describe('studio social previews', () => {
   it('shows and retries actual site metadata read failures instead of inventing defaults', async () => {
     vi.mocked(siteSeoService.read).mockRejectedValueOnce(new Error('SEO settings unavailable'));
     await act(async () => {
-      root.render(<EpisodeSocialPreview episode={episode} saved={episode} categoryName="生活" />);
+      root.render(<EpisodeSocialPreview episode={episode} saved={episode} />);
     });
     expect(container.textContent).toContain('SEO settings unavailable');
     expect(container.querySelector('.social-card')).toBeNull();
@@ -171,7 +220,7 @@ describe('studio social previews', () => {
       return new Promise(() => {});
     });
     await act(async () => {
-      root.render(<EpisodeSocialPreview episode={episode} categoryName="生活" />);
+      root.render(<EpisodeSocialPreview episode={episode} />);
     });
     expect(container.querySelector('[aria-label="正在读取分享预览元数据"]')).not.toBeNull();
     await act(async () => root.render(null));

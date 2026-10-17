@@ -149,6 +149,52 @@ test('saved standalone preview matches public metadata across eight platforms wi
   await expect(page.locator('.admin-footnote')).toHaveText('所有改动已保存。');
 });
 
+test('a transient share image failure retries the same URL without losing edits', async ({ page }) => {
+  let attempts = 0;
+  await page.route(`**/episodes/${episodeId}/share.jpg`, async (route) => {
+    attempts++;
+    if (attempts === 1) return route.fulfill({ status: 503, body: 'Retry rendering' });
+    await route.continue();
+  });
+  await page.goto(`/admin/episodes/${episodeId}`);
+  const preview = page.locator('.social-preview');
+  await preview.scrollIntoViewIfNeeded();
+  await expect(preview.getByText('图片暂时无法加载')).toBeVisible();
+  await page.getByLabel('节目标题', { exact: true }).fill('重试后仍保留的标题');
+  await preview.getByRole('button', { name: '重新加载分享图片' }).click();
+  await expect
+    .poll(() => preview.locator('img').evaluate((image: HTMLImageElement) => image.naturalWidth))
+    .toBe(1200);
+  expect(attempts).toBe(2);
+  await expect(preview.locator('.social-card-title')).toContainText('重试后仍保留的标题');
+  await expect(page.getByLabel('节目标题', { exact: true })).toHaveValue('重试后仍保留的标题');
+});
+
+test('category failure never invents SEO labels and recovers without discarding the draft', async ({
+  page,
+}) => {
+  const episode = await savedEpisode(page);
+  const expected = await publishedMetadata(page, `/episodes/${episode.category}/${episode.slug}`);
+  let unavailable = true;
+  await page.route('**/admin/api/categories', async (route) => {
+    if (unavailable)
+      return route.fulfill({ status: 503, json: { error: 'Categories temporarily unavailable' } });
+    await route.continue();
+  });
+  await page.goto(`/admin/episodes/${episodeId}`);
+  const failure = page.getByRole('alert').filter({ hasText: 'Categories temporarily unavailable' }).last();
+  await expect(failure).toBeVisible();
+  await expect(page.locator('.social-card')).toHaveCount(0);
+  await page.getByLabel('节目标题', { exact: true }).fill('栏目恢复后的草稿');
+  unavailable = false;
+  await failure.getByRole('button', { name: '重新加载' }).click();
+  await expect(page.locator('.social-card-title')).toHaveText(
+    expected.title?.replace(episode.title, '栏目恢复后的草稿') ?? '',
+  );
+  await expect(page.getByLabel('节目标题', { exact: true })).toHaveValue('栏目恢复后的草稿');
+  expect(await savedEpisode(page)).toEqual(episode);
+});
+
 test('new episode drafts do not request or imply an available public share image', async ({ page }) => {
   const imageRequests = sharingImageRequests(page);
   await page.goto('/admin/episodes/new');

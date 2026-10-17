@@ -1,4 +1,4 @@
-import { LayerCard } from '@nocoo/basalt';
+import { Button, LayerCard } from '@nocoo/basalt';
 import {
   Select,
   SelectContent,
@@ -80,6 +80,11 @@ export function SocialPreview({
             </div>
           </article>
         </div>
+        {imageAvailable && failedImage === seo.ogImageUrl && (
+          <Button type="button" variant="outline" onClick={() => setFailedImage('')}>
+            重新加载分享图片
+          </Button>
+        )}
         <p className="admin-muted">
           近似模拟，非平台实时抓取；实际裁切、摘要和缓存由平台决定。微信还可能需要 JS-SDK 配置。
         </p>

@@ -113,6 +113,11 @@ wait until their resolved URL matches the saved settings. Failed image loads sho
 an unavailable state, never a substitute original cover. This is not proof that a
 platform crawler can access or has refreshed the image.
 
+Image failures offer an explicit retry of the same resolved URL without a page
+reload or draft loss; unpublished images remain blocked. Episode previews wait
+for successful category and site metadata reads, and expose read failures with
+retry rather than displaying a category ID as if it were the public label.
+
 The production panel finds linked snapshots only by `sourceProductionId`. When a
 snapshot exists it previews that snapshot, not a newer production revision; a
 clear notice distinguishes the two. Before first publication it projects the
