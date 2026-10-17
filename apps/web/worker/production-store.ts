@@ -1,7 +1,7 @@
 import { hasScope } from '@his-fm/contracts';
 import type { Actor, Production } from '../src/shared/production';
 import { categoryFence, getCategory } from './categories';
-import { updateEpisodeNumberClaim } from './episode-numbering';
+import { publishedSnapshotMatchesProduction, setHolderEpisodeNumberClaim } from './episode-numbering';
 import { HttpError } from './http';
 
 export function mediaUrl(env: Pick<Env, 'ENVIRONMENT'>, key: string) {
@@ -70,13 +70,22 @@ export async function saveProduction(db: D1Database, production: Production, exp
   await getCategory(db, production.category);
   const current = await getProduction(db, production.id);
   const next = nextVersion(production, expectedVersion);
-  const statements = [categoryFence(db, next.category), updateStatement(db, next, expectedVersion)];
+  const results = await db.batch([
+    categoryFence(db, next.category),
+    updateStatement(db, next, expectedVersion),
+  ]);
+  if (results[1].meta.changes !== 1) throw new HttpError(409, '内容已更新，请刷新后重试');
   if (current.category !== next.category || current.episodeNumber !== next.episodeNumber) {
-    statements.push(updateEpisodeNumberClaim(db, next.id, next.category, next.episodeNumber));
+    const snapshotOwnsNumber = await publishedSnapshotMatchesProduction(
+      db,
+      next.id,
+      next.category,
+      next.episodeNumber,
+    );
+    if (!snapshotOwnsNumber) {
+      await setHolderEpisodeNumberClaim(db, 'production', next.id, next.category, next.episodeNumber);
+    }
   }
-  const results = await db.batch(statements);
-  const result = results[1];
-  if (result.meta.changes !== 1) throw new HttpError(409, '内容已更新，请刷新后重试');
   return next;
 }
 

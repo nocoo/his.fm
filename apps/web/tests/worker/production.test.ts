@@ -190,11 +190,34 @@ describe('production API and optimistic updates', () => {
     );
     expect(
       await env.DB.prepare(
-        'SELECT category, episode_number AS episodeNumber FROM episode_number_claims WHERE holder_id = ?',
+        'SELECT category, episode_number AS episodeNumber FROM episode_number_claims WHERE holder_kind = ? AND holder_id = ?',
       )
-        .bind(moved.id)
+        .bind('production', moved.id)
         .first<{ category: string; episodeNumber: number }>(),
     ).toEqual({ category: 'learning', episodeNumber: 1 });
+  });
+
+  it('releases production claims when an unpublished production is deleted', async () => {
+    const production = await create();
+    const path = `/productions/${production.id}`;
+    const response = await routeProductions(
+      request(`${path}?version=${production.version}`, 'DELETE'),
+      env,
+      path,
+      human,
+    );
+    expect(response?.status).toBe(204);
+    expect(
+      await env.DB.prepare('SELECT 1 FROM episode_number_claims WHERE holder_kind = ? AND holder_id = ?')
+        .bind('production', production.id)
+        .first(),
+    ).toBeNull();
+    const recreated = await call('/productions', 'POST', {
+      ...brief,
+      slug: 'recreated-after-delete',
+      episodeNumber: production.episodeNumber,
+    });
+    expect(recreated.status).toBe(201);
   });
 
   it('creates and lists private drafts, preserves sources while scripting, and records feedback', async () => {

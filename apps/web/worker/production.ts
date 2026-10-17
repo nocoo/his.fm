@@ -21,9 +21,11 @@ import { categoryFence, getCategory } from './categories';
 import { getChannel } from './channel';
 import {
   assertEpisodeNumberAvailable,
+  deleteHolderEpisodeNumberClaims,
   insertEpisodeNumberClaim,
   nextEpisodeNumberInCategory,
   resolveProductionPatchEpisodeNumber,
+  syncEpisodeClaimFromRow,
 } from './episode-numbering';
 import { HttpError, json } from './http';
 import { rasterType } from './media-validation';
@@ -295,6 +297,7 @@ export async function publishProduction(
       snapshot,
     ]);
     if (results[1]?.meta.changes !== 1) throw new HttpError(409, '内容已更新，请刷新后重新确认发布');
+    await syncEpisodeClaimFromRow(db, next.id);
   } catch (error) {
     if (error instanceof Error && error.message.includes('UNIQUE constraint failed'))
       throw new HttpError(409, '公开节目存在相同链接名称或记录标识，尚未登记发布');
@@ -564,6 +567,7 @@ export async function routeProductions(
       .bind(id, version)
       .first();
     if (!deleted) throw new HttpError(409, '内容已更新，请刷新后重试');
+    await deleteHolderEpisodeNumberClaims(env.DB, 'production', id).run();
     return new Response(null, { status: 204 });
   }
   throw new HttpError(405, '不支持这个请求方式');

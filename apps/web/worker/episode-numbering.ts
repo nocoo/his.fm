@@ -1,10 +1,16 @@
 import { HttpError } from './http';
 
 type ExcludeIds = { productionId?: string; episodeId?: string };
-type HolderKind = 'episode' | 'production';
+export type HolderKind = 'episode' | 'production';
 
 function isUniqueConflict(error: unknown) {
   return error instanceof Error && /UNIQUE constraint failed/.test(error.message);
+}
+
+function excludedHolder(exclude: ExcludeIds): { holderKind: HolderKind; holderId: string } | undefined {
+  if (exclude.productionId) return { holderKind: 'production', holderId: exclude.productionId };
+  if (exclude.episodeId) return { holderKind: 'episode', holderId: exclude.episodeId };
+  return undefined;
 }
 
 async function maxClaimedNumber(db: D1Database, category: string): Promise<number> {
@@ -19,15 +25,17 @@ async function episodeNumberTaken(
   db: D1Database,
   category: string,
   episodeNumber: number,
-  exclude: ExcludeIds,
+  exclude: ExcludeIds = {},
 ): Promise<boolean> {
   const row = await db
-    .prepare('SELECT holder_id FROM episode_number_claims WHERE category = ? AND episode_number = ?')
+    .prepare(
+      'SELECT holder_kind, holder_id FROM episode_number_claims WHERE category = ? AND episode_number = ?',
+    )
     .bind(category, episodeNumber)
-    .first<{ holder_id: string }>();
+    .first<{ holder_kind: HolderKind; holder_id: string }>();
   if (!row) return false;
-  if (exclude.productionId && row.holder_id === exclude.productionId) return false;
-  if (exclude.episodeId && row.holder_id === exclude.episodeId) return false;
+  const skip = excludedHolder(exclude);
+  if (skip && row.holder_kind === skip.holderKind && row.holder_id === skip.holderId) return false;
   return true;
 }
 
@@ -45,19 +53,23 @@ export function insertEpisodeNumberClaim(
     .bind(category, episodeNumber, holderId, holderKind);
 }
 
-export function updateEpisodeNumberClaim(
+export function deleteHolderEpisodeNumberClaims(db: D1Database, holderKind: HolderKind, holderId: string) {
+  return db
+    .prepare('DELETE FROM episode_number_claims WHERE holder_kind = ? AND holder_id = ?')
+    .bind(holderKind, holderId);
+}
+
+export async function setHolderEpisodeNumberClaim(
   db: D1Database,
+  holderKind: HolderKind,
   holderId: string,
   category: string,
   episodeNumber: number,
 ) {
-  return db
-    .prepare('UPDATE episode_number_claims SET category = ?, episode_number = ? WHERE holder_id = ?')
-    .bind(category, episodeNumber, holderId);
-}
-
-export function deleteEpisodeNumberClaim(db: D1Database, holderId: string) {
-  return db.prepare('DELETE FROM episode_number_claims WHERE holder_id = ?').bind(holderId);
+  await db.batch([
+    deleteHolderEpisodeNumberClaims(db, holderKind, holderId),
+    insertEpisodeNumberClaim(db, category, episodeNumber, holderId, holderKind),
+  ]);
 }
 
 export async function nextEpisodeNumberInCategory(
@@ -150,6 +162,32 @@ export async function resolveEpisodePatchEpisodeNumber(
   fields: { category?: string; episodeNumber?: number },
 ): Promise<number> {
   return resolveScopedEpisodeNumber(db, current, fields, { episodeId: current.id });
+}
+
+export async function syncEpisodeClaimFromRow(db: D1Database, episodeId: string) {
+  const row = await db
+    .prepare('SELECT category, episode_number AS episodeNumber FROM episodes WHERE id = ?')
+    .bind(episodeId)
+    .first<{ category: string; episodeNumber: number }>();
+  if (!row) return;
+  await db.batch([
+    deleteHolderEpisodeNumberClaims(db, 'production', episodeId),
+    deleteHolderEpisodeNumberClaims(db, 'episode', episodeId),
+    insertEpisodeNumberClaim(db, row.category, row.episodeNumber, episodeId, 'episode'),
+  ]);
+}
+
+export async function publishedSnapshotMatchesProduction(
+  db: D1Database,
+  productionId: string,
+  category: string,
+  episodeNumber: number,
+): Promise<boolean> {
+  const snapshot = await db
+    .prepare('SELECT category, episode_number AS episodeNumber FROM episodes WHERE source_production_id = ?')
+    .bind(productionId)
+    .first<{ category: string; episodeNumber: number }>();
+  return Boolean(snapshot && snapshot.category === category && snapshot.episodeNumber === episodeNumber);
 }
 
 export async function batchInsertWithEpisodeNumberClaim<T>(

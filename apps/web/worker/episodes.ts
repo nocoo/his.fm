@@ -13,9 +13,9 @@ import { requireScope } from './authorization';
 import { getCategory } from './categories';
 import {
   batchInsertWithEpisodeNumberClaim,
-  deleteEpisodeNumberClaim,
+  deleteHolderEpisodeNumberClaims,
   resolveEpisodePatchEpisodeNumber,
-  updateEpisodeNumberClaim,
+  setHolderEpisodeNumberClaim,
 } from './episode-numbering';
 import { resolveCategoryAlias } from './episode-public';
 import { HttpError, json } from './http';
@@ -228,16 +228,14 @@ export async function mutateEpisode(request: Request, db: D1Database, actor: Act
     const version = Number(raw);
     if (!raw || !/^[1-9]\d*$/.test(raw) || !Number.isSafeInteger(version))
       throw new HttpError(400, '请提供节目版本');
-    const results = await db.batch([
-      db
-        .prepare(
-          'DELETE FROM episodes WHERE id = ? AND version = ? AND source_production_id IS NULL RETURNING id',
-        )
-        .bind(id, version),
-      deleteEpisodeNumberClaim(db, id),
-    ]);
-    const deleted = results[0].results?.[0];
+    const deleted = await db
+      .prepare(
+        'DELETE FROM episodes WHERE id = ? AND version = ? AND source_production_id IS NULL RETURNING id',
+      )
+      .bind(id, version)
+      .first<{ id: string }>();
     if (!deleted) throw new HttpError(409, '节目已被修改，请刷新后重试');
+    await deleteHolderEpisodeNumberClaims(db, 'episode', id).run();
     return new Response(null, { status: 204 });
   }
   const input = await readInput(request, Boolean(id));
@@ -260,20 +258,16 @@ export async function mutateEpisode(request: Request, db: D1Database, actor: Act
       { category: input.category, episodeNumber: input.episodeNumber },
     );
     const payload = { ...input, episodeNumber };
-    const statements = [
-      db
+    const claimChanged = current.category !== input.category || current.episode_number !== episodeNumber;
+    try {
+      const row = await db
         .prepare(
           'UPDATE episodes SET slug = ?, episode_number = ?, title = ?, summary = ?, transcript = ?, show_notes = ?, cover_url = ?, category = ?, tags = ?, mentions = ?, duration_seconds = ?, audio_url = ?, status = ?, featured = ?, published_at = ?, updated_at = ?, version = version + 1 WHERE id = ? AND version = ? AND source_production_id IS NULL RETURNING *',
         )
-        .bind(...inputValues(payload), now, id, 'version' in input ? input.version : null),
-    ];
-    if (current.category !== input.category || current.episode_number !== episodeNumber) {
-      statements.push(updateEpisodeNumberClaim(db, id, input.category, episodeNumber));
-    }
-    try {
-      const results = await db.batch(statements);
-      const row = results[0].results?.[0] as EpisodeRow | undefined;
+        .bind(...inputValues(payload), now, id, 'version' in input ? input.version : null)
+        .first<EpisodeRow>();
       if (!row) throw new HttpError(409, '节目已被修改，请刷新后重试');
+      if (claimChanged) await setHolderEpisodeNumberClaim(db, 'episode', id, input.category, episodeNumber);
       return respond(row);
     } catch (error) {
       if (error instanceof Error && /UNIQUE constraint failed: episodes\.category/.test(error.message)) {

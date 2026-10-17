@@ -97,6 +97,13 @@ export async function renameCategoryId(
         .bind(nextId, now, now, id, nextId, renamedVersion, id, inputVersion),
       db
         .prepare(
+          `UPDATE episode_number_claims SET category = ?
+         WHERE category = ?
+         AND EXISTS (SELECT 1 FROM categories WHERE id=? AND version=?)`,
+        )
+        .bind(nextId, id, id, inputVersion),
+      db
+        .prepare(
           `UPDATE category_id_aliases SET category_id = ?
          WHERE category_id = ?
          AND EXISTS (SELECT 1 FROM categories WHERE id=? AND version=?)`,
@@ -124,7 +131,7 @@ export async function renameCategoryId(
     if (categoryIdTaken(error)) throw new HttpError(409, '栏目 ID 已被占用，请换一个标识');
     throw error;
   }
-  if (results[0].meta.changes !== 1 || results[6].meta.changes !== 1) {
+  if (results[0].meta.changes !== 1 || results[7].meta.changes !== 1) {
     throw new HttpError(409, '栏目已被修改或删除，草稿已保留，请刷新后对照');
   }
   return getCategory(db, nextId);
@@ -202,12 +209,13 @@ export async function routeCategories(request: Request, env: Env, actor: Actor, 
     requireScope(actor, 'categories:delete');
     const version = Number(new URL(request.url).searchParams.get('version'));
     if (!Number.isSafeInteger(version) || version < 1) throw new HttpError(400, '请提供栏目版本');
-    const removed = await env.DB.prepare(
-      "DELETE FROM categories WHERE id=? AND version=? AND NOT EXISTS (SELECT 1 FROM productions WHERE json_extract(data,'$.category')=?) AND NOT EXISTS (SELECT 1 FROM episodes WHERE category=?) RETURNING id",
-    )
-      .bind(id, version, id, id)
-      .first();
-    if (!removed) throw new HttpError(409, '栏目已被引用、修改或删除，不能直接删除');
+    const removed = await env.DB.batch([
+      env.DB.prepare('DELETE FROM category_id_aliases WHERE category_id = ?').bind(id),
+      env.DB.prepare(
+        "DELETE FROM categories WHERE id=? AND version=? AND NOT EXISTS (SELECT 1 FROM productions WHERE json_extract(data,'$.category')=?) AND NOT EXISTS (SELECT 1 FROM episodes WHERE category=?) RETURNING id",
+      ).bind(id, version, id, id),
+    ]);
+    if (removed[1].meta.changes !== 1) throw new HttpError(409, '栏目已被引用、修改或删除，不能直接删除');
     return new Response(null, { status: 204 });
   }
   throw new HttpError(405, '不支持这个请求方式');

@@ -207,9 +207,9 @@ describe('public podcast catalog', () => {
     expect(response.status).toBe(200);
     expect(
       await env.DB.prepare(
-        'SELECT category, episode_number AS episodeNumber FROM episode_number_claims WHERE holder_id = ?',
+        'SELECT category, episode_number AS episodeNumber FROM episode_number_claims WHERE holder_kind = ? AND holder_id = ?',
       )
-        .bind(episode.id)
+        .bind('episode', episode.id)
         .first<{ category: string; episodeNumber: number }>(),
     ).toEqual({ category: 'learning', episodeNumber: 4 });
   });
@@ -248,6 +248,27 @@ describe('public podcast catalog', () => {
     });
     expect(response.status).toBe(201);
     expect(((await response.json()) as { episode: Episode }).episode.episodeNumber).toBe(9);
+  });
+
+  it('does not move episode claims when a stale episode update conflicts', async () => {
+    const episode = await create({ episodeNumber: 31, slug: 'stale-claim' });
+    const before = await env.DB.prepare(
+      'SELECT category, episode_number AS episodeNumber FROM episode_number_claims WHERE holder_kind = ? AND holder_id = ?',
+    )
+      .bind('episode', episode.id)
+      .first<{ category: string; episodeNumber: number }>();
+    const response = await call(`/admin/api/episodes/${episode.id}`, {
+      method: 'PUT',
+      ...body({ ...input, version: 999, slug: 'stale-claim', episodeNumber: 99, category: 'learning' }),
+    });
+    expect(response.status).toBe(409);
+    expect(
+      await env.DB.prepare(
+        'SELECT category, episode_number AS episodeNumber FROM episode_number_claims WHERE holder_kind = ? AND holder_id = ?',
+      )
+        .bind('episode', episode.id)
+        .first<{ category: string; episodeNumber: number }>(),
+    ).toEqual(before);
   });
 
   it('returns conflict when deleting a stale episode version', async () => {

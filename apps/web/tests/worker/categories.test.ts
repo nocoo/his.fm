@@ -359,6 +359,33 @@ it('rejects category renames onto ids already used by another category', async (
     routeCategories(request('PUT', { version: 1, nextId: 'learning' }), env, human, category.id),
   ).rejects.toMatchObject({ status: 409 });
 });
+it('moves episode number claims when renaming category ids', async () => {
+  const category = await create();
+  await env.DB.prepare(
+    'INSERT INTO episode_number_claims (category, episode_number, holder_id, holder_kind) VALUES (?, ?, ?, ?)',
+  )
+    .bind(category.id, 1, 'claim-holder', 'episode')
+    .run();
+  const nextId = 'claims-renamed';
+  await routeCategories(request('PUT', { version: 1, nextId, name: category.name }), env, human, category.id);
+  expect(
+    await env.DB.prepare('SELECT category FROM episode_number_claims WHERE holder_id = ?')
+      .bind('claim-holder')
+      .first<{ category: string }>(),
+  ).toEqual({ category: nextId });
+});
+it('deletes empty renamed categories after clearing inbound aliases', async () => {
+  const category = await create();
+  const nextId = 'delete-target';
+  await routeCategories(request('PUT', { version: 1, nextId, name: category.name }), env, human, category.id);
+  const response = await routeCategories(
+    request('DELETE', undefined, `/admin/api/categories/${nextId}?version=2`),
+    env,
+    human,
+    nextId,
+  );
+  expect(response.status).toBe(204);
+});
 it('preserves alias chains when renaming categories twice', async () => {
   const category = await create();
   const firstTarget = 'renamed-once';

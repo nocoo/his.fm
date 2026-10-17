@@ -4,14 +4,14 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { assertCategoryIdAvailable } from '../../worker/categories';
 import {
   assertEpisodeNumberAvailable,
-  deleteEpisodeNumberClaim,
+  deleteHolderEpisodeNumberClaims,
   insertEpisodeNumberClaim,
   nextEpisodeNumberInCategory,
   reserveEpisodeNumberClaim,
   resolveEpisodeNumberForCreate,
   resolveEpisodePatchEpisodeNumber,
   resolveProductionPatchEpisodeNumber,
-  updateEpisodeNumberClaim,
+  setHolderEpisodeNumberClaim,
 } from '../../worker/episode-numbering';
 import { HttpError } from '../../worker/http';
 
@@ -94,10 +94,21 @@ describe('episode_number_claims', () => {
 
   it('updates and deletes claims', async () => {
     await insertEpisodeNumberClaim(db, 'life', 1, 'holder', 'episode').run();
-    await updateEpisodeNumberClaim(db, 'holder', 'learning', 2).run();
+    await setHolderEpisodeNumberClaim(db, 'episode', 'holder', 'learning', 2);
     await expect(assertEpisodeNumberAvailable(db, 'learning', 2)).rejects.toMatchObject({ status: 409 });
-    await deleteEpisodeNumberClaim(db, 'holder').run();
+    await deleteHolderEpisodeNumberClaims(db, 'episode', 'holder').run();
     expect(await nextEpisodeNumberInCategory(db, 'learning')).toBe(1);
+  });
+
+  it('allows the same id to claim numbers in different categories for episode and production', async () => {
+    await setHolderEpisodeNumberClaim(db, 'episode', 'shared-id', 'life', 1);
+    await setHolderEpisodeNumberClaim(db, 'production', 'shared-id', 'learning', 1);
+    expect(
+      await db
+        .prepare('SELECT COUNT(*) AS n FROM episode_number_claims WHERE holder_id = ?')
+        .bind('shared-id')
+        .first<{ n: number }>(),
+    ).toEqual({ n: 2 });
   });
 
   it('rejects invalid episode numbers', async () => {
@@ -152,9 +163,9 @@ describe('episode_number_claims', () => {
     expect(await reserveEpisodeNumberClaim(db, 'life', 'explicit', 'production', 15)).toBe(15);
   });
 
-  it('surfaces non-numbering failures while reserving claims', async () => {
+  it('surfaces duplicate production reservations for the same holder', async () => {
     await reserveEpisodeNumberClaim(db, 'life', 'dup-holder', 'production', 5);
-    await expect(reserveEpisodeNumberClaim(db, 'life', 'dup-holder', 'episode', 6)).rejects.toThrow();
+    await expect(reserveEpisodeNumberClaim(db, 'life', 'dup-holder', 'production', 6)).rejects.toThrow();
   });
 
   it('walks past occupied numbers during auto reservation', async () => {

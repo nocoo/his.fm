@@ -1,8 +1,9 @@
 CREATE TABLE episode_number_claims (
   category TEXT NOT NULL,
   episode_number INTEGER NOT NULL,
-  holder_id TEXT NOT NULL PRIMARY KEY,
+  holder_id TEXT NOT NULL,
   holder_kind TEXT NOT NULL CHECK (holder_kind IN ('episode', 'production')),
+  PRIMARY KEY (holder_kind, holder_id, category),
   UNIQUE(category, episode_number)
 );
 
