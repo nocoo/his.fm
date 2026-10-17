@@ -25,6 +25,7 @@ import { AppHeader } from '@nocoo/basalt/components/app-header';
 import { AppMain, AppShell, AppSkipLink } from '@nocoo/basalt/components/app-shell';
 import {
   AudioLines,
+  AudioWaveform,
   Compass,
   Globe,
   HardDrive,
@@ -73,6 +74,7 @@ export function AdminShell({ session, children }: { session: Session; children: 
   const settings = Boolean(settingsTitle[location.pathname]) || categories;
   const channel = location.pathname === '/admin/channel';
   const appearance = location.pathname === '/admin/appearance';
+  const voicePreview = location.pathname === '/admin/voice-preview';
   const storage = location.pathname === '/admin/storage';
   const creating = location.pathname === '/admin/productions/new';
   const query = new URLSearchParams(location.search);
@@ -82,25 +84,27 @@ export function AdminShell({ session, children }: { session: Session; children: 
     (!query.get('section') || query.get('section') === 'metadata');
   const title = appearance
     ? '品牌外观'
-    : sourceOpen
-      ? '素材详情'
-      : storage
-        ? '资源管理'
-        : channel
-          ? '提示词'
-          : isList
-            ? '节目库'
-            : settings
-              ? categories
-                ? '栏目管理'
-                : (settingsTitle[location.pathname] ?? '工作室')
-              : catalog
-                ? location.pathname.endsWith('/new')
-                  ? '新建节目'
-                  : '编辑节目'
-                : creating
-                  ? '新建节目'
-                  : '节目详情';
+    : voicePreview
+      ? '音色预览'
+      : sourceOpen
+        ? '素材详情'
+        : storage
+          ? '资源管理'
+          : channel
+            ? '提示词'
+            : isList
+              ? '节目库'
+              : settings
+                ? categories
+                  ? '栏目管理'
+                  : (settingsTitle[location.pathname] ?? '工作室')
+                : catalog
+                  ? location.pathname.endsWith('/new')
+                    ? '新建节目'
+                    : '编辑节目'
+                  : creating
+                    ? '新建节目'
+                    : '节目详情';
   function go(path: string) {
     navigate(path);
     if (compact) setCollapsed(true);
@@ -155,7 +159,15 @@ export function AdminShell({ session, children }: { session: Session; children: 
     },
     {
       label: '品牌外观',
-      items: [{ href: '/admin/appearance', label: '品牌外观', icon: Palette, active: appearance }],
+      items: [
+        { href: '/admin/appearance', label: '品牌外观', icon: Palette, active: appearance },
+        {
+          href: '/admin/voice-preview',
+          label: '音色预览',
+          icon: AudioWaveform,
+          active: voicePreview,
+        },
+      ],
     },
     {
       label: '全站设置',
@@ -325,7 +337,7 @@ export function AdminShell({ session, children }: { session: Session; children: 
                     ...(!compact ? [{ label: '节目库', href: '/admin' }] : []),
                     { label: '资料与素材', href: `${location.pathname}?section=metadata` },
                   ]
-                : isList || settings || channel || appearance || storage
+                : isList || settings || channel || appearance || voicePreview || storage
                   ? []
                   : [
                       {

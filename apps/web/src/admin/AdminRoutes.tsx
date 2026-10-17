@@ -21,6 +21,7 @@ const CategoryPage = lazy(() => import('./categories/CategoryPage'));
 const ChannelPage = lazy(() => import('./channel/ChannelPage'));
 const StoragePage = lazy(() => import('./storage/StoragePage'));
 const AppearancePage = lazy(() => import('./appearance/AppearancePage'));
+const VoicePreviewPage = lazy(() => import('./voice-preview/VoicePreviewPage'));
 
 function RouterLink({
   href,
@@ -144,6 +145,14 @@ function SessionGate() {
           element={
             <Suspense fallback={<LoadingScreen label="正在打开品牌外观" />}>
               <AppearancePage />
+            </Suspense>
+          }
+        />
+        <Route
+          path="voice-preview"
+          element={
+            <Suspense fallback={<LoadingScreen label="正在打开音色预览" />}>
+              <VoicePreviewPage />
             </Suspense>
           }
         />

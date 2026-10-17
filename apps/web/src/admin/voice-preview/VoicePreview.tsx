@@ -62,16 +62,13 @@ function ComparisonCard({
   );
 }
 
-export function VoicePreviewSection() {
+export function VoicePreviewContent() {
   return (
-    <section className="appearance-voices" aria-labelledby="appearance-voice-preview-title">
-      <div className="appearance-voices-intro">
-        <h2 id="appearance-voice-preview-title">音色预览</h2>
-        <p className="admin-muted">
-          左 Gemini、右 ElevenLabs；使用固定开播文稿与对比风格试听。站点不托管语音生成，仅播放已上传到 R2
-          的参考样片。
-        </p>
-      </div>
+    <section className="appearance-voices" aria-label="音色对比样片">
+      <p className="admin-muted">
+        左 Gemini、右 ElevenLabs；使用固定开播文稿与对比风格试听。站点不托管语音生成，仅播放已上传到 R2
+        的参考样片。
+      </p>
       <details className="appearance-voice-script">
         <summary>共同文稿与固定对比风格</summary>
         <p className="studio-prose">{voiceSampleTranscript}</p>

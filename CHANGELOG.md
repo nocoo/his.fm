@@ -2,6 +2,12 @@
 
 All notable changes to his.fm are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions use the owner’s patch-only deployment policy in `AGENTS.md`, with the authoritative version in `package.json`.
 
+## 2.4.5 - 2026-10-17
+
+### Changed
+
+- Move **音色预览** from the bottom of **品牌外观** to its own studio sidebar entry at `/admin/voice-preview`, keeping Gemini and ElevenLabs reference playback unchanged.
+
 ## 2.4.4 - 2026-10-17
 
 ### Added
