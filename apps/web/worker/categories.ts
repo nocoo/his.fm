@@ -6,11 +6,17 @@ import {
   type PublicCategory,
 } from '../src/shared/category';
 import type { Actor } from '../src/shared/production';
+import { parseSeoOverride } from '../src/shared/seo';
 import { requireScope } from './authorization';
 import { HttpError, json } from './http';
 import { readJson } from './production-body';
 
-const fields = 'id, name, icon, color, prompt, version, updated_at AS updatedAt, updated_by AS updatedBy';
+const fields =
+  'id, name, icon, color, prompt, seo, version, updated_at AS updatedAt, updated_by AS updatedBy';
+
+function mapCategory(row: Category & { seo: string }): Category {
+  return { ...row, seo: parseSeoOverride(row.seo) };
+}
 const categoryIdTaken = (error: unknown) =>
   error instanceof Error && /UNIQUE constraint failed: categories\.id/.test(error.message);
 
@@ -24,14 +30,28 @@ export async function assertCategoryIdAvailable(db: D1Database, nextId: string, 
 }
 
 export async function listCategories(db: D1Database) {
-  return (
-    await db.prepare('SELECT id, name, icon, color FROM categories ORDER BY rowid').all<PublicCategory>()
-  ).results;
+  const rows = await db.prepare('SELECT id, name, icon, color, seo FROM categories ORDER BY rowid').all<{
+    id: string;
+    name: string;
+    icon: PublicCategory['icon'];
+    color: PublicCategory['color'];
+    seo: string;
+  }>();
+  return rows.results.map((row) => ({
+    id: row.id,
+    name: row.name,
+    icon: row.icon,
+    color: row.color,
+    seo: parseSeoOverride(row.seo),
+  }));
 }
 export async function getCategory(db: D1Database, id: string): Promise<Category> {
-  const category = await db.prepare(`SELECT ${fields} FROM categories WHERE id=?`).bind(id).first<Category>();
+  const category = await db
+    .prepare(`SELECT ${fields} FROM categories WHERE id=?`)
+    .bind(id)
+    .first<Category & { seo: string }>();
   if (!category) throw new HttpError(404, '栏目不存在，请重新选择');
-  return category;
+  return mapCategory(category);
 }
 export function categoryFence(db: D1Database, id: string) {
   return db
@@ -46,7 +66,7 @@ export async function renameCategoryId(
   id: string,
   nextId: string,
   inputVersion: number,
-  merged: Pick<Category, 'name' | 'icon' | 'color' | 'prompt'>,
+  merged: Pick<Category, 'name' | 'icon' | 'color' | 'prompt' | 'seo'>,
 ): Promise<Category> {
   const now = new Date().toISOString();
   const renamedVersion = inputVersion + 1;
@@ -55,8 +75,8 @@ export async function renameCategoryId(
     results = await db.batch([
       db
         .prepare(
-          `INSERT INTO categories (id,name,icon,color,prompt,version,updated_at,updated_by)
-         SELECT ?,?,?,?,?,version+1,?,?
+          `INSERT INTO categories (id,name,icon,color,prompt,seo,version,updated_at,updated_by)
+         SELECT ?,?,?,?,?,?,version+1,?,?
          FROM categories WHERE id=? AND version=?`,
         )
         .bind(
@@ -65,6 +85,7 @@ export async function renameCategoryId(
           merged.icon,
           merged.color,
           merged.prompt,
+          JSON.stringify(merged.seo ?? {}),
           now,
           actor.name,
           id,
@@ -147,8 +168,10 @@ export async function routeCategories(request: Request, env: Env, actor: Actor, 
       ? json({ category: project(await getCategory(env.DB, id)) })
       : json({
           categories: (
-            await env.DB.prepare(`SELECT ${fields} FROM categories ORDER BY rowid`).all<Category>()
-          ).results.map(project),
+            await env.DB.prepare(`SELECT ${fields} FROM categories ORDER BY rowid`).all<
+              Category & { seo: string }
+            >()
+          ).results.map((row) => project(mapCategory(row))),
         });
   }
   if (!id && request.method === 'POST') {
@@ -156,7 +179,7 @@ export async function routeCategories(request: Request, env: Env, actor: Actor, 
     const input = await readJson(request, categoryCreateSchema);
     if (input.prompt) requireScope(actor, 'prompts:write');
     const category = await env.DB.prepare(
-      `INSERT INTO categories (id,name,icon,color,prompt,updated_at,updated_by) VALUES (?,?,?,?,?,?,?) RETURNING ${fields}`,
+      `INSERT INTO categories (id,name,icon,color,prompt,seo,updated_at,updated_by) VALUES (?,?,?,?,?,?,?,?) RETURNING ${fields}`,
     )
       .bind(
         crypto.randomUUID(),
@@ -164,12 +187,13 @@ export async function routeCategories(request: Request, env: Env, actor: Actor, 
         input.icon,
         input.color,
         input.prompt ?? '',
+        JSON.stringify(input.seo ?? {}),
         new Date().toISOString(),
         actor.name,
       )
-      .first<Category>();
+      .first<Category & { seo: string }>();
     if (!category) throw new HttpError(503, '栏目暂时无法创建，请重试');
-    return json({ category: project(category) }, 201);
+    return json({ category: project(mapCategory(category)) }, 201);
   }
   if (id && request.method === 'PUT') {
     requireScope(actor, 'categories:write');
@@ -184,26 +208,28 @@ export async function routeCategories(request: Request, env: Env, actor: Actor, 
         icon: input.icon ?? current.icon,
         color: input.color ?? current.color,
         prompt: input.prompt ?? current.prompt,
+        seo: input.seo ?? current.seo,
       };
       const category = await renameCategoryId(env.DB, actor, id, nextId, input.version, merged);
       return json({ category: project(category) });
     }
     const category = await env.DB.prepare(
-      `UPDATE categories SET name=?,icon=?,color=?,prompt=?,version=version+1,updated_at=?,updated_by=? WHERE id=? AND version=? RETURNING ${fields}`,
+      `UPDATE categories SET name=?,icon=?,color=?,prompt=?,seo=?,version=version+1,updated_at=?,updated_by=? WHERE id=? AND version=? RETURNING ${fields}`,
     )
       .bind(
         input.name ?? current.name,
         input.icon ?? current.icon,
         input.color ?? current.color,
         input.prompt ?? current.prompt,
+        JSON.stringify(input.seo ?? current.seo ?? {}),
         new Date().toISOString(),
         actor.name,
         id,
         input.version,
       )
-      .first<Category>();
+      .first<Category & { seo: string }>();
     if (!category) throw new HttpError(409, '栏目已被修改或删除，草稿已保留，请刷新后对照');
-    return json({ category: project(category) });
+    return json({ category: project(mapCategory(category)) });
   }
   if (id && request.method === 'DELETE') {
     requireScope(actor, 'categories:delete');

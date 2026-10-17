@@ -12,21 +12,32 @@ import {
   X,
 } from 'lucide-react';
 import { createContext, type ReactNode, useContext, useEffect, useState } from 'react';
-import { Outlet, Route, Routes, useLocation, useParams } from 'react-router';
+import { Outlet, Route, Routes, useLocation, useParams, useSearchParams } from 'react-router';
 import { BrandSymbol, Wordmark } from '../brand/Brand';
 import { themeMedia } from '../brand/themes';
 import { AudioPlayer } from '../components/AudioPlayer';
 import type { PublicEpisode } from '../shared/episode';
 import { episodePublicPath } from '../shared/episode-url';
-import { podcastEpisodeMentionsJsonLd } from '../shared/mentions-format';
+import { pickLegacyPublishedEpisode } from '../shared/legacy-episode-slug';
 import { ReadingText } from '../shared/ReadingText';
+import { applyClientSeo } from '../shared/seo-client';
+import { episodeBreadcrumbs, podcastEpisodeJsonLd, podcastSeriesJsonLd } from '../shared/seo-jsonld';
+import { resolveAboutPageSeo, resolveCatalogueSeo, resolveSiteDefaults } from '../shared/seo-resolve';
 import { PublicLink as Link, PublicNavLink as NavLink, SiteAppearance, useAppearance } from './Appearance';
 import { EpisodeCover } from './EpisodeCover';
 import { EpisodeMentions } from './EpisodeMentions';
 import { Hero, ThemeImage } from './Hero';
-import { dateLabel, durationLabel, episodeDisplayLabel, filterEpisodes } from './model';
+import {
+  catalogueCategoryFromSearch,
+  catalogueSearchParamsForCategory,
+  dateLabel,
+  durationLabel,
+  episodeDisplayLabel,
+  filterEpisodes,
+} from './model';
 import { Reveal } from './Reveal';
 import { useEpisodes } from './useEpisodes';
+import { PublicSiteSeoProvider, usePublicSiteSeo } from './usePublicSiteSeo';
 import './hero.css';
 
 const EpisodeContext = createContext<ReturnType<typeof useEpisodes> | null>(null);
@@ -203,11 +214,13 @@ function EpisodeCard({ episode }: { episode: PublicEpisode }) {
 function Home() {
   const { episodes, categories } = useLibrary();
   const { id } = useAppearance();
+  const site = usePublicSiteSeo();
+  const origin = window.location.origin;
   const featured = episodes.find((episode) => episode.featured) ?? episodes[0];
   const featuredLabel = featured ? episodeDisplayLabel(featured, categories) : undefined;
   useEffect(() => {
-    document.title = 'his.fm · 世界很快，你可以慢慢来';
-  }, []);
+    applyClientSeo(resolveSiteDefaults(site, origin), [podcastSeriesJsonLd(origin, site)]);
+  }, [site, origin]);
   return (
     <>
       <Hero featured={featured} episodeLabel={featuredLabel} />
@@ -282,12 +295,21 @@ function Home() {
 
 function Catalogue() {
   const { episodes, categories } = useLibrary();
-  const [category, setCategory] = useState('all');
+  const site = usePublicSiteSeo();
+  const origin = window.location.origin;
+  const [searchParams, setSearchParams] = useSearchParams();
+  const category = catalogueCategoryFromSearch(searchParams.get('category'));
   const [query, setQuery] = useState('');
+  const setCategoryFilter = (next: string) => {
+    setSearchParams(catalogueSearchParamsForCategory(searchParams, next), { replace: true });
+  };
   const filtered = filterEpisodes(episodes, category, query);
+  const activeCategory = category === 'all' ? undefined : categories.find((item) => item.id === category);
   useEffect(() => {
-    document.title = '全部播客 · his.fm';
-  }, []);
+    applyClientSeo(resolveCatalogueSeo(site, origin, activeCategory, activeCategory?.seo), [
+      podcastSeriesJsonLd(origin, site),
+    ]);
+  }, [site, origin, activeCategory]);
   return (
     <section className="catalogue wrap">
       <Reveal className="page-heading">
@@ -306,7 +328,7 @@ function Catalogue() {
             type="button"
             className={category === 'all' ? 'selected' : ''}
             aria-pressed={category === 'all'}
-            onClick={() => setCategory('all')}
+            onClick={() => setCategoryFilter('all')}
           >
             全部 <span>{episodes.length.toString().padStart(2, '0')}</span>
           </button>
@@ -316,7 +338,7 @@ function Catalogue() {
               type="button"
               aria-pressed={category === item.id}
               className={category === item.id ? 'selected' : ''}
-              onClick={() => setCategory(item.id)}
+              onClick={() => setCategoryFilter(item.id)}
             >
               {item.name}
             </button>
@@ -353,7 +375,7 @@ function Catalogue() {
               type="button"
               className="pill-button dark"
               onClick={() => {
-                setCategory('all');
+                setCategoryFilter('all');
                 setQuery('');
               }}
             >
@@ -366,50 +388,36 @@ function Catalogue() {
   );
 }
 
-const defaultMetaDescription = 'his.fm，一档给开发者的中文播客。聊 AI，聊工作，也聊屏幕之外正在发生的生活。';
-
 function EpisodeDetail() {
   const { categoryId, slug } = useParams();
   const { episodes, categories, loading, error } = useLibrary();
-  const episode = episodes.find(
-    (item) => item.slug === slug && (!categoryId || item.category === categoryId),
-  );
+  const site = usePublicSiteSeo();
+  const episode = categoryId
+    ? episodes.find((item) => item.slug === slug && item.category === categoryId)
+    : slug
+      ? pickLegacyPublishedEpisode(episodes, slug)
+      : undefined;
   const [copyState, setCopyState] = useState('');
+  const origin = window.location.origin;
   useEffect(() => {
-    if (!episode) {
-      document.title = '节目详情 · his.fm';
-      document
-        .querySelector<HTMLMetaElement>('meta[name="description"]')
-        ?.setAttribute('content', defaultMetaDescription);
-      return;
-    }
-    document.title = `${episodeDisplayLabel(episode, categories)} · ${episode.title} · his.fm`;
-    const description = document.querySelector<HTMLMetaElement>('meta[name="description"]');
-    description?.setAttribute('content', `${episodeDisplayLabel(episode, categories)} · ${episode.summary}`);
-    const scriptId = 'episode-jsonld';
-    document.getElementById(scriptId)?.remove();
-    const script = document.createElement('script');
-    script.id = scriptId;
-    script.type = 'application/ld+json';
-    script.text = JSON.stringify({
-      '@context': 'https://schema.org',
-      '@type': 'PodcastEpisode',
-      name: episode.title,
-      description: episode.summary,
-      ...(episode.mentions.length ? { mentions: podcastEpisodeMentionsJsonLd(episode.mentions) } : {}),
-    });
-    document.head.appendChild(script);
-    return () => {
-      document.getElementById(scriptId)?.remove();
-      document
-        .querySelector<HTMLMetaElement>('meta[name="description"]')
-        ?.setAttribute('content', defaultMetaDescription);
+    if (!episode) return;
+    const category = categories.find((item) => item.id === episode.category) ?? {
+      id: episode.category,
+      name: episode.category,
+      icon: 'mic',
+      color: 'blue',
+      seo: {},
     };
-  }, [episode, categories]);
+    applyClientSeo(episode.pageSeo, [
+      podcastEpisodeJsonLd(origin, episode, episode.audioUrl),
+      episodeBreadcrumbs(origin, category, episode),
+      podcastSeriesJsonLd(origin, site),
+    ]);
+  }, [episode, categories, origin, site]);
   // biome-ignore lint/correctness/useExhaustiveDependencies: Each episode resets share state on navigation.
   useEffect(() => {
     setCopyState('');
-  }, [slug]);
+  }, [slug, categoryId]);
   async function share() {
     try {
       await navigator.clipboard.writeText(window.location.href);
@@ -528,9 +536,11 @@ function EpisodeDetail() {
 }
 
 function About() {
+  const site = usePublicSiteSeo();
+  const origin = window.location.origin;
   useEffect(() => {
-    document.title = '关于 his.fm · 代码之外，还有生活';
-  }, []);
+    applyClientSeo(resolveAboutPageSeo(site, origin), [podcastSeriesJsonLd(origin, site)]);
+  }, [site, origin]);
   return (
     <div className="about-page">
       <section className="about-opening wrap">
@@ -597,6 +607,10 @@ function About() {
 }
 
 function NotFound() {
+  const site = usePublicSiteSeo();
+  useEffect(() => {
+    applyClientSeo(resolveSiteDefaults(site, window.location.origin));
+  }, [site]);
   return (
     <section className="not-found wrap">
       <p className="eyebrow">404 / A SMALL DETOUR</p>
@@ -615,15 +629,17 @@ function NotFound() {
 
 export function PublicRoutes() {
   return (
-    <Routes>
-      <Route element={<Layout />}>
-        <Route index element={<Home />} />
-        <Route path="episodes" element={<Catalogue />} />
-        <Route path="episodes/:categoryId/:slug" element={<EpisodeDetail />} />
-        <Route path="episodes/:slug" element={<EpisodeDetail />} />
-        <Route path="about" element={<About />} />
-        <Route path="*" element={<NotFound />} />
-      </Route>
-    </Routes>
+    <PublicSiteSeoProvider>
+      <Routes>
+        <Route element={<Layout />}>
+          <Route index element={<Home />} />
+          <Route path="episodes" element={<Catalogue />} />
+          <Route path="episodes/:categoryId/:slug" element={<EpisodeDetail />} />
+          <Route path="episodes/:slug" element={<EpisodeDetail />} />
+          <Route path="about" element={<About />} />
+          <Route path="*" element={<NotFound />} />
+        </Route>
+      </Routes>
+    </PublicSiteSeoProvider>
   );
 }

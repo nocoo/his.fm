@@ -24,6 +24,7 @@ import {
   publicationPlatforms,
   publicationSchema,
 } from '../src/shared/production';
+import { seoOverrideSchema, siteSeoSchema, siteSeoUpdateSchema } from '../src/shared/seo';
 import { storageCleanupSchema, storageKinds } from '../src/shared/storage';
 import { tokenSchema } from './agent-tokens';
 import { bumperInputSchema, bumperUpdateSchema } from './bumpers';
@@ -709,6 +710,39 @@ export function agentOpenApi(origin: string) {
           requestBody: body(appearanceUpdateSchema),
         },
       },
+      '/seo': {
+        get: operation(
+          'getSiteSeo',
+          'Read site-wide SEO defaults, podcast feed metadata and optimistic version',
+          schema(
+            z.object({
+              seo: siteSeoSchema.extend({
+                version: z.number().int().positive(),
+                updatedAt: stamp,
+                updatedBy: z.string(),
+              }),
+            }),
+          ),
+          ['prompts:read'],
+        ),
+        put: {
+          ...operation(
+            'updateSiteSeo',
+            'Update site-wide SEO and RSS defaults by version',
+            schema(
+              z.object({
+                seo: siteSeoSchema.extend({
+                  version: z.number().int().positive(),
+                  updatedAt: stamp,
+                  updatedBy: z.string(),
+                }),
+              }),
+            ),
+            ['prompts:write'],
+          ),
+          requestBody: body(siteSeoUpdateSchema),
+        },
+      },
       '/bumpers': {
         get: operation(
           'listBumpers',
@@ -910,6 +944,8 @@ export function agentOpenApi(origin: string) {
           z.object({ brief: z.string(), script: z.string(), cover: z.string(), description: z.string() }),
         ),
         Error: schema(z.object({ error: z.string(), code: z.string(), documentation: z.string() })),
+        SeoOverride: schema(seoOverrideSchema),
+        SiteSeo: schema(siteSeoSchema),
       },
     },
   };

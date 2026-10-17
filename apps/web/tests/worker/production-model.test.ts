@@ -338,6 +338,7 @@ describe('audit and production prompts', () => {
         icon: 'briefcase-business',
         color: 'blue',
         prompt: '栏目风格',
+        seo: {},
         version: 3,
         updatedAt: 'now',
         updatedBy: 'Owner',

@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   appearanceHref,
+  catalogueCategoryFromSearch,
+  catalogueSearchParamsForCategory,
   categoryLabel,
   dateLabel,
   durationLabel,
@@ -33,6 +35,7 @@ const rawEpisodes: Episode[] = [
     createdAt: '',
     updatedAt: '',
     mentions: [],
+    seo: {},
   },
   {
     id: '2',
@@ -54,6 +57,7 @@ const rawEpisodes: Episode[] = [
     createdAt: '',
     updatedAt: '',
     mentions: [],
+    seo: {},
   },
 ];
 const episodes = rawEpisodes.map((episode) => projectPublicEpisode(episode, 'https://his.fm.test'));
@@ -64,7 +68,7 @@ afterEach(() => {
 
 describe('website appearance', () => {
   it('loads public category metadata without private prompt fields', async () => {
-    const categories = [{ id: 'new-category', name: '新栏目', icon: 'mic', color: 'blue' }];
+    const categories = [{ id: 'new-category', name: '新栏目', icon: 'mic', color: 'blue', seo: {} }];
     const request = vi.fn().mockResolvedValue(Response.json({ categories }));
     vi.stubGlobal('fetch', request);
     const signal = new AbortController().signal;
@@ -114,6 +118,13 @@ describe('listening room', () => {
     expect(filterEpisodes(episodes, 'all', '路边')).toEqual([episodes[1]]);
     expect(filterEpisodes(episodes, 'all', '开发者')).toEqual([episodes[0]]);
     expect(filterEpisodes(episodes, 'life', 'AI')).toEqual([]);
+    expect(catalogueCategoryFromSearch(null)).toBe('all');
+    expect(catalogueCategoryFromSearch('manager-notes')).toBe('manager-notes');
+    const params = new URLSearchParams('category=life&q=1');
+    expect(catalogueSearchParamsForCategory(params, 'manager-notes').toString()).toBe(
+      'category=manager-notes&q=1',
+    );
+    expect(catalogueSearchParamsForCategory(params, 'all').toString()).toBe('q=1');
   });
   it('formats dates consistently in Shanghai and represents unfinished media honestly', () => {
     expect(dateLabel('2026-09-24T22:00:00Z')).toBe('2026.09.25');
@@ -122,7 +133,7 @@ describe('listening room', () => {
     expect(durationLabel(0)).toBe('时长待定');
     expect(
       categoryLabel('manager-notes', [
-        { id: 'manager-notes', name: '主理人手札', icon: 'briefcase-business', color: 'blue' },
+        { id: 'manager-notes', name: '主理人手札', icon: 'briefcase-business', color: 'blue', seo: {} },
       ]),
     ).toBe('主理人手札');
     expect(episodeDisplayLabel(episodes[0], [])).toContain('栏目 EP.');

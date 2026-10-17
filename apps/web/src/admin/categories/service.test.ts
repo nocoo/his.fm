@@ -11,7 +11,13 @@ it('uses explicit IDs, versions and authenticated owner requests', async () => {
   fetcher.mockImplementation(async () => new Response(JSON.stringify({ category: { id: 'test' } })));
   await categoryService.get('a/b');
   expect(fetcher.mock.calls.at(-1)?.[0]).toBe('/admin/api/categories/a%2Fb');
-  const input = { name: 'Test', icon: 'mic' as const, color: 'blue' as const, prompt: 'Style' };
+  const input = {
+    name: 'Test',
+    icon: 'mic' as const,
+    color: 'blue' as const,
+    prompt: 'Style',
+    seo: {},
+  };
   await categoryService.save(input);
   expect(fetcher.mock.calls.at(-1)?.[1]).toMatchObject({ method: 'POST', body: JSON.stringify(input) });
   fetcher.mockImplementation(async () => new Response(JSON.stringify({ category: { id: 'test' } })));

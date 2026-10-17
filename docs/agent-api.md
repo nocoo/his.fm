@@ -29,6 +29,7 @@ Paths are relative to `/api/agent`:
 | `/episodes/:id` | PATCH only version and featured metadata |
 | `/categories[/:id]` | GET; POST create; PUT partial versioned changes; DELETE unreferenced |
 | `/channel` | GET/PUT versioned global content and named prompt bundle |
+| `/seo` | GET/PUT versioned site defaults, podcast RSS metadata and global page overrides (`prompts:read` / `prompts:write`) |
 | `/appearance` | GET/PUT versioned theme |
 | `/bumpers[/:id]` | GET; POST WAV upload; PUT versioned metadata; DELETE catalogue record |
 | `/storage` | GET cursor scan; POST safe immutable upload |
@@ -54,7 +55,8 @@ no endpoint posts to an external platform.
 - Production audio accepts `audio/wav` (24 kHz mono PCM16, up to 172,865,536 bytes) or `audio/mpeg` (up to 144,065,536 bytes), with a shared 3,600-second duration cap. Binding uses the same approval, reopening and limits as raw uploads. Accept `uploads/<uuid>.{wav|mp3}` or this production's `productions/<id>/audio-<scriptVersion>-<uuid>.{wav|mp3}`. Staging uploads are copied to immutable production keys and retained even if binding fails; removal requires separate reference-safe storage cleanup. Out-of-band R2 uploads require separate infrastructure authorization, not a website token.
 - Publication/correction updates the current platform record and appends audit history. Withdrawal preserves the audit, immutable media and last reviewed snapshot content.
 - Linked episodes cannot be edited/deleted through standalone CRUD. Their independently versioned featured flag remains editable and survives republication.
-- Production briefs and episode writes accept ordered `mentions` (max 50): `{name, description, url?}` with required `name` and one-sentence `description`; optional `url` must be `http` or `https`. Public `/api/episodes` includes `mentions` and never returns full transcripts.
+- Production briefs and episode writes accept ordered `mentions` (max 50): `{name, description, url?}` with required `name` and one-sentence `description`; optional `url` must be `http` or `https`. Public `/api/episodes` includes `mentions`, resolved `pageSeo` and `canonical`, and never returns full transcripts or raw `seo` overrides.
+- Category and episode bodies accept optional `seo` overrides: `{title?, description?, ogImageUrl?, noindex?}`. Public `/api/categories` exposes category `seo` for catalogue pages; episode overrides affect resolved `pageSeo` only.
 - Write does not grant read: production/episode/bumper receipts may be only resource `{id, version}`; channel may be `{version}`. Prompt and publication projections are independent.
 - Stored invalid grants are never normalized into valid authority. Revocation/deletion can clean up such records without issuing new rights.
 

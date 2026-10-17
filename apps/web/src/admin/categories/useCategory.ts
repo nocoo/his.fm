@@ -7,7 +7,7 @@ import { useUnsavedChanges } from '../production/useUnsavedChanges';
 import { ApiError } from '../service';
 import { categoryService } from './service';
 
-const empty: CategoryInput = { name: '', icon: 'mic', color: 'blue', prompt: '' };
+const empty: CategoryInput = { name: '', icon: 'mic', color: 'blue', prompt: '', seo: {} };
 const draftSchema = z.object({
   value: categoryInputSchema.extend({ name: z.string(), prompt: z.string() }),
   nextId: z.string().optional(),
@@ -28,14 +28,28 @@ export function useCategory(id: string, promptOnly = false) {
   const dirty =
     JSON.stringify(value) !==
       JSON.stringify(
-        saved ? { name: saved.name, icon: saved.icon, color: saved.color, prompt: saved.prompt } : empty,
+        saved
+          ? {
+              name: saved.name,
+              icon: saved.icon,
+              color: saved.color,
+              prompt: saved.prompt,
+              seo: saved.seo,
+            }
+          : empty,
       ) ||
     (id !== 'new' && saved !== null && nextId.trim() !== saved.id);
   useUnsavedChanges(dirty);
   const replace = (category: Category) => {
     setSaved(category);
     setVersion(category.version);
-    setValue({ name: category.name, icon: category.icon, color: category.color, prompt: category.prompt });
+    setValue({
+      name: category.name,
+      icon: category.icon,
+      color: category.color,
+      prompt: category.prompt,
+      seo: category.seo,
+    });
     setNextId(category.id);
     setConflict(null);
     setError('');
@@ -58,6 +72,7 @@ export function useCategory(id: string, promptOnly = false) {
                   icon: result.category.icon,
                   color: result.category.color,
                   prompt: result.category.prompt,
+                  seo: result.category.seo,
                 }
               : empty,
           );
@@ -108,7 +123,13 @@ export function useCategory(id: string, promptOnly = false) {
       const latest = id === 'new' ? null : (await categoryService.get(id)).category;
       const value = latest
         ? promptOnly
-          ? { name: latest.name, icon: latest.icon, color: latest.color, prompt: parsed.data.prompt }
+          ? {
+              name: latest.name,
+              icon: latest.icon,
+              color: latest.color,
+              prompt: parsed.data.prompt,
+              seo: latest.seo,
+            }
           : { ...parsed.data, prompt: latest.prompt }
         : parsed.data;
       const result = await categoryService.save(

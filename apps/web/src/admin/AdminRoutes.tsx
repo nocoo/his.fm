@@ -4,6 +4,7 @@ import { AccentProvider } from '@nocoo/basalt/providers/accent';
 import type { ReactNode } from 'react';
 import { lazy, Suspense, useEffect, useLayoutEffect, useState } from 'react';
 import { Link, Navigate, Route, Routes } from 'react-router';
+import { clearClientJsonLd } from '../shared/seo-client';
 import { AdminShell } from './AdminShell';
 import { EpisodeEditor } from './EpisodeEditor';
 import { LoginBadge } from './LoginBadge';
@@ -21,6 +22,7 @@ const CategoryPage = lazy(() => import('./categories/CategoryPage'));
 const ChannelPage = lazy(() => import('./channel/ChannelPage'));
 const StoragePage = lazy(() => import('./storage/StoragePage'));
 const AppearancePage = lazy(() => import('./appearance/AppearancePage'));
+const SeoPage = lazy(() => import('./seo/SeoPage'));
 const VoicePreviewPage = lazy(() => import('./voice-preview/VoicePreviewPage'));
 
 function RouterLink({
@@ -71,6 +73,9 @@ function AdminProviders({ children }: { children: ReactNode }) {
 }
 
 export function LoginPage() {
+  useEffect(() => {
+    clearClientJsonLd();
+  }, []);
   return (
     <AdminProviders>
       <LoginBadge />
@@ -145,6 +150,14 @@ function SessionGate() {
           element={
             <Suspense fallback={<LoadingScreen label="正在打开品牌外观" />}>
               <AppearancePage />
+            </Suspense>
+          }
+        />
+        <Route
+          path="seo"
+          element={
+            <Suspense fallback={<LoadingScreen label="正在打开搜索与分享" />}>
+              <SeoPage />
             </Suspense>
           }
         />

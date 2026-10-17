@@ -13,7 +13,9 @@ import { type FormEvent, useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { FramedCover } from '../components/FramedCover';
 import type { Episode } from '../shared/episode';
+import { episodePublicPath } from '../shared/episode-url';
 import { type Mention, mentionsSchema } from '../shared/mentions';
+import type { SeoOverride } from '../shared/seo';
 import { CategorySelect } from './categories/CategorySelect';
 import { MentionsEditor } from './MentionsEditor';
 import { MarkdownEditor } from './markdown/MarkdownEditor';
@@ -21,6 +23,7 @@ import { emptyEpisode, errorMessage, readEpisodeForm, toLocalDateTime } from './
 import { Confirm } from './production/controls';
 import { canDeleteStandaloneEpisode } from './production/model';
 import { useUnsavedChanges } from './production/useUnsavedChanges';
+import { SeoOverrideFields } from './seo/SeoOverrideFields';
 import { adminService } from './service';
 
 export function EpisodeEditor() {
@@ -36,6 +39,7 @@ export function EpisodeEditor() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [coverPreview, setCoverPreview] = useState('');
   const [mentions, setMentions] = useState<Mention[]>(emptyEpisode.mentions);
+  const [seo, setSeo] = useState<SeoOverride>(emptyEpisode.seo);
   useUnsavedChanges(dirty);
   // biome-ignore lint/correctness/useExhaustiveDependencies: The retry key intentionally restarts the request.
   useEffect(() => {
@@ -51,6 +55,7 @@ export function EpisodeEditor() {
       .then(({ episode: result }) => {
         setEpisode(result);
         setMentions(result.mentions);
+        setSeo(result.seo);
       })
       .catch((cause: unknown) => {
         if (!controller.signal.aborted) setError(errorMessage(cause));
@@ -87,7 +92,7 @@ export function EpisodeEditor() {
     }
     setPending(true);
     try {
-      const payload = { ...result.data, mentions: parsedMentions };
+      const payload = { ...result.data, mentions: parsedMentions, seo };
       const { episode: saved } =
         id && episode
           ? await adminService.update(id, payload, episode.version)
@@ -129,7 +134,11 @@ export function EpisodeEditor() {
           <div className="studio-stack">
             <strong>已发布节目 · 第 {episode.episodeNumber} 期</strong>
             <p className="studio-prose">{episode.summary}</p>
-            <Link className="studio-link" to={`/episodes/${episode.slug}`} target="_blank">
+            <Link
+              className="studio-link"
+              to={episodePublicPath(episode.category, episode.slug)}
+              target="_blank"
+            >
               查看节目页面 ↗
             </Link>
           </div>
@@ -160,7 +169,7 @@ export function EpisodeEditor() {
             )}
             {episode?.status === 'published' && (
               <Button variant="outline" asChild>
-                <Link to={`/episodes/${episode.slug}`} target="_blank">
+                <Link to={episodePublicPath(episode.category, episode.slug)} target="_blank">
                   查看页面
                   <ArrowUpRight size={16} />
                 </Link>
@@ -281,6 +290,22 @@ export function EpisodeEditor() {
                   setDirty(true);
                 }}
               />
+              <LayerCard padding="none">
+                <LayerCard.Header>
+                  <strong>节目 SEO</strong>
+                </LayerCard.Header>
+                <LayerCard.Body>
+                  <SeoOverrideFields
+                    idPrefix="episode-seo"
+                    disabled={pending}
+                    value={seo}
+                    onChange={(next) => {
+                      setSeo(next);
+                      setDirty(true);
+                    }}
+                  />
+                </LayerCard.Body>
+              </LayerCard>
               {errors.mentions && (
                 <div className="admin-error-banner" role="alert">
                   {errors.mentions}

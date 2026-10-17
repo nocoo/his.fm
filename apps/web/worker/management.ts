@@ -8,6 +8,7 @@ import { routeChannel } from './channel';
 import { getEpisode, listEpisodes, mutateEpisode } from './episodes';
 import { HttpError, json } from './http';
 import { routeProductions } from './production';
+import { routeSiteSeo } from './seo-store';
 import { routeStorage } from './storage';
 
 export async function routeManagement(
@@ -22,6 +23,7 @@ export async function routeManagement(
   const episode = /^\/episodes(?:\/([^/]+))?$/.exec(path);
   if (category) response = await routeCategories(request, env, actor, category[1]);
   else if (path === '/channel') response = await routeChannel(request, env, actor);
+  else if (path === '/seo') response = await routeSiteSeo(request, env, actor);
   else if (path === '/appearance') response = await routeAppearance(request, env, actor);
   else if (bumper) response = await routeBumpers(request, env, actor, bumper[1]);
   else if (path === '/storage' || path.startsWith('/storage/')) {

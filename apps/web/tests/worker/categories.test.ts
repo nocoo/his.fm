@@ -10,6 +10,7 @@ import {
   renameCategoryId,
   routeCategories,
 } from '../../worker/categories';
+import { resolveCategoryAlias } from '../../worker/episode-public';
 import worker from '../../worker/index';
 import { routeProductions } from '../../worker/production';
 import { applyPatch } from '../../worker/production-model';
@@ -274,6 +275,57 @@ it('renames category id and updates episode and production references', async ()
   const saved = await saveProduction(env.DB, { ...current, intent: '栏目迁移后仍可保存' }, current.version);
   expect(saved.version).toBe(current.version + 1);
 });
+it('keeps alias chain through successive category renames', async () => {
+  const category = await create();
+  const firstId = category.id;
+  expect(
+    (
+      await routeCategories(
+        request('PUT', { version: 1, nextId: 'rename-step-b', name: 'B' }),
+        env,
+        human,
+        firstId,
+      )
+    ).status,
+  ).toBe(200);
+  expect(
+    (
+      await routeCategories(
+        request('PUT', { version: 2, nextId: 'rename-step-c', name: 'C' }),
+        env,
+        human,
+        'rename-step-b',
+      )
+    ).status,
+  ).toBe(200);
+  expect(await resolveCategoryAlias(env.DB, firstId)).toBe('rename-step-c');
+  expect(await resolveCategoryAlias(env.DB, 'rename-step-b')).toBe('rename-step-c');
+});
+
+it('preserves outbound alias when a stale rename targets a reclaimed legacy id', async () => {
+  const category = await create();
+  const originalId = category.id;
+  await routeCategories(
+    request('PUT', { version: 1, nextId: 'renamed-once', name: 'Once' }),
+    env,
+    human,
+    originalId,
+  );
+  await expect(
+    routeCategories(
+      request('PUT', { version: 1, nextId: originalId, name: 'stale back' }),
+      env,
+      human,
+      'renamed-once',
+    ),
+  ).rejects.toMatchObject({ status: 409 });
+  expect(
+    await env.DB.prepare('SELECT category_id AS categoryId FROM category_id_aliases WHERE alias = ?')
+      .bind(originalId)
+      .first<{ categoryId: string }>(),
+  ).toEqual({ categoryId: 'renamed-once' });
+});
+
 it('rejects stale rename versions without leaving duplicate categories or moved references', async () => {
   const category = await create();
   await routeCategories(request('PUT', { version: 1, name: '已改名' }), env, human, category.id);
@@ -334,6 +386,7 @@ it('does not move episode or production references when rename uses a stale vers
       icon: category.icon,
       color: category.color,
       prompt: category.prompt,
+      seo: category.seo,
     }),
   ).rejects.toMatchObject({ status: 409 });
   expect(
@@ -458,6 +511,7 @@ it('maps duplicate nextId insert races to conflict responses', async () => {
       icon: category.icon,
       color: category.color,
       prompt: category.prompt,
+      seo: category.seo,
     }),
   ).rejects.toMatchObject({ status: 409 });
   expect(await getCategory(env.DB, category.id)).toMatchObject({ id: category.id, version: 1 });

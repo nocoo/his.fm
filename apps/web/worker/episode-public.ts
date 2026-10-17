@@ -1,18 +1,28 @@
-import type { PublicEpisode } from '../src/shared/episode';
+import type { Episode, PublicEpisode } from '../src/shared/episode';
 import { episodeCanonicalUrl } from '../src/shared/episode-url';
+import { legacyPublishedSlugOrderSql } from '../src/shared/legacy-episode-slug';
+import { parseSeoOverride } from '../src/shared/seo';
 import { HttpError } from './http';
 
 type EpisodeRow = {
-  category: string;
+  id: string;
   slug: string;
+  category: string;
+  status: string;
+  published_at: string | null;
 };
 
 export async function resolveCategoryAlias(db: D1Database, categoryId: string): Promise<string> {
-  const row = await db
-    .prepare('SELECT category_id AS categoryId FROM category_id_aliases WHERE alias = ?')
-    .bind(categoryId)
-    .first<{ categoryId: string }>();
-  return row?.categoryId ?? categoryId;
+  let resolved = categoryId;
+  for (let hop = 0; hop < 8; hop += 1) {
+    const row = await db
+      .prepare('SELECT category_id AS categoryId FROM category_id_aliases WHERE alias = ?')
+      .bind(resolved)
+      .first<{ categoryId: string }>();
+    if (!row || row.categoryId === resolved) return resolved;
+    resolved = row.categoryId;
+  }
+  return resolved;
 }
 
 export async function findPublishedEpisodeBySlug(
@@ -21,11 +31,26 @@ export async function findPublishedEpisodeBySlug(
 ): Promise<{ category: string; slug: string } | null> {
   const row = await db
     .prepare(
-      "SELECT category, slug FROM episodes WHERE slug = ? AND status = 'published' AND published_at <= ? ORDER BY published_at DESC LIMIT 1",
+      `SELECT category, slug FROM episodes WHERE slug = ? AND status = 'published' AND published_at <= ? ORDER BY ${legacyPublishedSlugOrderSql} LIMIT 1`,
     )
     .bind(slug, new Date().toISOString())
     .first<EpisodeRow>();
   return row ? { category: row.category, slug: row.slug } : null;
+}
+
+export async function findPublishedEpisodeByCategorySlug(
+  db: D1Database,
+  categoryId: string,
+  slug: string,
+): Promise<boolean> {
+  const category = await resolveCategoryAlias(db, categoryId);
+  const row = await db
+    .prepare(
+      "SELECT id FROM episodes WHERE category = ? AND slug = ? AND status = 'published' AND published_at <= ?",
+    )
+    .bind(category, slug, new Date().toISOString())
+    .first();
+  return Boolean(row);
 }
 
 export function withPublicEpisodeFields(
@@ -33,6 +58,14 @@ export function withPublicEpisodeFields(
   origin: string,
 ): PublicEpisode & { canonical: string } {
   return { ...episode, canonical: episodeCanonicalUrl(origin, episode) };
+}
+
+export function episodeSeoFromRow(raw: string) {
+  return parseSeoOverride(raw);
+}
+
+export function mergeEpisodeSeo(episode: Episode, seoRaw: string) {
+  return { ...episode, seo: parseSeoOverride(seoRaw) };
 }
 
 export function redirect(location: string, permanent = true) {

@@ -1,7 +1,11 @@
 import { z } from 'zod';
 import { categoryIdSchema } from './category';
+import { formatEpisodeLabel } from './episode-display';
 import { episodeCanonicalUrl } from './episode-url';
 import { mentionsSchema } from './mentions';
+import { type SeoOverride, type SiteSeo, seoOverrideSchema, siteSeoSchema } from './seo';
+import type { ResolvedPageSeo } from './seo-resolve';
+import { resolveEpisodePageSeo, resolveSiteDefaults } from './seo-resolve';
 
 const mediaUrl = z
   .string()
@@ -34,6 +38,7 @@ const episodeBodySchema = z.strictObject({
   category: categoryIdSchema,
   tags: z.array(z.string().trim().min(1).max(30)).max(10),
   mentions: mentionsSchema.default([]),
+  seo: seoOverrideSchema.default({}),
   durationSeconds: z.number().int().min(0).max(43200),
   audioUrl: mediaUrl.nullable(),
   status: z.enum(['draft', 'published']),
@@ -74,14 +79,31 @@ export type Episode = EpisodeInput & {
   id: string;
   version: number;
   sourceProductionId?: string | null;
+  seo: SeoOverride;
   createdAt: string;
   updatedAt: string;
 };
 
-/** Public catalogue and pages never include the full transcript. */
-export type PublicEpisode = Omit<Episode, 'transcript'> & { canonical: string };
+/** Public catalogue and pages never include the full transcript or raw SEO overrides. */
+export type PublicEpisode = Omit<Episode, 'transcript' | 'seo'> & {
+  canonical: string;
+  pageSeo: ResolvedPageSeo;
+};
 
-export function projectPublicEpisode(episode: Episode, origin = 'https://his.fm'): PublicEpisode {
-  const { transcript: _transcript, ...publicEpisode } = episode;
-  return { ...publicEpisode, canonical: episodeCanonicalUrl(origin, episode) };
+export function projectPublicEpisode(
+  episode: Episode,
+  origin: string,
+  context?: { site?: SiteSeo; categoryName?: string },
+): PublicEpisode {
+  const { transcript: _transcript, seo, ...publicEpisode } = episode;
+  const canonical = episodeCanonicalUrl(origin, episode);
+  const base = { ...publicEpisode, canonical };
+  const site = context?.site ?? siteSeoSchema.parse({});
+  const categoryName = context?.categoryName ?? episode.category;
+  const label = formatEpisodeLabel(categoryName, episode.episodeNumber);
+  const shell = { ...base, pageSeo: resolveSiteDefaults(site, origin) } as PublicEpisode;
+  return {
+    ...base,
+    pageSeo: resolveEpisodePageSeo(site, origin, shell, label, seo),
+  };
 }
