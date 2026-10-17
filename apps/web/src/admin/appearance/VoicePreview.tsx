@@ -10,6 +10,7 @@ import {
   voiceSampleTranscript,
 } from '../../shared/voice-samples';
 import { ProviderMark } from './ProviderMark';
+import { useReferenceSample } from './useReferenceSample';
 
 function ComparisonCard({
   provider,
@@ -23,9 +24,10 @@ function ComparisonCard({
   title: string;
   character: string;
   model: string;
-  sampleUrl?: string;
+  sampleUrl: string;
   durationSeconds?: number;
 }) {
+  const probe = useReferenceSample(sampleUrl);
   return (
     <LayerCard className="appearance-voice-card" data-provider={provider} padding="md">
       <div className="appearance-voice-heading">
@@ -36,7 +38,9 @@ function ComparisonCard({
         <span className="admin-muted">{character}</span>
       </div>
       <p className="admin-muted">{model}</p>
-      {sampleUrl ? (
+      {!probe.ready ? (
+        <p className="admin-muted">正在检查参考样片…</p>
+      ) : probe.available ? (
         <AudioPlayer
           src={sampleUrl}
           title={title}
@@ -48,8 +52,9 @@ function ComparisonCard({
         <LayerCard className="appearance-voice-placeholder" padding="md">
           <p className="admin-muted">尚未上传同文稿样片</p>
           <p className="admin-muted">
-            可将 WAV 放到 R2 的 <code>reference/voices/</code>（例如 <code>elevenlabs-George.wav</code>
-            ），清理扫描会保留该前缀。
+            将 WAV 放到 R2 <code>reference/voices/</code> 对应路径（例如{' '}
+            <code>{sampleUrl.replace(/^.*\//, '')}</code>
+            ）后刷新本页即可试听；清理扫描会保留该前缀。
           </p>
         </LayerCard>
       )}
@@ -93,7 +98,7 @@ export function VoicePreviewSection() {
               title={`ElevenLabs · ${pair.elevenlabs.name}`}
               character={pair.elevenlabs.character}
               model="eleven_v4"
-              sampleUrl={undefined}
+              sampleUrl={referenceVoiceUrl(pair.elevenlabs.file)}
             />
           </div>
         </SectionRule>

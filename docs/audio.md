@@ -29,7 +29,7 @@ Content generation and audio composition happen outside his.fm. The site stores 
 
 Gemini comparison samples are served from immutable R2 keys `reference/voices/<Voice>.wav` on `https://f.no.mt` (for example `Charon.wav`, `Kore.wav`). The studio **品牌外观 → 音色预览** section plays these files in-admin with the shared `AudioPlayer`; it does not call providers or enqueue generation.
 
-ElevenLabs pairs use the same fixed transcript and style prompt as historical comparisons. Upload optional WAVs to `reference/voices/elevenlabs-<Name>.wav` (for example `elevenlabs-George.wav`) to enable playback; until then the UI shows a placeholder. Storage cleanup treats the entire `reference/` prefix as protected brand material.
+ElevenLabs pairs use the same fixed transcript and style prompt as historical comparisons. The appearance UI probes each expected CDN key with `HEAD` (for example `reference/voices/elevenlabs-George.wav`) and shows the shared player only when the object exists; otherwise it keeps a placeholder until owners upload the WAV and reload the page. Storage cleanup treats the entire `reference/` prefix as protected brand material.
 
 ## Player
 
