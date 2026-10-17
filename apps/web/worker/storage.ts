@@ -15,7 +15,24 @@ import { readBytes, readJson } from './production-body';
 import { mediaUrl } from './production-store';
 
 const retentionMs = 24 * 60 * 60 * 1000;
+const siteHosts = new Set(['his.fm', 'hisfm.dev.hexly.ai', 'localhost', '127.0.0.1']);
 type References = { keys: Map<string, Set<string>> };
+
+function storageKeyFromReference(token: string): string | null {
+  try {
+    const url = new URL(token.replace(/[.,;!，。；！]+$/, ''), 'https://his.fm');
+    let path = '';
+    if (url.origin === 'https://f.no.mt') path = url.pathname.slice(1);
+    else if (siteHosts.has(url.hostname)) {
+      if (url.pathname.startsWith('/media/')) path = url.pathname.slice(7);
+      else if (url.pathname.startsWith('/images/')) path = url.pathname.slice(1);
+    }
+    if (!path) return null;
+    return decodeURIComponent(path);
+  } catch {
+    return null;
+  }
+}
 
 function collect(value: unknown, label: string, keys: References['keys'], property = '') {
   if (typeof value === 'string') {
@@ -26,31 +43,8 @@ function collect(value: unknown, label: string, keys: References['keys'], proper
     };
     if (['key', 'introKey', 'outroKey'].includes(property)) add(value);
     for (const match of value.matchAll(/https?:\/\/[^\s<>"'()`[\]]+|\/(?:media|images)\/[^\s<>"'()`[\]]+/g)) {
-      try {
-        const token = match[0].replace(/[.,;!，。；！]+$/, '');
-        if (token.startsWith('/images/')) {
-          add(decodeURIComponent(token.slice(1)));
-          continue;
-        }
-        if (token.startsWith('/media/')) {
-          add(decodeURIComponent(token.slice(7)));
-          continue;
-        }
-        const url = new URL(token, 'https://his.fm');
-        let path = '';
-        if (url.origin === 'https://f.no.mt') path = url.pathname.slice(1);
-        else if (
-          ['his.fm', 'hisfm.dev.hexly.ai', 'localhost', '127.0.0.1'].includes(url.hostname) &&
-          url.pathname.startsWith('/media/')
-        )
-          path = url.pathname.slice(7);
-        else if (
-          ['his.fm', 'hisfm.dev.hexly.ai', 'localhost', '127.0.0.1'].includes(url.hostname) &&
-          url.pathname.startsWith('/images/')
-        )
-          path = url.pathname.slice(1);
-        if (path) add(decodeURIComponent(path));
-      } catch {}
+      const key = storageKeyFromReference(match[0]);
+      if (key) add(key);
     }
   } else if (Array.isArray(value)) {
     for (const item of value) collect(item, label, keys);
