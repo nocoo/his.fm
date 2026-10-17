@@ -16,7 +16,9 @@ import { Outlet, Route, Routes, useLocation, useParams, useSearchParams } from '
 import { BrandSymbol, Wordmark } from '../brand/Brand';
 import { themeMedia } from '../brand/themes';
 import { AudioPlayer } from '../components/AudioPlayer';
+import { coverArtwork, coverDesignSize } from '../shared/cover-composition';
 import type { PublicEpisode } from '../shared/episode';
+import { episodeThumbnailProps, episodeThumbnailSizes } from '../shared/episode-thumbnail';
 import { episodePublicPath } from '../shared/episode-url';
 import { pickLegacyPublishedEpisode } from '../shared/legacy-episode-slug';
 import { ReadingText } from '../shared/ReadingText';
@@ -406,6 +408,7 @@ function Catalogue() {
 
 function EpisodeDetail() {
   const { categoryId, slug } = useParams();
+  const { id: theme } = useAppearance();
   const { episodes, categories, loading, error } = useLibrary();
   const site = usePublicSiteSeo();
   const episode = categoryId
@@ -413,6 +416,7 @@ function EpisodeDetail() {
     : slug
       ? pickLegacyPublishedEpisode(episodes, slug)
       : undefined;
+  const cover = episode && episodeThumbnailProps(episode, theme);
   const [copyState, setCopyState] = useState('');
   const origin = usePublicOrigin();
   useEffect(() => {
@@ -457,7 +461,9 @@ function EpisodeDetail() {
                   <AudioPlayer
                     src={episode.audioUrl}
                     title={episode.title}
-                    coverUrl={episode.coverUrl}
+                    coverUrl={cover?.src}
+                    coverSrcSet={cover?.srcSet}
+                    coverSizes={episodeThumbnailSizes(coverArtwork(theme).width / coverDesignSize, true)}
                     episodeNumber={episode.episodeNumber}
                     categoryName={categories.find((item) => item.id === episode.category)?.name ?? ''}
                     subtitle={episodeDisplayLabel(episode, categories)}

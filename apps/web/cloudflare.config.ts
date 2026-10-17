@@ -1,4 +1,5 @@
 import { bindings, defineConfig, exports } from 'cf/config';
+import * as entrypoint from './worker/entry' with { type: 'cf-worker' };
 
 process.env.MINIFLARE_CACHE_DIR = '.cloudflare/cache';
 
@@ -8,14 +9,18 @@ export default defineConfig(({ mode }) => {
   return {
     worker: {
       name,
-      entrypoint: 'worker/entry.ts',
+      entrypoint,
       compatibilityDate: '2026-09-24',
       compatibilityFlags: ['nodejs_compat'],
       workersDev: false,
       previewUrls: false,
-      domains: local ? [] : ['his.fm'],
+      domains: local ? [] : ['his.fm', 'www.his.fm'],
       observability: { enabled: !local },
-      exports: local ? undefined : { AgentHub: exports.durableObject({ state: 'deleted' }) },
+      cache: { enabled: false },
+      exports: {
+        PublicContent: exports.worker({ cache: { enabled: !local } }),
+        ...(!local ? { AgentHub: exports.durableObject({ state: 'deleted' }) } : {}),
+      },
       assets: {
         notFoundHandling: 'none',
         runWorkerFirst: true,
@@ -28,6 +33,7 @@ export default defineConfig(({ mode }) => {
           id: local ? '00000000-0000-4000-8000-000000007056' : '66f7e201-22a8-450d-838d-ecbc382afbc6',
         }),
         MEDIA: bindings.r2({ name: 'his-fm' }),
+        IMAGES: bindings.images(),
         BUILD_INFO: bindings.versionMetadata(),
         ASSETS: bindings.assets(),
       },

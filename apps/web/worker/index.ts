@@ -3,12 +3,19 @@ import { discoveryLinks, routeAgent, routeDiscovery } from './agent-api';
 import { getAppearance } from './appearance';
 import { accessLogin, authenticate, isLocal, localLogin, logout } from './auth';
 import { getCategory, listCategories } from './categories';
+import { routeEpisodeThumbnail } from './episode-thumbnails';
 import { getEpisode, listEpisodes } from './episodes';
 import { buildCategoryRssFeed, buildRssFeed } from './feed';
 import { HttpError, json, requireSameOrigin } from './http';
 import { buildLlmsFull } from './llms-full';
 import { routeManagement } from './management';
 import { streamMedia } from './media';
+import {
+  cacheablePublicRequest,
+  freshPublicHtml,
+  invalidatesPublicContent,
+  thumbnailRoute,
+} from './public-cache';
 import { maybeServePublicHtml } from './public-html';
 import { buildRobotsTxt } from './robots';
 import { getSiteSeo } from './seo-store';
@@ -45,7 +52,7 @@ function xmlResponse(body: string, request: Request) {
   return request.method === 'HEAD' ? new Response(null, response) : response;
 }
 
-async function route(request: Request, env: Env): Promise<Response> {
+async function route(request: Request, env: Env, ctx?: ExecutionContext): Promise<Response> {
   const url = new URL(request.url);
   const path = url.pathname;
   const origin = url.origin;
@@ -63,6 +70,12 @@ async function route(request: Request, env: Env): Promise<Response> {
   ) {
     url.pathname = path.replace(/\/+$/, '');
     return Response.redirect(url.href, 308);
+  }
+  if (ctx && env.ENVIRONMENT !== 'local' && cacheablePublicRequest(request)) {
+    const cached = await ctx.exports.PublicContent.fetch(new Request(url, { method: 'GET' }));
+    const response = new Response(request.method === 'HEAD' ? null : cached.body, cached);
+    response.headers.set('X-Public-Cache', cached.headers.get('CF-Cache-Status') ?? 'UNKNOWN');
+    return response;
   }
   const shell = () => env.ASSETS.fetch(new Request(new URL('/', request.url), request));
   const discovery = routeDiscovery(request);
@@ -155,6 +168,9 @@ async function route(request: Request, env: Env): Promise<Response> {
       episode: await getEpisode(env.DB, path.slice('/api/episodes/'.length), true, undefined, { origin }),
     });
   }
+  const thumbnail = thumbnailRoute.exec(path);
+  if (thumbnail)
+    return routeEpisodeThumbnail(request, env, thumbnail[1], thumbnail[2], thumbnail[3], thumbnail[4]);
   if (path.startsWith('/media/')) return media(request, env);
   if (path === '/admin' || path.startsWith('/admin/')) {
     if (path === '/admin/api/dev-login' && request.method === 'POST') return localLogin(request, env);
@@ -197,9 +213,9 @@ async function route(request: Request, env: Env): Promise<Response> {
   return env.ASSETS.fetch(request);
 }
 
-async function respond(request: Request, env: Env): Promise<Response> {
+async function respond(request: Request, env: Env, ctx?: ExecutionContext): Promise<Response> {
   try {
-    return await route(request, env);
+    return await route(request, env, ctx);
   } catch (error) {
     if (error instanceof HttpError) return json({ error: error.message }, error.status);
     console.error(
@@ -226,9 +242,21 @@ async function respond(request: Request, env: Env): Promise<Response> {
 }
 
 export default {
-  async fetch(request: Request, env: Env): Promise<Response> {
-    const response = await respond(request, env);
+  async fetch(request: Request, env: Env, ctx?: ExecutionContext): Promise<Response> {
+    let response = await respond(request, env, ctx);
+    if (ctx && env.ENVIRONMENT !== 'local' && invalidatesPublicContent(request, response)) {
+      try {
+        await ctx.exports.PublicContent.invalidate();
+      } catch (error) {
+        console.error(JSON.stringify({ event: 'public_cache_purge_failed', message: String(error) }));
+        response = new Response(response.body, response);
+        response.headers.set('X-Public-Cache', 'invalidation-failed');
+      }
+    }
+    const html = response.headers.get('Content-Type')?.startsWith('text/html');
+    if (html && env.ENVIRONMENT !== 'local') response = await freshPublicHtml(response);
     const headers = new Headers(response.headers);
+    if (html) headers.set('Cache-Control', 'no-store');
     if (new URL(request.url).protocol === 'https:')
       headers.set('Strict-Transport-Security', 'max-age=31536000');
     headers.set('X-Content-Type-Options', 'nosniff');

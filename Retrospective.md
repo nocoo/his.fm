@@ -644,3 +644,45 @@ its two fixed footer labels. Owner review caught the visual mismatch. Compare
 shared row baselines, not only each label's bounds, and retain space between the
 title and footer. Keep these adjustments in the shared frame export so browser
 previews and downloaded PNGs cannot acquire different layouts.
+
+## 2026-10-17: Configure schema startup before enforcing script CSP
+
+Zod's caught `Function()` capability probe still emitted a CSP violation. Set
+jitless mode before loading modules that construct schemas, rather than allowing
+unsafe-eval or relying only on page-error listeners. Deferring the React bootstrap
+also moved hero/frame/player CSS into a JavaScript-loaded chunk. Keep those styles
+in the static entry and test the actual production bundle with JavaScript disabled
+and a `securitypolicyviolation` listener.
+
+## 2026-10-17: Match thumbnail limits and pixels to the delivery contract
+
+Reusing the composed-PNG renderer's 4 MiB/4MP guards made valid published originals
+unavailable through the new thumbnail path. Native Images has a different resource
+boundary: stream R2 into it, respect its own input limit, and preserve the trusted
+original if transformation cannot complete. Source-width-only resizing also left
+landscape images undersampled under center-cover rendering. Include the theme in
+the derivative identity and crop to the same bleed-adjusted artwork geometry used
+by the browser. Test actual large PNG/JPEG inputs and every nonsquare theme window;
+keep original bytes and composed exports unchanged.
+
+The first large-image assertion used generic deep equality on multi-megabyte
+buffers. Its synchronous comparison blocked the event loop long enough to expire
+a Miniflare connection, making the following fixture fail. Use native
+`Buffer.equals` for byte equality; do not hide this with retries or shared fixtures.
+
+## 2026-10-17: Clone fetched headers before applying gateway policy
+
+The new local HTML no-store branch wrote directly into an asset response's
+immutable headers, breaking the login and admin shells despite unit success on
+mutable fixtures. Apply policy to the existing copied headers and add an explicit
+immutable-response regression. Run real local login alongside built public-page
+checks; public rendering alone cannot establish studio availability.
+
+## 2026-10-17: Distinguish native cache contracts from local evidence
+
+The pinned cf plugin could not build an explicit `exports.default` configuration.
+Use the supported global-disabled/named-enabled configuration with a typed Worker
+entry import. The local runtime also did not emulate native Workers Cache or
+provide its purge context. Report absent status as UNKNOWN, not MISS, and keep
+mock invocation tests separate from edge HIT/purge evidence. Never manufacture a
+production editorial mutation merely to obtain cache acceptance evidence.

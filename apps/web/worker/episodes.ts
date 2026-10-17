@@ -33,8 +33,7 @@ async function categoryNames(db: D1Database) {
 }
 
 async function projectPublishedEpisode(db: D1Database, episode: Episode, origin: string) {
-  const site = await getSiteSeo(db);
-  const names = await categoryNames(db);
+  const [site, names] = await Promise.all([getSiteSeo(db), categoryNames(db)]);
   return projectPublicEpisode(episode, origin, {
     site,
     categoryName: names.get(episode.category) ?? episode.category,
@@ -42,8 +41,7 @@ async function projectPublishedEpisode(db: D1Database, episode: Episode, origin:
 }
 
 async function projectPublishedEpisodes(db: D1Database, episodes: Episode[], origin: string) {
-  const site = await getSiteSeo(db);
-  const names = await categoryNames(db);
+  const [site, names] = await Promise.all([getSiteSeo(db), categoryNames(db)]);
   return episodes.map((episode) =>
     projectPublicEpisode(episode, origin, {
       site,
@@ -108,6 +106,16 @@ function fromRow(row: EpisodeRow): Episode {
   };
 }
 
+export async function readPublishedEpisodes(db: D1Database): Promise<Episode[]> {
+  const result = await db
+    .prepare(
+      "SELECT * FROM episodes WHERE status = 'published' AND published_at <= ? ORDER BY published_at DESC, episode_number DESC",
+    )
+    .bind(new Date().toISOString())
+    .all<EpisodeRow>();
+  return result.results.map(fromRow);
+}
+
 type EpisodeLookup = { category?: string; slug?: string; id?: string };
 
 async function fetchPublishedRow(db: D1Database, lookup: EpisodeLookup) {
@@ -152,20 +160,13 @@ export async function listEpisodes(
   actor?: Actor,
   origin = 'https://his.fm',
 ): Promise<Array<Episode | PublicEpisode>> {
-  if (!publishedOnly) {
-    if (!actor) throw new HttpError(403, 'Missing scope: episodes:read');
-    requireScope(actor, 'episodes:read');
-  }
-  const query = publishedOnly
-    ? "SELECT * FROM episodes WHERE status = 'published' AND published_at <= ? ORDER BY published_at DESC, episode_number DESC"
-    : 'SELECT * FROM episodes ORDER BY updated_at DESC, episode_number DESC';
-  const statement = db.prepare(query);
-  const result = await (publishedOnly
-    ? statement.bind(new Date().toISOString())
-    : statement
-  ).all<EpisodeRow>();
-  const episodes = result.results.map(fromRow);
-  return publishedOnly ? await projectPublishedEpisodes(db, episodes, origin) : episodes;
+  if (publishedOnly) return projectPublishedEpisodes(db, await readPublishedEpisodes(db), origin);
+  if (!actor) throw new HttpError(403, 'Missing scope: episodes:read');
+  requireScope(actor, 'episodes:read');
+  const result = await db
+    .prepare('SELECT * FROM episodes ORDER BY updated_at DESC, episode_number DESC')
+    .all<EpisodeRow>();
+  return result.results.map(fromRow);
 }
 
 export async function getEpisode(
@@ -186,18 +187,6 @@ export async function getEpisode(
   const row = await fetchPublishedRow(db, { category: options.category, slug: key });
   if (!row) throw new HttpError(404, '这期节目不存在');
   return projectPublishedEpisode(db, fromRow(row), origin);
-}
-
-export async function getPublishedEpisodeBundle(
-  db: D1Database,
-  category: string,
-  slug: string,
-  origin: string,
-) {
-  const row = await fetchPublishedRow(db, { category, slug });
-  if (!row) throw new HttpError(404, '这期节目不存在');
-  const episode = fromRow(row);
-  return { episode: await projectPublishedEpisode(db, episode, origin), seo: episode.seo };
 }
 
 export async function listPublishedEpisodesInCategory(db: D1Database, categoryId: string) {

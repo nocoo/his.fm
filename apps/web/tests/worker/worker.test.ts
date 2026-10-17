@@ -65,6 +65,12 @@ function call(path: string, options: RequestInit = {}, bindings = env) {
   return worker.fetch(request(path, options), bindings);
 }
 
+function publicCache() {
+  const entrypoint = { fetch: vi.fn(), invalidate: vi.fn().mockResolvedValue(undefined) };
+  const context = { exports: { PublicContent: entrypoint } } as unknown as ExecutionContext;
+  return { entrypoint, context };
+}
+
 function body(data: unknown) {
   return { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) };
 }
@@ -487,6 +493,129 @@ describe('public podcast catalog', () => {
     }
   });
 
+  it('keeps the public cache behind the gateway and gives every cached HTML read a fresh nonce', async () => {
+    const { entrypoint, context } = publicCache();
+    const template = '<html><script>trusted()</script><h1>Cached public content</h1></html>';
+    entrypoint.fetch.mockImplementation(
+      async () =>
+        new Response(template, {
+          headers: {
+            'Content-Type': 'text/html',
+            'Cache-Control': 'public, max-age=60',
+            'CF-Cache-Status': 'HIT',
+          },
+        }),
+    );
+    const nonces = new Set<string>();
+    for (const method of ['GET', 'GET', 'HEAD']) {
+      const response = await worker.fetch(
+        new Request('https://his.fm/?theme=interval', {
+          method,
+          headers: {
+            Cookie: 'private-session=secret',
+            Authorization: 'Bearer private-token',
+            'Cf-Access-Jwt-Assertion': 'private-jwt',
+            Range: 'bytes=0-10',
+            'If-None-Match': 'old',
+          },
+        }),
+        { ...env, ENVIRONMENT: 'production' },
+        context,
+      );
+      expect(response.status).toBe(200);
+      expect(response.headers.get('X-Public-Cache')).toBe('HIT');
+      expect(response.headers.get('Cache-Control')).toBe('no-store');
+      const nonce = /'nonce-([^']+)'/.exec(response.headers.get('Content-Security-Policy') ?? '')?.[1];
+      expect(nonce).toBeTruthy();
+      nonces.add(nonce ?? '');
+      const html = await response.text();
+      if (method === 'HEAD') expect(html).toBe('');
+      else expect(html).toBe(template.replace('<script', `<script nonce="${nonce}"`));
+    }
+    expect(nonces.size).toBe(3);
+    for (const [forwarded] of entrypoint.fetch.mock.calls) {
+      expect(forwarded.url).toBe('https://his.fm/?theme=interval');
+      expect(forwarded.method).toBe('GET');
+      expect([...forwarded.headers]).toEqual([]);
+    }
+    expect(entrypoint.invalidate).not.toHaveBeenCalled();
+  });
+
+  it('redirects canonical hosts before cache lookup and never caches private, API or local responses', async () => {
+    const { entrypoint, context } = publicCache();
+    const production = { ...env, ENVIRONMENT: 'production' };
+    for (const url of ['http://his.fm/about?x=1', 'https://www.his.fm/about?x=1']) {
+      const response = await worker.fetch(new Request(url), production, context);
+      expect(response.status).toBe(308);
+      expect(response.headers.get('Location')).toBe('https://his.fm/about?x=1');
+    }
+    expect((await worker.fetch(new Request('https://his.fm/about/'), production, context)).status).toBe(308);
+    expect(
+      (await worker.fetch(new Request('https://his.fm/admin/api/episodes'), production, context)).status,
+    ).toBe(401);
+    expect((await worker.fetch(new Request('https://his.fm/api/episodes'), production, context)).status).toBe(
+      200,
+    );
+    expect(
+      (await worker.fetch(new Request('https://his.fm/?utm_source=external'), production, context)).status,
+    ).toBe(200);
+    expect((await worker.fetch(request('/'), env, context)).status).toBe(200);
+    expect(entrypoint.fetch).not.toHaveBeenCalled();
+    expect(entrypoint.invalidate).not.toHaveBeenCalled();
+    entrypoint.fetch.mockResolvedValueOnce(
+      new Response('image', { headers: { 'Content-Type': 'image/webp' } }),
+    );
+    const image = await worker.fetch(
+      new Request('https://his.fm/media/episode-thumbnails/one/1/stillwood/320.webp'),
+      production,
+      context,
+    );
+    expect(await image.text()).toBe('image');
+    expect(image.headers.get('X-Public-Cache')).toBe('UNKNOWN');
+  });
+
+  it('purges after a committed human mutation, not after a rejected write, and exposes purge failures honestly', async () => {
+    const { entrypoint, context } = publicCache();
+    const production = { ...env, ENVIRONMENT: 'production' };
+    const jwt = await token();
+    const current = (await (await call('/admin/api/seo')).json()) as { seo: { version: number } };
+    const update = (version: number) =>
+      worker.fetch(
+        new Request('https://his.fm/admin/api/seo', {
+          method: 'PUT',
+          ...body({ version, defaultTitle: `Cache invalidation ${version}` }),
+          headers: {
+            'Content-Type': 'application/json',
+            Origin: 'https://his.fm',
+            'Cf-Access-Jwt-Assertion': jwt,
+          },
+        }),
+        production,
+        context,
+      );
+    const changed = await update(current.seo.version);
+    expect(changed.status).toBe(200);
+    expect(entrypoint.invalidate).toHaveBeenCalledOnce();
+    expect(entrypoint.fetch).not.toHaveBeenCalled();
+    expect((await update(current.seo.version)).status).toBe(409);
+    expect(entrypoint.invalidate).toHaveBeenCalledOnce();
+    entrypoint.invalidate.mockRejectedValueOnce(new Error('Purge unavailable'));
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      const committed = await update(current.seo.version + 1);
+      expect(committed.status).toBe(200);
+      expect(committed.headers.get('X-Public-Cache')).toBe('invalidation-failed');
+      const stored = (await (await call('/admin/api/seo')).json()) as {
+        seo: { version: number; defaultTitle: string };
+      };
+      expect(stored.seo.version).toBe(current.seo.version + 2);
+      expect(stored.seo.defaultTitle).toBe(`Cache invalidation ${current.seo.version + 1}`);
+      expect(log).toHaveBeenCalledWith(expect.stringContaining('public_cache_purge_failed'));
+    } finally {
+      log.mockRestore();
+    }
+  });
+
   it('includes audio enclosures when episodes have playable media', async () => {
     const bytes = new Uint8Array([0, 1, 2, 3, 4]);
     await env.MEDIA.put('sample.mp3', bytes, { httpMetadata: { contentType: 'audio/mpeg' } });
@@ -899,6 +1028,29 @@ describe('editor CRUD', () => {
 });
 
 describe('local login boundaries', () => {
+  it('adds local shell headers without mutating the fetched asset response', async () => {
+    const asset = new Response('<html><body>Studio</body></html>', {
+      headers: { 'Content-Type': 'text/html', 'Cache-Control': 'public, max-age=3600' },
+    });
+    const set = vi.spyOn(asset.headers, 'set').mockImplementation(() => {
+      throw new TypeError('Immutable asset headers');
+    });
+    const response = await call(
+      '/login',
+      {},
+      {
+        ...env,
+        ASSETS: { ...env.ASSETS, fetch: async () => asset },
+      },
+    );
+    expect(response.status).toBe(200);
+    expect(response.headers.get('Cache-Control')).toBe('no-store');
+    expect(response.headers.get('Content-Security-Policy')).not.toContain('script-src');
+    expect(await response.text()).toContain('Studio');
+    expect(asset.headers.get('Cache-Control')).toBe('public, max-age=3600');
+    expect(set).not.toHaveBeenCalled();
+  });
+
   it('uses revocable hashed sessions and secure cookies', async () => {
     expect(await (await call('/admin/api/session')).json()).toEqual({
       user: { email: 'editor@his.fm', name: null, avatar: null },

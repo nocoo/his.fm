@@ -18,7 +18,10 @@ export type FramedCoverProps = {
   themeId?: ThemeId;
   onCoverError?: () => void;
 } & CoverCopy &
-  Pick<ImgHTMLAttributes<HTMLImageElement>, 'loading' | 'width' | 'height' | 'draggable'>;
+  Pick<
+    ImgHTMLAttributes<HTMLImageElement>,
+    'loading' | 'width' | 'height' | 'draggable' | 'srcSet' | 'sizes'
+  >;
 
 export function FramedCover({
   src,
@@ -34,6 +37,8 @@ export function FramedCover({
   width,
   height,
   draggable,
+  srcSet,
+  sizes,
 }: FramedCoverProps) {
   const { themeId: resolvedTheme, resolved: themeResolved } = useResolvedThemeId(themeId);
   const frameSrc = themeResolved ? themeCoverFrameSrc(resolvedTheme) : null;
@@ -54,6 +59,8 @@ export function FramedCover({
       <img
         className={`framed-cover-image ${imageClassName}`.trim()}
         src={src}
+        srcSet={srcSet}
+        sizes={sizes}
         alt={alt}
         loading={loading}
         width={width}

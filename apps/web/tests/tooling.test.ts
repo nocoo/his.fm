@@ -3,8 +3,10 @@ import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import config from '../cloudflare.config';
+
+vi.mock('../worker/entry', () => ({}));
 
 describe('Cloudflare configuration', () => {
   it('uses one root version and only web and shared-contract workspaces', () => {
@@ -52,9 +54,16 @@ describe('Cloudflare configuration', () => {
     expect(local.env.ENVIRONMENT).toEqual({ type: 'text', value: 'local' });
     expect(production.env.ENVIRONMENT).toEqual({ type: 'text', value: 'production' });
     expect(local.domains).toEqual([]);
-    expect(production.domains).toEqual(['his.fm']);
-    expect(local.exports).toBeUndefined();
-    expect(production.exports).toEqual({ AgentHub: { type: 'durable-object', state: 'deleted' } });
+    expect(production.domains).toEqual(['his.fm', 'www.his.fm']);
+    expect(local.cache).toEqual({ enabled: false });
+    expect(production.cache).toEqual({ enabled: false });
+    expect(local.exports).toEqual({
+      PublicContent: { type: 'worker', cache: { enabled: false } },
+    });
+    expect(production.exports).toEqual({
+      PublicContent: { type: 'worker', cache: { enabled: true } },
+      AgentHub: { type: 'durable-object', state: 'deleted' },
+    });
     expect(local.env.DB.id).toBe('00000000-0000-4000-8000-000000007056');
     expect(production.env.DB.id).toBe('66f7e201-22a8-450d-838d-ecbc382afbc6');
     for (const worker of [local, production]) {
@@ -63,6 +72,7 @@ describe('Cloudflare configuration', () => {
       expect(worker.env).not.toHaveProperty('AUDIO_WORKFLOW');
       expect(worker.env).not.toHaveProperty('AGENT_HUB');
       expect(worker.env).not.toHaveProperty('GEMINI_API_KEY');
+      expect(worker.env.IMAGES).toEqual({ type: 'images' });
       expect(worker.assets.runWorkerFirst).toBe(true);
       expect(worker.assets.notFoundHandling).toBe('none');
     }

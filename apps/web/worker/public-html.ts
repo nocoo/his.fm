@@ -1,19 +1,13 @@
 import { themeIdSchema } from '../src/shared/appearance';
-import { formatEpisodeLabel } from '../src/shared/episode-display';
+import { projectPublicEpisode } from '../src/shared/episode';
 import { episodePublicPath } from '../src/shared/episode-url';
 import { injectSeoIntoHtml } from '../src/shared/seo-head';
 import { episodeBreadcrumbs, podcastEpisodeJsonLd, podcastSeriesJsonLd } from '../src/shared/seo-jsonld';
-import {
-  resolveAboutPageSeo,
-  resolveCatalogueSeo,
-  resolveEpisodePageSeo,
-  resolveSiteDefaults,
-} from '../src/shared/seo-resolve';
+import { resolveAboutPageSeo, resolveCatalogueSeo, resolveSiteDefaults } from '../src/shared/seo-resolve';
 import { getAppearance } from './appearance';
-import { getCategory, listCategories } from './categories';
+import { listCategories } from './categories';
 import { findPublishedEpisodeBySlug, redirect, resolveCategoryAlias } from './episode-public';
-import { getPublishedEpisodeBundle, listEpisodes } from './episodes';
-import { HttpError } from './http';
+import { readPublishedEpisodes } from './episodes';
 import { renderHeroPreloads, renderPublicPage } from './public-render';
 import { getSiteSeo } from './seo-store';
 
@@ -58,13 +52,18 @@ export async function maybeServePublicHtml(request: Request, env: Env): Promise<
     status = 404;
   }
 
-  const [siteRecord, appearance, episodes, categories] = await Promise.all([
+  const [siteRecord, appearance, records, categories, shell] = await Promise.all([
     getSiteSeo(env.DB),
     getAppearance(env.DB),
-    listEpisodes(env.DB, true, undefined, origin),
+    readPublishedEpisodes(env.DB),
     listCategories(env.DB),
+    loadShell(request, env),
   ]);
   const { version: _version, updatedAt: _updatedAt, updatedBy: _updatedBy, ...site } = siteRecord;
+  const names = new Map(categories.map((category) => [category.id, category.name]));
+  const episodes = records.map((episode) =>
+    projectPublicEpisode(episode, origin, { site, categoryName: names.get(episode.category) }),
+  );
   let seo = resolveSiteDefaults(site, origin);
   let jsonLd: unknown[] = [podcastSeriesJsonLd(origin, site)];
 
@@ -74,22 +73,14 @@ export async function maybeServePublicHtml(request: Request, env: Env): Promise<
   } else if (path === '/episodes') {
     const categoryId = url.searchParams.get('category');
     const category = categories.find((item) => item.id === categoryId);
-    const categorySeo = category ? (await getCategory(env.DB, category.id)).seo : undefined;
-    seo = resolveCatalogueSeo(site, origin, category, categorySeo);
+    seo = resolveCatalogueSeo(site, origin, category, category?.seo);
   } else if (categoryEpisode) {
     const [, categoryId, slug] = categoryEpisode;
-    const bundle = await getPublishedEpisodeBundle(env.DB, categoryId, slug, origin).catch((error) => {
-      if (error instanceof HttpError && error.status === 404) return null;
-      throw error;
-    });
-    if (!bundle) status = 404;
+    const episode = episodes.find((item) => item.category === categoryId && item.slug === slug);
+    if (!episode) status = 404;
     else {
-      const { episode, seo: episodeSeo } = bundle;
       const category = categories.find((item) => item.id === episode.category);
-      const label = category
-        ? formatEpisodeLabel(category.name, episode.episodeNumber)
-        : `EP.${episode.episodeNumber}`;
-      seo = resolveEpisodePageSeo(site, origin, episode, label, episodeSeo);
+      seo = episode.pageSeo;
       if (category) {
         jsonLd = [
           podcastSeriesJsonLd(origin, site),
@@ -116,7 +107,7 @@ export async function maybeServePublicHtml(request: Request, env: Env): Promise<
   const data = { origin, site, appearance: { theme: appearance.theme }, episodes, categories };
   const rendered = renderPublicPage(`${path}${url.search}`, data);
   const bootstrap = JSON.stringify(data).replace(/</g, '\\u003c');
-  let html = injectSeoIntoHtml(await loadShell(request, env), seo, jsonLd).replace(
+  let html = injectSeoIntoHtml(shell, seo, jsonLd).replace(
     '<div id="root"></div>',
     () =>
       `<div id="root">${rendered}</div><script id="public-data" type="application/json">${bootstrap}</script>`,
@@ -128,18 +119,11 @@ export async function maybeServePublicHtml(request: Request, env: Env): Promise<
       `${renderHeroPreloads(preview.success ? preview.data : appearance.theme)}</head>`,
     );
   }
-  const nonce = crypto.randomUUID();
-  if (env.ENVIRONMENT !== 'local') html = html.replace(/<script\b/g, `<script nonce="${nonce}"`);
   const response = new Response(html, {
     status,
     headers: {
       'Content-Type': 'text/html; charset=utf-8',
-      'Cache-Control': 'public, max-age=300',
-      ...(env.ENVIRONMENT !== 'local'
-        ? {
-            'Content-Security-Policy': `base-uri 'self'; object-src 'none'; frame-ancestors 'none'; script-src 'self' 'nonce-${nonce}'`,
-          }
-        : {}),
+      'Cache-Control': status === 200 ? 'public, max-age=60' : 'no-store',
     },
   });
   return request.method === 'HEAD' ? new Response(null, response) : response;

@@ -1,19 +1,8 @@
-import { StrictMode } from 'react';
-import { createRoot, hydrateRoot } from 'react-dom/client';
-import { App } from './App';
-import { type PublicData, PublicDataContext } from './public/PublicData';
+import { z } from 'zod';
 import './public/public.css';
+import './public/hero.css';
+import './components/FramedCover.css';
+import './components/AudioPlayer.css';
 
-const root = document.getElementById('root');
-if (!root) throw new Error('Application root is missing');
-const bootstrap = document.getElementById('public-data');
-const data: PublicData | null = bootstrap ? JSON.parse(bootstrap.textContent ?? 'null') : null;
-const app = (
-  <StrictMode>
-    <PublicDataContext.Provider value={data}>
-      <App />
-    </PublicDataContext.Provider>
-  </StrictMode>
-);
-if (data) hydrateRoot(root, app);
-else createRoot(root).render(app);
+z.config({ jitless: true });
+void import('./bootstrap');

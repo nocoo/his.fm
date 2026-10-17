@@ -10,6 +10,8 @@ export type AudioPlayerProps = {
   src: string;
   title?: string;
   coverUrl?: string;
+  coverSrcSet?: string;
+  coverSizes?: string;
   episodeNumber?: number;
   categoryName?: string;
   subtitle?: string;
@@ -29,6 +31,8 @@ function Player({
   src,
   title = '音频',
   coverUrl,
+  coverSrcSet,
+  coverSizes,
   episodeNumber,
   categoryName,
   subtitle,
@@ -146,6 +150,8 @@ function Player({
         <FramedCover
           className="his-audio-cover"
           src={coverUrl}
+          srcSet={coverSrcSet}
+          sizes={coverSizes}
           title={title}
           episodeNumber={episodeNumber}
           categoryName={categoryName}
