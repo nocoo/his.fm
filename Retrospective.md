@@ -523,3 +523,30 @@ inside its article. Browser tests that selected every level-one heading became
 ambiguous between the page introduction and authored content. Scope page-title
 checks outside the article and independently verify its heading and safe source
 link. Do not discard authored structure or use first() to hide ambiguous matches.
+
+## 2026-10-17: Preserve the development module pipeline under Worker-first SSR
+
+Changing asset routing from SPA fallback to universal Worker-first routing made
+Vite's `/@vite/client` and `/@react-refresh` requests return public 404 HTML.
+The initial Chrome check exposed the broken module pipeline. Explicitly pass
+local development module paths through to assets, then check hydrated navigation
+and page errors alongside JavaScript-disabled HTML. HTTP success alone does not
+prove that the development app is usable.
+
+## 2026-10-17: Validate historical durations before tightening feed output
+
+The current editable episode schema uses integer seconds, but published data
+contains fractional durations. Rejecting those values would silently omit valid
+duration metadata. Inspect persisted public values and normalize finite positive
+seconds by rounding; never infer duration from enclosure bytes. Regression tests
+cover the actual fractional values as well as invalid and missing durations.
+
+## 2026-10-17: Match routing and freshness across the SSR boundary
+
+Independent review found that strict Worker path matching disagreed with React
+Router's trailing-slash handling, producing 404 metadata for valid pages and a
+different login hydration tree. Redirect public trailing slashes before shell
+selection. The original bootstrap also skipped fetching on every later public
+mount, replaying stale data after studio edits. Keep the snapshot for hydration
+but revalidate on mount, with a browser regression for public-to-login-to-public
+navigation that does not reload the document.

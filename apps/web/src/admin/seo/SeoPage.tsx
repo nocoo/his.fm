@@ -1,6 +1,13 @@
 import { Button, Field, Input, LayerCard, Switch } from '@nocoo/basalt';
 import { InputArea } from '@nocoo/basalt/components/input-area';
 import { PageHeader } from '@nocoo/basalt/components/page-header';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@nocoo/basalt/components/select';
 import { Check } from 'lucide-react';
 import type { SiteSeo } from '../../shared/seo';
 import { Failure } from '../production/controls';
@@ -72,6 +79,11 @@ function SiteSeoForm({
       </LayerCard>
       <LayerCard className="studio-stack">
         <strong>播客 Feed（RSS / Apple Podcasts）</strong>
+        {!value.podcastCoverUrl && (
+          <p className="admin-muted" role="status">
+            尚未配置播客封面，RSS 暂不输出图片；符合平台要求的封面是上架前的必要条件。
+          </p>
+        )}
         <div className="admin-fields">
           <Field label="播客简介" htmlFor="podcast-description" required>
             <InputArea
@@ -83,6 +95,30 @@ function SiteSeoForm({
               onChange={(event) => patch({ podcastDescription: event.target.value })}
             />
           </Field>
+          <Field
+            label="作者类型"
+            htmlFor="podcast-author-type"
+            hint="未确认个人身份时保留机构 / 品牌；选择个人前请由本人确认。"
+            required
+          >
+            <Select
+              value={value.podcastAuthorType}
+              disabled={pending}
+              onValueChange={(podcastAuthorType) => {
+                if (podcastAuthorType === 'Person' || podcastAuthorType === 'Organization') {
+                  patch({ podcastAuthorType });
+                }
+              }}
+            >
+              <SelectTrigger id="podcast-author-type" aria-label="作者类型" className="studio-select-trigger">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="studio-select-content" collisionPadding={12}>
+                <SelectItem value="Organization">机构 / 品牌（Organization）</SelectItem>
+                <SelectItem value="Person">个人（Person）</SelectItem>
+              </SelectContent>
+            </Select>
+          </Field>
           <Field label="作者 / 出品方" htmlFor="podcast-author" required>
             <Input
               id="podcast-author"
@@ -90,6 +126,33 @@ function SiteSeoForm({
               maxLength={120}
               disabled={pending}
               onChange={(event) => patch({ podcastAuthor: event.target.value })}
+            />
+          </Field>
+          <Field
+            label="播客封面"
+            htmlFor="podcast-cover"
+            hint="独立于分享图；上架需 1400–3000 像素的正方形 PNG 或 JPEG、RGB 色彩。这里只校验地址，尺寸和色彩需人工核验。"
+          >
+            <Input
+              id="podcast-cover"
+              value={value.podcastCoverUrl}
+              maxLength={2048}
+              disabled={pending}
+              onChange={(event) => patch({ podcastCoverUrl: event.target.value })}
+            />
+          </Field>
+          <Field
+            label="播客所有者邮箱"
+            htmlFor="podcast-owner-email"
+            hint="由所有者确认后填写，可留空。邮箱会在 RSS 中公开；提交或认领 Spotify 等平台时需用它接收验证邮件。"
+          >
+            <Input
+              id="podcast-owner-email"
+              type="email"
+              value={value.podcastOwnerEmail}
+              maxLength={254}
+              disabled={pending}
+              onChange={(event) => patch({ podcastOwnerEmail: event.target.value })}
             />
           </Field>
           <Field label="语言代码" htmlFor="site-language" required>
@@ -101,7 +164,12 @@ function SiteSeoForm({
               onChange={(event) => patch({ language: event.target.value })}
             />
           </Field>
-          <Field label="iTunes 分类" htmlFor="itunes-category" required>
+          <Field
+            label="iTunes 分类"
+            htmlFor="itunes-category"
+            hint="使用 Apple 官方英文分类，例如 Technology；站内栏目名称不作为 iTunes 子分类。"
+            required
+          >
             <Input
               id="itunes-category"
               value={value.itunesCategory}

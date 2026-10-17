@@ -14,13 +14,18 @@ function escapeXml(value: string) {
 }
 
 function absoluteUrl(origin: string, path: string) {
-  return `${origin}${path.startsWith('/') ? path : `/${path}`}`;
+  return new URL(path, origin).href;
 }
 
-function absoluteMedia(origin: string, mediaBase: string, url: string) {
-  if (/^https:\/\//.test(url)) return url;
-  if (url.startsWith('/media/')) return `${mediaBase}${url.slice('/media'.length)}`;
-  return absoluteUrl(origin, url);
+function absoluteMedia(origin: string, mediaBase: string, value: string) {
+  const url = new URL(value, origin);
+  if (url.origin === new URL(origin).origin && url.pathname.startsWith('/media/')) {
+    const base = new URL(`${mediaBase.replace(/\/$/, '')}/`, origin);
+    base.pathname += url.pathname.slice('/media/'.length);
+    base.search = url.search;
+    return base.href;
+  }
+  return url.href;
 }
 
 function itemDescription(episode: PublicEpisode) {
@@ -30,15 +35,34 @@ function itemDescription(episode: PublicEpisode) {
   return parts.join('\n');
 }
 
-function enclosureMimeType(audioUrl: string, contentType?: string | null) {
-  if (contentType === 'audio/mpeg' || contentType === 'audio/wav') return contentType;
-  const lower = audioUrl.toLowerCase();
-  if (lower.endsWith('.mp3')) return 'audio/mpeg';
-  return 'audio/wav';
+function enclosureMimeType(audioUrl: string, contentType?: string) {
+  const type = contentType?.split(';')[0]?.trim().toLowerCase();
+  if (type) return ['audio/mpeg', 'audio/wav', 'audio/x-wav'].includes(type) ? type : null;
+  const path = new URL(audioUrl).pathname.toLowerCase();
+  if (path.endsWith('.mp3')) return 'audio/mpeg';
+  if (path.endsWith('.wav')) return 'audio/wav';
+  return null;
 }
 
-function mediaObjectKey(audioUrl: string) {
-  return audioUrl.startsWith('/media/') ? audioUrl.slice('/media/'.length) : null;
+function mediaObjectKey(origin: string, mediaBase: string, audioUrl: string) {
+  if (!audioUrl.startsWith('/media/') && !/^https?:\/\//.test(audioUrl)) return null;
+  try {
+    const url = new URL(audioUrl, origin);
+    const base = new URL(`${mediaBase.replace(/\/$/, '')}/`, origin);
+    if (url.username || url.password || url.hash) return null;
+    if (url.protocol !== 'https:' && url.origin !== new URL(origin).origin) return null;
+    let path: string;
+    if (url.origin === new URL(origin).origin && url.pathname.startsWith('/media/')) {
+      path = url.pathname.slice('/media/'.length);
+    } else if (url.origin === base.origin && url.pathname.startsWith(base.pathname)) {
+      path = url.pathname.slice(base.pathname.length);
+    } else {
+      return null;
+    }
+    return path ? decodeURIComponent(path) : null;
+  } catch {
+    return null;
+  }
 }
 
 async function enclosureForEpisode(
@@ -46,25 +70,18 @@ async function enclosureForEpisode(
   origin: string,
   mediaBase: string,
   episode: PublicEpisode,
-  cache: Map<string, { length: number; type: string }>,
+  cache: Map<string, Promise<R2Object | null>>,
 ) {
-  if (!episode.audioUrl) return null;
+  if (!episode.audioUrl || !bucket) return null;
+  const key = mediaObjectKey(origin, mediaBase, episode.audioUrl);
+  if (!key) return null;
+  const pending = cache.get(key) ?? bucket.head(key);
+  cache.set(key, pending);
+  const head = await pending;
+  if (!head || !Number.isSafeInteger(head.size) || head.size <= 0) return null;
   const url = absoluteMedia(origin, mediaBase, episode.audioUrl);
-  const cached = cache.get(url);
-  if (cached) return cached;
-  const key = mediaObjectKey(episode.audioUrl);
-  let length = 0;
-  let type = enclosureMimeType(episode.audioUrl);
-  if (key && bucket) {
-    const head = await bucket.head(key);
-    if (head) {
-      length = head.size;
-      type = enclosureMimeType(episode.audioUrl, head.httpMetadata?.contentType);
-    }
-  }
-  const meta = { length, type };
-  cache.set(url, meta);
-  return meta;
+  const type = enclosureMimeType(url, head.httpMetadata?.contentType);
+  return type ? { url, length: head.size, type } : null;
 }
 
 async function renderItem(
@@ -72,21 +89,25 @@ async function renderItem(
   mediaBase: string,
   episode: PublicEpisode,
   bucket: R2Bucket | undefined,
-  cache: Map<string, { length: number; type: string }>,
+  cache: Map<string, Promise<R2Object | null>>,
 ) {
-  const link = absoluteUrl(origin, episodePublicPath(episode.category, episode.slug));
-  const enclosureMeta = await enclosureForEpisode(bucket, origin, mediaBase, episode, cache);
-  const audioUrl = episode.audioUrl;
-  const enclosure =
-    enclosureMeta && audioUrl
-      ? `\n  <enclosure url="${escapeXml(absoluteMedia(origin, mediaBase, audioUrl))}" length="${enclosureMeta.length}" type="${escapeXml(enclosureMeta.type)}" />`
+  const publishedAt = episode.publishedAt ? new Date(episode.publishedAt) : null;
+  if (!episode.title.trim() || !publishedAt || !Number.isFinite(publishedAt.getTime())) return '';
+  const enclosure = await enclosureForEpisode(bucket, origin, mediaBase, episode, cache);
+  if (!enclosure) return '';
+  const link = escapeXml(absoluteUrl(origin, episodePublicPath(episode.category, episode.slug)));
+  const durationSeconds = Math.round(episode.durationSeconds);
+  const duration =
+    Number.isSafeInteger(durationSeconds) && durationSeconds > 0
+      ? `\n  <itunes:duration>${durationSeconds}</itunes:duration>`
       : '';
   return `<item>
   <title>${escapeXml(episode.title)}</title>
   <link>${link}</link>
   <guid isPermaLink="true">${link}</guid>
-  <pubDate>${new Date(episode.publishedAt ?? episode.updatedAt).toUTCString()}</pubDate>
-  <description><![CDATA[${itemDescription(episode)}]]></description>${enclosure}
+  <pubDate>${publishedAt.toUTCString()}</pubDate>
+  <description>${escapeXml(itemDescription(episode))}</description>
+  <enclosure url="${escapeXml(enclosure.url)}" length="${enclosure.length}" type="${escapeXml(enclosure.type)}" />${duration}
 </item>`;
 }
 
@@ -99,16 +120,19 @@ async function buildChannel(
   episodes: PublicEpisode[],
   site: Awaited<ReturnType<typeof getSiteSeo>>,
   bucket: R2Bucket | undefined,
-  categoryName?: string,
 ) {
-  const cache = new Map<string, { length: number; type: string }>();
+  const cache = new Map<string, Promise<R2Object | null>>();
   const items = (
     await Promise.all(episodes.map((episode) => renderItem(origin, mediaBase, episode, bucket, cache)))
-  ).join('\n');
-  const image = absoluteMedia(origin, mediaBase, site.defaultOgImageUrl);
-  const categoryTag = categoryName
-    ? `\n    <itunes:category text="${escapeXml(site.itunesCategory)}"><itunes:category text="${escapeXml(categoryName)}" /></itunes:category>`
-    : `\n    <itunes:category text="${escapeXml(site.itunesCategory)}" />`;
+  )
+    .filter(Boolean)
+    .join('\n');
+  const image = site.podcastCoverUrl
+    ? `\n    <itunes:image href="${escapeXml(absoluteMedia(origin, mediaBase, site.podcastCoverUrl))}" />`
+    : '';
+  const owner = site.podcastOwnerEmail
+    ? `\n    <itunes:owner><itunes:name>${escapeXml(site.podcastAuthor)}</itunes:name><itunes:email>${escapeXml(site.podcastOwnerEmail)}</itunes:email></itunes:owner>`
+    : '';
   return `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0"
   xmlns:atom="http://www.w3.org/2005/Atom"
@@ -116,13 +140,13 @@ async function buildChannel(
   xmlns:content="http://purl.org/rss/1.0/modules/content/">
   <channel>
     <title>${escapeXml(title)}</title>
-    <link>${absoluteUrl(origin, '/')}</link>
+    <link>${escapeXml(absoluteUrl(origin, '/'))}</link>
     <description>${escapeXml(description)}</description>
     <language>${escapeXml(site.language)}</language>
     <itunes:author>${escapeXml(site.podcastAuthor)}</itunes:author>
     <itunes:summary>${escapeXml(description)}</itunes:summary>
-    <itunes:explicit>${site.itunesExplicit ? 'yes' : 'clean'}</itunes:explicit>
-    <itunes:image href="${escapeXml(image)}" />${categoryTag}
+    <itunes:explicit>${site.itunesExplicit}</itunes:explicit>${image}${owner}
+    <itunes:category text="${escapeXml(site.itunesCategory)}" />
     <atom:link href="${escapeXml(selfHref)}" rel="self" type="application/rss+xml"/>
     ${items}
   </channel>
@@ -136,7 +160,7 @@ export async function buildRssFeed(
   bucket?: R2Bucket,
 ): Promise<string> {
   const site = await getSiteSeo(db);
-  const episodes = (await listEpisodes(db, true, undefined, origin)) as PublicEpisode[];
+  const episodes = await listEpisodes(db, true, undefined, origin);
   return buildChannel(
     origin,
     mediaBase,
@@ -170,6 +194,5 @@ export async function buildCategoryRssFeed(
     episodes,
     site,
     bucket,
-    categoryName,
   );
 }

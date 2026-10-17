@@ -40,6 +40,17 @@ export const siteSeoSchema = z.strictObject({
     .max(4000)
     .default('一档给开发者的中文播客。聊 AI，聊工作，也聊屏幕之外正在发生的生活。'),
   podcastAuthor: z.string().trim().min(1).max(120).default('his.fm'),
+  podcastAuthorType: z.enum(['Person', 'Organization']).default('Organization'),
+  podcastCoverUrl: mediaUrl
+    .refine(
+      (value) =>
+        URL.canParse(value, 'https://his.fm') &&
+        /\.(?:png|jpe?g)$/i.test(new URL(value, 'https://his.fm').pathname),
+      { message: '播客封面请使用 PNG 或 JPEG 图片地址' },
+    )
+    .or(z.literal(''))
+    .default(''),
+  podcastOwnerEmail: z.string().trim().max(254).email().or(z.literal('')).default(''),
   language: z.string().trim().min(2).max(12).default('zh-CN'),
   itunesCategory: z.string().trim().min(1).max(80).default('Technology'),
   itunesExplicit: z.boolean().default(false),
@@ -50,6 +61,21 @@ export const siteSeoSchema = z.strictObject({
 export type SiteSeo = z.infer<typeof siteSeoSchema>;
 
 export const siteSeoUpdateSchema = siteSeoSchema
+  .extend({
+    siteName: siteSeoSchema.shape.siteName.removeDefault(),
+    titleSuffix: siteSeoSchema.shape.titleSuffix.removeDefault(),
+    defaultTitle: siteSeoSchema.shape.defaultTitle.removeDefault(),
+    defaultDescription: siteSeoSchema.shape.defaultDescription.removeDefault(),
+    defaultOgImageUrl: siteSeoSchema.shape.defaultOgImageUrl.removeDefault(),
+    podcastDescription: siteSeoSchema.shape.podcastDescription.removeDefault(),
+    podcastAuthor: siteSeoSchema.shape.podcastAuthor.removeDefault(),
+    podcastAuthorType: siteSeoSchema.shape.podcastAuthorType.removeDefault(),
+    podcastCoverUrl: siteSeoSchema.shape.podcastCoverUrl.removeDefault(),
+    podcastOwnerEmail: siteSeoSchema.shape.podcastOwnerEmail.removeDefault(),
+    language: siteSeoSchema.shape.language.removeDefault(),
+    itunesCategory: siteSeoSchema.shape.itunesCategory.removeDefault(),
+    itunesExplicit: siteSeoSchema.shape.itunesExplicit.removeDefault(),
+  })
   .partial()
   .extend({ version: z.number().int().positive() })
   .strict();

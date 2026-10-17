@@ -4,6 +4,21 @@ import { siteSeoSchema } from '../../src/shared/seo';
 import { breadcrumbJsonLd, podcastEpisodeJsonLd, podcastSeriesJsonLd } from '../../src/shared/seo-jsonld';
 
 describe('seo-jsonld', () => {
+  it('uses the configured author identity without inventing a person', () => {
+    expect(podcastSeriesJsonLd('https://his.fm', siteSeoSchema.parse({})).author).toEqual({
+      '@type': 'Organization',
+      name: 'his.fm',
+    });
+    expect(
+      podcastSeriesJsonLd(
+        'https://his.fm',
+        siteSeoSchema.parse({
+          podcastAuthor: 'A named host',
+          podcastAuthorType: 'Person',
+        }),
+      ).author,
+    ).toEqual({ '@type': 'Person', name: 'A named host' });
+  });
   it('builds podcast series and breadcrumb graphs', () => {
     const site = siteSeoSchema.parse({});
     expect(podcastSeriesJsonLd('https://his.fm', site)).toMatchObject({

@@ -33,6 +33,12 @@ Use only the environment explicitly authorized by the owner. Local and productio
 
 There is no wildcard. Reader/editor/owner presets expand to explicit grants; the owner preset selects all current grants. Approval does not imply reopening; writes do not imply reads. No grant bypasses version checks, linked snapshot protection, media validation or reference-safe cleanup.
 
+`PUT /seo` requires the current `version` and preserves omitted fields. Podcast
+settings include `podcastCoverUrl` (JPEG/PNG URL or empty), `podcastOwnerEmail`
+(approved public contact or empty) and `podcastAuthorType` (`Person` or
+`Organization`). An empty cover or email is not submission-ready; image dimensions
+and color space require separate verification. See [SEO operations](seo.md).
+
 ## Editorial preparation
 
 Read `GET /channel` with `prompts:read` before creative work. It returns current global policy and the editable prompt bundle, including `narration`. Read the selected category or a production's private prompt bundle as authorized. Priority is **global prompt -> category prompt -> episode intent -> sources**; facts and permissions are not overridden by prose.
