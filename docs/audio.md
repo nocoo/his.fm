@@ -23,7 +23,7 @@ Content generation and audio composition happen outside his.fm. The site stores 
 - Cover upload: raw PNG/JPEG/WebP, matching Content-Type and validated signature, at most 8 MiB.
 - Generic `POST /api/agent/storage`: raw PNG/JPEG/WebP or complete 24 kHz mono PCM16 WAV, at most 25 MiB. The server chooses `uploads/<UUID>`, never a caller-supplied overwrite key. This operation does not attach a production asset.
 - `POST /api/agent/bumpers?name=...&position=intro|outro`: PCM WAV at most 30 seconds and 3 MiB. Versioned metadata updates preserve its key; catalogue deletion preserves R2 bytes. The website does not mix bumpers into recordings.
-- The learning column (`learning`) uses intro catalogue copy **这里是慢慢学会的每日手冲，我们一起看看今天冲了什么** and keeps outro copy **明天同一时间见** unless owners replace the WAV through **设置 → 贴片** or `PUT /api/agent/bumpers/:id`. Re-upload intro audio separately when the spoken line must change.
+- The learning column (`learning`) uses intro catalogue copy **这里是慢慢学会的每日手冲，我们一起看看今天冲了什么** and keeps outro copy **明天同一时间见** unless owners replace the WAV through **设置 → 贴片** or `POST /api/agent/bumpers?name=...&position=intro|outro` with a new recording. `PUT /api/agent/bumpers/:id` only updates JSON metadata (`name`, `position`, `version`) and keeps the existing media. Re-upload intro audio separately when the spoken line must change.
 
 ## Voice reference previews
 
