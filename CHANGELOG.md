@@ -2,6 +2,13 @@
 
 All notable changes to his.fm are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions use the owner’s patch-only deployment policy in `AGENTS.md`, with the authoritative version in `package.json`.
 
+## 2.4.4 - 2026-10-17
+
+### Changed
+
+- Rebrand the `learning` column public name to **每日手冲**, rename published `daily-news-*` episode titles, summaries, transcripts and tags from **每日新闻**, and align learning intro bumper catalogue copy. Episode slugs stay unchanged.
+- Rebrand the `work` column (team/personal AI transformation) public name from **工作之间** to **店长手札**. Stable category IDs are unchanged.
+
 ## 2.4.3 - 2026-10-16
 
 ### Changed
