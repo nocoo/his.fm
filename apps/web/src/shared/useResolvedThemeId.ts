@@ -5,6 +5,14 @@ import type { ThemeId } from './appearance';
 
 const fallbackTheme: ThemeId = 'interval';
 
+export function resolveThemeId(
+  appearanceId: ThemeId | undefined,
+  adminTheme: ThemeId | null,
+  override?: ThemeId,
+): ThemeId {
+  return override ?? appearanceId ?? adminTheme ?? fallbackTheme;
+}
+
 export function useResolvedThemeId(override?: ThemeId): ThemeId {
   const appearance = useOptionalAppearance();
   const [adminTheme, setAdminTheme] = useState<ThemeId | null>(null);
@@ -23,5 +31,5 @@ export function useResolvedThemeId(override?: ThemeId): ThemeId {
     return () => controller.abort();
   }, [appearance]);
 
-  return override ?? appearance?.id ?? adminTheme ?? fallbackTheme;
+  return resolveThemeId(appearance?.id, adminTheme, override);
 }
