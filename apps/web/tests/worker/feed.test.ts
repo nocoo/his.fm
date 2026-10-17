@@ -189,15 +189,17 @@ describe('podcast feeds', () => {
   );
 
   it.each([
-    ['/media/audio.wav', 'audio/wav', 'audio/wav'],
-    ['/media/audio.wav', 'audio/x-wav', 'audio/x-wav'],
     ['/media/audio.mp3', 'Audio/MPEG; charset=binary', 'audio/mpeg'],
     ['/media/audio.mp3?download=1', '', 'audio/mpeg'],
-    ['/media/audio.wav', '', 'audio/wav'],
   ])('uses valid audio type for %s (%s)', async (audioUrl, contentType, expected) => {
     catalogue(episode({ audioUrl }));
     const xml = await buildRssFeed(db, origin, mediaBase, media(10, contentType).bucket);
     expect(xml).toContain(`type="${expected}"`);
+  });
+
+  it.each(['audio/wav', 'audio/x-wav', ''])('omits WAV from directory RSS (%s)', async (contentType) => {
+    catalogue(episode({ audioUrl: '/media/audio.wav' }));
+    expect(await buildRssFeed(db, origin, mediaBase, media(10, contentType).bucket)).not.toContain('<item>');
   });
 
   it('does not infer WAV for unknown file types or missing MIME metadata', async () => {

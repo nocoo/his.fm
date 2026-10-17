@@ -37,10 +37,9 @@ function itemDescription(episode: PublicEpisode) {
 
 function enclosureMimeType(audioUrl: string, contentType?: string) {
   const type = contentType?.split(';')[0]?.trim().toLowerCase();
-  if (type) return ['audio/mpeg', 'audio/wav', 'audio/x-wav'].includes(type) ? type : null;
+  if (type) return type === 'audio/mpeg' ? type : null;
   const path = new URL(audioUrl).pathname.toLowerCase();
   if (path.endsWith('.mp3')) return 'audio/mpeg';
-  if (path.endsWith('.wav')) return 'audio/wav';
   return null;
 }
 

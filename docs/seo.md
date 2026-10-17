@@ -28,7 +28,11 @@ The manifest and Apple touch icon reuse the existing identity.
 ## Podcast launch requirements
 
 The site and category feeds use published episodes with real, positive-length
-audio objects in the configured R2 bucket. Only configured CDN URLs and local
+MP3 audio objects in the configured R2 bucket. WAV uploads remain playable on the
+website but are omitted from directory RSS: Apple accepts MP3/AAC for RSS, not
+the WAV formats accepted by its separate subscriber-upload workflow. The CMS
+currently accepts MP3/WAV uploads; it does not transcode audio or accept AAC.
+Only configured CDN URLs and local
 `/media/` URLs can resolve to those objects. Unknown external hosts are not
 fetched. Entries without usable audio are omitted; preview content is not a
 podcast enclosure. Durations use rounded positive stored seconds, including
@@ -55,6 +59,7 @@ Open Graph image is a separate social-preview improvement, not the podcast cover
 References:
 
 - https://podcasters.apple.com/support/823-podcast-requirements
+- https://podcasters.apple.com/support/893-audio-requirements
 - https://podcasters.apple.com/support/1691-apple-podcasts-categories
 - https://providersupport.spotify.com/article/podcast-delivery-specification-1-9
 - https://support.spotify.com/us/creators/article/adding-your-email-address-to-your-rss-feed/
