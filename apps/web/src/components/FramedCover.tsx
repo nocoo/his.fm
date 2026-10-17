@@ -4,6 +4,11 @@ import type { ThemeId } from '../shared/appearance';
 import { useResolvedThemeId } from '../shared/useResolvedThemeId';
 import './FramedCover.css';
 
+/** Whether a prior load error should hide the cover for the current `src`. */
+export function coverErrorHidesSrc(failedCoverSrc: string | null, src: string): boolean {
+  return failedCoverSrc === src;
+}
+
 export type FramedCoverProps = {
   src: string;
   alt?: string;
@@ -28,8 +33,9 @@ export function FramedCover({
   const resolvedTheme = useResolvedThemeId(themeId);
   const frameSrc = themeCoverFrameSrc(resolvedTheme);
   const [failedFrame, setFailedFrame] = useState<string | null>(null);
-  const [coverFailed, setCoverFailed] = useState(false);
+  const [failedCoverSrc, setFailedCoverSrc] = useState<string | null>(null);
   const frameFailed = failedFrame === frameSrc;
+  const coverFailed = coverErrorHidesSrc(failedCoverSrc, src);
 
   if (coverFailed) return null;
 
@@ -44,7 +50,7 @@ export function FramedCover({
         height={height}
         draggable={draggable}
         onError={() => {
-          setCoverFailed(true);
+          setFailedCoverSrc(src);
           onCoverError?.();
         }}
       />
