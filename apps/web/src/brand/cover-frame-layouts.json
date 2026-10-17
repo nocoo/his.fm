@@ -1,0 +1,85 @@
+{
+  "size": 1600,
+  "themes": {
+    "grove": {
+      "paper": "#F3F3EC",
+      "ink": "#213E2D",
+      "accent": "#759C45",
+      "episode": {
+        "x": 1303,
+        "y": 145,
+        "fontSize": 61
+      }
+    },
+    "interval": {
+      "paper": "#F5F4EE",
+      "ink": "#1C211A",
+      "accent": "#D6F25B",
+      "episode": {
+        "x": 150,
+        "y": 1239,
+        "fontSize": 52
+      }
+    },
+    "soft-landing": {
+      "paper": "#F5EDCF",
+      "ink": "#423048",
+      "accent": "#D8C8EA",
+      "episode": {
+        "x": 1102,
+        "y": 164,
+        "fontSize": 44
+      }
+    },
+    "human-sample": {
+      "paper": "#F2F0E6",
+      "ink": "#20241E",
+      "accent": "#BCEF52",
+      "episode": {
+        "x": 97,
+        "y": 1184,
+        "fontSize": 59
+      }
+    },
+    "stillwood": {
+      "paper": "#ECEBE1",
+      "ink": "#263C35",
+      "accent": "#A6AF94",
+      "episode": {
+        "x": 142,
+        "y": 1184,
+        "fontSize": 48
+      }
+    },
+    "tidal-hours": {
+      "paper": "#EFF1EB",
+      "ink": "#344C57",
+      "accent": "#B3C5C5",
+      "episode": {
+        "x": 72,
+        "y": 266,
+        "fontSize": 44
+      }
+    },
+    "window-seat": {
+      "paper": "#E9E7DF",
+      "ink": "#293940",
+      "accent": "#CEB581",
+      "episode": {
+        "x": 111,
+        "y": 255,
+        "fontSize": 42
+      }
+    },
+    "alpine-bloom": {
+      "paper": "#F0F1E9",
+      "ink": "#404F50",
+      "accent": "#B8C8D9",
+      "episode": {
+        "x": 97,
+        "y": 1184,
+        "fontSize": 45
+      }
+    }
+  }
+}
