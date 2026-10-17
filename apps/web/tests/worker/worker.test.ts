@@ -436,10 +436,14 @@ describe('public podcast catalog', () => {
   });
 
   it('includes audio enclosures when episodes have playable media', async () => {
+    const bytes = new Uint8Array([0, 1, 2, 3, 4]);
+    await env.MEDIA.put('sample.mp3', bytes, { httpMetadata: { contentType: 'audio/mpeg' } });
     await create({ audioUrl: '/media/sample.mp3' });
     const xml = await (await call('/feed.xml')).text();
     expect(xml).toContain('<enclosure');
     expect(xml).toContain('sample.mp3');
+    expect(xml).toContain('type="audio/mpeg"');
+    expect(xml).toContain(`length="${bytes.byteLength}"`);
   });
 
   it('includes mentions in RSS item descriptions', async () => {

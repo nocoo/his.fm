@@ -74,7 +74,7 @@ async function route(request: Request, env: Env): Promise<Response> {
   }
   if (path === '/feed.xml') {
     if (request.method !== 'GET' && request.method !== 'HEAD') throw new HttpError(405, '不支持这个请求方式');
-    const body = await buildRssFeed(env.DB, origin, mediaBase);
+    const body = await buildRssFeed(env.DB, origin, mediaBase, env.MEDIA);
     const response = new Response(body, {
       headers: {
         'Content-Type': 'application/rss+xml; charset=utf-8',
@@ -92,7 +92,7 @@ async function route(request: Request, env: Env): Promise<Response> {
       return redirect(`${origin}/feeds/${resolvedId}.xml`);
     }
     const category = await getCategory(env.DB, resolvedId);
-    const body = await buildCategoryRssFeed(env.DB, origin, mediaBase, category.id, category.name);
+    const body = await buildCategoryRssFeed(env.DB, origin, mediaBase, category.id, category.name, env.MEDIA);
     const response = new Response(body, {
       headers: {
         'Content-Type': 'application/rss+xml; charset=utf-8',
