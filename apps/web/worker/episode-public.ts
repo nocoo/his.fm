@@ -12,11 +12,16 @@ type EpisodeRow = {
 };
 
 export async function resolveCategoryAlias(db: D1Database, categoryId: string): Promise<string> {
-  const row = await db
-    .prepare('SELECT category_id AS categoryId FROM category_id_aliases WHERE alias = ?')
-    .bind(categoryId)
-    .first<{ categoryId: string }>();
-  return row?.categoryId ?? categoryId;
+  let resolved = categoryId;
+  for (let hop = 0; hop < 8; hop += 1) {
+    const row = await db
+      .prepare('SELECT category_id AS categoryId FROM category_id_aliases WHERE alias = ?')
+      .bind(resolved)
+      .first<{ categoryId: string }>();
+    if (!row || row.categoryId === resolved) return resolved;
+    resolved = row.categoryId;
+  }
+  return resolved;
 }
 
 export async function findPublishedEpisodeBySlug(

@@ -28,10 +28,7 @@ export async function assertCategoryIdAvailable(db: D1Database, nextId: string, 
     if (alias) throw new HttpError(409, '栏目 ID 已被占用，请换一个标识');
     return;
   }
-  const reclaim = await db
-    .prepare('SELECT 1 FROM category_id_aliases WHERE alias = ?')
-    .bind(nextId)
-    .first();
+  const reclaim = await db.prepare('SELECT 1 FROM category_id_aliases WHERE alias = ?').bind(nextId).first();
   if (reclaim) {
     await db.prepare('DELETE FROM category_id_aliases WHERE alias = ?').bind(nextId).run();
   }
