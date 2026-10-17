@@ -1,8 +1,9 @@
 import { publicAppearanceSchema, type ThemeId } from '../shared/appearance';
 import type { PublicCategory } from '../shared/category';
-import type { Episode } from '../shared/episode';
+import type { PublicEpisode } from '../shared/episode';
+import { formatEpisodeLabel } from '../shared/episode-display';
 
-export function filterEpisodes(episodes: Episode[], category: string, query: string) {
+export function filterEpisodes(episodes: PublicEpisode[], category: string, query: string) {
   const search = query.trim().toLocaleLowerCase();
   return episodes.filter(
     (episode) =>
@@ -11,8 +12,18 @@ export function filterEpisodes(episodes: Episode[], category: string, query: str
   );
 }
 
-export function categoryLabel(category: Episode['category'], categories: PublicCategory[]) {
+export function categoryLabel(category: PublicEpisode['category'], categories: PublicCategory[]) {
   return categories.find((item) => item.id === category)?.name;
+}
+
+export function episodeDisplayLabel(
+  episode: Pick<PublicEpisode, 'category' | 'episodeNumber'>,
+  categories: PublicCategory[],
+): string {
+  const name = categoryLabel(episode.category, categories);
+  return name
+    ? formatEpisodeLabel(name, episode.episodeNumber)
+    : formatEpisodeLabel('栏目', episode.episodeNumber);
 }
 export async function getCategories(signal?: AbortSignal): Promise<PublicCategory[]> {
   const response = await fetch('/api/categories', { signal });
@@ -37,10 +48,10 @@ export function dateLabel(date: string | null) {
     : '即将发布';
 }
 
-export async function getEpisodes(signal?: AbortSignal): Promise<Episode[]> {
+export async function getEpisodes(signal?: AbortSignal): Promise<PublicEpisode[]> {
   const response = await fetch('/api/episodes', { signal });
   if (!response.ok) throw new Error('节目暂时没有加载出来，请再试一次。');
-  const result = (await response.json()) as { episodes: Episode[] };
+  const result = (await response.json()) as { episodes: PublicEpisode[] };
   return result.episodes;
 }
 

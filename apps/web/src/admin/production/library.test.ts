@@ -12,6 +12,7 @@ function episode(changes: Partial<Episode> = {}): Episode {
     episodeNumber: 8,
     category: 'life',
     tags: ['tag'],
+    mentions: [],
     summary: 'Summary',
     transcript: '',
     showNotes: '',

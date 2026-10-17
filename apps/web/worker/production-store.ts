@@ -1,10 +1,19 @@
 import { hasScope } from '@his-fm/contracts';
 import type { Actor, Production } from '../src/shared/production';
 import { categoryFence, getCategory } from './categories';
+import {
+  productionClaimReleaseStatement,
+  productionClaimReplaceStatements,
+  publishedSnapshotMatchesProduction,
+} from './episode-numbering';
 import { HttpError } from './http';
 
 export function mediaUrl(env: Pick<Env, 'ENVIRONMENT'>, key: string) {
   return `${env.ENVIRONMENT === 'local' ? '/media' : 'https://f.no.mt'}/${key}`;
+}
+
+export function hydrateProduction(production: Production): Production {
+  return { ...production, mentions: production.mentions ?? [] };
 }
 
 export function projectProduction(
@@ -26,7 +35,7 @@ export async function getProduction(db: D1Database, id: string): Promise<Product
     .bind(id)
     .first<{ data: string }>();
   if (!row) throw new HttpError(404, '制作任务不存在');
-  return JSON.parse(row.data) as Production;
+  return hydrateProduction(JSON.parse(row.data) as Production);
 }
 
 export function appendEvent(production: Production, actor: Actor, action: string, feedback = ''): Production {
@@ -46,16 +55,22 @@ export function nextVersion(production: Production, expectedVersion: number): Pr
   return { ...production, version: expectedVersion + 1, updatedAt: new Date().toISOString() };
 }
 
-export function updateStatement(db: D1Database, production: Production, expectedVersion: number) {
+export function updateStatement(
+  db: D1Database,
+  production: Production,
+  expectedVersion: number,
+  writeId: string,
+) {
   return db
     .prepare(
-      'UPDATE productions SET version = ?, stage = ?, data = ?, updated_at = ? WHERE id = ? AND version = ?',
+      'UPDATE productions SET version = ?, stage = ?, data = ?, updated_at = ?, write_id = ? WHERE id = ? AND version = ?',
     )
     .bind(
       production.version,
       production.stage,
       JSON.stringify(production),
       production.updatedAt,
+      writeId,
       production.id,
       expectedVersion,
     );
@@ -63,13 +78,39 @@ export function updateStatement(db: D1Database, production: Production, expected
 
 export async function saveProduction(db: D1Database, production: Production, expectedVersion: number) {
   await getCategory(db, production.category);
+  const current = await getProduction(db, production.id);
   const next = nextVersion(production, expectedVersion);
-  const results = await db.batch([
-    categoryFence(db, next.category),
-    updateStatement(db, next, expectedVersion),
-  ]);
-  const result = results[1];
-  if (result.meta.changes !== 1) throw new HttpError(409, '内容已更新，请刷新后重试');
+  const numberingChanged = current.category !== next.category || current.episodeNumber !== next.episodeNumber;
+  const snapshotOwnsNumber =
+    numberingChanged &&
+    (await publishedSnapshotMatchesProduction(db, next.id, next.category, next.episodeNumber));
+  const writeId = crypto.randomUUID();
+  const statements = [categoryFence(db, next.category), updateStatement(db, next, expectedVersion, writeId)];
+  if (numberingChanged && snapshotOwnsNumber) {
+    statements.push(productionClaimReleaseStatement(db, next.id, next.version, writeId));
+  } else if (numberingChanged) {
+    statements.push(
+      ...productionClaimReplaceStatements(
+        db,
+        next.id,
+        next.version,
+        writeId,
+        next.category,
+        next.episodeNumber,
+      ),
+    );
+  }
+  try {
+    const results = await db.batch(statements);
+    if (results[1].meta.changes !== 1) throw new HttpError(409, '内容已更新，请刷新后重试');
+  } catch (error) {
+    if (error instanceof HttpError) throw error;
+    if (error instanceof Error && /UNIQUE constraint failed/.test(error.message)) {
+      throw new HttpError(409, '该栏目下已有相同期数');
+    }
+    /* v8 ignore next */
+    throw error;
+  }
   return next;
 }
 

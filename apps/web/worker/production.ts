@@ -1,7 +1,7 @@
 import { AudioError, hasScope } from '@his-fm/contracts';
 import {
   type Actor,
-  briefSchema,
+  briefCreateSchema,
   type Production,
   productionActionSchema,
   productionAudioBindSchema,
@@ -19,6 +19,14 @@ import {
 import { requireScope } from './authorization';
 import { categoryFence, getCategory } from './categories';
 import { getChannel } from './channel';
+import {
+  assertEpisodeNumberAvailable,
+  deleteHolderEpisodeNumberClaims,
+  insertEpisodeNumberClaim,
+  nextEpisodeNumberInCategory,
+  publishSnapshotClaimSyncStatements,
+  resolveProductionPatchEpisodeNumber,
+} from './episode-numbering';
 import { HttpError, json } from './http';
 import { rasterType } from './media-validation';
 import { readBytes, readJson } from './production-body';
@@ -27,6 +35,7 @@ import { productionPrompts } from './production-prompts';
 import {
   appendEvent,
   getProduction,
+  hydrateProduction,
   mediaUrl,
   nextVersion,
   projectProduction,
@@ -255,10 +264,10 @@ export async function publishProduction(
   );
   const eventId = next.events.at(-1)?.id;
   const snapshot = db
-    .prepare(`INSERT INTO episodes (id, slug, episode_number, title, summary, transcript, show_notes, cover_url, category, tags, duration_seconds, audio_url, status, featured, published_at, created_at, updated_at, source_production_id, version)
-    SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'published', 0, ?, ?, ?, ?, 1
+    .prepare(`INSERT INTO episodes (id, slug, episode_number, title, summary, transcript, show_notes, cover_url, category, tags, mentions, duration_seconds, audio_url, status, featured, published_at, created_at, updated_at, source_production_id, version)
+    SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'published', 0, ?, ?, ?, ?, 1
     WHERE EXISTS (SELECT 1 FROM productions WHERE id = ? AND version = ? AND json_extract(data, '$.events[#-1].id') = ?)
-    ON CONFLICT(source_production_id) DO UPDATE SET slug = excluded.slug, episode_number = excluded.episode_number, title = excluded.title, summary = excluded.summary, transcript = excluded.transcript, show_notes = excluded.show_notes, cover_url = excluded.cover_url, category = excluded.category, tags = excluded.tags, duration_seconds = excluded.duration_seconds, audio_url = excluded.audio_url, status = excluded.status, published_at = excluded.published_at, updated_at = excluded.updated_at, version = episodes.version + 1`)
+    ON CONFLICT(source_production_id) DO UPDATE SET slug = excluded.slug, episode_number = excluded.episode_number, title = excluded.title, summary = excluded.summary, transcript = excluded.transcript, show_notes = excluded.show_notes, cover_url = excluded.cover_url, category = excluded.category, tags = excluded.tags, mentions = excluded.mentions, duration_seconds = excluded.duration_seconds, audio_url = excluded.audio_url, status = excluded.status, published_at = excluded.published_at, updated_at = excluded.updated_at, version = episodes.version + 1`)
     .bind(
       next.id,
       next.slug,
@@ -270,6 +279,7 @@ export async function publishProduction(
       next.assets.cover?.url,
       next.category,
       JSON.stringify(next.tags),
+      JSON.stringify(next.mentions ?? []),
       next.assets.audio?.durationSeconds,
       next.assets.audio?.url,
       input.publishedAt,
@@ -280,11 +290,20 @@ export async function publishProduction(
       next.version,
       eventId,
     );
+  const writeId = crypto.randomUUID();
   try {
     const results = await db.batch([
       categoryFence(db, next.category),
-      updateStatement(db, next, input.version),
+      updateStatement(db, next, input.version, writeId),
       snapshot,
+      ...publishSnapshotClaimSyncStatements(
+        db,
+        next.id,
+        next.version,
+        writeId,
+        next.category,
+        next.episodeNumber,
+      ),
     ]);
     if (results[1]?.meta.changes !== 1) throw new HttpError(409, '内容已更新，请刷新后重新确认发布');
   } catch (error) {
@@ -332,7 +351,8 @@ async function withdrawPublication(
       next.version,
       next.events.at(-1)?.id,
     );
-  const results = await db.batch([updateStatement(db, next, version), snapshot]);
+  const writeId = crypto.randomUUID();
+  const results = await db.batch([updateStatement(db, next, version, writeId), snapshot]);
   if (results[0]?.meta.changes !== 1) throw new HttpError(409, '内容已更新，请刷新后重试');
   return next;
 }
@@ -351,38 +371,81 @@ export async function routeProductions(
       const { results } = await env.DB.prepare('SELECT data FROM productions ORDER BY updated_at DESC').all<{
         data: string;
       }>();
-      return json({ productions: results.map((row) => projectProduction(JSON.parse(row.data), actor)) });
+      return json({
+        productions: results.map((row) =>
+          projectProduction(hydrateProduction(JSON.parse(row.data) as Production), actor),
+        ),
+      });
     }
     if (request.method === 'POST') {
       requireScope(actor, 'productions:write');
-      const brief = await readJson(request, briefSchema);
+      const brief = await readJson(request, briefCreateSchema);
       await getCategory(env.DB, brief.category);
       const now = new Date().toISOString();
-      const production = appendEvent(
-        {
-          ...brief,
-          id: crypto.randomUUID(),
-          version: 1,
-          stage: 'draft',
-          transcript: '',
-          scriptVersion: 0,
-          description: '',
-          summary: '',
-          assets: { cover: null, audio: null },
-          approvals: { brief: null, script: null, final: null },
-          publications: [],
-          events: [],
-          createdAt: now,
-          updatedAt: now,
-        },
-        actor,
-        'create',
-      );
-      const insert = env.DB.prepare(
-        'INSERT INTO productions (id, version, stage, data, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
-      ).bind(production.id, production.version, production.stage, JSON.stringify(production), now, now);
-      await env.DB.batch([categoryFence(env.DB, brief.category), insert]);
-      return respond(production, 201);
+      const productionId = crypto.randomUUID();
+      const maxAttempts = brief.episodeNumber === undefined ? 16 : 1;
+      for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        const episodeNumber =
+          brief.episodeNumber ??
+          (await nextEpisodeNumberInCategory(env.DB, brief.category, { productionId: productionId }));
+        if (brief.episodeNumber !== undefined) {
+          await assertEpisodeNumberAvailable(env.DB, brief.category, episodeNumber, {
+            productionId: productionId,
+          });
+        }
+        const production = appendEvent(
+          {
+            ...brief,
+            mentions: brief.mentions ?? [],
+            episodeNumber,
+            id: productionId,
+            version: 1,
+            stage: 'draft',
+            transcript: '',
+            scriptVersion: 0,
+            description: '',
+            summary: '',
+            assets: { cover: null, audio: null },
+            approvals: { brief: null, script: null, final: null },
+            publications: [],
+            events: [],
+            createdAt: now,
+            updatedAt: now,
+          },
+          actor,
+          'create',
+        );
+        const writeId = crypto.randomUUID();
+        const insert = env.DB.prepare(
+          'INSERT INTO productions (id, version, stage, data, created_at, updated_at, write_id) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        ).bind(
+          production.id,
+          production.version,
+          production.stage,
+          JSON.stringify(production),
+          now,
+          now,
+          writeId,
+        );
+        try {
+          await env.DB.batch([
+            categoryFence(env.DB, brief.category),
+            insertEpisodeNumberClaim(env.DB, brief.category, episodeNumber, productionId, 'production'),
+            insert,
+          ]);
+          return respond(production, 201);
+        } catch (error) {
+          const message = error instanceof Error ? error.message : '';
+          const unique = /UNIQUE constraint failed/.test(message);
+          if (brief.episodeNumber !== undefined) {
+            if (unique) throw new HttpError(409, '该栏目下已有相同期数');
+            throw error;
+          }
+          if (!unique) throw error;
+        }
+      }
+      /* v8 ignore next */
+      throw new HttpError(503, '栏目期数暂时无法分配，请稍后重试');
     }
     throw new HttpError(405, '不支持这个请求方式');
   }
@@ -404,17 +467,30 @@ export async function routeProductions(
     );
   if (operation === 'actions' && request.method === 'POST') {
     const action = await readJson(request, productionActionSchema);
+    const changes = action.changes;
+    if (changes) {
+      const patch = changes;
+      const current = await getProduction(env.DB, id);
+      const editedKeys = Object.keys(patch);
+      const episodeNumber = await resolveProductionPatchEpisodeNumber(env.DB, current, patch);
+      const merged = { ...patch, episodeNumber };
+      const production = await updateProduction(
+        env.DB,
+        id,
+        actor,
+        action.action,
+        (current) => applyAction(applyPatch(current, merged, actor, editedKeys), action, actor),
+        { expectedVersion: action.version, feedback: action.feedback },
+      );
+      return respond(production);
+    }
     const production = await updateProduction(
       env.DB,
       id,
       actor,
       action.action,
       (current) => {
-        return applyAction(
-          action.changes ? applyPatch(current, action.changes, actor) : current,
-          action,
-          actor,
-        );
+        return applyAction(current, action, actor);
       },
       { expectedVersion: action.version, feedback: action.feedback },
     );
@@ -482,12 +558,14 @@ export async function routeProductions(
     requireScope(actor, 'productions:write');
     const patch = await readJson(request, productionPatchSchema);
     const { version, ...fields } = patch;
+    const current = await getProduction(env.DB, id);
+    const episodeNumber = await resolveProductionPatchEpisodeNumber(env.DB, current, fields);
     const production = await updateProduction(
       env.DB,
       id,
       actor,
       'edit',
-      (current) => applyPatch(current, fields, actor),
+      (production) => applyPatch(production, { ...fields, episodeNumber }, actor, Object.keys(fields)),
       { expectedVersion: version },
     );
     return respond(production);
@@ -507,6 +585,7 @@ export async function routeProductions(
       .bind(id, version)
       .first();
     if (!deleted) throw new HttpError(409, '内容已更新，请刷新后重试');
+    await deleteHolderEpisodeNumberClaims(env.DB, 'production', id).run();
     return new Response(null, { status: 204 });
   }
   throw new HttpError(405, '不支持这个请求方式');

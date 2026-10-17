@@ -65,6 +65,9 @@ describe('Cloudflare configuration', () => {
       expect(worker.env).not.toHaveProperty('GEMINI_API_KEY');
       expect(worker.assets.runWorkerFirst).toEqual([
         '/api/*',
+        '/feed.xml',
+        '/episodes',
+        '/episodes/*',
         '/.well-known/api-catalog',
         '/llms.txt',
         '/admin',

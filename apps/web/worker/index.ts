@@ -4,9 +4,11 @@ import { getAppearance } from './appearance';
 import { accessLogin, authenticate, isLocal, localLogin, logout } from './auth';
 import { listCategories } from './categories';
 import { getEpisode, listEpisodes } from './episodes';
+import { buildRssFeed } from './feed';
 import { HttpError, json, requireSameOrigin } from './http';
 import { routeManagement } from './management';
 import { streamMedia } from './media';
+import { maybeServePublicRedirects } from './public-redirects';
 import { enrichSession } from './session';
 
 async function media(request: Request, env: Env) {
@@ -27,6 +29,7 @@ async function media(request: Request, env: Env) {
 async function route(request: Request, env: Env): Promise<Response> {
   const url = new URL(request.url);
   const path = url.pathname;
+  const origin = url.origin;
   const discovery = routeDiscovery(request);
   if (discovery) return discovery;
   if (path.startsWith('/api/agent/')) return routeAgent(request, env);
@@ -35,9 +38,20 @@ async function route(request: Request, env: Env): Promise<Response> {
     await env.DB.prepare('SELECT 1').first();
     return json({ status: 'ok', service: 'his.fm', version, revision: __BUILD_REVISION__ });
   }
+  if (path === '/feed.xml') {
+    if (request.method !== 'GET' && request.method !== 'HEAD') throw new HttpError(405, '不支持这个请求方式');
+    const body = await buildRssFeed(env.DB, url.origin);
+    const response = new Response(body, {
+      headers: {
+        'Content-Type': 'application/rss+xml; charset=utf-8',
+        'Cache-Control': 'public, max-age=600',
+      },
+    });
+    return request.method === 'HEAD' ? new Response(null, response) : response;
+  }
   if (path === '/api/episodes') {
     if (request.method !== 'GET') throw new HttpError(405, '不支持这个请求方式');
-    return json({ episodes: await listEpisodes(env.DB, true) });
+    return json({ episodes: await listEpisodes(env.DB, true, undefined, origin) });
   }
   if (path === '/api/categories') {
     if (request.method !== 'GET') throw new HttpError(405, '不支持这个请求方式');
@@ -48,9 +62,21 @@ async function route(request: Request, env: Env): Promise<Response> {
     const { theme } = await getAppearance(env.DB);
     return json({ appearance: { theme } });
   }
+  const nestedEpisode = /^\/api\/episodes\/([^/]+)\/([^/]+)$/.exec(path);
+  if (nestedEpisode) {
+    if (request.method !== 'GET') throw new HttpError(405, '不支持这个请求方式');
+    return json({
+      episode: await getEpisode(env.DB, nestedEpisode[2], true, undefined, {
+        category: nestedEpisode[1],
+        origin,
+      }),
+    });
+  }
   if (/^\/api\/episodes\/[^/]+$/.test(path)) {
     if (request.method !== 'GET') throw new HttpError(405, '不支持这个请求方式');
-    return json({ episode: await getEpisode(env.DB, path.slice('/api/episodes/'.length), true) });
+    return json({
+      episode: await getEpisode(env.DB, path.slice('/api/episodes/'.length), true, undefined, { origin }),
+    });
   }
   if (path.startsWith('/media/')) return media(request, env);
   if (path === '/admin' || path.startsWith('/admin/')) {
@@ -88,6 +114,8 @@ async function route(request: Request, env: Env): Promise<Response> {
       404,
       { Link: discoveryLinks(url.origin) },
     );
+  const redirect = await maybeServePublicRedirects(request, env);
+  if (redirect) return redirect;
   return env.ASSETS.fetch(request);
 }
 

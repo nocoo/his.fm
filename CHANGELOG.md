@@ -2,6 +2,33 @@
 
 All notable changes to his.fm are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions use the owner’s patch-only deployment policy in `AGENTS.md`, with the authoritative version in `package.json`.
 
+## 2.4.7 - 2026-10-17
+
+### Added
+
+- Public episode URLs at `/episodes/<category>/<slug>` with Worker-first routing, legacy `/episodes/<slug>` **301** redirects, and `category_id_aliases` so renamed category IDs keep old paths working.
+- Unique `(category, slug)` on episodes; public and API lookup resolve category plus slug.
+
+### Changed
+
+- Migration **0016** ranks episode numbers jointly across episodes and unlinked productions in each category; linked productions sync from snapshots only when categories still match.
+- Migration **0020** adds `episode_number_claims` with composite holder keys so a published snapshot and its production can claim different categories; productions and standalone episodes reserve `(category, episode_number)` in one transaction.
+- Production and episode writes update claims only after the main row succeeds; published snapshots keep episode claims when draft production numbers diverge; category renames move claims and deleting an empty category clears inbound aliases.
+- Legacy `/episodes/<slug>` redirects prefer published episodes even when the slug matches reserved SPA segments.
+- Production create allocates episode numbers atomically against claims and `productions(category, episode_number)` with retry on conflict; manual duplicate numbers return **409**.
+- OpenAPI episode create marks `episodeNumber` optional; admin brief mentions use `safeParse`; new production form no longer remounts when the suggested number loads; episode detail pages reset the meta description on leave.
+
+## 2.4.6 - 2026-10-17
+
+### Added
+
+- Episode **mentions** on briefs and programmes: `{name, description, url?}` (max 50), edited in admin, copied to published snapshots, rendered on public pages, RSS show notes, JSON-LD `Thing` entries, and public `/api/episodes` JSON.
+- Per-category **episode numbers** with studio display `栏目名 EP.NN`, unique `(category, episode_number)`, and optional explicit assignment on create.
+
+### Changed
+
+- Public catalogue, pages, RSS, JSON-LD, `llms.txt`, and `/api/episodes` no longer expose full **transcripts**; admin and Agent APIs retain them.
+
 ## 2.4.5 - 2026-10-17
 
 ### Changed

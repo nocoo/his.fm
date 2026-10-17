@@ -87,12 +87,16 @@ const published = [
 ];
 
 const quote = (value) => (value === null ? 'NULL' : `'${String(value).replaceAll("'", "''")}'`);
-const statements = published.map((episode, index) => {
+const seedGuard = `NOT EXISTS (SELECT 1 FROM local_seed_runs WHERE name = ${quote(marker)})`;
+const nextEpisodeNumberInCategory = (category) =>
+  `(SELECT COALESCE(MAX(episode_number), 0) + 1 FROM episode_number_claims WHERE category = ${quote(category)})`;
+const statements = published.flatMap((episode, index) => {
   const timestamp = `2026-09-${String(24 - index * 3).padStart(2, '0')}T08:00:00.000Z`;
+  const id = `local-episode-${String(index + 1).padStart(2, '0')}`;
   const values = [
-    `local-episode-${String(index + 1).padStart(2, '0')}`,
+    id,
     episode.slug,
-    index + 1,
+    nextEpisodeNumberInCategory(episode.category),
     episode.title,
     episode.summary,
     episode.transcript,
@@ -108,7 +112,21 @@ const statements = published.map((episode, index) => {
     timestamp,
     timestamp,
   ];
-  return `INSERT OR IGNORE INTO episodes (id, slug, episode_number, title, summary, transcript, show_notes, cover_url, category, tags, duration_seconds, audio_url, status, featured, published_at, created_at, updated_at) SELECT ${values.map(quote).join(', ')} WHERE NOT EXISTS (SELECT 1 FROM local_seed_runs WHERE name = ${quote(marker)});`;
+  const episodeInsert = `INSERT OR IGNORE INTO episodes (id, slug, episode_number, title, summary, transcript, show_notes, cover_url, category, tags, duration_seconds, audio_url, status, featured, published_at, created_at, updated_at, version, write_id) SELECT ${values
+    .slice(0, 2)
+    .map(quote)
+    .join(', ')}, ${values[2]}, ${values
+    .slice(3)
+    .map(quote)
+    .join(', ')}, 1, lower(hex(randomblob(16))) WHERE ${seedGuard};`;
+  const claimInsert = `INSERT INTO episode_number_claims (category, episode_number, holder_id, holder_kind)
+   SELECT category, episode_number, id, 'episode' FROM episodes
+   WHERE id = ${quote(id)} AND ${seedGuard}
+   AND NOT EXISTS (
+     SELECT 1 FROM episode_number_claims existing
+     WHERE existing.holder_kind = 'episode' AND existing.holder_id = episodes.id
+   );`;
+  return [episodeInsert, claimInsert];
 });
 statements.push(
   `INSERT OR IGNORE INTO local_seed_runs (name, created_at) VALUES (${quote(marker)}, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'));`,

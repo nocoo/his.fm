@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { PublicCategory } from '../shared/category';
-import type { Episode } from '../shared/episode';
+import type { PublicEpisode } from '../shared/episode';
 import { getCategories, getEpisodes } from './model';
 
 export function useEpisodes() {
-  const [episodes, setEpisodes] = useState<Episode[]>([]);
+  const [episodes, setEpisodes] = useState<PublicEpisode[]>([]);
   const [categories, setCategories] = useState<PublicCategory[]>([]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);

@@ -1,6 +1,8 @@
 import { spawnSync } from 'node:child_process';
+import { randomBytes } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { buildImportExampleStatements, joinImportExampleSql } from './import-example-sql.mjs';
 
 process.env.MINIFLARE_CACHE_DIR = '.cloudflare/cache';
 
@@ -24,7 +26,6 @@ const production = {
   stage: 'draft',
   title,
   slug: 'how-to-live-better',
-  episodeNumber: 1,
   category: 'manager-notes',
   tags: ['AI 学习', '工作节奏', '睡眠', '注意力', '休息'],
   targetDurationSeconds: 600,
@@ -65,17 +66,8 @@ const production = {
   createdAt: now,
   updatedAt: now,
 };
-const quote = (value) => `'${String(value).replaceAll("'", "''")}'`;
-const marker = 'hisfm-real-production-example-v1';
-const localGuard =
-  mode === '--local' ? ` AND NOT EXISTS (SELECT 1 FROM local_seed_runs WHERE name = ${quote(marker)})` : '';
-const sql = [
-  `INSERT OR IGNORE INTO productions (id, version, stage, data, created_at, updated_at) SELECT ${quote(production.id)}, 1, 'draft', ${quote(JSON.stringify(production))}, ${quote(now)}, ${quote(now)} WHERE NOT EXISTS (SELECT 1 FROM productions WHERE json_extract(data, '$.slug') = ${quote(production.slug)})${localGuard};`,
-];
-if (mode === '--local')
-  sql.push(
-    `INSERT OR IGNORE INTO local_seed_runs (name, created_at) VALUES (${quote(marker)}, ${quote(now)});`,
-  );
+const importWriteId = randomBytes(16).toString('hex');
+const sql = buildImportExampleStatements(production, { mode, now, importWriteId });
 const result = spawnSync(
   process.execPath,
   [
@@ -85,7 +77,7 @@ const result = spawnSync(
     mode === '--local' ? '00000000-0000-4000-8000-000000007056' : '66f7e201-22a8-450d-838d-ecbc382afbc6',
     ...(mode === '--local' ? ['--local', '--persist-to', '.cloudflare/state'] : []),
     '--sql',
-    sql.join('\n'),
+    joinImportExampleSql(sql),
   ],
   { stdio: 'inherit', env: { ...process.env, CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV: 'false' } },
 );

@@ -16,6 +16,7 @@ export const emptyEpisode: EpisodeInput = {
   status: 'draft',
   featured: false,
   publishedAt: null,
+  mentions: [],
 };
 
 export function toLocalDateTime(value: string | null): string {

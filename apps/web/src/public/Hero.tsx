@@ -1,7 +1,7 @@
 import { ArrowDown, ArrowUpRight, Headphones } from 'lucide-react';
 import { BrandSymbol, Wordmark } from '../brand/Brand';
 import { themeMedia, themes } from '../brand/themes';
-import type { Episode } from '../shared/episode';
+import type { PublicEpisode } from '../shared/episode';
 import { PublicLink, useAppearance } from './Appearance';
 import { durationLabel } from './model';
 
@@ -41,7 +41,7 @@ export function ThemeImage({
   );
 }
 
-export function Hero({ featured }: { featured?: Episode }) {
+export function Hero({ featured, episodeLabel }: { featured?: PublicEpisode; episodeLabel?: string }) {
   const { id } = useAppearance();
   const theme = themes[id];
   const split = ['interval', 'human-sample', 'window-seat'].includes(id);
@@ -95,14 +95,14 @@ export function Hero({ featured }: { featured?: Episode }) {
         </span>
       </div>
       {featured && (
-        <PublicLink to={`/episodes/${featured.slug}`} className="hero-feature">
+        <PublicLink to={`/episodes/${featured.category}/${featured.slug}`} className="hero-feature">
           <span className="hero-feature-number">
-            EP.{String(featured.episodeNumber).padStart(3, '0')}
-            <small>{featured.audioUrl ? '本期声音' : '本期文稿'}</small>
+            {episodeLabel}
+            <small>{featured.audioUrl ? '本期声音' : '本期摘要'}</small>
           </span>
           <strong>{featured.title}</strong>
           <span className="hero-feature-action">
-            {featured.audioUrl ? durationLabel(featured.durationSeconds) : '先读文稿'}
+            {featured.audioUrl ? durationLabel(featured.durationSeconds) : '先看摘要'}
             <ArrowUpRight size={22} />
           </span>
         </PublicLink>

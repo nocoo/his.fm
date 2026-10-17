@@ -77,6 +77,20 @@ Fetch the new version after every successful mutation. Never blindly retry a bod
 
 Standalone `/episodes` supports POST/GET and `/:id` GET/PUT/DELETE. PUT includes version; DELETE uses `?version=N`. Publishing/changing published standalone content additionally requires `episodes:publish`. Linked production snapshots reject standalone content writes/deletion. `PATCH /episodes/:id` permits only `{version, featured}` display metadata.
 
+Production briefs and standalone episode bodies accept an ordered `mentions` array (at most 50 items). Each item is `{name, description, url?}`: `name` and `description` are required strings; `description` is a single-sentence explanation; `url` is optional and must be `http` or `https` when present. Published snapshots copy `mentions` to the public episode. Public `/api/episodes` responses include `mentions` but never full transcripts.
+
+```json
+{
+  "mentions": [
+    {
+      "name": "HowToLiveBetter",
+      "description": "一本关于生活节奏的开放读物。",
+      "url": "https://github.com/eternity4719/HowToLiveBetter"
+    }
+  ]
+}
+```
+
 ## Other modules and safe deletion
 
 - Categories: GET/POST `/categories`, GET/PUT/DELETE `/categories/:id`. Private reads need `categories:read`; prompts additionally need `prompts:read`. PUT is partial plus version and preserves omitted prompt. Optional `nextId` renames the stable ID and updates episode/production references in one transaction. Changing a prompt additionally needs `prompts:write`; referenced categories cannot be deleted.

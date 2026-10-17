@@ -91,7 +91,7 @@ beforeAll(async () => {
 }, 30000);
 beforeEach(async () => {
   await env.DB.batch(
-    ['media_provenance', 'episodes', 'productions', 'channel_profile'].map((table) =>
+    ['media_provenance', 'episodes', 'productions', 'episode_number_claims', 'channel_profile'].map((table) =>
       env.DB.prepare(`DELETE FROM ${table}`),
     ),
   );
@@ -152,8 +152,16 @@ describe('owner R2 inventory and cleanup', () => {
           '[图片](https://f.no.mt/source%20image.webp?x=1)。 https://other.test/not-ours.wav https://f.no.mt/%ZZ',
       },
     ];
-    await env.DB.prepare('INSERT INTO productions VALUES (?, ?, ?, ?, ?, ?)')
-      .bind(production.id, 1, 'ready', JSON.stringify(production), production.createdAt, production.updatedAt)
+    await env.DB.prepare('INSERT INTO productions VALUES (?, ?, ?, ?, ?, ?, ?)')
+      .bind(
+        production.id,
+        1,
+        'ready',
+        JSON.stringify(production),
+        production.createdAt,
+        production.updatedAt,
+        crypto.randomUUID(),
+      )
       .run();
     await env.DB.prepare("INSERT INTO media_provenance VALUES ('settings', ?)")
       .bind(JSON.stringify({ intro: { key: 'bumper-current.wav' }, outro: null }))

@@ -66,7 +66,7 @@ async function result(response: Response) {
 
 async function insert(production: Production) {
   await env.DB.prepare(
-    'INSERT INTO productions (id, version, stage, data, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
+    'INSERT INTO productions (id, version, stage, data, created_at, updated_at, write_id) VALUES (?, ?, ?, ?, ?, ?, ?)',
   )
     .bind(
       production.id,
@@ -75,6 +75,7 @@ async function insert(production: Production) {
       JSON.stringify(production),
       production.createdAt,
       production.updatedAt,
+      crypto.randomUUID(),
     )
     .run();
   return production;
@@ -133,6 +134,12 @@ beforeAll(async () => {
     '0013_resource_versions.sql',
     '0014_token_deletion.sql',
     '0015_retire_native_runtime.sql',
+    '0016_episode_numbers_per_category.sql',
+    '0017_episode_mentions.sql',
+    '0018_category_id_aliases.sql',
+    '0019_episode_slug_per_category.sql',
+    '0020_episode_number_claims.sql',
+    '0021_write_id.sql',
   ]) {
     const sql = readFileSync(new URL(`../../migrations/${file}`, import.meta.url), 'utf8');
     await env.DB.batch(
@@ -146,7 +153,7 @@ beforeAll(async () => {
 
 beforeEach(async () => {
   await env.DB.batch(
-    ['agent_tokens', 'episodes', 'productions', 'media_provenance'].map((table) =>
+    ['agent_tokens', 'episodes', 'productions', 'episode_number_claims', 'media_provenance'].map((table) =>
       env.DB.prepare(`DELETE FROM ${table}`),
     ),
   );
@@ -559,7 +566,7 @@ describe('manual assets and safe detach', () => {
     );
     expect((await call(`${path}/assets/audio?version=${production.version}`, 'PUT', wav)).status).toBe(409);
     expect((await getProduction(env.DB, production.id)).assets.audio).toEqual(readyFixture().assets.audio);
-    await insert(fixture({ id: 'draft' }));
+    await insert(fixture({ id: 'draft', episodeNumber: 9, slug: 'draft-audio-test' }));
     expect((await call('/productions/draft/assets/audio?version=1', 'PUT', wav)).status).toBe(409);
   });
 

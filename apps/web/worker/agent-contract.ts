@@ -4,11 +4,17 @@ import { version } from '../../../package.json';
 import { appearanceSchema, appearanceUpdateSchema } from '../src/shared/appearance';
 import { categoryInputSchema, categoryMutationSchema, categorySchema } from '../src/shared/category';
 import { channelProfileSchema, channelUpdateSchema, editorialPriority } from '../src/shared/channel';
-import { episodeDisplaySchema, episodeInputSchema, episodeUpdateSchema } from '../src/shared/episode';
+import {
+  episodeCreateSchema,
+  episodeDisplaySchema,
+  episodeInputSchema,
+  episodeUpdateSchema,
+} from '../src/shared/episode';
 import {
   actionNames,
   agentActionSchema,
   agentActions,
+  briefCreateSchema,
   briefSchema,
   type Production,
   productionActionSchema,
@@ -400,7 +406,7 @@ export function agentOpenApi(origin: string) {
             ['productions:write'],
             201,
           ),
-          requestBody: body(briefSchema),
+          requestBody: body(briefCreateSchema),
         },
       },
       '/productions/{id}': {
@@ -646,7 +652,7 @@ export function agentOpenApi(origin: string) {
             ['episodes:write'],
             201,
           ),
-          requestBody: body(episodeInputSchema),
+          requestBody: body(episodeCreateSchema),
         },
       },
       '/episodes/{id}': {
@@ -891,7 +897,7 @@ export function agentOpenApi(origin: string) {
             'Private Markdown global prompt and named workflow/stage prompts, versioned together independently of productions. Re-read at each task; pause and reassess if version changes. Internal editorial requirements do not grant API permissions.',
         },
         ServiceManifest: schema(serviceManifestSchema),
-        CreateProduction: schema(briefSchema, 'input'),
+        CreateProduction: schema(briefCreateSchema, 'input'),
         UpdateProduction: schema(productionPatchSchema, 'input'),
         AgentAction: schema(agentActionSchema, 'input'),
         ProductionAction: schema(productionActionSchema, 'input'),

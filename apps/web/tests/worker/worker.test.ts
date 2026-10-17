@@ -6,7 +6,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 import { version } from '../../../../package.json';
 import { type Appearance, appearanceSchema, themeIds } from '../../src/shared/appearance';
 import { channelProfileSchema } from '../../src/shared/channel';
-import type { Episode, EpisodeInput } from '../../src/shared/episode';
+import { type Episode, type EpisodeInput, projectPublicEpisode } from '../../src/shared/episode';
 import type { Production } from '../../src/shared/production';
 import worker from '../../worker';
 import { productionCapabilities } from '../../worker/agent-api';
@@ -39,6 +39,13 @@ const input: EpisodeInput = {
   status: 'published',
   featured: false,
   publishedAt: '2026-09-01T08:00:00.000Z',
+  mentions: [
+    {
+      name: 'his.fm',
+      description: '这档播客的主站。',
+      url: 'https://his.fm/',
+    },
+  ],
 };
 
 let miniflare: Miniflare;
@@ -139,7 +146,7 @@ beforeAll(async () => {
 
 beforeEach(async () => {
   await env.DB.batch(
-    ['episodes', 'local_sessions', 'productions', 'agent_tokens'].map((table) =>
+    ['episodes', 'local_sessions', 'productions', 'episode_number_claims', 'agent_tokens'].map((table) =>
       env.DB.prepare(`DELETE FROM ${table}`),
     ),
   );
@@ -157,15 +164,226 @@ afterAll(async () => {
 describe('public podcast catalog', () => {
   it('keeps drafts and future episodes private while exposing published content', async () => {
     const episode = await create();
-    await create({ slug: 'draft', status: 'draft', publishedAt: null });
-    await create({ slug: 'future', publishedAt: '2999-01-01T00:00:00.000Z' });
+    await create({ slug: 'draft', status: 'draft', publishedAt: null, episodeNumber: undefined });
+    await create({ slug: 'future', publishedAt: '2999-01-01T00:00:00.000Z', episodeNumber: undefined });
+    const publicEpisode = projectPublicEpisode(episode, origin);
     const list = await call('/api/episodes');
-    expect(await list.json()).toEqual({ episodes: [episode] });
+    expect(await list.json()).toEqual({ episodes: [publicEpisode] });
     expect((await call('/api/episodes/draft')).status).toBe(404);
     expect((await call('/api/episodes/future')).status).toBe(404);
     expect((await call('/api/episodes/missing')).status).toBe(404);
-    expect(await (await call(`/api/episodes/${episode.slug}`)).json()).toEqual({ episode });
+    expect(await (await call(`/api/episodes/${episode.slug}`)).json()).toEqual({ episode: publicEpisode });
     expect((await call('/api/episodes')).headers.get('Cache-Control')).toBe('no-store');
+  });
+
+  it('redirects legacy episode URLs to category paths', async () => {
+    const episode = await create();
+    const response = await call(`/episodes/${episode.slug}`);
+    expect(response.status).toBe(301);
+    expect(response.headers.get('Location')).toContain(`/episodes/${episode.category}/${episode.slug}`);
+    const head = await call(`/episodes/${episode.slug}`, { method: 'HEAD' });
+    expect(head.status).toBe(301);
+  });
+
+  it('redirects reserved legacy slugs when a published episode uses them', async () => {
+    const episode = await create({ slug: 'about' });
+    const response = await call('/episodes/about');
+    expect(response.status).toBe(301);
+    expect(response.headers.get('Location')).toContain(`/episodes/${episode.category}/about`);
+  });
+
+  it('updates episode number claims when renumbering manual episodes', async () => {
+    const episode = await create({ episodeNumber: 2, slug: 'renumber-me' });
+    const response = await call(`/admin/api/episodes/${episode.id}`, {
+      method: 'PUT',
+      ...body({
+        ...input,
+        version: episode.version,
+        slug: 'renumber-me',
+        episodeNumber: 4,
+        category: 'learning',
+      }),
+    });
+    expect(response.status).toBe(200);
+    expect(
+      await env.DB.prepare(
+        'SELECT category, episode_number AS episodeNumber FROM episode_number_claims WHERE holder_kind = ? AND holder_id = ?',
+      )
+        .bind('episode', episode.id)
+        .first<{ category: string; episodeNumber: number }>(),
+    ).toEqual({ category: 'learning', episodeNumber: 4 });
+  });
+
+  it('updates episodes without touching claims when number and category stay the same', async () => {
+    const episode = await create({ episodeNumber: 30, slug: 'stable-number' });
+    const response = await call(`/admin/api/episodes/${episode.id}`, {
+      method: 'PUT',
+      ...body({
+        ...input,
+        version: episode.version,
+        slug: 'stable-number',
+        episodeNumber: 30,
+        title: '新标题',
+      }),
+    });
+    expect(response.status).toBe(200);
+  });
+
+  it('retries manual episode creation after claim races', async () => {
+    for (let number = 1; number <= 7; number++) {
+      await env.DB.prepare(
+        'INSERT INTO episode_number_claims (category, episode_number, holder_id, holder_kind) VALUES (?, ?, ?, ?)',
+      )
+        .bind(input.category, number, `holder-${number}`, 'episode')
+        .run();
+    }
+    await env.DB.prepare(
+      'INSERT INTO episode_number_claims (category, episode_number, holder_id, holder_kind) VALUES (?, ?, ?, ?)',
+    )
+      .bind(input.category, 8, 'blocked-eight', 'episode')
+      .run();
+    const response = await call('/admin/api/episodes', {
+      method: 'POST',
+      ...body({ ...input, episodeNumber: undefined, slug: 'race-episode' }),
+    });
+    expect(response.status).toBe(201);
+    expect(((await response.json()) as { episode: Episode }).episode.episodeNumber).toBe(9);
+  });
+
+  it('does not move episode claims when a stale episode update conflicts', async () => {
+    const episode = await create({ episodeNumber: 31, slug: 'stale-claim' });
+    const before = await env.DB.prepare(
+      'SELECT category, episode_number AS episodeNumber FROM episode_number_claims WHERE holder_kind = ? AND holder_id = ?',
+    )
+      .bind('episode', episode.id)
+      .first<{ category: string; episodeNumber: number }>();
+    const response = await call(`/admin/api/episodes/${episode.id}`, {
+      method: 'PUT',
+      ...body({ ...input, version: 999, slug: 'stale-claim', episodeNumber: 99, category: 'learning' }),
+    });
+    expect(response.status).toBe(409);
+    expect(
+      await env.DB.prepare(
+        'SELECT category, episode_number AS episodeNumber FROM episode_number_claims WHERE holder_kind = ? AND holder_id = ?',
+      )
+        .bind('episode', episode.id)
+        .first<{ category: string; episodeNumber: number }>(),
+    ).toEqual(before);
+  });
+
+  it('returns conflict when deleting a stale episode version', async () => {
+    const episode = await create({
+      status: 'draft',
+      publishedAt: null,
+      episodeNumber: 24,
+      slug: 'stale-delete',
+    });
+    const response = await call(`/admin/api/episodes/${episode.id}?version=999`, { method: 'DELETE' });
+    expect(response.status).toBe(409);
+  });
+
+  it('rejects duplicate slugs within a category when creating episodes', async () => {
+    await create({ slug: 'shared-slug', episodeNumber: 22 });
+    const response = await call('/admin/api/episodes', {
+      method: 'POST',
+      ...body({ ...input, slug: 'shared-slug', episodeNumber: 23 }),
+    });
+    expect(response.status).toBe(409);
+  });
+
+  it('rejects duplicate slugs within a category when updating episodes', async () => {
+    await create({ slug: 'slug-a', episodeNumber: 20 });
+    const second = await create({ slug: 'slug-b', episodeNumber: 21 });
+    const response = await call(`/admin/api/episodes/${second.id}`, {
+      method: 'PUT',
+      ...body({ ...input, version: second.version, slug: 'slug-a', episodeNumber: 21 }),
+    });
+    expect(response.status).toBe(409);
+  });
+
+  it('rejects duplicate numbers when creating manual episodes', async () => {
+    await create({ episodeNumber: 11, slug: 'first-eleven' });
+    const response = await call('/admin/api/episodes', {
+      method: 'POST',
+      ...body({ ...input, episodeNumber: 11, slug: 'second-eleven' }),
+    });
+    expect(response.status).toBe(409);
+  });
+
+  it('blocks duplicate episode numbers across productions and manual episodes', async () => {
+    const manual = await call('/admin/api/episodes', {
+      method: 'POST',
+      ...body({ ...input, slug: 'manual-one', episodeNumber: 1 }),
+    });
+    expect(manual.status).toBe(201);
+    const duplicate = await call('/admin/api/productions', {
+      method: 'POST',
+      ...body({ ...brief, category: input.category, slug: 'production-one', episodeNumber: 1 }),
+    });
+    expect(duplicate.status).toBe(409);
+  });
+
+  it('redirects renamed category segments on nested episode URLs', async () => {
+    const episode = await create();
+    await env.DB.prepare('INSERT INTO category_id_aliases (alias, category_id) VALUES (?, ?)')
+      .bind('legacy-category', episode.category)
+      .run();
+    const response = await call(`/episodes/legacy-category/${episode.slug}`);
+    expect(response.status).toBe(301);
+    expect(response.headers.get('Location')).toContain(`/episodes/${episode.category}/${episode.slug}`);
+  });
+
+  it('resolves nested public episode API paths', async () => {
+    const episode = await create();
+    const nested = await call(`/api/episodes/${episode.category}/${episode.slug}`);
+    expect(nested.status).toBe(200);
+    const legacy = await call(`/api/episodes/${episode.slug}`);
+    expect(legacy.status).toBe(200);
+    expect(((await nested.json()) as { episode: Episode }).episode.slug).toBe(episode.slug);
+  });
+
+  it('exposes mentions on public episode JSON without transcript', async () => {
+    const episode = await create();
+    const listed = (await (await call('/api/episodes')).json()) as { episodes: Episode[] };
+    expect(listed.episodes[0]?.mentions).toEqual(input.mentions);
+    const detail = (await (await call(`/api/episodes/${episode.slug}`)).json()) as { episode: Episode };
+    expect(detail.episode.mentions).toEqual(input.mentions);
+    expect(detail.episode).not.toHaveProperty('transcript');
+  });
+
+  it('rejects duplicate manual episode numbers when creating productions', async () => {
+    const first = await call('/admin/api/productions', { method: 'POST', ...body(brief) });
+    expect(first.status).toBe(201);
+    const duplicate = await call('/admin/api/productions', {
+      method: 'POST',
+      ...body({ ...brief, slug: 'another-slug', episodeNumber: brief.episodeNumber }),
+    });
+    expect(duplicate.status).toBe(409);
+    expect(await duplicate.json()).toEqual({ error: '该栏目下已有相同期数' });
+  });
+
+  it('includes mentions in RSS item descriptions', async () => {
+    await create();
+    const feed = await call('/feed.xml');
+    expect(feed.status).toBe(200);
+    expect(feed.headers.get('Content-Type')).toContain('application/rss+xml');
+    const xml = await feed.text();
+    expect(xml).toContain('本期提到');
+    expect(xml).toContain('his.fm — 这档播客的主站。');
+    expect(xml).toContain('https://his.fm/');
+  });
+
+  it('omits transcript from public episode JSON while admin and agent APIs retain it', async () => {
+    const episode = await create();
+    expect(episode.transcript.length).toBeGreaterThan(0);
+    const listed = (await (await call('/api/episodes')).json()) as { episodes: Record<string, unknown>[] };
+    expect(listed.episodes[0]).not.toHaveProperty('transcript');
+    const detail = (await (await call(`/api/episodes/${episode.slug}`)).json()) as {
+      episode: Record<string, unknown>;
+    };
+    expect(detail.episode).not.toHaveProperty('transcript');
+    const admin = (await (await call(`/admin/api/episodes/${episode.id}`)).json()) as { episode: Episode };
+    expect(admin.episode.transcript).toBe(episode.transcript);
   });
 
   it('checks database liveness and handles public asset and unknown routes', async () => {
@@ -319,12 +537,71 @@ describe('editor CRUD', () => {
     expect((await call(`/admin/api/episodes/${episode.id}`)).status).toBe(404);
   });
 
+  it('does not mutate episode number claims when a stale episode save loses the race', async () => {
+    const episode = await create({ status: 'draft', publishedAt: null, episodeNumber: 1 });
+    const path = `/admin/api/episodes/${episode.id}`;
+    const save = (version: number, title: string, episodeNumber = 1) =>
+      call(path, {
+        method: 'PUT',
+        ...body({
+          ...input,
+          version,
+          slug: episode.slug,
+          category: episode.category,
+          episodeNumber,
+          status: 'draft',
+          publishedAt: null,
+          title,
+        }),
+      });
+    const second = ((await (await save(episode.version, '第二版')).json()) as { episode: Episode }).episode;
+    const third = ((await (await save(second.version, '第三版')).json()) as { episode: Episode }).episode;
+    const before = (
+      await env.DB.prepare('SELECT category, episode_number FROM episode_number_claims WHERE holder_id = ?')
+        .bind(episode.id)
+        .all()
+    ).results;
+    expect((await save(second.version, '过期保存', 2)).status).toBe(409);
+    expect(
+      (
+        await env.DB.prepare('SELECT category, episode_number FROM episode_number_claims WHERE holder_id = ?')
+          .bind(episode.id)
+          .all()
+      ).results,
+    ).toEqual(before);
+    expect(third.episodeNumber).toBe(1);
+  });
+
+  it('rejects episode renumber when another holder already claimed the number', async () => {
+    const episode = await create();
+    await env.DB.prepare(
+      'INSERT INTO episode_number_claims (category, episode_number, holder_id, holder_kind) VALUES (?, ?, ?, ?)',
+    )
+      .bind(episode.category, 50, 'blocker', 'production')
+      .run();
+    const response = await call(`/admin/api/episodes/${episode.id}`, {
+      method: 'PUT',
+      ...body({
+        ...input,
+        version: episode.version,
+        category: episode.category,
+        slug: episode.slug,
+        episodeNumber: 50,
+      }),
+    });
+    expect(response.status).toBe(409);
+    expect(await response.json()).toEqual({ error: '该栏目下已有相同期数' });
+  });
+
   it('enforces unique slugs and leaves existing content intact on conflicts', async () => {
     const original = await create();
-    const other = await create({ slug: 'other' });
-    const duplicate = await call('/admin/api/episodes', { method: 'POST', ...body(input) });
+    const other = await create({ slug: 'other', episodeNumber: undefined });
+    const duplicate = await call('/admin/api/episodes', {
+      method: 'POST',
+      ...body({ ...input, episodeNumber: undefined }),
+    });
     expect(duplicate.status).toBe(409);
-    expect(await duplicate.json()).toEqual({ error: '这个链接名称已被另一集使用' });
+    expect(await duplicate.json()).toEqual({ error: '该栏目下已有相同期数或链接名称' });
     expect(
       (
         await call(`/admin/api/episodes/${other.id}`, {
@@ -394,6 +671,15 @@ describe('editor CRUD', () => {
     expect((await call('/admin/api/episodes', { method: 'PATCH' })).status).toBe(405);
     expect((await call('/admin/api/episodes/no-id', { method: 'POST' })).status).toBe(405);
     expect((await call('/admin/api/episodes/no-id', { method: 'PUT', ...body(input) })).status).toBe(404);
+    const episode = await create();
+    expect(
+      (
+        await call(`/admin/api/episodes/${episode.id}`, {
+          method: 'PUT',
+          ...body({ ...input, title: '缺版本' }),
+        })
+      ).status,
+    ).toBe(400);
     expect((await call('/admin/api/episodes/no-id', { method: 'DELETE' })).status).toBe(404);
     expect((await call('/admin/api/missing')).status).toBe(404);
     expect((await call('/admin/api')).status).toBe(404);

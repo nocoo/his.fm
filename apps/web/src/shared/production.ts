@@ -1,6 +1,7 @@
 import { AUDIO_SAMPLE_RATE, type Principal, type Scope } from '@his-fm/contracts';
 import { z } from 'zod';
 import { categoryIdSchema } from './category';
+import { mentionsSchema } from './mentions';
 
 const productionAudioHeaderScanBytes = 64 * 1024;
 export const productionAudioMaxDurationSeconds = 3600;
@@ -57,8 +58,13 @@ export const briefSchema = z.strictObject({
   targetDurationSeconds: z.number().int().min(60).max(productionAudioMaxDurationSeconds).default(600),
   sources: z.array(sourceSchema).max(30).default([]),
   intent: z.string().trim().max(12000).default(''),
+  mentions: mentionsSchema.default([]),
 });
 export type ProductionBrief = z.infer<typeof briefSchema>;
+export const briefCreateSchema = briefSchema
+  .omit({ episodeNumber: true })
+  .extend({ episodeNumber: briefSchema.shape.episodeNumber.optional() });
+export type ProductionBriefCreate = z.infer<typeof briefCreateSchema>;
 export const productionPatchSchema = briefSchema
   .partial()
   .extend({
@@ -67,6 +73,7 @@ export const productionPatchSchema = briefSchema
     targetDurationSeconds: briefSchema.shape.targetDurationSeconds.removeDefault().optional(),
     sources: briefSchema.shape.sources.removeDefault().optional(),
     intent: briefSchema.shape.intent.removeDefault().optional(),
+    mentions: briefSchema.shape.mentions.removeDefault().optional(),
     version: z.number().int().min(1),
     transcript: z.string().max(50000).optional(),
     description: z.string().max(20000).optional(),

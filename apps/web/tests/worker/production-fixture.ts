@@ -19,6 +19,7 @@ export const brief = {
     { id: 'source-1', type: 'text' as const, title: '观察笔记', content: '一段可核实的成年程序员日常材料。' },
   ],
   intent: '从晚饭被工作消息打断的场景切入。',
+  mentions: [],
 };
 export function fixture(changes: Partial<Production> = {}): Production {
   const now = '2026-09-25T00:00:00.000Z';

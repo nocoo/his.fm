@@ -3,7 +3,13 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { Miniflare } from 'miniflare';
 import { afterAll, beforeAll, beforeEach, expect, it, vi } from 'vitest';
 import { type Category, categoryInputSchema } from '../../src/shared/category';
-import { getCategory, listCategories, renameCategoryId, routeCategories } from '../../worker/categories';
+import {
+  assertCategoryIdAvailable,
+  getCategory,
+  listCategories,
+  renameCategoryId,
+  routeCategories,
+} from '../../worker/categories';
 import worker from '../../worker/index';
 import { routeProductions } from '../../worker/production';
 import { applyPatch } from '../../worker/production-model';
@@ -70,6 +76,8 @@ beforeEach(async () => {
     [
       'DELETE FROM productions',
       'DELETE FROM episodes',
+      'DELETE FROM episode_number_claims',
+      'DELETE FROM category_id_aliases',
       "DELETE FROM categories WHERE id NOT IN ('manager-notes','learning','life','conversations')",
     ].map((sql) => env.DB.prepare(sql)),
   );
@@ -246,6 +254,11 @@ it('renames category id and updates episode and production references', async ()
     category: { id: nextId, name: '迁移后的栏目', version: 2 },
   });
   expect(await getCategory(env.DB, nextId)).toMatchObject({ id: nextId, version: 2 });
+  expect(
+    await env.DB.prepare('SELECT category_id AS categoryId FROM category_id_aliases WHERE alias = ?')
+      .bind(category.id)
+      .first<{ categoryId: string }>(),
+  ).toEqual({ categoryId: nextId });
   await expect(getCategory(env.DB, category.id)).rejects.toMatchObject({ status: 404 });
   expect(
     await env.DB.prepare('SELECT category FROM episodes WHERE id=?')
@@ -330,6 +343,112 @@ it('does not move episode or production references when rename uses a stale vers
   ).toEqual({ category: category.id });
   expect((await getProduction(env.DB, production.id)).category).toBe(category.id);
   expect(await getCategory(env.DB, 'learning')).toMatchObject({ id: 'learning', version: 1 });
+});
+it('rejects category ids that already exist', async () => {
+  await expect(assertCategoryIdAvailable(env.DB, 'learning')).rejects.toMatchObject({ status: 409 });
+});
+it('rejects legacy alias ids for new identifiers', async () => {
+  await env.DB.prepare('INSERT INTO category_id_aliases (alias, category_id) VALUES (?, ?)')
+    .bind('legacy-slot', 'life')
+    .run();
+  await expect(assertCategoryIdAvailable(env.DB, 'legacy-slot')).rejects.toMatchObject({ status: 409 });
+});
+it('rejects category renames onto ids already used by another category', async () => {
+  const category = await create();
+  await expect(
+    routeCategories(request('PUT', { version: 1, nextId: 'learning' }), env, human, category.id),
+  ).rejects.toMatchObject({ status: 409 });
+});
+it('moves episode number claims when renaming category ids', async () => {
+  const category = await create();
+  await env.DB.prepare(
+    'INSERT INTO episode_number_claims (category, episode_number, holder_id, holder_kind) VALUES (?, ?, ?, ?)',
+  )
+    .bind(category.id, 1, 'claim-holder', 'episode')
+    .run();
+  const nextId = 'claims-renamed';
+  await routeCategories(request('PUT', { version: 1, nextId, name: category.name }), env, human, category.id);
+  expect(
+    await env.DB.prepare('SELECT category FROM episode_number_claims WHERE holder_id = ?')
+      .bind('claim-holder')
+      .first<{ category: string }>(),
+  ).toEqual({ category: nextId });
+});
+it('keeps aliases when category delete fails on a stale version', async () => {
+  const category = await create();
+  await env.DB.prepare('INSERT INTO category_id_aliases (alias, category_id) VALUES (?, ?)')
+    .bind('legacy-alias', category.id)
+    .run();
+  await expect(
+    routeCategories(
+      request('DELETE', undefined, `/admin/api/categories/${category.id}?version=99`),
+      env,
+      human,
+      category.id,
+    ),
+  ).rejects.toMatchObject({ status: 409 });
+  expect(
+    await env.DB.prepare('SELECT category_id AS categoryId FROM category_id_aliases WHERE alias = ?')
+      .bind('legacy-alias')
+      .first<{ categoryId: string }>(),
+  ).toEqual({ categoryId: category.id });
+  expect(await getCategory(env.DB, category.id)).toMatchObject({ id: category.id, version: 1 });
+});
+it('deletes empty renamed categories after clearing inbound aliases', async () => {
+  const category = await create();
+  const nextId = 'delete-target';
+  await routeCategories(request('PUT', { version: 1, nextId, name: category.name }), env, human, category.id);
+  const response = await routeCategories(
+    request('DELETE', undefined, `/admin/api/categories/${nextId}?version=2`),
+    env,
+    human,
+    nextId,
+  );
+  expect(response.status).toBe(204);
+});
+it('preserves alias chains when renaming categories twice', async () => {
+  const category = await create();
+  const firstTarget = 'renamed-once';
+  await routeCategories(
+    request('PUT', { version: 1, nextId: firstTarget, name: category.name }),
+    env,
+    human,
+    category.id,
+  );
+  const secondTarget = 'renamed-twice';
+  await routeCategories(
+    request('PUT', { version: 2, nextId: secondTarget, name: category.name }),
+    env,
+    human,
+    firstTarget,
+  );
+  expect(
+    await env.DB.prepare('SELECT category_id AS categoryId FROM category_id_aliases WHERE alias = ?')
+      .bind(category.id)
+      .first<{ categoryId: string }>(),
+  ).toEqual({ categoryId: secondTarget });
+  expect(
+    await env.DB.prepare('SELECT category_id AS categoryId FROM category_id_aliases WHERE alias = ?')
+      .bind(firstTarget)
+      .first<{ categoryId: string }>(),
+  ).toEqual({ categoryId: secondTarget });
+});
+it('reclaims alias ids when renaming a category onto a legacy alias', async () => {
+  const category = await create();
+  const other = await create();
+  await env.DB.prepare('INSERT INTO category_id_aliases (alias, category_id) VALUES (?, ?)')
+    .bind('legacy-id', other.id)
+    .run();
+  await routeCategories(
+    request('PUT', { version: 1, nextId: 'legacy-id', name: '回收标识' }),
+    env,
+    human,
+    category.id,
+  );
+  expect(await getCategory(env.DB, 'legacy-id')).toMatchObject({ name: '回收标识' });
+  expect(
+    await env.DB.prepare('SELECT 1 FROM category_id_aliases WHERE alias = ?').bind('legacy-id').first(),
+  ).toBeNull();
 });
 it('maps duplicate nextId insert races to conflict responses', async () => {
   const category = await create();

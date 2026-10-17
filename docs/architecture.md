@@ -11,7 +11,7 @@ Public section reveals use IntersectionObserver and CSS transitions, not an anim
 | Route | Contract |
 | --- | --- |
 | `/api/live` | D1 health, release version and revision |
-| `/api/episodes[/:slug]` | Published episodes whose publication date has arrived |
+| `/api/episodes[/:slug]` | Published episodes whose publication date has arrived; catalogue JSON omits full transcripts |
 | `/api/categories`, `/api/appearance` | Public metadata only |
 | `/admin/api/session` | Verified owner identity |
 | `/admin/api/*` | Owner management through shared controllers |
@@ -27,7 +27,7 @@ Local login requires `ENVIRONMENT=local` and an allowlisted hostname. Its eight-
 
 A production is a versioned editorial record: sources, intent, script, descriptions, cover/audio assets, approvals and publication audit. The server does not fetch arbitrary source URLs. Field changes and approval transitions share the same state machine for owners and external clients; scopes do not bypass validity or versions.
 
-Published episodes are snapshots, not live views of mutable productions. An explicit publication operation atomically updates the snapshot and appends an audit event. Editing a production preserves its public snapshot. Linked snapshot content cannot be changed through standalone episode CRUD; `featured` has a separate versioned display PATCH. Standalone episodes retain CRUD and can publish a manuscript without audio.
+Published episodes are snapshots, not live views of mutable productions. Public pages, feeds and catalogue JSON expose summaries and show notes only; full transcripts remain in admin and authenticated agent APIs. An explicit publication operation atomically updates the snapshot and appends an audit event. Editing a production preserves its public snapshot. Linked snapshot content cannot be changed through standalone episode CRUD; `featured` has a separate versioned display PATCH. Standalone episodes retain CRUD and can publish a manuscript without audio.
 
 R2 assets use unique immutable keys. Detaching an asset does not delete bytes. Cleanup checks current references, saved media provenance, object versions and the 24-hour retention period; reserved brand/reference prefixes remain protected. Public and private media streaming share range handling so browser seeking works without downloading an entire recording first.
 

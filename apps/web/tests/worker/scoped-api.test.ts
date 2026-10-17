@@ -92,9 +92,14 @@ beforeAll(async () => {
 
 beforeEach(async () => {
   await env.DB.batch(
-    ['agent_tokens', 'productions', 'episodes', 'local_sessions', 'channel_profile'].map((table) =>
-      env.DB.prepare(`DELETE FROM ${table}`),
-    ),
+    [
+      'agent_tokens',
+      'productions',
+      'episodes',
+      'episode_number_claims',
+      'local_sessions',
+      'channel_profile',
+    ].map((table) => env.DB.prepare(`DELETE FROM ${table}`)),
   );
   await env.DB.prepare("UPDATE categories SET name='Life', prompt='' WHERE id='life'").run();
   const login = await call('/admin/api/dev-login', undefined, 'POST');

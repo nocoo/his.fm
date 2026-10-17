@@ -78,7 +78,7 @@ it('retires native state without losing business grants, prompt bodies, publishe
       ],
       audioJob: { id: 'legacy-job', status: 'complete', scriptVersion: 1, createdAt: 'before', error: null },
     };
-    await env.DB.prepare('INSERT INTO productions VALUES (?,?,?,?,?,?)')
+    await env.DB.prepare('INSERT INTO productions VALUES (?,?,?,?,?,?,?)')
       .bind(
         completed.id,
         completed.version,
@@ -86,6 +86,7 @@ it('retires native state without losing business grants, prompt bodies, publishe
         JSON.stringify(completed),
         completed.createdAt,
         completed.updatedAt,
+        crypto.randomUUID(),
       )
       .run();
     await env.DB.prepare(

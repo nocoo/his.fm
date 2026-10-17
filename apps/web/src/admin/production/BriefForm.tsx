@@ -1,11 +1,13 @@
 import { Button, Field, Input, LayerCard } from '@nocoo/basalt';
 import { Plus } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
+import { mentionsSchema } from '../../shared/mentions';
 import type { ProductionBrief } from '../../shared/production';
 import { CategorySelect } from '../categories/CategorySelect';
 import { DraftConflicts } from '../draft/DraftConflicts';
 import { useDraft } from '../draft/useDraft';
+import { MentionsEditor } from '../MentionsEditor';
 import { MarkdownEditor } from '../markdown/MarkdownEditor';
 import { Failure } from './controls';
 import { readBrief } from './model';
@@ -18,6 +20,7 @@ export function BriefForm({
   onDirty,
   onComplete,
   completed = false,
+  suggestEpisodeNumber,
 }: {
   value: ProductionBrief;
   pending: boolean;
@@ -25,6 +28,7 @@ export function BriefForm({
   onComplete?: (brief: ProductionBrief) => Promise<void>;
   completed?: boolean;
   onDirty: (dirty: boolean) => void;
+  suggestEpisodeNumber?: (category: string) => number;
 }) {
   const [query, setQuery] = useSearchParams();
   const selected = query.get('source');
@@ -37,9 +41,16 @@ export function BriefForm({
     targetDurationSeconds: value.targetDurationSeconds,
     tags: value.tags.join('，'),
     sources: value.sources,
+    mentions: value.mentions,
   });
   const { sources, category } = draft.value;
+  const previousCategory = useRef(category);
   const sourceIndex = sources.findIndex((source) => source.id === selected);
+  useEffect(() => {
+    if (!suggestEpisodeNumber || previousCategory.current === category) return;
+    previousCategory.current = category;
+    draft.change('episodeNumber', suggestEpisodeNumber(category));
+  }, [category, suggestEpisodeNumber, draft]);
   const setSources = (sources: SourceDraft[]) => draft.change('sources', sources);
   useEffect(() => {
     onDirty(draft.dirty);
@@ -63,10 +74,24 @@ export function BriefForm({
           const result = readBrief(new FormData(event.currentTarget), sources);
           setError(result.error);
           if (result.data && !draft.conflicts.length) {
+            const mentionsResult = mentionsSchema.safeParse(
+              draft.value.mentions
+                .filter((mention) => mention.name.trim() || mention.description.trim() || mention.url)
+                .map((mention) => ({
+                  name: mention.name.trim(),
+                  description: mention.description.trim(),
+                  ...(mention.url?.trim() ? { url: mention.url.trim() } : {}),
+                })),
+            );
+            if (!mentionsResult.success) {
+              setError(mentionsResult.error.issues[0]?.message ?? '请检查提及信息');
+              return;
+            }
+            const brief = { ...result.data, mentions: mentionsResult.data };
             const complete =
               (event.nativeEvent as SubmitEvent).submitter?.getAttribute('value') === 'complete';
-            if (complete && onComplete) await onComplete(result.data);
-            else await onSave(result.data);
+            if (complete && onComplete) await onComplete(brief);
+            else await onSave(brief);
           }
         }}
       >
@@ -110,7 +135,12 @@ export function BriefForm({
                 />
               </Field>
               <div className="studio-grid">
-                <Field label="期数" htmlFor="production-number" required>
+                <Field
+                  label="期数"
+                  htmlFor="production-number"
+                  required
+                  hint="栏目内独立编号；切换栏目时会建议下一期，也可手动指定。"
+                >
                   <Input
                     id="production-number"
                     name="episodeNumber"
@@ -172,6 +202,14 @@ export function BriefForm({
               </Field>
             </LayerCard.Body>
           </LayerCard>
+          <MentionsEditor
+            value={draft.value.mentions}
+            disabled={pending}
+            onChange={(mentions) => {
+              draft.change('mentions', mentions);
+              onDirty(true);
+            }}
+          />
           <LayerCard padding="none">
             <LayerCard.Header className="studio-row">
               <strong>原始素材 · {sources.length} / 30</strong>

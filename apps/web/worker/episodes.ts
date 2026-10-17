@@ -1,14 +1,27 @@
 import { hasScope } from '@his-fm/contracts';
+import type { z } from 'zod';
 import {
   type Episode,
   type EpisodeInput,
+  episodeCreateSchema,
   episodeDisplaySchema,
-  episodeInputSchema,
   episodeUpdateSchema,
+  type PublicEpisode,
+  projectPublicEpisode,
 } from '../src/shared/episode';
+
+type EpisodeUpdate = z.infer<typeof episodeUpdateSchema>;
+
 import type { Actor } from '../src/shared/production';
 import { requireScope } from './authorization';
 import { getCategory } from './categories';
+import {
+  batchInsertWithEpisodeNumberClaim,
+  deleteHolderEpisodeNumberClaims,
+  episodeClaimReplaceStatements,
+  resolveEpisodePatchEpisodeNumber,
+} from './episode-numbering';
+import { resolveCategoryAlias } from './episode-public';
 import { HttpError, json } from './http';
 import { readJson } from './production-body';
 
@@ -23,6 +36,7 @@ type EpisodeRow = Omit<
   | 'createdAt'
   | 'updatedAt'
   | 'tags'
+  | 'mentions'
   | 'featured'
 > & {
   source_production_id: string | null;
@@ -35,6 +49,7 @@ type EpisodeRow = Omit<
   created_at: string;
   updated_at: string;
   tags: string;
+  mentions: string;
   featured: number;
 };
 
@@ -52,6 +67,7 @@ function fromRow(row: EpisodeRow): Episode {
     coverUrl: row.cover_url,
     category: row.category,
     tags: JSON.parse(row.tags),
+    mentions: JSON.parse(row.mentions),
     durationSeconds: row.duration_seconds,
     audioUrl: row.audio_url,
     status: row.status,
@@ -62,7 +78,31 @@ function fromRow(row: EpisodeRow): Episode {
   };
 }
 
-export async function listEpisodes(db: D1Database, publishedOnly: boolean, actor?: Actor) {
+async function fetchPublishedRow(db: D1Database, lookup: { category?: string; slug: string }) {
+  const now = new Date().toISOString();
+  if (lookup.category) {
+    const category = await resolveCategoryAlias(db, lookup.category);
+    return db
+      .prepare(
+        "SELECT * FROM episodes WHERE category = ? AND slug = ? AND status = 'published' AND published_at <= ?",
+      )
+      .bind(category, lookup.slug, now)
+      .first<EpisodeRow>();
+  }
+  return db
+    .prepare(
+      "SELECT * FROM episodes WHERE slug = ? AND status = 'published' AND published_at <= ? ORDER BY published_at DESC LIMIT 1",
+    )
+    .bind(lookup.slug, now)
+    .first<EpisodeRow>();
+}
+
+export async function listEpisodes(
+  db: D1Database,
+  publishedOnly: boolean,
+  actor?: Actor,
+  origin = 'https://his.fm',
+): Promise<Array<Episode | PublicEpisode>> {
   if (!publishedOnly) {
     if (!actor) throw new HttpError(403, 'Missing scope: episodes:read');
     requireScope(actor, 'episodes:read');
@@ -75,22 +115,28 @@ export async function listEpisodes(db: D1Database, publishedOnly: boolean, actor
     ? statement.bind(new Date().toISOString())
     : statement
   ).all<EpisodeRow>();
-  return result.results.map(fromRow);
+  const episodes = result.results.map(fromRow);
+  return publishedOnly ? episodes.map((episode) => projectPublicEpisode(episode, origin)) : episodes;
 }
 
-export async function getEpisode(db: D1Database, key: string, publishedOnly: boolean, actor?: Actor) {
+export async function getEpisode(
+  db: D1Database,
+  key: string,
+  publishedOnly: boolean,
+  actor?: Actor,
+  options: { category?: string; origin?: string } = {},
+): Promise<Episode | PublicEpisode> {
+  const origin = options.origin ?? 'https://his.fm';
   if (!publishedOnly) {
     if (!actor) throw new HttpError(403, 'Missing scope: episodes:read');
     requireScope(actor, 'episodes:read');
+    const row = await db.prepare('SELECT * FROM episodes WHERE id = ?').bind(key).first<EpisodeRow>();
+    if (!row) throw new HttpError(404, '这期节目不存在');
+    return fromRow(row);
   }
-  const statement = publishedOnly
-    ? db
-        .prepare("SELECT * FROM episodes WHERE slug = ? AND status = 'published' AND published_at <= ?")
-        .bind(key, new Date().toISOString())
-    : db.prepare('SELECT * FROM episodes WHERE id = ?').bind(key);
-  const row = await statement.first<EpisodeRow>();
+  const row = await fetchPublishedRow(db, { category: options.category, slug: key });
   if (!row) throw new HttpError(404, '这期节目不存在');
-  return fromRow(row);
+  return projectPublicEpisode(fromRow(row), origin);
 }
 
 async function readInput(request: Request, update: boolean) {
@@ -125,7 +171,7 @@ async function readInput(request: Request, update: boolean) {
   } catch {
     throw new HttpError(400, '节目内容不是有效的 JSON');
   }
-  const parsed = (update ? episodeUpdateSchema : episodeInputSchema).safeParse(data);
+  const parsed = (update ? episodeUpdateSchema : episodeCreateSchema).safeParse(data);
   if (!parsed.success) throw new HttpError(400, parsed.error.issues[0]?.message ?? '请检查节目内容');
   return parsed.data;
 }
@@ -141,6 +187,7 @@ function inputValues(input: EpisodeInput) {
     input.coverUrl,
     input.category,
     JSON.stringify(input.tags),
+    JSON.stringify(input.mentions),
     input.durationSeconds,
     input.audioUrl,
     input.status,
@@ -180,6 +227,7 @@ export async function mutateEpisode(request: Request, db: D1Database, actor: Act
   if (current?.source_production_id)
     throw new HttpError(409, '这期节目由制作流程管理，请进入制作任务修改和重新审核');
   if (request.method === 'DELETE') {
+    if (!id) throw new HttpError(404, '这期节目不存在');
     const raw = new URL(request.url).searchParams.get('version');
     const version = Number(raw);
     if (!raw || !/^[1-9]\d*$/.test(raw) || !Number.isSafeInteger(version))
@@ -189,8 +237,9 @@ export async function mutateEpisode(request: Request, db: D1Database, actor: Act
         'DELETE FROM episodes WHERE id = ? AND version = ? AND source_production_id IS NULL RETURNING id',
       )
       .bind(id, version)
-      .first();
+      .first<{ id: string }>();
     if (!deleted) throw new HttpError(409, '节目已被修改，请刷新后重试');
+    await deleteHolderEpisodeNumberClaims(db, 'episode', id).run();
     return new Response(null, { status: 204 });
   }
   const input = await readInput(request, Boolean(id));
@@ -202,25 +251,63 @@ export async function mutateEpisode(request: Request, db: D1Database, actor: Act
     requireScope(actor, 'episodes:publish');
   await getCategory(db, input.category);
   const now = new Date().toISOString();
-  try {
-    const statement = id
-      ? db
-          .prepare(
-            'UPDATE episodes SET slug = ?, episode_number = ?, title = ?, summary = ?, transcript = ?, show_notes = ?, cover_url = ?, category = ?, tags = ?, duration_seconds = ?, audio_url = ?, status = ?, featured = ?, published_at = ?, updated_at = ?, version = version + 1 WHERE id = ? AND version = ? AND source_production_id IS NULL RETURNING *',
-          )
-          .bind(...inputValues(input), now, id, 'version' in input ? input.version : null)
-      : db
-          .prepare(
-            'INSERT INTO episodes (slug, episode_number, title, summary, transcript, show_notes, cover_url, category, tags, duration_seconds, audio_url, status, featured, published_at, created_at, updated_at, id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *',
-          )
-          .bind(...inputValues(input), now, now, crypto.randomUUID());
-    const row = await statement.first<EpisodeRow>();
-    if (!row) throw new HttpError(409, '节目已被修改，请刷新后重试');
-    return respond(row, id ? 200 : 201);
-  } catch (error) {
-    if (error instanceof Error && /UNIQUE constraint failed: episodes\.slug/.test(error.message)) {
-      throw new HttpError(409, '这个链接名称已被另一集使用');
+  if (id && current) {
+    const episodeNumber = await resolveEpisodePatchEpisodeNumber(
+      db,
+      {
+        id: current.id,
+        category: current.category,
+        episodeNumber: current.episode_number,
+      },
+      { category: input.category, episodeNumber: input.episodeNumber },
+    );
+    const payload = { ...input, episodeNumber };
+    const claimChanged = current.category !== input.category || current.episode_number !== episodeNumber;
+    const { version: expectedVersion } = input as EpisodeUpdate;
+    const newVersion = expectedVersion + 1;
+    const writeId = crypto.randomUUID();
+    const statements = [
+      db
+        .prepare(
+          'UPDATE episodes SET slug = ?, episode_number = ?, title = ?, summary = ?, transcript = ?, show_notes = ?, cover_url = ?, category = ?, tags = ?, mentions = ?, duration_seconds = ?, audio_url = ?, status = ?, featured = ?, published_at = ?, updated_at = ?, write_id = ?, version = version + 1 WHERE id = ? AND version = ? AND source_production_id IS NULL',
+        )
+        .bind(...inputValues(payload), now, writeId, id, expectedVersion),
+    ];
+    if (claimChanged) {
+      statements.push(
+        ...episodeClaimReplaceStatements(db, id, newVersion, writeId, input.category, episodeNumber),
+      );
     }
-    throw error;
+    try {
+      const results = await db.batch(statements);
+      if (results[0].meta.changes !== 1) throw new HttpError(409, '节目已被修改，请刷新后重试');
+      const row = await db.prepare('SELECT * FROM episodes WHERE id = ?').bind(id).first<EpisodeRow>();
+      if (!row) throw new HttpError(409, '节目已被修改，请刷新后重试');
+      return respond(row);
+    } catch (error) {
+      if (error instanceof HttpError) throw error;
+      const message = error instanceof Error ? error.message : '';
+      if (/UNIQUE constraint failed/.test(message)) {
+        throw new HttpError(409, '该栏目下已有相同期数或链接名称');
+      }
+      /* v8 ignore next */
+      throw error;
+    }
   }
+
+  const newId = crypto.randomUUID();
+  const writeId = crypto.randomUUID();
+  const row = await batchInsertWithEpisodeNumberClaim<EpisodeRow>(
+    db,
+    input.category,
+    newId,
+    (episodeNumber) =>
+      db
+        .prepare(
+          'INSERT INTO episodes (slug, episode_number, title, summary, transcript, show_notes, cover_url, category, tags, mentions, duration_seconds, audio_url, status, featured, published_at, created_at, updated_at, write_id, id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *',
+        )
+        .bind(...inputValues({ ...input, episodeNumber }), now, now, writeId, newId),
+    input.episodeNumber,
+  );
+  return respond(row, 201);
 }
