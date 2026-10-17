@@ -1,6 +1,6 @@
 import { Button, Field, Input, LayerCard } from '@nocoo/basalt';
 import { Plus } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import type { ProductionBrief } from '../../shared/production';
 import { CategorySelect } from '../categories/CategorySelect';
@@ -18,6 +18,7 @@ export function BriefForm({
   onDirty,
   onComplete,
   completed = false,
+  suggestEpisodeNumber,
 }: {
   value: ProductionBrief;
   pending: boolean;
@@ -25,6 +26,7 @@ export function BriefForm({
   onComplete?: (brief: ProductionBrief) => Promise<void>;
   completed?: boolean;
   onDirty: (dirty: boolean) => void;
+  suggestEpisodeNumber?: (category: string) => number;
 }) {
   const [query, setQuery] = useSearchParams();
   const selected = query.get('source');
@@ -39,7 +41,13 @@ export function BriefForm({
     sources: value.sources,
   });
   const { sources, category } = draft.value;
+  const previousCategory = useRef(category);
   const sourceIndex = sources.findIndex((source) => source.id === selected);
+  useEffect(() => {
+    if (!suggestEpisodeNumber || previousCategory.current === category) return;
+    previousCategory.current = category;
+    draft.change('episodeNumber', suggestEpisodeNumber(category));
+  }, [category, suggestEpisodeNumber, draft]);
   const setSources = (sources: SourceDraft[]) => draft.change('sources', sources);
   useEffect(() => {
     onDirty(draft.dirty);
@@ -110,7 +118,12 @@ export function BriefForm({
                 />
               </Field>
               <div className="studio-grid">
-                <Field label="期数" htmlFor="production-number" required>
+                <Field
+                  label="期数"
+                  htmlFor="production-number"
+                  required
+                  hint="栏目内独立编号；切换栏目时会建议下一期，也可手动指定。"
+                >
                   <Input
                     id="production-number"
                     name="episodeNumber"

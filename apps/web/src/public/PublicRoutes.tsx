@@ -16,12 +16,12 @@ import { Outlet, Route, Routes, useLocation, useParams } from 'react-router';
 import { BrandSymbol, Wordmark } from '../brand/Brand';
 import { themeMedia } from '../brand/themes';
 import { AudioPlayer } from '../components/AudioPlayer';
-import type { Episode } from '../shared/episode';
+import type { PublicEpisode } from '../shared/episode';
 import { ReadingText } from '../shared/ReadingText';
 import { PublicLink as Link, PublicNavLink as NavLink, SiteAppearance, useAppearance } from './Appearance';
 import { EpisodeCover } from './EpisodeCover';
 import { Hero, ThemeImage } from './Hero';
-import { categoryLabel, dateLabel, durationLabel, filterEpisodes } from './model';
+import { categoryLabel, dateLabel, durationLabel, episodeDisplayLabel, filterEpisodes } from './model';
 import { Reveal } from './Reveal';
 import { useEpisodes } from './useEpisodes';
 import './hero.css';
@@ -162,8 +162,9 @@ function LibraryState({ children }: { children: ReactNode }) {
   return children;
 }
 
-function EpisodeCard({ episode }: { episode: Episode }) {
+function EpisodeCard({ episode }: { episode: PublicEpisode }) {
   const { categories } = useLibrary();
+  const label = episodeDisplayLabel(episode, categories);
   return (
     <article className="episode-card">
       <Link to={`/episodes/${episode.slug}`} className="episode-art" tabIndex={-1} aria-hidden="true">
@@ -173,10 +174,10 @@ function EpisodeCard({ episode }: { episode: Episode }) {
         </span>
       </Link>
       <div className="episode-meta">
-        <span>{categoryLabel(episode.category, categories)}</span>
+        <span>{label}</span>
         <span>
           {durationLabel(episode.durationSeconds)}
-          {!episode.audioUrl && ' · 文稿'}
+          {!episode.audioUrl && ' · 摘要'}
         </span>
       </div>
       <h3>
@@ -192,15 +193,16 @@ function EpisodeCard({ episode }: { episode: Episode }) {
 }
 
 function Home() {
-  const { episodes } = useLibrary();
+  const { episodes, categories } = useLibrary();
   const { id } = useAppearance();
   const featured = episodes.find((episode) => episode.featured) ?? episodes[0];
+  const featuredLabel = featured ? episodeDisplayLabel(featured, categories) : undefined;
   useEffect(() => {
     document.title = 'his.fm · 世界很快，你可以慢慢来';
   }, []);
   return (
     <>
-      <Hero featured={featured} />
+      <Hero featured={featured} episodeLabel={featuredLabel} />
       <div className="pace-line" aria-hidden="true">
         <span>主理人手札</span>
         <i />
@@ -360,14 +362,21 @@ function EpisodeDetail() {
   const { slug } = useParams();
   const { episodes, categories, loading, error } = useLibrary();
   const episode = episodes.find((item) => item.slug === slug);
-  const [tab, setTab] = useState<'notes' | 'transcript'>('notes');
   const [copyState, setCopyState] = useState('');
   useEffect(() => {
-    document.title = episode ? `${episode.title} · his.fm` : '节目详情 · his.fm';
-  }, [episode]);
-  // biome-ignore lint/correctness/useExhaustiveDependencies: Each episode starts with its own summary and share state.
+    if (!episode) {
+      document.title = '节目详情 · his.fm';
+      return;
+    }
+    document.title = `${episodeDisplayLabel(episode, categories)} · ${episode.title} · his.fm`;
+    const description = document.querySelector<HTMLMetaElement>('meta[name="description"]');
+    description?.setAttribute(
+      'content',
+      `${episodeDisplayLabel(episode, categories)} · ${episode.summary}`,
+    );
+  }, [episode, categories]);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: Each episode resets share state on navigation.
   useEffect(() => {
-    setTab('notes');
     setCopyState('');
   }, [slug]);
   async function share() {
@@ -394,7 +403,7 @@ function EpisodeDetail() {
                     src={episode.audioUrl}
                     title={episode.title}
                     coverUrl={episode.coverUrl}
-                    subtitle={`EP.${String(episode.episodeNumber).padStart(2, '0')} · ${categoryLabel(episode.category, categories)}`}
+                    subtitle={episodeDisplayLabel(episode, categories)}
                   />
                 ) : (
                   <EpisodeCover episode={episode} priority />
@@ -402,7 +411,7 @@ function EpisodeDetail() {
               </Reveal>
               <Reveal className="detail-intro">
                 <p className="eyebrow">
-                  {categoryLabel(episode.category, categories)} <span> / </span>{' '}
+                  {episodeDisplayLabel(episode, categories)} <span> / </span>{' '}
                   {dateLabel(episode.publishedAt)}
                 </p>
                 <h1>{episode.title}</h1>
@@ -417,9 +426,9 @@ function EpisodeDetail() {
                     <BrandSymbol />
                     <div>
                       <strong>声音正在准备中</strong>
-                      <span>预计 {durationLabel(episode.durationSeconds)} · 先读本期文稿</span>
+                      <span>预计 {durationLabel(episode.durationSeconds)} · 先看本期摘要</span>
                     </div>
-                    <a href="#episode-content" className="round-link" aria-label="阅读本期文稿">
+                    <a href="#episode-content" className="round-link" aria-label="阅读本期摘要">
                       <ArrowDown size={21} />
                     </a>
                   </div>
@@ -441,39 +450,14 @@ function EpisodeDetail() {
                   <br />
                   留一会儿时间。
                 </p>
-                <span>his.fm · EP.{String(episode.episodeNumber).padStart(2, '0')}</span>
+                <span>his.fm · {episodeDisplayLabel(episode, categories)}</span>
               </aside>
               <div className="episode-writing">
-                <div className="reading-tabs" role="tablist" aria-label="节目内容">
-                  <button
-                    id="notes-tab"
-                    aria-controls="reading-panel"
-                    role="tab"
-                    aria-selected={tab === 'notes'}
-                    type="button"
-                    onClick={() => setTab('notes')}
-                  >
-                    本期摘要
-                  </button>
-                  <button
-                    id="transcript-tab"
-                    aria-controls="reading-panel"
-                    role="tab"
-                    aria-selected={tab === 'transcript'}
-                    type="button"
-                    onClick={() => setTab('transcript')}
-                  >
-                    逐字稿
-                  </button>
-                </div>
-                <div id="reading-panel" role="tabpanel" aria-labelledby={`${tab}-tab`}>
+                <h2 className="sr-only">本期摘要</h2>
+                <div id="reading-panel">
                   <ReadingText
                     className="readable-text"
-                    text={
-                      tab === 'notes'
-                        ? episode.showNotes || episode.summary
-                        : episode.transcript || '逐字稿正在整理中。'
-                    }
+                    text={episode.showNotes || episode.summary}
                   />
                 </div>
               </div>

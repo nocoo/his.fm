@@ -1,13 +1,16 @@
 import { Button } from '@nocoo/basalt';
 import { PageHeader } from '@nocoo/basalt/components/page-header';
 import { ArrowLeft } from 'lucide-react';
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router';
 import { useCategories } from '../categories/useCategories';
 import { errorMessage } from '../model';
 import { BriefForm } from './BriefForm';
 import { Failure } from './controls';
-import { emptyBrief } from './model';
+import type { Episode } from '../../shared/episode';
+import type { Production } from '../../shared/production';
+import { adminService } from '../service';
+import { emptyBrief, nextEpisodeNumberForCategory } from './model';
 import { productionService } from './service';
 import { useUnsavedChanges } from './useUnsavedChanges';
 
@@ -22,6 +25,32 @@ export function NewProduction() {
   const [dirty, setDirty] = useState(false);
   useUnsavedChanges(dirty);
   const defaultCategoryId = categories.categories[0]?.id;
+  const [catalog, setCatalog] = useState<{ productions: Production[]; episodes: Episode[] } | null>(
+    null,
+  );
+  useEffect(() => {
+    const controller = new AbortController();
+    void Promise.all([productionService.list(controller.signal), adminService.list(controller.signal)])
+      .then(([productions, episodes]) => {
+        if (!controller.signal.aborted) {
+          setCatalog({ productions: productions.productions, episodes: episodes.episodes });
+        }
+      })
+      .catch(() => {});
+    return () => controller.abort();
+  }, []);
+  const suggestEpisodeNumber = useCallback(
+    (category: string) =>
+      catalog ? nextEpisodeNumberForCategory(category, catalog.productions, catalog.episodes) : 1,
+    [catalog],
+  );
+  const initialBrief = useMemo(
+    () =>
+      defaultCategoryId
+        ? emptyBrief(defaultCategoryId, suggestEpisodeNumber(defaultCategoryId))
+        : null,
+    [defaultCategoryId, suggestEpisodeNumber],
+  );
   // biome-ignore lint/correctness/useExhaustiveDependencies: Only reset the content island when opening a source subpage.
   useLayoutEffect(() => {
     view.current?.closest('.admin-content-island')?.scrollTo({ top: 0, behavior: 'instant' });
@@ -49,10 +78,12 @@ export function NewProduction() {
       )}
       {error && <Failure error={error} />}
       {categories.error && <Failure error={categories.error} retry={() => void categories.load()} />}
-      {defaultCategoryId && (
+      {initialBrief && (
         <BriefForm
-          value={emptyBrief(defaultCategoryId)}
+          key={`${initialBrief.category}-${initialBrief.episodeNumber}`}
+          value={initialBrief}
           pending={pending}
+          suggestEpisodeNumber={suggestEpisodeNumber}
           onDirty={setDirty}
           onSave={async (brief) => {
             if (pending) return;

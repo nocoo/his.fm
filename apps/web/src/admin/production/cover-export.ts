@@ -34,9 +34,15 @@ export async function exportCover(source: string, episodeNumber: number, themeId
   context.drawImage(overlay, 0, 0, size, size);
   context.fillStyle = frame.episode.fill;
   context.font = `500 ${frame.episode.fontSize}px "Space Grotesk"`;
+<<<<<<< HEAD
   context.textAlign = 'left';
   context.textBaseline = 'alphabetic';
   context.fillText(`EP.${String(episodeNumber).padStart(3, '0')}`, frame.episode.x, frame.episode.y);
+=======
+  context.textAlign = 'right';
+  context.textBaseline = 'middle';
+  context.fillText(`EP.${String(episodeNumber).padStart(2, '0')}`, frame.episode.x, frame.episode.y);
+>>>>>>> c9e8407 (Show per-category episode labels in public and admin UI)
   return new Promise<Blob>((resolve, reject) => {
     canvas.toBlob(
       (blob) => (blob ? resolve(blob) : reject(new Error('封面导出失败，请重试。'))),

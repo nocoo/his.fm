@@ -1,4 +1,5 @@
 import type { Episode } from '../../shared/episode';
+import { formatEpisodeLabel } from '../../shared/episode-display';
 import {
   briefSchema,
   type Production,
@@ -8,11 +9,32 @@ import {
   productionAudioMaxDurationSeconds,
 } from '../../shared/production';
 
-export function emptyBrief(categoryId: string): ProductionBrief {
+export function nextEpisodeNumberForCategory(
+  category: string,
+  productions: Production[],
+  episodes: Episode[],
+  excludeProductionId?: string,
+): number {
+  const numbers = [
+    ...productions
+      .filter(
+        (production) => production.category === category && production.id !== excludeProductionId,
+      )
+      .map((production) => production.episodeNumber),
+    ...episodes.filter((episode) => episode.category === category).map((episode) => episode.episodeNumber),
+  ];
+  return (numbers.length ? Math.max(...numbers) : 0) + 1;
+}
+
+export function episodeLabel(categoryName: string, episodeNumber: number): string {
+  return formatEpisodeLabel(categoryName, episodeNumber);
+}
+
+export function emptyBrief(categoryId: string, episodeNumber = 1): ProductionBrief {
   return {
     title: '',
     slug: '',
-    episodeNumber: 1,
+    episodeNumber,
     category: categoryId,
     tags: [],
     targetDurationSeconds: 600,
@@ -149,7 +171,7 @@ export function programLibrary(productions: Production[], episodes: Episode[]): 
           episode,
         }),
       ),
-  ].sort((a, b) => b.episodeNumber - a.episodeNumber || Date.parse(b.updatedAt) - Date.parse(a.updatedAt));
+  ].sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt));
 }
 export function productionHasPublicationHistory(production: Production): boolean {
   return (

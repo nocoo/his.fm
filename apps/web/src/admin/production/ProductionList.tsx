@@ -12,7 +12,14 @@ import { useCategories } from '../categories/useCategories';
 import { errorMessage } from '../model';
 import { adminService } from '../service';
 import { Choice, Confirm, Failure } from './controls';
-import { canDeleteLibraryEntry, dateLabel, filterLibrary, type LibraryEntry, programLibrary } from './model';
+import {
+  canDeleteLibraryEntry,
+  dateLabel,
+  episodeLabel,
+  filterLibrary,
+  type LibraryEntry,
+  programLibrary,
+} from './model';
 import { productionService } from './service';
 
 const statusLabels = { draft: '草稿', ready: '待发布', published: '已发布' } as const;
@@ -33,7 +40,7 @@ function Cover({ row, thumbnail = false }: { row: LibraryEntry; thumbnail?: bool
       ) : (
         <span className="library-cover-placeholder">
           <Music2 size={thumbnail ? 22 : 42} strokeWidth={1.25} />
-          <span>{String(row.episodeNumber).padStart(3, '0')}</span>
+          <span>{String(row.episodeNumber).padStart(2, '0')}</span>
         </span>
       )}
     </div>
@@ -93,9 +100,7 @@ export function ProductionList() {
           </Link>
           <div>
             <Link to={row.href}>{row.title}</Link>
-            <span>
-              第 {row.episodeNumber} 期 · {categoryName(row)}
-            </span>
+            <span>{episodeLabel(categoryName(row), row.episodeNumber)}</span>
           </div>
         </div>
       ),
@@ -283,7 +288,7 @@ export function ProductionList() {
                     <Cover row={row} />
                     <div className="library-card-copy">
                       <div className="studio-row">
-                        <span className="admin-number">EP {String(row.episodeNumber).padStart(3, '0')}</span>
+                        <span className="admin-number">{episodeLabel(categoryName(row), row.episodeNumber)}</span>
                         <Status row={row} />
                       </div>
                       <h2>{row.title}</h2>
