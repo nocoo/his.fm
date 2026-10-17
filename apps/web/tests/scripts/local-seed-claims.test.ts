@@ -62,6 +62,78 @@ describe('local seed episode number claims', () => {
     expect(await nextEpisodeNumberInCategory(db, 'life')).toBe(1);
   });
 
+  it('skips import claims when the example production already exists', async () => {
+    const productionId = 'example-how-to-live-better';
+    const now = '2026-09-24T08:00:00.000Z';
+    const payload = JSON.stringify({
+      category: 'manager-notes',
+      slug: 'how-to-live-better',
+      title: '示例',
+      episodeNumber: 1,
+    });
+    await db
+      .prepare(
+        'INSERT INTO productions (id, version, stage, data, created_at, updated_at, write_id) VALUES (?, 1, ?, ?, ?, ?, ?)',
+      )
+      .bind(productionId, 'draft', payload, now, now, crypto.randomUUID())
+      .run();
+    await db
+      .prepare(
+        'INSERT INTO episode_number_claims (category, episode_number, holder_id, holder_kind) VALUES (?, ?, ?, ?)',
+      )
+      .bind('manager-notes', 1, productionId, 'episode')
+      .run();
+    await db
+      .prepare(
+        `WITH new_production AS (
+           SELECT id, data FROM productions WHERE id = ?
+         )
+         INSERT INTO episode_number_claims (category, episode_number, holder_id, holder_kind)
+         SELECT json_extract(data, '$.category'), CAST(json_extract(data, '$.episodeNumber') AS INTEGER), id, 'production'
+         FROM new_production`,
+      )
+      .bind(productionId)
+      .run()
+      .catch(() => undefined);
+    expect(
+      await db
+        .prepare('SELECT COUNT(*) AS n FROM episode_number_claims WHERE holder_id = ?')
+        .bind(productionId)
+        .first<{ n: number }>(),
+    ).toEqual({ n: 1 });
+  });
+
+  it('allocates seed episode numbers from existing claims in the category', async () => {
+    await db
+      .prepare(
+        'INSERT INTO episode_number_claims (category, episode_number, holder_id, holder_kind) VALUES (?, ?, ?, ?)',
+      )
+      .bind('manager-notes', 1, 'example-how-to-live-better', 'production')
+      .run();
+    const id = 'local-episode-01';
+    const now = '2026-09-24T08:00:00.000Z';
+    await db
+      .prepare(
+        `INSERT INTO episodes (id, slug, episode_number, title, summary, transcript, show_notes, cover_url, category, tags, duration_seconds, audio_url, status, featured, published_at, created_at, updated_at, version, write_id)
+         SELECT ?, ?, (SELECT COALESCE(MAX(episode_number), 0) + 1 FROM episode_number_claims WHERE category = 'manager-notes'), '预览', '摘要', '正文', '节目单', '/images/episode-01.webp', 'manager-notes', '[]', 600, NULL, 'published', 0, ?, ?, ?, 1, ?`,
+      )
+      .bind(id, 'seed-preview', now, now, now, crypto.randomUUID())
+      .run();
+    await db
+      .prepare(
+        `INSERT INTO episode_number_claims (category, episode_number, holder_id, holder_kind)
+         SELECT category, episode_number, id, 'episode' FROM episodes WHERE id = ?`,
+      )
+      .bind(id)
+      .run();
+    expect(
+      await db
+        .prepare('SELECT episode_number AS episodeNumber FROM episodes WHERE id = ?')
+        .bind(id)
+        .first<{ episodeNumber: number }>(),
+    ).toEqual({ episodeNumber: 2 });
+  });
+
   it('allocates the next category number for import-style production rows and claims', async () => {
     for (const [holderId, episodeNumber] of [
       ['seed-ep-1', 1],
