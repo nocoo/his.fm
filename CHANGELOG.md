@@ -11,8 +11,11 @@ All notable changes to his.fm are documented here. The format follows [Keep a Ch
 
 ### Changed
 
-- Migration **0016** ranks episode numbers jointly across episodes and unlinked productions in each category; linked productions inherit their episode number.
-- Production create allocates episode numbers atomically against `productions(category, episode_number)` with retry on conflict; manual duplicate numbers return **409**.
+- Migration **0016** ranks episode numbers jointly across episodes and unlinked productions in each category; linked productions sync from snapshots only when categories still match.
+- Migration **0020** adds `episode_number_claims` so productions and standalone episodes reserve `(category, episode_number)` in one transaction.
+- Production and episode writes update claims with the row; category renames repoint alias chains and reclaim legacy alias IDs before reuse.
+- Legacy `/episodes/<slug>` redirects prefer published episodes even when the slug matches reserved SPA segments.
+- Production create allocates episode numbers atomically against claims and `productions(category, episode_number)` with retry on conflict; manual duplicate numbers return **409**.
 - OpenAPI episode create marks `episodeNumber` optional; admin brief mentions use `safeParse`; new production form no longer remounts when the suggested number loads; episode detail pages reset the meta description on leave.
 
 ## 2.4.6 - 2026-10-17

@@ -14,6 +14,15 @@ const fields = 'id, name, icon, color, prompt, version, updated_at AS updatedAt,
 const categoryIdTaken = (error: unknown) =>
   error instanceof Error && /UNIQUE constraint failed: categories\.id/.test(error.message);
 
+export async function assertCategoryIdAvailable(db: D1Database, nextId: string, currentId?: string) {
+  const occupied = await db.prepare('SELECT 1 FROM categories WHERE id = ?').bind(nextId).first();
+  if (occupied && nextId !== currentId) throw new HttpError(409, '栏目 ID 已被占用，请换一个标识');
+  if (!currentId) {
+    const alias = await db.prepare('SELECT 1 FROM category_id_aliases WHERE alias = ?').bind(nextId).first();
+    if (alias) throw new HttpError(409, '栏目 ID 已被占用，请换一个标识');
+  }
+}
+
 export async function listCategories(db: D1Database) {
   return (
     await db.prepare('SELECT id, name, icon, color FROM categories ORDER BY rowid').all<PublicCategory>()
@@ -88,6 +97,19 @@ export async function renameCategoryId(
         .bind(nextId, now, now, id, nextId, renamedVersion, id, inputVersion),
       db
         .prepare(
+          `UPDATE category_id_aliases SET category_id = ?
+         WHERE category_id = ?
+         AND EXISTS (SELECT 1 FROM categories WHERE id=? AND version=?)`,
+        )
+        .bind(nextId, id, id, inputVersion),
+      db
+        .prepare(
+          `DELETE FROM category_id_aliases WHERE alias = ?
+         AND EXISTS (SELECT 1 FROM categories WHERE id=? AND version=?)`,
+        )
+        .bind(nextId, id, inputVersion),
+      db
+        .prepare(
           'INSERT INTO category_id_aliases (alias, category_id) SELECT ?, ? WHERE EXISTS (SELECT 1 FROM categories WHERE id=? AND version=?)',
         )
         .bind(id, nextId, id, inputVersion),
@@ -102,7 +124,7 @@ export async function renameCategoryId(
     if (categoryIdTaken(error)) throw new HttpError(409, '栏目 ID 已被占用，请换一个标识');
     throw error;
   }
-  if (results[0].meta.changes !== 1 || results[4].meta.changes !== 1) {
+  if (results[0].meta.changes !== 1 || results[6].meta.changes !== 1) {
     throw new HttpError(409, '栏目已被修改或删除，草稿已保留，请刷新后对照');
   }
   return getCategory(db, nextId);
@@ -149,8 +171,7 @@ export async function routeCategories(request: Request, env: Env, actor: Actor, 
     if (input.prompt !== undefined && input.prompt !== current.prompt) requireScope(actor, 'prompts:write');
     const nextId = input.nextId?.trim();
     if (nextId && nextId !== id) {
-      if (await env.DB.prepare('SELECT 1 FROM categories WHERE id=?').bind(nextId).first())
-        throw new HttpError(409, '栏目 ID 已被占用，请换一个标识');
+      await assertCategoryIdAvailable(env.DB, nextId, id);
       const merged = {
         name: input.name ?? current.name,
         icon: input.icon ?? current.icon,
