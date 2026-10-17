@@ -87,12 +87,17 @@ const published = [
 ];
 
 const quote = (value) => (value === null ? 'NULL' : `'${String(value).replaceAll("'", "''")}'`);
-const statements = published.map((episode, index) => {
+const seedGuard = `NOT EXISTS (SELECT 1 FROM local_seed_runs WHERE name = ${quote(marker)})`;
+const categoryEpisodeNumber = {};
+const statements = published.flatMap((episode, index) => {
+  const episodeNumber = (categoryEpisodeNumber[episode.category] ?? 0) + 1;
+  categoryEpisodeNumber[episode.category] = episodeNumber;
   const timestamp = `2026-09-${String(24 - index * 3).padStart(2, '0')}T08:00:00.000Z`;
+  const id = `local-episode-${String(index + 1).padStart(2, '0')}`;
   const values = [
-    `local-episode-${String(index + 1).padStart(2, '0')}`,
+    id,
     episode.slug,
-    index + 1,
+    episodeNumber,
     episode.title,
     episode.summary,
     episode.transcript,
@@ -108,7 +113,9 @@ const statements = published.map((episode, index) => {
     timestamp,
     timestamp,
   ];
-  return `INSERT OR IGNORE INTO episodes (id, slug, episode_number, title, summary, transcript, show_notes, cover_url, category, tags, duration_seconds, audio_url, status, featured, published_at, created_at, updated_at) SELECT ${values.map(quote).join(', ')} WHERE NOT EXISTS (SELECT 1 FROM local_seed_runs WHERE name = ${quote(marker)});`;
+  const episodeInsert = `INSERT OR IGNORE INTO episodes (id, slug, episode_number, title, summary, transcript, show_notes, cover_url, category, tags, duration_seconds, audio_url, status, featured, published_at, created_at, updated_at, version, write_id) SELECT ${values.map(quote).join(', ')}, 1, lower(hex(randomblob(16))) WHERE ${seedGuard};`;
+  const claimInsert = `INSERT OR IGNORE INTO episode_number_claims (category, episode_number, holder_id, holder_kind) SELECT ${quote(episode.category)}, ${episodeNumber}, ${quote(id)}, 'episode' WHERE ${seedGuard};`;
+  return [episodeInsert, claimInsert];
 });
 statements.push(
   `INSERT OR IGNORE INTO local_seed_runs (name, created_at) VALUES (${quote(marker)}, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'));`,

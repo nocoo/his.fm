@@ -69,8 +69,10 @@ const quote = (value) => `'${String(value).replaceAll("'", "''")}'`;
 const marker = 'hisfm-real-production-example-v1';
 const localGuard =
   mode === '--local' ? ` AND NOT EXISTS (SELECT 1 FROM local_seed_runs WHERE name = ${quote(marker)})` : '';
+const productionGuard = `NOT EXISTS (SELECT 1 FROM productions WHERE json_extract(data, '$.slug') = ${quote(production.slug)})${localGuard}`;
 const sql = [
-  `INSERT OR IGNORE INTO productions (id, version, stage, data, created_at, updated_at) SELECT ${quote(production.id)}, 1, 'draft', ${quote(JSON.stringify(production))}, ${quote(now)}, ${quote(now)} WHERE NOT EXISTS (SELECT 1 FROM productions WHERE json_extract(data, '$.slug') = ${quote(production.slug)})${localGuard};`,
+  `INSERT OR IGNORE INTO productions (id, version, stage, data, created_at, updated_at, write_id) SELECT ${quote(production.id)}, 1, 'draft', ${quote(JSON.stringify(production))}, ${quote(now)}, ${quote(now)}, lower(hex(randomblob(16))) WHERE ${productionGuard};`,
+  `INSERT OR IGNORE INTO episode_number_claims (category, episode_number, holder_id, holder_kind) SELECT ${quote(production.category)}, ${production.episodeNumber}, ${quote(production.id)}, 'production' WHERE ${productionGuard};`,
 ];
 if (mode === '--local')
   sql.push(
