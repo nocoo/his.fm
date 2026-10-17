@@ -242,6 +242,30 @@ describe('owner R2 inventory and cleanup', () => {
     for (const object of protectedItems) expect(await env.MEDIA.head(object.key)).not.toBeNull();
   });
 
+  it('collects multiple references separated by CJK punctuation in prose', async () => {
+    const imageKey = 'images/episode-01.webp';
+    const uploadKey = 'uploads/cover.png';
+    await env.DB.prepare(
+      "INSERT INTO channel_profile (id, version, content, updated_at, updated_by) VALUES (1, 1, ?, 'now', 'owner')",
+    )
+      .bind(`封面参考：/${imageKey}，备用图：https://f.no.mt/${uploadKey}`)
+      .run();
+    for (const key of [imageKey, uploadKey]) await put(key, 'image/png');
+    const objects = (await scan(aged())).objects;
+    const states = Object.fromEntries(objects.map((object) => [object.key, object.state]));
+    expect(states[imageKey]).toBe('referenced');
+    expect(states[uploadKey]).toBe('referenced');
+    expect(states[`${uploadKey}?v=1`]).toBeUndefined();
+    const cleanup = await remove(
+      [imageKey, uploadKey].map((key) => {
+        const object = objects.find((candidate) => candidate.key === key);
+        expect(object).toBeDefined();
+        return { key, version: object?.version ?? '' };
+      }),
+    );
+    expect(cleanup.every((result) => result.status === 'skipped')).toBe(true);
+  });
+
   it('strips query and fragment from relative media and image paths when resolving references', async () => {
     const mediaKey = 'uploads/ref-media-query.png';
     const imageKey = 'images/ref-image-fragment.webp';
