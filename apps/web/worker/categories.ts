@@ -11,6 +11,9 @@ import { HttpError, json } from './http';
 import { readJson } from './production-body';
 
 const fields = 'id, name, icon, color, prompt, version, updated_at AS updatedAt, updated_by AS updatedBy';
+const categoryIdTaken = (error: unknown) =>
+  error instanceof Error && /UNIQUE constraint failed: categories\.id/.test(error.message);
+
 export async function listCategories(db: D1Database) {
   return (
     await db.prepare('SELECT id, name, icon, color FROM categories ORDER BY rowid').all<PublicCategory>()
@@ -27,6 +30,74 @@ export function categoryFence(db: D1Database, id: string) {
       'INSERT OR REPLACE INTO category_write_fence (id,valid) VALUES (1,CASE WHEN EXISTS (SELECT 1 FROM categories WHERE id=?) THEN 1 ELSE 0 END)',
     )
     .bind(id);
+}
+export async function renameCategoryId(
+  db: D1Database,
+  actor: Actor,
+  id: string,
+  nextId: string,
+  inputVersion: number,
+  merged: Pick<Category, 'name' | 'icon' | 'color' | 'prompt'>,
+): Promise<Category> {
+  const now = new Date().toISOString();
+  let results: Awaited<ReturnType<D1Database['batch']>>;
+  try {
+    results = await db.batch([
+      db
+        .prepare(
+          `INSERT INTO categories (id,name,icon,color,prompt,version,updated_at,updated_by)
+         SELECT ?,?,?,?,?,version+1,?,?
+         FROM categories WHERE id=? AND version=?`,
+        )
+        .bind(
+          nextId,
+          merged.name,
+          merged.icon,
+          merged.color,
+          merged.prompt,
+          now,
+          actor.name,
+          id,
+          inputVersion,
+        ),
+      db
+        .prepare(
+          `UPDATE episodes SET category=?, version=version+1, updated_at=?
+         WHERE category=?
+         AND EXISTS (SELECT 1 FROM categories WHERE id=?)`,
+        )
+        .bind(nextId, now, id, nextId),
+      db
+        .prepare(
+          `UPDATE productions SET
+           data=json_set(
+             json_set(
+               json_set(data,'$.category',?),
+               '$.version',CAST(json_extract(data,'$.version') AS INTEGER)+1
+             ),
+             '$.updatedAt',?
+           ),
+           version=version+1,
+           updated_at=?
+         WHERE json_extract(data,'$.category')=?
+         AND EXISTS (SELECT 1 FROM categories WHERE id=?)`,
+        )
+        .bind(nextId, now, now, id, nextId),
+      db
+        .prepare(
+          `DELETE FROM categories WHERE id=? AND version=?
+         AND EXISTS (SELECT 1 FROM categories WHERE id=?)`,
+        )
+        .bind(id, inputVersion, nextId),
+    ]);
+  } catch (error) {
+    if (categoryIdTaken(error)) throw new HttpError(409, '栏目 ID 已被占用，请换一个标识');
+    throw error;
+  }
+  if (results[0].meta.changes !== 1 || results[3].meta.changes !== 1) {
+    throw new HttpError(409, '栏目已被修改或删除，草稿已保留，请刷新后对照');
+  }
+  return getCategory(db, nextId);
 }
 export async function routeCategories(request: Request, env: Env, actor: Actor, id?: string) {
   const project = (category: Category) => {
@@ -72,29 +143,14 @@ export async function routeCategories(request: Request, env: Env, actor: Actor, 
     if (nextId && nextId !== id) {
       if (await env.DB.prepare('SELECT 1 FROM categories WHERE id=?').bind(nextId).first())
         throw new HttpError(409, '栏目 ID 已被占用，请换一个标识');
-      const now = new Date().toISOString();
       const merged = {
         name: input.name ?? current.name,
         icon: input.icon ?? current.icon,
         color: input.color ?? current.color,
         prompt: input.prompt ?? current.prompt,
       };
-      const nextVersion = current.version + 1;
-      const results = await env.DB.batch([
-        env.DB.prepare(
-          `INSERT INTO categories (id,name,icon,color,prompt,version,updated_at,updated_by) VALUES (?,?,?,?,?,?,?,?)`,
-        ).bind(nextId, merged.name, merged.icon, merged.color, merged.prompt, nextVersion, now, actor.name),
-        env.DB.prepare(
-          'UPDATE episodes SET category=?, version=version+1, updated_at=? WHERE category=?',
-        ).bind(nextId, now, id),
-        env.DB.prepare(
-          "UPDATE productions SET data=json_set(data,'$.category',?), version=version+1, updated_at=? WHERE json_extract(data,'$.category')=?",
-        ).bind(nextId, now, id),
-        env.DB.prepare('DELETE FROM categories WHERE id=? AND version=?').bind(id, input.version),
-      ]);
-      if (results[3].meta.changes !== 1)
-        throw new HttpError(409, '栏目已被修改或删除，草稿已保留，请刷新后对照');
-      return json({ category: project(await getCategory(env.DB, nextId)) });
+      const category = await renameCategoryId(env.DB, actor, id, nextId, input.version, merged);
+      return json({ category: project(category) });
     }
     const category = await env.DB.prepare(
       `UPDATE categories SET name=?,icon=?,color=?,prompt=?,version=version+1,updated_at=?,updated_by=? WHERE id=? AND version=? RETURNING ${fields}`,

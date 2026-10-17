@@ -15,10 +15,12 @@ export const categoryIcons = [
   'sparkles',
 ] as const;
 export const categoryColors = ['slate', 'blue', 'violet', 'teal', 'amber', 'rose'] as const;
+export const categoryReservedIds = ['new'] as const;
 export const categoryIdSchema = z
   .string()
   .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/)
-  .max(120);
+  .max(120)
+  .refine((id) => !(categoryReservedIds as readonly string[]).includes(id), '栏目 ID 为系统保留标识');
 export const categoryInputSchema = z.strictObject({
   name: z.string().trim().min(1).max(80),
   icon: z.enum(categoryIcons),

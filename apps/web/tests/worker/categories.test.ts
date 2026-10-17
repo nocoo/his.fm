@@ -3,12 +3,12 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { Miniflare } from 'miniflare';
 import { afterAll, beforeAll, beforeEach, expect, it, vi } from 'vitest';
 import { type Category, categoryInputSchema } from '../../src/shared/category';
-import { getCategory, listCategories, routeCategories } from '../../worker/categories';
+import { getCategory, listCategories, renameCategoryId, routeCategories } from '../../worker/categories';
 import worker from '../../worker/index';
 import { routeProductions } from '../../worker/production';
 import { applyPatch } from '../../worker/production-model';
 import { productionPrompts } from '../../worker/production-prompts';
-import { getProduction } from '../../worker/production-store';
+import { getProduction, saveProduction } from '../../worker/production-store';
 import { defaultPrompts } from '../../worker/prompt-defaults';
 import { agent, brief, type fixture, human, readyFixture } from './production-fixture';
 
@@ -237,7 +237,46 @@ it('renames category id and updates episode and production references', async ()
       .bind('episode-category-rename')
       .first<{ category: string }>(),
   ).toEqual({ category: nextId });
-  expect((await getProduction(env.DB, production.id)).category).toBe(nextId);
+  const current = await getProduction(env.DB, production.id);
+  expect(current.category).toBe(nextId);
+  const row = await env.DB.prepare('SELECT version, data FROM productions WHERE id=?')
+    .bind(production.id)
+    .first<{ version: number; data: string }>();
+  expect(row?.version).toBe(current.version);
+  const saved = await saveProduction(env.DB, { ...current, intent: '栏目迁移后仍可保存' }, current.version);
+  expect(saved.version).toBe(current.version + 1);
+});
+it('rejects stale rename versions without leaving duplicate categories or moved references', async () => {
+  const category = await create();
+  await routeCategories(request('PUT', { version: 1, name: '已改名' }), env, human, category.id);
+  await expect(
+    routeCategories(
+      request('PUT', { version: 1, nextId: 'stale-rename-target', name: '不应成功' }),
+      env,
+      human,
+      category.id,
+    ),
+  ).rejects.toMatchObject({ status: 409 });
+  expect(await getCategory(env.DB, category.id)).toMatchObject({ name: '已改名', version: 2 });
+  await expect(getCategory(env.DB, 'stale-rename-target')).rejects.toMatchObject({ status: 404 });
+});
+it('rejects reserved nextId values used by admin routes', async () => {
+  const category = await create();
+  await expect(
+    routeCategories(request('PUT', { version: 1, nextId: 'new' }), env, human, category.id),
+  ).rejects.toMatchObject({ status: 400 });
+});
+it('maps duplicate nextId insert races to conflict responses', async () => {
+  const category = await create();
+  await expect(
+    renameCategoryId(env.DB, human, category.id, 'manager-notes', 1, {
+      name: category.name,
+      icon: category.icon,
+      color: category.color,
+      prompt: category.prompt,
+    }),
+  ).rejects.toMatchObject({ status: 409 });
+  expect(await getCategory(env.DB, category.id)).toMatchObject({ id: category.id, version: 1 });
 });
 it('protects owner category writes with authentication and same-origin checks', async () => {
   expect((await worker.fetch(request(), env)).status).toBe(401);
