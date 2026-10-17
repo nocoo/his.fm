@@ -36,18 +36,18 @@ async function episodeNumberTaken(
 }
 
 const productionWriteFenceSql = `EXISTS (
-  SELECT 1 FROM productions WHERE id = ? AND version = ? AND updated_at = ?
+  SELECT 1 FROM productions WHERE id = ? AND version = ? AND write_id = ?
 )`;
 
 const standaloneEpisodeWriteFenceSql = `EXISTS (
-  SELECT 1 FROM episodes WHERE id = ? AND version = ? AND updated_at = ? AND source_production_id IS NULL
+  SELECT 1 FROM episodes WHERE id = ? AND version = ? AND write_id = ? AND source_production_id IS NULL
 )`;
 
 export function productionClaimReleaseStatement(
   db: D1Database,
   productionId: string,
   newVersion: number,
-  writtenUpdatedAt: string,
+  writeId: string,
 ) {
   return db
     .prepare(
@@ -55,26 +55,26 @@ export function productionClaimReleaseStatement(
        WHERE holder_kind = 'production' AND holder_id = ?
        AND ${productionWriteFenceSql}`,
     )
-    .bind(productionId, productionId, newVersion, writtenUpdatedAt);
+    .bind(productionId, productionId, newVersion, writeId);
 }
 
 export function productionClaimReplaceStatements(
   db: D1Database,
   productionId: string,
   newVersion: number,
-  writtenUpdatedAt: string,
+  writeId: string,
   category: string,
   episodeNumber: number,
 ) {
   return [
-    productionClaimReleaseStatement(db, productionId, newVersion, writtenUpdatedAt),
+    productionClaimReleaseStatement(db, productionId, newVersion, writeId),
     db
       .prepare(
         `INSERT INTO episode_number_claims (category, episode_number, holder_id, holder_kind)
          SELECT ?, ?, ?, 'production'
          WHERE ${productionWriteFenceSql}`,
       )
-      .bind(category, episodeNumber, productionId, productionId, newVersion, writtenUpdatedAt),
+      .bind(category, episodeNumber, productionId, productionId, newVersion, writeId),
   ];
 }
 
@@ -82,7 +82,7 @@ export function episodeClaimReplaceStatements(
   db: D1Database,
   episodeId: string,
   newVersion: number,
-  writtenUpdatedAt: string,
+  writeId: string,
   category: string,
   episodeNumber: number,
 ) {
@@ -93,14 +93,47 @@ export function episodeClaimReplaceStatements(
          WHERE holder_kind = 'episode' AND holder_id = ?
          AND ${standaloneEpisodeWriteFenceSql}`,
       )
-      .bind(episodeId, episodeId, newVersion, writtenUpdatedAt),
+      .bind(episodeId, episodeId, newVersion, writeId),
     db
       .prepare(
         `INSERT INTO episode_number_claims (category, episode_number, holder_id, holder_kind)
          SELECT ?, ?, ?, 'episode'
          WHERE ${standaloneEpisodeWriteFenceSql}`,
       )
-      .bind(category, episodeNumber, episodeId, episodeId, newVersion, writtenUpdatedAt),
+      .bind(category, episodeNumber, episodeId, episodeId, newVersion, writeId),
+  ];
+}
+
+export function publishSnapshotClaimSyncStatements(
+  db: D1Database,
+  productionId: string,
+  productionVersion: number,
+  productionWriteId: string,
+  category: string,
+  episodeNumber: number,
+) {
+  return [
+    db
+      .prepare(
+        `DELETE FROM episode_number_claims
+         WHERE holder_kind = 'production' AND holder_id = ?
+         AND ${productionWriteFenceSql}`,
+      )
+      .bind(productionId, productionId, productionVersion, productionWriteId),
+    db
+      .prepare(
+        `DELETE FROM episode_number_claims
+         WHERE holder_kind = 'episode' AND holder_id = ?
+         AND ${productionWriteFenceSql}`,
+      )
+      .bind(productionId, productionId, productionVersion, productionWriteId),
+    db
+      .prepare(
+        `INSERT INTO episode_number_claims (category, episode_number, holder_id, holder_kind)
+         SELECT ?, ?, ?, 'episode'
+         WHERE ${productionWriteFenceSql}`,
+      )
+      .bind(category, episodeNumber, productionId, productionId, productionVersion, productionWriteId),
   ];
 }
 
@@ -227,19 +260,6 @@ export async function resolveEpisodePatchEpisodeNumber(
   fields: { category?: string; episodeNumber?: number },
 ): Promise<number> {
   return resolveScopedEpisodeNumber(db, current, fields, { episodeId: current.id });
-}
-
-export async function syncEpisodeClaimFromRow(db: D1Database, episodeId: string) {
-  const row = await db
-    .prepare('SELECT category, episode_number AS episodeNumber FROM episodes WHERE id = ?')
-    .bind(episodeId)
-    .first<{ category: string; episodeNumber: number }>();
-  if (!row) return;
-  await db.batch([
-    deleteHolderEpisodeNumberClaims(db, 'production', episodeId),
-    deleteHolderEpisodeNumberClaims(db, 'episode', episodeId),
-    insertEpisodeNumberClaim(db, row.category, row.episodeNumber, episodeId, 'episode'),
-  ]);
 }
 
 export async function publishedSnapshotMatchesProduction(

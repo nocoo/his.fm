@@ -55,16 +55,22 @@ export function nextVersion(production: Production, expectedVersion: number): Pr
   return { ...production, version: expectedVersion + 1, updatedAt: new Date().toISOString() };
 }
 
-export function updateStatement(db: D1Database, production: Production, expectedVersion: number) {
+export function updateStatement(
+  db: D1Database,
+  production: Production,
+  expectedVersion: number,
+  writeId: string,
+) {
   return db
     .prepare(
-      'UPDATE productions SET version = ?, stage = ?, data = ?, updated_at = ? WHERE id = ? AND version = ?',
+      'UPDATE productions SET version = ?, stage = ?, data = ?, updated_at = ?, write_id = ? WHERE id = ? AND version = ?',
     )
     .bind(
       production.version,
       production.stage,
       JSON.stringify(production),
       production.updatedAt,
+      writeId,
       production.id,
       expectedVersion,
     );
@@ -78,16 +84,17 @@ export async function saveProduction(db: D1Database, production: Production, exp
   const snapshotOwnsNumber =
     numberingChanged &&
     (await publishedSnapshotMatchesProduction(db, next.id, next.category, next.episodeNumber));
-  const statements = [categoryFence(db, next.category), updateStatement(db, next, expectedVersion)];
+  const writeId = crypto.randomUUID();
+  const statements = [categoryFence(db, next.category), updateStatement(db, next, expectedVersion, writeId)];
   if (numberingChanged && snapshotOwnsNumber) {
-    statements.push(productionClaimReleaseStatement(db, next.id, next.version, next.updatedAt));
+    statements.push(productionClaimReleaseStatement(db, next.id, next.version, writeId));
   } else if (numberingChanged) {
     statements.push(
       ...productionClaimReplaceStatements(
         db,
         next.id,
         next.version,
-        next.updatedAt,
+        writeId,
         next.category,
         next.episodeNumber,
       ),

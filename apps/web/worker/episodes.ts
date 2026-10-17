@@ -265,16 +265,17 @@ export async function mutateEpisode(request: Request, db: D1Database, actor: Act
     const claimChanged = current.category !== input.category || current.episode_number !== episodeNumber;
     const { version: expectedVersion } = input as EpisodeUpdate;
     const newVersion = expectedVersion + 1;
+    const writeId = crypto.randomUUID();
     const statements = [
       db
         .prepare(
-          'UPDATE episodes SET slug = ?, episode_number = ?, title = ?, summary = ?, transcript = ?, show_notes = ?, cover_url = ?, category = ?, tags = ?, mentions = ?, duration_seconds = ?, audio_url = ?, status = ?, featured = ?, published_at = ?, updated_at = ?, version = version + 1 WHERE id = ? AND version = ? AND source_production_id IS NULL',
+          'UPDATE episodes SET slug = ?, episode_number = ?, title = ?, summary = ?, transcript = ?, show_notes = ?, cover_url = ?, category = ?, tags = ?, mentions = ?, duration_seconds = ?, audio_url = ?, status = ?, featured = ?, published_at = ?, updated_at = ?, write_id = ?, version = version + 1 WHERE id = ? AND version = ? AND source_production_id IS NULL',
         )
-        .bind(...inputValues(payload), now, id, expectedVersion),
+        .bind(...inputValues(payload), now, writeId, id, expectedVersion),
     ];
     if (claimChanged) {
       statements.push(
-        ...episodeClaimReplaceStatements(db, id, newVersion, now, input.category, episodeNumber),
+        ...episodeClaimReplaceStatements(db, id, newVersion, writeId, input.category, episodeNumber),
       );
     }
     try {
@@ -295,6 +296,7 @@ export async function mutateEpisode(request: Request, db: D1Database, actor: Act
   }
 
   const newId = crypto.randomUUID();
+  const writeId = crypto.randomUUID();
   const row = await batchInsertWithEpisodeNumberClaim<EpisodeRow>(
     db,
     input.category,
@@ -302,9 +304,9 @@ export async function mutateEpisode(request: Request, db: D1Database, actor: Act
     (episodeNumber) =>
       db
         .prepare(
-          'INSERT INTO episodes (slug, episode_number, title, summary, transcript, show_notes, cover_url, category, tags, mentions, duration_seconds, audio_url, status, featured, published_at, created_at, updated_at, id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *',
+          'INSERT INTO episodes (slug, episode_number, title, summary, transcript, show_notes, cover_url, category, tags, mentions, duration_seconds, audio_url, status, featured, published_at, created_at, updated_at, write_id, id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *',
         )
-        .bind(...inputValues({ ...input, episodeNumber }), now, now, newId),
+        .bind(...inputValues({ ...input, episodeNumber }), now, now, writeId, newId),
     input.episodeNumber,
   );
   return respond(row, 201);

@@ -556,16 +556,18 @@ describe('editor CRUD', () => {
       });
     const second = ((await (await save(episode.version, '第二版')).json()) as { episode: Episode }).episode;
     const third = ((await (await save(second.version, '第三版')).json()) as { episode: Episode }).episode;
-    const before = await env.DB.prepare(
-      'SELECT category, episode_number FROM episode_number_claims WHERE holder_id = ?',
-    )
-      .bind(episode.id)
-      .all();
-    expect((await save(second.version, '过期保存', 2)).status).toBe(409);
-    expect(
+    const before = (
       await env.DB.prepare('SELECT category, episode_number FROM episode_number_claims WHERE holder_id = ?')
         .bind(episode.id)
-        .all(),
+        .all()
+    ).results;
+    expect((await save(second.version, '过期保存', 2)).status).toBe(409);
+    expect(
+      (
+        await env.DB.prepare('SELECT category, episode_number FROM episode_number_claims WHERE holder_id = ?')
+          .bind(episode.id)
+          .all()
+      ).results,
     ).toEqual(before);
     expect(third.episodeNumber).toBe(1);
   });

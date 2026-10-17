@@ -24,8 +24,8 @@ import {
   deleteHolderEpisodeNumberClaims,
   insertEpisodeNumberClaim,
   nextEpisodeNumberInCategory,
+  publishSnapshotClaimSyncStatements,
   resolveProductionPatchEpisodeNumber,
-  syncEpisodeClaimFromRow,
 } from './episode-numbering';
 import { HttpError, json } from './http';
 import { rasterType } from './media-validation';
@@ -290,14 +290,22 @@ export async function publishProduction(
       next.version,
       eventId,
     );
+  const writeId = crypto.randomUUID();
   try {
     const results = await db.batch([
       categoryFence(db, next.category),
-      updateStatement(db, next, input.version),
+      updateStatement(db, next, input.version, writeId),
       snapshot,
+      ...publishSnapshotClaimSyncStatements(
+        db,
+        next.id,
+        next.version,
+        writeId,
+        next.category,
+        next.episodeNumber,
+      ),
     ]);
     if (results[1]?.meta.changes !== 1) throw new HttpError(409, '内容已更新，请刷新后重新确认发布');
-    await syncEpisodeClaimFromRow(db, next.id);
   } catch (error) {
     if (error instanceof Error && error.message.includes('UNIQUE constraint failed'))
       throw new HttpError(409, '公开节目存在相同链接名称或记录标识，尚未登记发布');
@@ -343,7 +351,8 @@ async function withdrawPublication(
       next.version,
       next.events.at(-1)?.id,
     );
-  const results = await db.batch([updateStatement(db, next, version), snapshot]);
+  const writeId = crypto.randomUUID();
+  const results = await db.batch([updateStatement(db, next, version, writeId), snapshot]);
   if (results[0]?.meta.changes !== 1) throw new HttpError(409, '内容已更新，请刷新后重试');
   return next;
 }
@@ -406,9 +415,18 @@ export async function routeProductions(
           actor,
           'create',
         );
+        const writeId = crypto.randomUUID();
         const insert = env.DB.prepare(
-          'INSERT INTO productions (id, version, stage, data, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
-        ).bind(production.id, production.version, production.stage, JSON.stringify(production), now, now);
+          'INSERT INTO productions (id, version, stage, data, created_at, updated_at, write_id) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        ).bind(
+          production.id,
+          production.version,
+          production.stage,
+          JSON.stringify(production),
+          now,
+          now,
+          writeId,
+        );
         try {
           await env.DB.batch([
             categoryFence(env.DB, brief.category),

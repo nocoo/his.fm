@@ -66,7 +66,7 @@ async function result(response: Response) {
 
 async function insert(production: Production) {
   await env.DB.prepare(
-    'INSERT INTO productions (id, version, stage, data, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
+    'INSERT INTO productions (id, version, stage, data, created_at, updated_at, write_id) VALUES (?, ?, ?, ?, ?, ?, ?)',
   )
     .bind(
       production.id,
@@ -75,6 +75,7 @@ async function insert(production: Production) {
       JSON.stringify(production),
       production.createdAt,
       production.updatedAt,
+      crypto.randomUUID(),
     )
     .run();
   return production;
@@ -138,6 +139,7 @@ beforeAll(async () => {
     '0018_category_id_aliases.sql',
     '0019_episode_slug_per_category.sql',
     '0020_episode_number_claims.sql',
+    '0021_write_id.sql',
   ]) {
     const sql = readFileSync(new URL(`../../migrations/${file}`, import.meta.url), 'utf8');
     await env.DB.batch(

@@ -4,7 +4,10 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 import { z } from 'zod';
 import type { Actor, Production } from '../../src/shared/production';
 import { authenticateAgent, routeAgentTokens } from '../../worker/agent-tokens';
-import { nextEpisodeNumberInCategory } from '../../worker/episode-numbering';
+import {
+  nextEpisodeNumberInCategory,
+  publishSnapshotClaimSyncStatements,
+} from '../../worker/episode-numbering';
 import { HttpError, json } from '../../worker/http';
 import { publishProduction, routeProductions } from '../../worker/production';
 import { readBytes, readJson } from '../../worker/production-body';
@@ -47,7 +50,7 @@ async function create() {
 }
 async function insert(production: Production) {
   await env.DB.prepare(
-    'INSERT INTO productions (id, version, stage, data, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
+    'INSERT INTO productions (id, version, stage, data, created_at, updated_at, write_id) VALUES (?, ?, ?, ?, ?, ?, ?)',
   )
     .bind(
       production.id,
@@ -56,6 +59,7 @@ async function insert(production: Production) {
       JSON.stringify(production),
       production.createdAt,
       production.updatedAt,
+      crypto.randomUUID(),
     )
     .run();
   return production;
@@ -122,6 +126,7 @@ beforeAll(async () => {
     '0018_category_id_aliases.sql',
     '0019_episode_slug_per_category.sql',
     '0020_episode_number_claims.sql',
+    '0021_write_id.sql',
   ]) {
     const sql = readFileSync(new URL(`../../migrations/${file}`, import.meta.url), 'utf8');
     await env.DB.batch(
@@ -152,7 +157,7 @@ describe('production API and optimistic updates', () => {
     const stored = { ...production };
     delete (stored as { mentions?: Production['mentions'] }).mentions;
     await env.DB.prepare(
-      'INSERT INTO productions (id, version, stage, data, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
+      'INSERT INTO productions (id, version, stage, data, created_at, updated_at, write_id) VALUES (?, ?, ?, ?, ?, ?, ?)',
     )
       .bind(
         stored.id,
@@ -161,6 +166,7 @@ describe('production API and optimistic updates', () => {
         JSON.stringify(stored),
         stored.createdAt,
         stored.updatedAt,
+        crypto.randomUUID(),
       )
       .run();
     expect(await getProduction(env.DB, stored.id)).toMatchObject({ mentions: [] });
@@ -287,22 +293,54 @@ describe('production API and optimistic updates', () => {
       production.version,
     );
     await saveProduction(env.DB, { ...current, intent: '先保存一版' }, current.version);
-    const before = await env.DB.prepare(
-      'SELECT category, episode_number AS episodeNumber, holder_kind AS holderKind FROM episode_number_claims WHERE holder_id = ?',
-    )
-      .bind(production.id)
-      .all<{ category: string; episodeNumber: number; holderKind: string }>();
-    await expect(
-      saveProduction(env.DB, { ...current, episodeNumber: current.episodeNumber + 1 }, current.version),
-    ).rejects.toMatchObject({ status: 409 });
-    expect(
+    const before = (
       await env.DB.prepare(
         'SELECT category, episode_number AS episodeNumber, holder_kind AS holderKind FROM episode_number_claims WHERE holder_id = ?',
       )
         .bind(production.id)
-        .all(),
+        .all<{ category: string; episodeNumber: number; holderKind: string }>()
+    ).results;
+    await expect(
+      saveProduction(env.DB, { ...current, episodeNumber: current.episodeNumber + 1 }, current.version),
+    ).rejects.toMatchObject({ status: 409 });
+    expect(
+      (
+        await env.DB.prepare(
+          'SELECT category, episode_number AS episodeNumber, holder_kind AS holderKind FROM episode_number_claims WHERE holder_id = ?',
+        )
+          .bind(production.id)
+          .all<{ category: string; episodeNumber: number; holderKind: string }>()
+      ).results,
     ).toEqual(before);
     expect((await getProduction(env.DB, production.id)).episodeNumber).toBe(current.episodeNumber);
+  });
+
+  it('skips publish claim sync when the production write token no longer matches', async () => {
+    const production = await insert(readyFixture());
+    const bumped = await saveProduction(
+      env.DB,
+      { ...(await getProduction(env.DB, production.id)), episodeNumber: 9 },
+      1,
+    );
+    await env.DB.batch(
+      publishSnapshotClaimSyncStatements(
+        env.DB,
+        production.id,
+        bumped.version,
+        'stale-publish-write-id',
+        bumped.category,
+        production.episodeNumber,
+      ),
+    );
+    expect(
+      (
+        await env.DB.prepare(
+          'SELECT holder_kind AS holderKind, episode_number AS episodeNumber FROM episode_number_claims WHERE holder_id = ? ORDER BY episode_number',
+        )
+          .bind(production.id)
+          .all<{ holderKind: string; episodeNumber: number }>()
+      ).results,
+    ).toEqual([{ holderKind: 'production', episodeNumber: 9 }]);
   });
 
   it('maps claim collisions to conflict when renumbering productions', async () => {
