@@ -1,6 +1,7 @@
 import layouts from '../../brand/cover-frame-layouts.json';
 import { themeCoverFrameSrc } from '../../brand/themes';
 import type { ThemeId } from '../../shared/appearance';
+import { coverArtContainRect } from '../../shared/coverArtFit';
 
 async function loadImage(url: string) {
   const image = new Image();
@@ -28,10 +29,8 @@ export async function exportCover(source: string, episodeNumber: number, themeId
   canvas.height = size;
   const context = canvas.getContext('2d');
   if (!context) throw new Error('浏览器暂时无法生成封面，请重试。');
-  const scale = Math.max(size / artwork.naturalWidth, size / artwork.naturalHeight);
-  const width = artwork.naturalWidth * scale;
-  const height = artwork.naturalHeight * scale;
-  context.drawImage(artwork, (size - width) / 2, (size - height) / 2, width, height);
+  const { x, y, width, height } = coverArtContainRect(size, artwork.naturalWidth, artwork.naturalHeight);
+  context.drawImage(artwork, x, y, width, height);
   context.drawImage(overlay, 0, 0, size, size);
   context.fillStyle = frame.episode.fill;
   context.font = `500 ${frame.episode.fontSize}px "Space Grotesk"`;
