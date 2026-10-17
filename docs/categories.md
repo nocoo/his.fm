@@ -2,6 +2,17 @@
 
 Categories have stable server-assigned IDs, names, a curated Lucide icon and a Basalt tag color. The studio manages metadata at `/admin/categories[/:id]`; private Markdown guidance is also available through the central Prompts page.
 
+Stable IDs are fixed (`work`, `learning`, `life`, `conversations`); public names may change with editorial branding.
+
+| ID | Public name | Editorial focus |
+| --- | --- | --- |
+| `work` | 店长手札 | Team and personal AI transformation (non-daily column) |
+| `learning` | 每日手冲 | Slow-learning daily series (coffee metaphor; not realtime news) |
+| `life` | 生活留白 | Life outside the screen |
+| `conversations` | 一起聊聊 | Conversation-led episodes |
+
+Published episode slugs are not renamed with display titles; the daily learning series keeps `daily-news-*` URLs for compatibility.
+
 ## API and versions
 
 | Operation | Required scope |
