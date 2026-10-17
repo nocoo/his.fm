@@ -8,16 +8,18 @@ import {
   productionAudioMaxDurationSeconds,
 } from '../../shared/production';
 
-export const emptyBrief: ProductionBrief = {
-  title: '',
-  slug: '',
-  episodeNumber: 1,
-  category: 'manager-notes',
-  tags: [],
-  targetDurationSeconds: 600,
-  sources: [],
-  intent: '',
-};
+export function emptyBrief(categoryId: string): ProductionBrief {
+  return {
+    title: '',
+    slug: '',
+    episodeNumber: 1,
+    category: categoryId,
+    tags: [],
+    targetDurationSeconds: 600,
+    sources: [],
+    intent: '',
+  };
+}
 export const actionLabels: Record<ProductionAction['action'], string> = {
   submit_brief: '选题准备就绪',
   approve_brief: '标记选题完成',

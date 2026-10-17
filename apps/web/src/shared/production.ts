@@ -52,7 +52,7 @@ export const briefSchema = z.strictObject({
     .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/)
     .max(120),
   episodeNumber: z.number().int().min(1).max(99999),
-  category: categoryIdSchema.default('manager-notes'),
+  category: categoryIdSchema,
   tags: z.array(z.string().trim().min(1).max(30)).max(10).default([]),
   targetDurationSeconds: z.number().int().min(60).max(productionAudioMaxDurationSeconds).default(600),
   sources: z.array(sourceSchema).max(30).default([]),
@@ -62,7 +62,7 @@ export type ProductionBrief = z.infer<typeof briefSchema>;
 export const productionPatchSchema = briefSchema
   .partial()
   .extend({
-    category: briefSchema.shape.category.removeDefault().optional(),
+    category: briefSchema.shape.category.optional(),
     tags: briefSchema.shape.tags.removeDefault().optional(),
     targetDurationSeconds: briefSchema.shape.targetDurationSeconds.removeDefault().optional(),
     sources: briefSchema.shape.sources.removeDefault().optional(),

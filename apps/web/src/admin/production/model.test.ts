@@ -33,7 +33,7 @@ describe('production brief form', () => {
     expect(readBrief(form(validForm), sources)).toEqual({
       error: '',
       data: {
-        ...emptyBrief,
+        ...emptyBrief('life'),
         title: '一次真实的对话',
         slug: 'a-real-conversation',
         episodeNumber: 7,
