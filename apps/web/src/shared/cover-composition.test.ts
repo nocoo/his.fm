@@ -67,6 +67,16 @@ describe('cover typography', () => {
     expect(coverText('soft-landing', { title: '', episodeNumber: 1234 })[0].value).toBe('EP.1234');
   });
 
+  it('aligns the Interval number with the fixed footer row and leaves room below its smaller title', () => {
+    const slots = coverText('interval', copy);
+    expect(slots.find((slot) => slot.template === '{number}')).toMatchObject({ y: 1000 });
+    const titles = slots.filter((slot) => slot.template.startsWith('{title'));
+    expect(titles.map((slot) => ({ y: slot.y, fontSize: slot.fontSize }))).toEqual([
+      { y: 872, fontSize: 58 },
+      { y: 944, fontSize: 58 },
+    ]);
+  });
+
   it.each(themeIds)('%s reserves the action area and fits wide Latin titles', (theme) => {
     const titles = coverText(theme, {
       title: '从 WWDC 到 MWC：我们为什么总在期待下一个改变世界的产品',
@@ -83,6 +93,18 @@ describe('cover typography', () => {
 });
 
 describe('shared preview and PNG composition', () => {
+  it('keeps the Tidal outer hairline inside the shared frame without changing the artwork window', () => {
+    const frame = readFileSync(
+      new URL(`../../public${themeCoverFrameSrc('tidal-hours')}`, import.meta.url),
+      'utf8',
+    );
+    const border =
+      '<rect x="1" y="1" width="1022" height="1022" fill="none" stroke="#344C57" stroke-width="2" stroke-opacity=".45"/>';
+    expect(frame).toContain(border);
+    expect(composeCoverSvg('tidal-hours', copy, 'data:image/webp;base64,AAAA', frame)).toContain(border);
+    expect(coverLayouts['tidal-hours'].artwork).toEqual({ x: 36, y: 190, width: 952, height: 540 });
+  });
+
   it.each(themeIds)('%s uses the same art window, title, font and full static frame', (theme) => {
     const frame = readFileSync(new URL(`../../public${themeCoverFrameSrc(theme)}`, import.meta.url), 'utf8');
     const svg = composeCoverSvg(theme, copy, 'data:image/webp;base64,AAAA', frame);

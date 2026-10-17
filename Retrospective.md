@@ -636,3 +636,11 @@ fetch. Its revalidation request escaped Happy DOM and logged a socket error on
 unmount even though the assertions passed. Keep the real component lifecycle,
 return a valid API payload from an explicit fetch stub, and assert the requested
 endpoint. Passing assertions do not make unintended test network traffic safe.
+
+## 2026-10-17: Check the entire cover metadata row
+
+The cover bounds checks passed while Interval's episode number remained above
+its two fixed footer labels. Owner review caught the visual mismatch. Compare
+shared row baselines, not only each label's bounds, and retain space between the
+title and footer. Keep these adjustments in the shared frame export so browser
+previews and downloaded PNGs cannot acquire different layouts.

@@ -73,7 +73,7 @@
         {
           "template": "{number}",
           "x": 14,
-          "y": 986,
+          "y": 1000,
           "size": 20,
           "fill": "#1C211A",
           "font": "space-grotesk",
@@ -106,8 +106,8 @@
         {
           "template": "{title1}",
           "x": 92,
-          "y": 880,
-          "size": 65,
+          "y": 872,
+          "size": 58,
           "fill": "#1C211A",
           "font": "noto-sans-sc",
           "weight": 650,
@@ -117,8 +117,8 @@
         {
           "template": "{title2}",
           "x": 92,
-          "y": 960,
-          "size": 65,
+          "y": 944,
+          "size": 58,
           "fill": "#1C211A",
           "font": "noto-sans-sc",
           "weight": 650,

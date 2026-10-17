@@ -63,6 +63,7 @@ def export_frames(destination: Path, layout_path: Path, quiet: bool = False) -> 
     font_widths: dict[str, list[float]] = {}
     for brand in pages.BRANDS:
         theme_id = THEME_BY_BRAND[brand['id']]
+        paper, ink, accent = [c for _, c in brand['palette'][:3]]
         slots = []
         outline = assets.text
 
@@ -72,6 +73,12 @@ def export_frames(destination: Path, layout_path: Path, quiet: bool = False) -> 
                     max_width = min(max_width or SOURCE_SIZE - x - 32, TITLE_RIGHT - x)
                 if theme_id == 'window-seat' and value in ('{title1}', '{title2}'):
                     y = 886 if value == '{title1}' else 959
+                if theme_id == 'interval':
+                    if value == '{number}':
+                        y = 1000
+                    elif value in ('{title1}', '{title2}'):
+                        size = 58
+                        y = 872 if value == '{title1}' else 944
                 slots.append({
                     'template': value, 'x': x, 'y': y, 'size': size, 'fill': color,
                     'font': font, 'weight': weight, 'maxWidth': max_width or SOURCE_SIZE - x - 32,
@@ -87,13 +94,17 @@ def export_frames(destination: Path, layout_path: Path, quiet: bool = False) -> 
             })
         finally:
             assets.text = outline
+        if theme_id == 'tidal-hours':
+            content += (
+                f'<rect x="1" y="1" width="1022" height="1022" fill="none" '
+                f'stroke="{ink}" stroke-width="2" stroke-opacity=".45"/>'
+            )
         for slot in slots:
             key = f'{slot["font"]}:{slot["weight"]}'
             if key not in font_widths:
                 glyphs, cmap, units = assets.font_data(slot['font'], slot['weight'])
                 font_widths[key] = [round(glyphs[cmap[point]].width / units, 6) for point in range(32, 127)]
         (destination / f'{theme_id}.svg').write_text(svg_body(content))
-        paper, ink, accent = [c for _, c in brand['palette'][:3]]
         layouts[theme_id] = {
             'paper': paper,
             'ink': ink,
