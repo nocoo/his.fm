@@ -262,7 +262,7 @@ test('play, pause, volume, mute and speed control the hidden media engine; cover
   await expect.poll(() => audio.evaluate((element: HTMLAudioElement) => element.volume)).toBe(0.99);
   await player.getByRole('button', { name: /播放速度/ }).click();
   await expect.poll(() => audio.evaluate((element: HTMLAudioElement) => element.playbackRate)).toBe(1.25);
-  await expect(player.locator('.his-audio-cover img')).toHaveAttribute('draggable', 'false');
+  await expect(player.locator('.his-audio-cover .framed-cover-image')).toHaveAttribute('draggable', 'false');
   await page.evaluate(() => {
     document.addEventListener('dragstart', () =>
       document.documentElement.setAttribute('data-test-drag', 'started'),

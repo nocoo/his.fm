@@ -6,6 +6,7 @@ import type { Episode } from '../../src/shared/episode';
 import type { AgentTokenRecord, BumperRecord, ProductionAction } from '../../src/shared/production';
 import { applyAction, applyPatch } from '../../worker/production-model';
 import { fixture, human, readyFixture } from '../worker/production-fixture';
+import { e2eOrigin } from './origin';
 
 async function studio(page: Page, initial = fixture()) {
   let production = initial;
@@ -334,8 +335,7 @@ test('manual cover and WAV uploads retain failures and detach only after explici
   );
   await page.goto('/admin/productions/production-test?section=assets');
   const section = page.locator('.studio-section:visible');
-  const cover = section.locator('input[type=file]').nth(0);
-  const audio = section.locator('input[type=file]').nth(1);
+  const cover = section.getByLabel('上传节目封面', { exact: true });
   await cover.setInputFiles({
     name: 'cover.png',
     mimeType: 'image/png',
@@ -354,7 +354,11 @@ test('manual cover and WAV uploads retain failures and detach only after explici
     /\/brand\/frames\/.+\.svg$/,
   );
   const wav = Buffer.concat([Buffer.from(wavHeader(48000)), Buffer.alloc(48000)]);
-  await audio.setInputFiles({ name: 'episode.wav', mimeType: 'audio/wav', buffer: wav });
+  await section.getByLabel('上传节目音频', { exact: true }).setInputFiles({
+    name: 'episode.wav',
+    mimeType: 'audio/wav',
+    buffer: wav,
+  });
   await page.getByRole('button', { name: '上传音频', exact: true }).click();
   await expect(section.locator('.his-audio-player')).toBeVisible();
   expect(state.uploads).toContainEqual({
@@ -473,8 +477,8 @@ test('cover grid and detail sections fit desktop and phone in both themes withou
           }),
         );
       await expect(page.getByRole('table', { name: '节目库列表' })).toBeVisible();
-      await expect(page.locator('.library-thumbnail img')).toHaveCount(2);
-      await expect.poll(() => loaded('.library-thumbnail img')).toBe(true);
+      await expect(page.locator('.library-thumbnail .framed-cover-image')).toHaveCount(2);
+      await expect.poll(() => loaded('.library-thumbnail .framed-cover-image')).toBe(true);
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
       await page.screenshot({ path: `.local/admin-library-list-${theme}-${width}.png`, fullPage: true });
       await page.goto('/admin/productions/production-test?section=assets');
@@ -1219,7 +1223,7 @@ test('environment switching confirms unsaved edits, recovers login errors and re
 test('real local production saves, approves and reopens without navigation side effects', async ({
   page,
 }) => {
-  await page.request.post('/admin/api/dev-login', { headers: { Origin: 'https://hisfm.dev.hexly.ai' } });
+  await page.request.post('/admin/api/dev-login', { headers: { Origin: e2eOrigin() } });
   const slug = `cms-e2e-${randomUUID()}`;
   let id = '';
   try {

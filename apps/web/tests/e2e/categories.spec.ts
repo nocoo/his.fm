@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import type { Category } from '../../src/shared/category';
+import { e2eOrigin } from './origin';
 
 test('category editor preserves Markdown, icon/color selection, stale drafts and server failures', async ({
   page,
@@ -83,7 +84,7 @@ test('new categories persist through the real local API and appear in episode se
   page,
 }) => {
   let id = '';
-  await page.request.post('/admin/api/dev-login', { headers: { Origin: 'https://hisfm.dev.hexly.ai' } });
+  await page.request.post('/admin/api/dev-login', { headers: { Origin: e2eOrigin() } });
   try {
     await page.goto('/admin/categories/new');
     await page.getByLabel('栏目名称', { exact: true }).fill('栏目验收');
@@ -113,7 +114,7 @@ test('new categories persist through the real local API and appear in episode se
       expect(
         (
           await page.request.delete(`/admin/api/categories/${id}?version=${category.version}`, {
-            headers: { Origin: 'https://hisfm.dev.hexly.ai' },
+            headers: { Origin: e2eOrigin() },
           })
         ).status(),
       ).toBe(204);
