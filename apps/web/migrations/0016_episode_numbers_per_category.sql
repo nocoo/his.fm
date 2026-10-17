@@ -16,7 +16,12 @@ WITH combined AS (
     p.created_at,
     p.id
   FROM productions p
-  WHERE NOT EXISTS (SELECT 1 FROM episodes e WHERE e.source_production_id = p.id)
+  WHERE NOT EXISTS (
+    SELECT 1
+    FROM episodes e
+    WHERE e.source_production_id = p.id
+      AND e.category = json_extract(p.data, '$.category')
+  )
 ),
 ranked AS (
   SELECT
