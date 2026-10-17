@@ -129,6 +129,20 @@ function SiteSeoForm({
             />
           </Field>
           <Field
+            label="作者主页"
+            htmlFor="podcast-author-url"
+            hint="可选，仅填写已确认的 HTTPS 主页；将在公开页面与结构化数据中显示。"
+          >
+            <Input
+              id="podcast-author-url"
+              type="url"
+              value={value.podcastAuthorUrl}
+              maxLength={2048}
+              disabled={pending}
+              onChange={(event) => patch({ podcastAuthorUrl: event.target.value })}
+            />
+          </Field>
+          <Field
             label="播客封面"
             htmlFor="podcast-cover"
             hint="独立于分享图；上架需 1400–3000 像素的正方形 PNG 或 JPEG、RGB 色彩。这里只校验地址，尺寸和色彩需人工核验。"

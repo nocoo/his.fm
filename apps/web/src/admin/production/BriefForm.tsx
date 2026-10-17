@@ -9,6 +9,7 @@ import { DraftConflicts } from '../draft/DraftConflicts';
 import { useDraft } from '../draft/useDraft';
 import { MentionsEditor } from '../MentionsEditor';
 import { MarkdownEditor } from '../markdown/MarkdownEditor';
+import { SeoOverrideFields } from '../seo/SeoOverrideFields';
 import { Failure } from './controls';
 import { readBrief } from './model';
 import { type SourceDraft, SourceEditor, SourceList } from './SourceEditor';
@@ -42,6 +43,7 @@ export function BriefForm({
     tags: value.tags.join('，'),
     sources: value.sources,
     mentions: value.mentions,
+    seo: value.seo,
   });
   const { sources, category } = draft.value;
   const previousCategory = useRef(category);
@@ -71,7 +73,7 @@ export function BriefForm({
         onChange={() => onDirty(true)}
         onSubmit={async (event) => {
           event.preventDefault();
-          const result = readBrief(new FormData(event.currentTarget), sources);
+          const result = readBrief(new FormData(event.currentTarget), sources, draft.value.seo);
           setError(result.error);
           if (result.data && !draft.conflicts.length) {
             const mentionsResult = mentionsSchema.safeParse(
@@ -210,6 +212,22 @@ export function BriefForm({
               onDirty(true);
             }}
           />
+          <LayerCard padding="none">
+            <LayerCard.Header>
+              <strong>搜索与分享</strong>
+            </LayerCard.Header>
+            <LayerCard.Body className="studio-stack studio-padding">
+              <p className="admin-muted">
+                保存为制作资料，完成成品确认并显式发布后才更新公开页。分享图建议使用 1200 × 630 图片。
+              </p>
+              <SeoOverrideFields
+                idPrefix="production-seo"
+                value={draft.value.seo ?? {}}
+                disabled={pending}
+                onChange={(seo) => draft.change('seo', seo)}
+              />
+            </LayerCard.Body>
+          </LayerCard>
           <LayerCard padding="none">
             <LayerCard.Header className="studio-row">
               <strong>原始素材 · {sources.length} / 30</strong>

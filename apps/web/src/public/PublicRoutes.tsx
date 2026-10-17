@@ -86,6 +86,7 @@ function Header() {
 }
 
 function Footer() {
+  const site = usePublicSiteSeo();
   return (
     <footer className="site-footer wrap">
       <div className="footer-top">
@@ -101,6 +102,14 @@ function Footer() {
           <Link to="/about">
             关于我们 <ArrowUpRight size={16} />
           </Link>
+          {site.podcastAuthorUrl && (
+            <a href={site.podcastAuthorUrl} rel="me noopener noreferrer" target="_blank">
+              {site.podcastAuthor}的主页 <ArrowUpRight size={16} />
+            </a>
+          )}
+          <a href="https://lizheng.blog" rel="noopener noreferrer" target="_blank">
+            博客 <ArrowUpRight size={16} />
+          </a>
           <Link to="/login">
             创作后台 <ArrowUpRight size={16} />
           </Link>
@@ -605,6 +614,24 @@ function About() {
             怎样开口，一天结束时怎么把思路留给明天。也聊一顿饭、一段路，和没有被待办清单记录的日常。
           </p>
           <p>你可以边走边听，听到一半停下来。希望这些声音，会刚好陪你经过某一段路。</p>
+          <p>
+            {site.podcastAuthorUrl && (
+              <>
+                <a
+                  className="text-link"
+                  href={site.podcastAuthorUrl}
+                  rel="me noopener noreferrer"
+                  target="_blank"
+                >
+                  {site.podcastAuthor}的主页 <ArrowUpRight size={16} />
+                </a>
+                {' · '}
+              </>
+            )}
+            <a className="text-link" href="https://lizheng.blog" rel="noopener noreferrer" target="_blank">
+              博客 <ArrowUpRight size={16} />
+            </a>
+          </p>
           <Link to="/episodes" className="pill-button dark">
             从一期节目开始 <MoveUpRight size={19} />
           </Link>

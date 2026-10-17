@@ -12,7 +12,11 @@ export function podcastSeriesJsonLd(origin: string, site: SiteSeo) {
     description: site.podcastDescription,
     url: `${origin}/`,
     inLanguage: site.language,
-    author: { '@type': site.podcastAuthorType, name: site.podcastAuthor },
+    author: {
+      '@type': site.podcastAuthorType,
+      name: site.podcastAuthor,
+      ...(site.podcastAuthorUrl ? { url: site.podcastAuthorUrl } : {}),
+    },
   };
 }
 

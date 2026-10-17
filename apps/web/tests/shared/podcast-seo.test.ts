@@ -15,6 +15,7 @@ describe('podcast SEO settings', () => {
     expect(siteSeoSchema.parse(existing)).toMatchObject({
       ...existing,
       podcastAuthorType: 'Organization',
+      podcastAuthorUrl: '',
       podcastCoverUrl: '',
       podcastOwnerEmail: '',
     });
@@ -30,13 +31,19 @@ describe('podcast SEO settings', () => {
   });
 
   it('validates author types without resetting a saved Person on unrelated partial PUTs', () => {
-    const current = siteSeoSchema.parse({ podcastAuthor: 'Confirmed author', podcastAuthorType: 'Person' });
+    const current = siteSeoSchema.parse({
+      podcastAuthor: 'Confirmed author',
+      podcastAuthorType: 'Person',
+      podcastAuthorUrl: 'https://author.example.test',
+    });
     const { version, ...patch } = siteSeoUpdateSchema.parse({ version: 3, defaultTitle: 'New title' });
     expect(version).toBe(3);
     expect(patch).not.toHaveProperty('podcastAuthorType');
+    expect(patch).not.toHaveProperty('podcastAuthorUrl');
     expect(siteSeoSchema.parse({ ...current, ...patch })).toMatchObject({
       podcastAuthor: 'Confirmed author',
       podcastAuthorType: 'Person',
+      podcastAuthorUrl: 'https://author.example.test',
       defaultTitle: 'New title',
     });
     expect(siteSeoUpdateSchema.parse({ version: 3, podcastAuthorType: 'Organization' })).toEqual({
@@ -44,6 +51,26 @@ describe('podcast SEO settings', () => {
       podcastAuthorType: 'Organization',
     });
     expect(siteSeoSchema.safeParse({ podcastAuthorType: 'Other' }).success).toBe(false);
+  });
+
+  it('accepts an optional HTTPS author homepage and explicit clearing without identity defaults', () => {
+    expect(siteSeoSchema.parse({}).podcastAuthorUrl).toBe('');
+    expect(
+      siteSeoSchema.parse({ podcastAuthorUrl: ' https://author.example.test/about ' }).podcastAuthorUrl,
+    ).toBe('https://author.example.test/about');
+    expect(siteSeoUpdateSchema.parse({ version: 2, podcastAuthorUrl: '' })).toEqual({
+      version: 2,
+      podcastAuthorUrl: '',
+    });
+    for (const podcastAuthorUrl of [
+      '/about',
+      'http://author.example.test',
+      'javascript:alert(1)',
+      'https://user:password@author.example.test',
+      'not a URL',
+      'https://author.example.test/'.padEnd(2049, 'a'),
+    ])
+      expect(siteSeoSchema.safeParse({ podcastAuthorUrl }).success).toBe(false);
   });
 
   it.each([
@@ -94,6 +121,7 @@ describe('podcast SEO settings', () => {
     expect(contract.components.schemas.SiteSeo.properties).toHaveProperty('podcastCoverUrl');
     expect(contract.components.schemas.SiteSeo.properties).toHaveProperty('podcastOwnerEmail');
     expect(contract.components.schemas.SiteSeo.properties).toHaveProperty('podcastAuthorType');
+    expect(contract.components.schemas.SiteSeo.properties).toHaveProperty('podcastAuthorUrl');
     const seo = contract.paths['/seo'];
     expect(seo.get['x-required-scopes']).toEqual(['prompts:read']);
     expect(seo.put['x-required-scopes']).toEqual(['prompts:write']);
@@ -102,6 +130,7 @@ describe('podcast SEO settings', () => {
     expect(input.properties).toHaveProperty('podcastCoverUrl');
     expect(input.properties).toHaveProperty('podcastOwnerEmail');
     expect(input.properties).toHaveProperty('podcastAuthorType');
+    expect(input.properties).toHaveProperty('podcastAuthorUrl');
     expect(input.additionalProperties).toBe(false);
   });
 });

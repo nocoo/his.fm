@@ -263,11 +263,12 @@ export async function publishProduction(
     input.version,
   );
   const eventId = next.events.at(-1)?.id;
+  const seo = next.seo === undefined ? null : JSON.stringify(next.seo);
   const snapshot = db
     .prepare(`INSERT INTO episodes (id, slug, episode_number, title, summary, transcript, show_notes, cover_url, category, tags, mentions, seo, duration_seconds, audio_url, status, featured, published_at, created_at, updated_at, source_production_id, version)
-    SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'published', 0, ?, ?, ?, ?, 1
+    SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, COALESCE(?, '{}'), ?, ?, 'published', 0, ?, ?, ?, ?, 1
     WHERE EXISTS (SELECT 1 FROM productions WHERE id = ? AND version = ? AND json_extract(data, '$.events[#-1].id') = ?)
-    ON CONFLICT(source_production_id) DO UPDATE SET slug = excluded.slug, episode_number = excluded.episode_number, title = excluded.title, summary = excluded.summary, transcript = excluded.transcript, show_notes = excluded.show_notes, cover_url = excluded.cover_url, category = excluded.category, tags = excluded.tags, mentions = excluded.mentions, seo = excluded.seo, duration_seconds = excluded.duration_seconds, audio_url = excluded.audio_url, status = excluded.status, published_at = excluded.published_at, updated_at = excluded.updated_at, version = episodes.version + 1`)
+    ON CONFLICT(source_production_id) DO UPDATE SET slug = excluded.slug, episode_number = excluded.episode_number, title = excluded.title, summary = excluded.summary, transcript = excluded.transcript, show_notes = excluded.show_notes, cover_url = excluded.cover_url, category = excluded.category, tags = excluded.tags, mentions = excluded.mentions, seo = COALESCE(?, episodes.seo), duration_seconds = excluded.duration_seconds, audio_url = excluded.audio_url, status = excluded.status, published_at = excluded.published_at, updated_at = excluded.updated_at, version = episodes.version + 1`)
     .bind(
       next.id,
       next.slug,
@@ -280,7 +281,7 @@ export async function publishProduction(
       next.category,
       JSON.stringify(next.tags),
       JSON.stringify(next.mentions ?? []),
-      '{}',
+      seo,
       next.assets.audio?.durationSeconds,
       next.assets.audio?.url,
       input.publishedAt,
@@ -290,6 +291,7 @@ export async function publishProduction(
       next.id,
       next.version,
       eventId,
+      seo,
     );
   const writeId = crypto.randomUUID();
   try {

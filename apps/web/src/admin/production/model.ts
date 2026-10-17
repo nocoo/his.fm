@@ -8,6 +8,7 @@ import {
   type Publication,
   productionAudioMaxDurationSeconds,
 } from '../../shared/production';
+import type { SeoOverride } from '../../shared/seo';
 
 export function nextEpisodeNumberForCategory(
   category: string,
@@ -55,7 +56,7 @@ export const actionLabels: Record<ProductionAction['action'], string> = {
   reopen_script: '重新修改逐字稿',
   reopen_assets: '重新制作素材',
 };
-export function readBrief(form: FormData, sources: ProductionBrief['sources']) {
+export function readBrief(form: FormData, sources: ProductionBrief['sources'], seo?: SeoOverride) {
   const text = (key: string) => String(form.get(key) ?? '');
   const result = briefSchema.safeParse({
     title: text('title'),
@@ -69,12 +70,13 @@ export function readBrief(form: FormData, sources: ProductionBrief['sources']) {
     targetDurationSeconds: Number(text('durationMinutes')) * 60,
     sources,
     intent: text('intent'),
+    ...(seo === undefined ? {} : { seo }),
   });
   if (result.success) return { data: result.data, error: '' };
   return {
     data: null,
     error:
-      '请检查必填字段、链接格式和长度。标题最多 160 字；素材链接必须使用 HTTPS；标签最多 10 个，每个最多 30 字。',
+      '请检查必填字段、链接格式和长度。标题最多 160 字；素材链接必须使用 HTTPS；标签最多 10 个，每个最多 30 字；分享图需使用 HTTPS 或站内图片、媒体路径。',
   };
 }
 export function finalMissing(production: Production): string[] {

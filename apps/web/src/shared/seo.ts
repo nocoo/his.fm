@@ -41,6 +41,18 @@ export const siteSeoSchema = z.strictObject({
     .default('一档给开发者的中文播客。聊 AI，聊工作，也聊屏幕之外正在发生的生活。'),
   podcastAuthor: z.string().trim().min(1).max(120).default('his.fm'),
   podcastAuthorType: z.enum(['Person', 'Organization']).default('Organization'),
+  podcastAuthorUrl: z
+    .string()
+    .trim()
+    .max(2048)
+    .url()
+    .refine((value) => {
+      if (!URL.canParse(value)) return false;
+      const url = new URL(value);
+      return url.protocol === 'https:' && !url.username && !url.password;
+    }, '请使用不含凭据的 HTTPS 主页地址')
+    .or(z.literal(''))
+    .default(''),
   podcastCoverUrl: mediaUrl
     .refine(
       (value) =>
@@ -70,6 +82,7 @@ export const siteSeoUpdateSchema = siteSeoSchema
     podcastDescription: siteSeoSchema.shape.podcastDescription.removeDefault(),
     podcastAuthor: siteSeoSchema.shape.podcastAuthor.removeDefault(),
     podcastAuthorType: siteSeoSchema.shape.podcastAuthorType.removeDefault(),
+    podcastAuthorUrl: siteSeoSchema.shape.podcastAuthorUrl.removeDefault(),
     podcastCoverUrl: siteSeoSchema.shape.podcastCoverUrl.removeDefault(),
     podcastOwnerEmail: siteSeoSchema.shape.podcastOwnerEmail.removeDefault(),
     language: siteSeoSchema.shape.language.removeDefault(),

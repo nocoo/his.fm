@@ -729,6 +729,105 @@ describe('scope-authorized publication snapshots', () => {
     url: 'https://mp.weixin.qq.com/s/test',
     publishedAt: '2026-09-24T00:00:00.000Z',
   };
+  it('keeps production SEO revisions private until reviewed explicit publication and allows explicit clearing', async () => {
+    const initialSeo = { title: '原始分享标题', ogImageUrl: '/media/uploads/initial-share.png' };
+    let production = await insert(readyFixture({ seo: initialSeo }));
+    const path = `/productions/${production.id}`;
+    const publish = async (correction = false) => {
+      const response = await call(
+        `${path}/publications${correction ? '/site' : ''}`,
+        correction ? 'PATCH' : 'POST',
+        {
+          version: production.version,
+          platform: 'site',
+          publishedAt: publication.publishedAt,
+        },
+        human,
+      );
+      expect(response.status).toBe(200);
+      production = ((await response.json()) as { production: Production }).production;
+    };
+    const snapshotSeo = async () =>
+      JSON.parse(
+        (
+          await env.DB.prepare('SELECT seo FROM episodes WHERE source_production_id = ?')
+            .bind(production.id)
+            .first<{ seo: string }>()
+        )?.seo ?? 'null',
+      );
+    await publish();
+    expect(await snapshotSeo()).toEqual(initialSeo);
+    const nextSeo = { ogImageUrl: '/media/uploads/revised-share.png' };
+    expect((await call(path, 'PUT', { version: production.version, seo: nextSeo }, agent)).status).toBe(409);
+    const edited = await call(path, 'PUT', { version: production.version, seo: nextSeo }, human);
+    expect(edited.status).toBe(200);
+    production = ((await edited.json()) as { production: Production }).production;
+    expect(production).toMatchObject({ seo: nextSeo, stage: 'production', approvals: { final: null } });
+    expect(production.events.at(-1)?.action).toBe('edit');
+    expect(await snapshotSeo()).toEqual(initialSeo);
+    expect(
+      (
+        await call(
+          `${path}/publications/site`,
+          'PATCH',
+          {
+            version: production.version,
+            platform: 'site',
+            publishedAt: publication.publishedAt,
+          },
+          human,
+        )
+      ).status,
+    ).toBe(409);
+    for (const action of ['submit_final', 'approve_final']) {
+      const response = await call(`${path}/actions`, 'POST', { version: production.version, action }, human);
+      expect(response.status).toBe(200);
+      production = ((await response.json()) as { production: Production }).production;
+    }
+    await publish(true);
+    expect(await snapshotSeo()).toEqual(nextSeo);
+    expect(production.events.at(-1)?.action).toBe('correct_publication:site');
+    const cleared = await call(path, 'PUT', { version: production.version, seo: {} }, human);
+    expect(cleared.status).toBe(200);
+    production = ((await cleared.json()) as { production: Production }).production;
+    expect(await snapshotSeo()).toEqual(nextSeo);
+    for (const action of ['submit_final', 'approve_final']) {
+      const response = await call(`${path}/actions`, 'POST', { version: production.version, action }, human);
+      expect(response.status).toBe(200);
+      production = ((await response.json()) as { production: Production }).production;
+    }
+    await publish(true);
+    expect(await snapshotSeo()).toEqual({});
+  });
+
+  it('preserves existing snapshot SEO when an older production omits the optional field', async () => {
+    let production = await insert(readyFixture());
+    const path = `/productions/${production.id}/publications`;
+    const first = await call(path, 'POST', publication, human);
+    expect(first.status).toBe(200);
+    production = ((await first.json()) as { production: Production }).production;
+    expect(production).not.toHaveProperty('seo');
+    const seo = { ogImageUrl: '/media/uploads/existing-share.png' };
+    await env.DB.prepare('UPDATE episodes SET seo = ? WHERE source_production_id = ?')
+      .bind(JSON.stringify(seo), production.id)
+      .run();
+    const second = await call(
+      path,
+      'POST',
+      {
+        version: production.version,
+        platform: 'site',
+        publishedAt: publication.publishedAt,
+      },
+      human,
+    );
+    expect(second.status).toBe(200);
+    expect(
+      await env.DB.prepare('SELECT seo FROM episodes WHERE source_production_id = ?')
+        .bind(production.id)
+        .first(),
+    ).toEqual({ seo: JSON.stringify(seo) });
+  });
   it('publishes to his.fm without an external URL and links the production snapshot', async () => {
     const production = await insert(readyFixture());
     const path = `/productions/${production.id}/publications`;

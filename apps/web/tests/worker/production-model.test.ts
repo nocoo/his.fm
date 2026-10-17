@@ -6,6 +6,7 @@ import {
   publicationSchema,
   sourceSchema,
 } from '../../src/shared/production';
+import { agentOpenApi } from '../../worker/agent-contract';
 import { applyAction, applyPatch, editAssets, requireFinalAssets } from '../../worker/production-model';
 import { productionPrompts } from '../../worker/production-prompts';
 import { appendEvent, mediaUrl, nextVersion } from '../../worker/production-store';
@@ -13,6 +14,28 @@ import { defaultPrompts } from '../../worker/prompt-defaults';
 import { agent, fixture, fullAgent, human, readyFixture } from './production-fixture';
 
 describe('production approvals and revision state machine', () => {
+  it('edits SEO as reviewed publication metadata without bypassing final approval or reopening scopes', () => {
+    const seo = { ogImageUrl: '/media/uploads/episode-share.png' };
+    const ready = readyFixture();
+    expect(() => applyPatch(ready, { seo }, agent)).toThrow('阶段');
+    const revised = applyPatch(ready, { seo }, human);
+    expect(revised).toMatchObject({
+      seo,
+      stage: 'production',
+      scriptVersion: ready.scriptVersion,
+      approvals: { brief: ready.approvals.brief, script: ready.approvals.script, final: null },
+    });
+    expect(applyPatch(revised, { seo: { title: '标题' } }, agent).seo).toEqual({ title: '标题' });
+    expect(applyPatch(fixture({ seo }), { intent: 'Changed intent' }, agent).seo).toEqual(seo);
+    expect(productionPatchSchema.parse({ version: 1, seo })).toEqual({ version: 1, seo });
+    expect(
+      productionPatchSchema.safeParse({ version: 1, seo: { ogImageUrl: 'http://bad.test/a.png' } }).success,
+    ).toBe(false);
+    const contract = agentOpenApi('https://his.fm');
+    for (const name of ['CreateProduction', 'UpdateProduction', 'Production'] as const)
+      expect(contract.components.schemas[name].properties).toHaveProperty('seo');
+    expect(contract.paths['/productions/{id}'].put['x-required-scopes']).toEqual(['productions:write']);
+  });
   it('advances only through the required reviews', () => {
     let production = fixture();
     production = applyAction(production, { version: 1, action: 'submit_brief' }, agent);

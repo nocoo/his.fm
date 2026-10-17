@@ -2,6 +2,7 @@ import { AUDIO_SAMPLE_RATE, type Principal, type Scope } from '@his-fm/contracts
 import { z } from 'zod';
 import { categoryIdSchema } from './category';
 import { mentionsSchema } from './mentions';
+import { seoOverrideSchema } from './seo';
 
 const productionAudioHeaderScanBytes = 64 * 1024;
 export const productionAudioMaxDurationSeconds = 3600;
@@ -59,6 +60,7 @@ export const briefSchema = z.strictObject({
   sources: z.array(sourceSchema).max(30).default([]),
   intent: z.string().trim().max(12000).default(''),
   mentions: mentionsSchema.default([]),
+  seo: seoOverrideSchema.optional(),
 });
 export type ProductionBrief = z.infer<typeof briefSchema>;
 export const briefCreateSchema = briefSchema
@@ -204,7 +206,7 @@ export const agentActionSchema = z.strictObject({
 export const agentEditableFields: Record<Production['stage'], string[]> = {
   draft: Object.keys(briefSchema.shape),
   scripting: ['transcript', 'category', 'tags'],
-  production: ['description', 'summary', 'category', 'tags'],
+  production: ['description', 'summary', 'category', 'tags', 'seo'],
   brief_review: [],
   script_review: [],
   final_review: [],

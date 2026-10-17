@@ -63,6 +63,13 @@ describe('production brief form', () => {
       expect(result.error).toContain('HTTPS');
     }
   });
+  it('preserves omitted SEO and validates explicitly edited sharing metadata', () => {
+    expect(readBrief(form(validForm), []).data).not.toHaveProperty('seo');
+    const seo = { title: '分享标题', ogImageUrl: '/media/uploads/share.png' };
+    expect(readBrief(form(validForm), [], seo).data?.seo).toEqual(seo);
+    expect(readBrief(form(validForm), [], {}).data?.seo).toEqual({});
+    expect(readBrief(form(validForm), [], { ogImageUrl: 'javascript:alert(1)' }).data).toBeNull();
+  });
 });
 describe('final review readiness', () => {
   it('shows the latest actual publication separately for each platform', () => {

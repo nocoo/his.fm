@@ -15,9 +15,10 @@ describe('seo-jsonld', () => {
         siteSeoSchema.parse({
           podcastAuthor: 'A named host',
           podcastAuthorType: 'Person',
+          podcastAuthorUrl: 'https://author.example.test',
         }),
       ).author,
-    ).toEqual({ '@type': 'Person', name: 'A named host' });
+    ).toEqual({ '@type': 'Person', name: 'A named host', url: 'https://author.example.test' });
   });
   it('builds podcast series and breadcrumb graphs', () => {
     const site = siteSeoSchema.parse({});
