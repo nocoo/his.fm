@@ -2,6 +2,12 @@
 
 All notable changes to his.fm are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions use the owner’s patch-only deployment policy in `AGENTS.md`, with the authoritative version in `package.json`.
 
+## 2.5.3 - 2026-10-18
+
+### Fixed
+
+- Drain Miniflare workerd raster test responses before unrelated async image work, and enable `MINIFLARE_ASSERT_BODIES_CONSUMED` so full gates catch unconsumed response bodies.
+
 ## 2.5.2 - 2026-10-18
 
 ### Added
