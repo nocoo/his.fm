@@ -374,6 +374,26 @@ it('moves episode number claims when renaming category ids', async () => {
       .first<{ category: string }>(),
   ).toEqual({ category: nextId });
 });
+it('keeps aliases when category delete fails on a stale version', async () => {
+  const category = await create();
+  await env.DB.prepare('INSERT INTO category_id_aliases (alias, category_id) VALUES (?, ?)')
+    .bind('legacy-alias', category.id)
+    .run();
+  await expect(
+    routeCategories(
+      request('DELETE', undefined, `/admin/api/categories/${category.id}?version=99`),
+      env,
+      human,
+      category.id,
+    ),
+  ).rejects.toMatchObject({ status: 409 });
+  expect(
+    await env.DB.prepare('SELECT category_id AS categoryId FROM category_id_aliases WHERE alias = ?')
+      .bind('legacy-alias')
+      .first<{ categoryId: string }>(),
+  ).toEqual({ categoryId: category.id });
+  expect(await getCategory(env.DB, category.id)).toMatchObject({ id: category.id, version: 1 });
+});
 it('deletes empty renamed categories after clearing inbound aliases', async () => {
   const category = await create();
   const nextId = 'delete-target';

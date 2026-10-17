@@ -537,6 +537,27 @@ describe('editor CRUD', () => {
     expect((await call(`/admin/api/episodes/${episode.id}`)).status).toBe(404);
   });
 
+  it('rejects episode renumber when another holder already claimed the number', async () => {
+    const episode = await create();
+    await env.DB.prepare(
+      'INSERT INTO episode_number_claims (category, episode_number, holder_id, holder_kind) VALUES (?, ?, ?, ?)',
+    )
+      .bind(episode.category, 50, 'blocker', 'production')
+      .run();
+    const response = await call(`/admin/api/episodes/${episode.id}`, {
+      method: 'PUT',
+      ...body({
+        ...input,
+        version: episode.version,
+        category: episode.category,
+        slug: episode.slug,
+        episodeNumber: 50,
+      }),
+    });
+    expect(response.status).toBe(409);
+    expect(await response.json()).toEqual({ error: '该栏目下已有相同期数' });
+  });
+
   it('enforces unique slugs and leaves existing content intact on conflicts', async () => {
     const original = await create();
     const other = await create({ slug: 'other', episodeNumber: undefined });
@@ -615,6 +636,15 @@ describe('editor CRUD', () => {
     expect((await call('/admin/api/episodes', { method: 'PATCH' })).status).toBe(405);
     expect((await call('/admin/api/episodes/no-id', { method: 'POST' })).status).toBe(405);
     expect((await call('/admin/api/episodes/no-id', { method: 'PUT', ...body(input) })).status).toBe(404);
+    const episode = await create();
+    expect(
+      (
+        await call(`/admin/api/episodes/${episode.id}`, {
+          method: 'PUT',
+          ...body({ ...input, title: '缺版本' }),
+        })
+      ).status,
+    ).toBe(400);
     expect((await call('/admin/api/episodes/no-id', { method: 'DELETE' })).status).toBe(404);
     expect((await call('/admin/api/missing')).status).toBe(404);
     expect((await call('/admin/api')).status).toBe(404);

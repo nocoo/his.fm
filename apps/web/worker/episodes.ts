@@ -1,4 +1,5 @@
 import { hasScope } from '@his-fm/contracts';
+import type { z } from 'zod';
 import {
   type Episode,
   type EpisodeInput,
@@ -8,14 +9,17 @@ import {
   type PublicEpisode,
   projectPublicEpisode,
 } from '../src/shared/episode';
+
+type EpisodeUpdate = z.infer<typeof episodeUpdateSchema>;
+
 import type { Actor } from '../src/shared/production';
 import { requireScope } from './authorization';
 import { getCategory } from './categories';
 import {
   batchInsertWithEpisodeNumberClaim,
   deleteHolderEpisodeNumberClaims,
+  episodeClaimReplaceStatements,
   resolveEpisodePatchEpisodeNumber,
-  setHolderEpisodeNumberClaim,
 } from './episode-numbering';
 import { resolveCategoryAlias } from './episode-public';
 import { HttpError, json } from './http';
@@ -259,20 +263,31 @@ export async function mutateEpisode(request: Request, db: D1Database, actor: Act
     );
     const payload = { ...input, episodeNumber };
     const claimChanged = current.category !== input.category || current.episode_number !== episodeNumber;
-    try {
-      const row = await db
+    const { version: expectedVersion } = input as EpisodeUpdate;
+    const newVersion = expectedVersion + 1;
+    const statements = [
+      db
         .prepare(
-          'UPDATE episodes SET slug = ?, episode_number = ?, title = ?, summary = ?, transcript = ?, show_notes = ?, cover_url = ?, category = ?, tags = ?, mentions = ?, duration_seconds = ?, audio_url = ?, status = ?, featured = ?, published_at = ?, updated_at = ?, version = version + 1 WHERE id = ? AND version = ? AND source_production_id IS NULL RETURNING *',
+          'UPDATE episodes SET slug = ?, episode_number = ?, title = ?, summary = ?, transcript = ?, show_notes = ?, cover_url = ?, category = ?, tags = ?, mentions = ?, duration_seconds = ?, audio_url = ?, status = ?, featured = ?, published_at = ?, updated_at = ?, version = version + 1 WHERE id = ? AND version = ? AND source_production_id IS NULL',
         )
-        .bind(...inputValues(payload), now, id, 'version' in input ? input.version : null)
-        .first<EpisodeRow>();
+        .bind(...inputValues(payload), now, id, expectedVersion),
+    ];
+    if (claimChanged) {
+      statements.push(...episodeClaimReplaceStatements(db, id, newVersion, input.category, episodeNumber));
+    }
+    try {
+      const results = await db.batch(statements);
+      if (results[0].meta.changes !== 1) throw new HttpError(409, '节目已被修改，请刷新后重试');
+      const row = await db.prepare('SELECT * FROM episodes WHERE id = ?').bind(id).first<EpisodeRow>();
       if (!row) throw new HttpError(409, '节目已被修改，请刷新后重试');
-      if (claimChanged) await setHolderEpisodeNumberClaim(db, 'episode', id, input.category, episodeNumber);
       return respond(row);
     } catch (error) {
-      if (error instanceof Error && /UNIQUE constraint failed: episodes\.category/.test(error.message)) {
+      if (error instanceof HttpError) throw error;
+      const message = error instanceof Error ? error.message : '';
+      if (/UNIQUE constraint failed/.test(message)) {
         throw new HttpError(409, '该栏目下已有相同期数或链接名称');
       }
+      /* v8 ignore next */
       throw error;
     }
   }

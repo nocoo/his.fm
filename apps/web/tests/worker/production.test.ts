@@ -146,6 +146,25 @@ afterAll(async () => {
 });
 
 describe('production API and optimistic updates', () => {
+  it('hydrates productions that omit mentions in stored JSON', async () => {
+    const production = readyFixture();
+    const stored = { ...production };
+    delete (stored as { mentions?: Production['mentions'] }).mentions;
+    await env.DB.prepare(
+      'INSERT INTO productions (id, version, stage, data, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
+    )
+      .bind(
+        stored.id,
+        stored.version,
+        stored.stage,
+        JSON.stringify(stored),
+        stored.createdAt,
+        stored.updatedAt,
+      )
+      .run();
+    expect(await getProduction(env.DB, stored.id)).toMatchObject({ mentions: [] });
+  });
+
   it('rejects explicit production numbers that are already claimed', async () => {
     await env.DB.prepare(
       'INSERT INTO episode_number_claims (category, episode_number, holder_id, holder_kind) VALUES (?, ?, ?, ?)',
@@ -179,6 +198,93 @@ describe('production API and optimistic updates', () => {
       production.version,
     );
     expect(saved.intent).toBe('只改文案，不改期数');
+  });
+
+  it('allows brief saves with the same episode number after site publication', async () => {
+    const production = await insert(readyFixture());
+    const path = `/productions/${production.id}`;
+    expect(
+      (
+        await call(
+          `${path}/publications`,
+          'POST',
+          { version: 1, platform: 'site', publishedAt: '2026-09-24T00:00:00.000Z' },
+          human,
+        )
+      ).status,
+    ).toBe(200);
+    const current = await getProduction(env.DB, production.id);
+    const response = await call(
+      path,
+      'PUT',
+      { version: current.version, intent: '发布后只改简介', episodeNumber: current.episodeNumber },
+      human,
+    );
+    expect(response.status).toBe(200);
+    expect(
+      await env.DB.prepare(
+        'SELECT holder_kind AS holderKind FROM episode_number_claims WHERE holder_id = ? AND category = ? AND episode_number = ?',
+      )
+        .bind(production.id, current.category, current.episodeNumber)
+        .first<{ holderKind: string }>(),
+    ).toEqual({ holderKind: 'episode' });
+  });
+
+  it('skips claim replacement when production renumber matches the published snapshot', async () => {
+    const production = await insert(readyFixture());
+    const path = `/productions/${production.id}`;
+    expect(
+      (
+        await call(
+          `${path}/publications`,
+          'POST',
+          { version: 1, platform: 'site', publishedAt: '2026-09-24T00:00:00.000Z' },
+          human,
+        )
+      ).status,
+    ).toBe(200);
+    const bumped = await saveProduction(
+      env.DB,
+      { ...(await getProduction(env.DB, production.id)), episodeNumber: 9 },
+      2,
+    );
+    const realigned = await saveProduction(
+      env.DB,
+      { ...bumped, episodeNumber: production.episodeNumber },
+      bumped.version,
+    );
+    expect(realigned.episodeNumber).toBe(production.episodeNumber);
+    expect(
+      await env.DB.prepare(
+        'SELECT holder_kind AS holderKind, episode_number AS episodeNumber FROM episode_number_claims WHERE holder_id = ?',
+      )
+        .bind(production.id)
+        .first<{ holderKind: string; episodeNumber: number }>(),
+    ).toEqual({ holderKind: 'episode', episodeNumber: production.episodeNumber });
+  });
+
+  it('rejects stale production rows when the optimistic version no longer matches', async () => {
+    const production = await create();
+    await saveProduction(env.DB, { ...production, title: '第一次保存' }, production.version);
+    await expect(
+      saveProduction(
+        env.DB,
+        { ...production, title: '旧版本保存', version: production.version },
+        production.version,
+      ),
+    ).rejects.toMatchObject({ status: 409 });
+  });
+
+  it('maps claim collisions to conflict when renumbering productions', async () => {
+    const production = await create();
+    await env.DB.prepare(
+      'INSERT INTO episode_number_claims (category, episode_number, holder_id, holder_kind) VALUES (?, ?, ?, ?)',
+    )
+      .bind('life', 42, 'taken', 'episode')
+      .run();
+    await expect(
+      saveProduction(env.DB, { ...production, episodeNumber: 42 }, production.version),
+    ).rejects.toMatchObject({ status: 409 });
   });
 
   it('syncs episode number claims when production category or number changes', async () => {

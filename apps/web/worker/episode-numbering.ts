@@ -7,12 +7,6 @@ function isUniqueConflict(error: unknown) {
   return error instanceof Error && /UNIQUE constraint failed/.test(error.message);
 }
 
-function excludedHolder(exclude: ExcludeIds): { holderKind: HolderKind; holderId: string } | undefined {
-  if (exclude.productionId) return { holderKind: 'production', holderId: exclude.productionId };
-  if (exclude.episodeId) return { holderKind: 'episode', holderId: exclude.episodeId };
-  return undefined;
-}
-
 async function maxClaimedNumber(db: D1Database, category: string): Promise<number> {
   const row = await db
     .prepare('SELECT MAX(episode_number) AS max_num FROM episode_number_claims WHERE category = ?')
@@ -34,9 +28,61 @@ async function episodeNumberTaken(
     .bind(category, episodeNumber)
     .first<{ holder_kind: HolderKind; holder_id: string }>();
   if (!row) return false;
-  const skip = excludedHolder(exclude);
-  if (skip && row.holder_kind === skip.holderKind && row.holder_id === skip.holderId) return false;
+  if (exclude.productionId && row.holder_id === exclude.productionId) {
+    if (row.holder_kind === 'production' || row.holder_kind === 'episode') return false;
+  }
+  if (exclude.episodeId && row.holder_kind === 'episode' && row.holder_id === exclude.episodeId) return false;
   return true;
+}
+
+export function productionClaimReplaceStatements(
+  db: D1Database,
+  productionId: string,
+  newVersion: number,
+  category: string,
+  episodeNumber: number,
+) {
+  return [
+    db
+      .prepare(
+        `DELETE FROM episode_number_claims
+         WHERE holder_kind = 'production' AND holder_id = ?
+         AND EXISTS (SELECT 1 FROM productions WHERE id = ? AND version = ?)`,
+      )
+      .bind(productionId, productionId, newVersion),
+    db
+      .prepare(
+        `INSERT INTO episode_number_claims (category, episode_number, holder_id, holder_kind)
+         SELECT ?, ?, ?, 'production'
+         WHERE EXISTS (SELECT 1 FROM productions WHERE id = ? AND version = ?)`,
+      )
+      .bind(category, episodeNumber, productionId, productionId, newVersion),
+  ];
+}
+
+export function episodeClaimReplaceStatements(
+  db: D1Database,
+  episodeId: string,
+  newVersion: number,
+  category: string,
+  episodeNumber: number,
+) {
+  return [
+    db
+      .prepare(
+        `DELETE FROM episode_number_claims
+         WHERE holder_kind = 'episode' AND holder_id = ?
+         AND EXISTS (SELECT 1 FROM episodes WHERE id = ? AND version = ? AND source_production_id IS NULL)`,
+      )
+      .bind(episodeId, episodeId, newVersion),
+    db
+      .prepare(
+        `INSERT INTO episode_number_claims (category, episode_number, holder_id, holder_kind)
+         SELECT ?, ?, ?, 'episode'
+         WHERE EXISTS (SELECT 1 FROM episodes WHERE id = ? AND version = ? AND source_production_id IS NULL)`,
+      )
+      .bind(category, episodeNumber, episodeId, episodeId, newVersion),
+  ];
 }
 
 export function insertEpisodeNumberClaim(

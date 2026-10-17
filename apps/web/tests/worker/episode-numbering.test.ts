@@ -115,6 +115,27 @@ describe('episode_number_claims', () => {
     await expect(assertEpisodeNumberAvailable(db, 'life', 0)).rejects.toBeInstanceOf(HttpError);
   });
 
+  it('still rejects numbers held by another holder when excluding a production', async () => {
+    await insertEpisodeNumberClaim(db, 'life', 7, 'other-id', 'episode').run();
+    await expect(
+      assertEpisodeNumberAvailable(db, 'life', 7, { productionId: 'my-production' }),
+    ).rejects.toMatchObject({ status: 409 });
+  });
+
+  it('treats a linked published episode claim as the production own number', async () => {
+    await insertEpisodeNumberClaim(db, 'life', 6, 'shared-production-id', 'episode').run();
+    await expect(
+      assertEpisodeNumberAvailable(db, 'life', 6, { productionId: 'shared-production-id' }),
+    ).resolves.toBeUndefined();
+    await expect(
+      resolveProductionPatchEpisodeNumber(
+        db,
+        { id: 'shared-production-id', category: 'life', episodeNumber: 6 },
+        { episodeNumber: 6 },
+      ),
+    ).resolves.toBe(6);
+  });
+
   it('skips excluded holders and resolves create helpers', async () => {
     await insertEpisodeNumberClaim(db, 'life', 6, 'production-6', 'production').run();
     expect(await nextEpisodeNumberInCategory(db, 'life', { productionId: 'production-6' })).toBe(7);
