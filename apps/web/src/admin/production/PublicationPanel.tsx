@@ -1,6 +1,7 @@
 import { Button, Field, Input, LayerCard } from '@nocoo/basalt';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@nocoo/basalt/components/tabs';
 import { useEffect, useState } from 'react';
+import { FramedCover } from '../../components/FramedCover';
 import { type Production, type Publication, publicationSchema } from '../../shared/production';
 import { formatWechat, formatXiaoyuzhou } from '../../shared/publication-format';
 import { useDraft } from '../draft/useDraft';
@@ -50,7 +51,14 @@ export function PublicationPanel({
           本站」并确认发布时间即可。若也在微信或小宇宙上线，复制内容完成手动发布后，回来记录真实链接和时间。确认发布会同步更新公开节目页。
         </p>
         {production.assets.cover && (
-          <CoverDownload source={production.assets.cover.url} episodeNumber={production.episodeNumber} />
+          <div className="studio-stack">
+            <FramedCover
+              className="studio-cover"
+              src={production.assets.cover.url}
+              alt={`${production.title}的节目封面`}
+            />
+            <CoverDownload source={production.assets.cover.url} episodeNumber={production.episodeNumber} />
+          </div>
         )}
         <Tabs defaultValue="wechat">
           <TabsList aria-label="发布平台预览">

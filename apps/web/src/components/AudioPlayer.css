@@ -29,17 +29,11 @@
 }
 .his-audio-player .his-audio-cover {
   width: 100%;
-  aspect-ratio: 1;
-  overflow: hidden;
   background: var(--player-line);
   user-select: none;
 }
-.his-audio-player .his-audio-cover img {
-  display: block;
-  width: 100%;
-  height: 100%;
+.his-audio-player .his-audio-cover .framed-cover-image {
   max-height: none;
-  object-fit: cover;
   pointer-events: none;
   -webkit-user-drag: none;
 }

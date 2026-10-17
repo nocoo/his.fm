@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { publishAdminAppearanceTheme } from '../../shared/adminAppearanceTheme';
 import type { Appearance, ThemeId } from '../../shared/appearance';
 import { errorMessage } from '../model';
 import { useUnsavedChanges } from '../production/useUnsavedChanges';
@@ -43,6 +44,7 @@ export function useAppearanceSettings() {
     try {
       const result = await appearanceService.save({ theme: selected, version: saved.version });
       setSaved(result.appearance);
+      publishAdminAppearanceTheme(result.appearance.theme);
     } catch (cause) {
       setError(errorMessage(cause));
       if (cause instanceof ApiError && cause.status === 409) setConflict(true);

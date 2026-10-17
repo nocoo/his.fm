@@ -6,6 +6,7 @@ import { ToggleGroup, ToggleGroupItem } from '@nocoo/basalt/components/toggle-gr
 import { ArrowUpRight, Headphones, LayoutGrid, List, Music2, Plus, RefreshCw, Trash2 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
+import { FramedCover } from '../../components/FramedCover';
 import { stageLabels } from '../../shared/production';
 import { useCategories } from '../categories/useCategories';
 import { errorMessage } from '../model';
@@ -28,7 +29,7 @@ function Cover({ row, thumbnail = false }: { row: LibraryEntry; thumbnail?: bool
   return (
     <div className={thumbnail ? 'library-thumbnail' : 'library-cover'}>
       {row.coverUrl && !failed ? (
-        <img src={row.coverUrl} alt="" loading="lazy" onError={() => setFailed(true)} />
+        <FramedCover src={row.coverUrl} alt="" loading="lazy" onCoverError={() => setFailed(true)} />
       ) : (
         <span className="library-cover-placeholder">
           <Music2 size={thumbnail ? 22 : 42} strokeWidth={1.25} />

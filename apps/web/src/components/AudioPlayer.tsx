@@ -3,6 +3,7 @@ import { Slider } from '@nocoo/basalt/components/slider';
 import { Headphones, LoaderCircle, Pause, Play, RotateCcw, Volume2, VolumeX } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { audioErrorMessage, formatAudioTime } from './AudioPlayer.model';
+import { FramedCover } from './FramedCover';
 import './AudioPlayer.css';
 
 export type AudioPlayerProps = {
@@ -138,9 +139,13 @@ function Player({
         }}
       />
       {coverUrl && !coverFailed && (
-        <div className="his-audio-cover">
-          <img src={coverUrl} alt="" draggable={false} onError={() => setCoverFailed(true)} />
-        </div>
+        <FramedCover
+          className="his-audio-cover"
+          src={coverUrl}
+          alt=""
+          draggable={false}
+          onCoverError={() => setCoverFailed(true)}
+        />
       )}
       <div className="his-audio-body">
         <div className="his-audio-heading">

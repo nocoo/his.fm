@@ -6,6 +6,7 @@ import type { Episode } from '../../src/shared/episode';
 import type { AgentTokenRecord, BumperRecord, ProductionAction } from '../../src/shared/production';
 import { applyAction, applyPatch } from '../../worker/production-model';
 import { fixture, human, readyFixture } from '../worker/production-fixture';
+import { e2eOrigin } from './origin';
 
 async function studio(page: Page, initial = fixture()) {
   let production = initial;
@@ -40,6 +41,15 @@ async function studio(page: Page, initial = fixture()) {
         body: status === 204 ? '' : JSON.stringify(body),
       });
     if (path === '/session') return send({ mode: 'local', user: { email: 'editor@his.fm' } });
+    if (path === '/appearance')
+      return send({
+        appearance: {
+          theme: 'interval',
+          version: 1,
+          updatedAt: '2026-01-01T00:00:00.000Z',
+          updatedBy: 'owner',
+        },
+      });
     if (path === '/categories')
       return send({
         categories: [
@@ -334,8 +344,7 @@ test('manual cover and WAV uploads retain failures and detach only after explici
   );
   await page.goto('/admin/productions/production-test?section=assets');
   const section = page.locator('.studio-section:visible');
-  const cover = section.locator('input[type=file]').nth(0);
-  const audio = section.locator('input[type=file]').nth(1);
+  const cover = section.locator('input[type=file][accept*="image"]');
   await cover.setInputFiles({
     name: 'cover.png',
     mimeType: 'image/png',
@@ -345,9 +354,20 @@ test('manual cover and WAV uploads retain failures and detach only after explici
   await page.getByRole('button', { name: '上传封面', exact: true }).click();
   await expect(page.getByRole('alert').first()).toContainText('上传失败');
   await page.getByRole('button', { name: '上传封面', exact: true }).click();
-  await expect(section.locator('.studio-cover')).toHaveAttribute('src', 'https://f.no.mt/cover.png');
+  await expect(section.locator('.studio-cover .framed-cover-image')).toHaveAttribute(
+    'src',
+    'https://f.no.mt/cover.png',
+  );
+  await expect(section.locator('.studio-cover .framed-cover-overlay')).toHaveAttribute(
+    'src',
+    /\/brand\/frames\/.+\.svg$/,
+  );
   const wav = Buffer.concat([Buffer.from(wavHeader(48000)), Buffer.alloc(48000)]);
-  await audio.setInputFiles({ name: 'episode.wav', mimeType: 'audio/wav', buffer: wav });
+  await section.locator('input[type=file][accept*="audio"]').setInputFiles({
+    name: 'episode.wav',
+    mimeType: 'audio/wav',
+    buffer: wav,
+  });
   await page.getByRole('button', { name: '上传音频', exact: true }).click();
   await expect(section.locator('.his-audio-player')).toBeVisible();
   expect(state.uploads).toContainEqual({
@@ -434,8 +454,8 @@ test('cover grid and detail sections fit desktop and phone in both themes withou
             return img.complete && img.naturalWidth > 0;
           }),
         );
-      await expect(page.locator('.library-cover img')).toHaveCount(2);
-      await expect.poll(() => loaded('.library-cover img')).toBe(true);
+      await expect(page.locator('.library-cover .framed-cover-image')).toHaveCount(2);
+      await expect.poll(() => loaded('.library-cover .framed-cover-image')).toBe(true);
       if (width === 1440) {
         const tops = await page
           .locator('.library-filters > input, .library-filters > button')
@@ -466,8 +486,8 @@ test('cover grid and detail sections fit desktop and phone in both themes withou
           }),
         );
       await expect(page.getByRole('table', { name: '节目库列表' })).toBeVisible();
-      await expect(page.locator('.library-thumbnail img')).toHaveCount(2);
-      await expect.poll(() => loaded('.library-thumbnail img')).toBe(true);
+      await expect(page.locator('.library-thumbnail .framed-cover-image')).toHaveCount(2);
+      await expect.poll(() => loaded('.library-thumbnail .framed-cover-image')).toBe(true);
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
       await page.screenshot({ path: `.local/admin-library-list-${theme}-${width}.png`, fullPage: true });
       await page.goto('/admin/productions/production-test?section=assets');
@@ -509,12 +529,14 @@ test('only a finished download receives branding and the original is never rewri
   );
   const state = await studio(page, production);
   await page.goto(`/admin/productions/${production.id}?section=assets`);
-  await expect(page.locator('.studio-section:visible .studio-cover')).toHaveAttribute(
+  await expect(page.locator('.studio-section:visible .studio-cover .framed-cover-image')).toHaveAttribute(
     'src',
     production.assets.cover?.url ?? '',
   );
+  const downloadButton = page.getByRole('button', { name: /下载含品牌框架的封面成品/ });
+  await expect(downloadButton).toBeEnabled();
   const downloadPromise = page.waitForEvent('download');
-  await page.locator('.studio-section:visible').getByRole('button', { name: '下载封面成品' }).click();
+  await downloadButton.click();
   const download = await downloadPromise;
   expect(download.suggestedFilename()).toBe(
     `his-fm-ep-${String(production.episodeNumber).padStart(3, '0')}.png`,
@@ -551,9 +573,10 @@ test('only a finished download receives branding and the original is never rewri
   await expect(page.getByText('成品已生成，原图保持不变。', { exact: true })).toBeVisible();
   expect(state.production).toEqual(before);
   expect(writes).toEqual([]);
-  await page.route('**/brand/cover-frame.svg', (route) => route.fulfill({ status: 503, body: '' }));
+  await page.route('**/brand/frames/*.svg', (route) => route.fulfill({ status: 503, body: '' }));
   await page.reload();
-  await page.locator('.studio-section:visible').getByRole('button', { name: '下载封面成品' }).click();
+  await expect(page.getByRole('button', { name: /下载含品牌框架的封面成品/ })).toBeEnabled();
+  await page.getByRole('button', { name: /下载含品牌框架的封面成品/ }).click();
   await expect(page.getByText('封面或品牌框架未能加载，请稍后重试。', { exact: true })).toBeVisible();
   expect(state.production).toEqual(before);
 });
@@ -1212,7 +1235,7 @@ test('environment switching confirms unsaved edits, recovers login errors and re
 test('real local production saves, approves and reopens without navigation side effects', async ({
   page,
 }) => {
-  await page.request.post('/admin/api/dev-login', { headers: { Origin: 'https://hisfm.dev.hexly.ai' } });
+  await page.request.post('/admin/api/dev-login', { headers: { Origin: e2eOrigin() } });
   const slug = `cms-e2e-${randomUUID()}`;
   let id = '';
   try {

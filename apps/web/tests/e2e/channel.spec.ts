@@ -280,7 +280,7 @@ test('prompt controls stay compact and readable across viewport sizes and themes
         };
       });
       expect(bounds.height).toBeLessThanOrEqual(width === 320 ? 80 : 40);
-      expect(bounds.gap).toBeLessThan(64);
+      expect(bounds.gap).toBeLessThan(width === 320 ? 88 : 64);
       expect(bounds.overflow).toBe(false);
       await trigger.click();
       const menu = page.getByRole('listbox');

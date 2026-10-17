@@ -3,7 +3,7 @@ import { PageHeader } from '@nocoo/basalt/components/page-header';
 import { Radio, RadioGroup } from '@nocoo/basalt/components/radio';
 import { ArrowUpRight, Check, Eye } from 'lucide-react';
 import { BrandSymbol, Wordmark } from '../../brand/Brand';
-import { themeMedia, themeStyle, themes } from '../../brand/themes';
+import { themeCoverFrameSrc, themeMedia, themeStyle, themes } from '../../brand/themes';
 import { themeIdSchema, themeIds } from '../../shared/appearance';
 import { getEnvironment } from '../environment';
 import { Failure } from '../production/controls';
@@ -56,7 +56,7 @@ export default function AppearancePage() {
               <a href="/brand/symbol.svg" download>
                 符号 SVG <ArrowUpRight size={13} />
               </a>
-              <a href="/brand/cover-frame.svg" download>
+              <a href={themeCoverFrameSrc(vm.selected ?? vm.saved?.theme ?? 'interval')} download>
                 透明框架 SVG <ArrowUpRight size={13} />
               </a>
             </div>

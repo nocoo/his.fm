@@ -173,6 +173,55 @@ def embedded_image(path, x, y, width, height, fit='xMidYMid slice'):
     return f'<image x="{x}" y="{y}" width="{width}" height="{height}" preserveAspectRatio="{fit}" href="data:image/webp;base64,{data}"/>'
 
 
+def overlay_frame(brand):
+    """Site/export overlay: brand frame and decoration only, no episode copy."""
+    num = brand['id']
+    if int(num) >= 5:
+        return quiet_overlay_frame(brand)
+    paper, ink, accent = [c for _, c in brand['palette'][:3]]
+    if num == '02':
+        content = f'<path d="M0 0H1024V1024H0ZM92 174V733H984V174Z" fill="{paper}" fill-rule="evenodd"/><rect width="64" height="1024" fill="{accent}"/>'
+        content += place_logo(num, 91, 25, 398, ink) + place_symbol(num, 884, 57, 76, ink)
+        content += f'<path d="M92 161H984M92 746H984" fill="none" stroke="{ink}" stroke-width="1.3"/><rect x="64" y="174" width="14" height="56" fill="#294ADF"/>'
+    elif num == '03':
+        content = f'<path d="M0 0H1024V1024H0ZM56 310C56 238 114 180 186 180H944Q968 180 968 204V638C968 724 894 790 808 790H80Q56 790 56 766Z" fill="{accent}" fill-rule="evenodd"/>'
+        content += place_logo(num, 43, 15, 402, ink)
+        content += f'<circle cx="906" cy="763" r="49" fill="{paper}"/>' + place_symbol(num, 869, 725, 75, ink)
+    elif num == '04':
+        content = f'<rect width="1024" height="203" fill="{accent}"/><rect x="0" y="0" width="30" height="1024" fill="{ink}"/><rect x="30" y="764" width="994" height="260" fill="{paper}"/><rect x="30" y="720" width="994" height="56" fill="#FA603A"/>'
+        content += place_logo(num, 40, 14, 749, ink) + place_symbol(num, 867, 42, 112, ink)
+        content += f'<path d="M16 224V687M5 230H27M5 681H27" stroke="{paper}" stroke-width="2" fill="none"/>'
+    else:
+        accent = '#D0F66D'
+        content = '<defs><linearGradient id="shade" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#14291e" stop-opacity=".72"/><stop offset=".4" stop-color="#14291e" stop-opacity="0"/><stop offset=".58" stop-color="#14291e" stop-opacity="0"/><stop offset="1" stop-color="#14291e" stop-opacity=".94"/></linearGradient></defs><rect width="1024" height="1024" fill="url(#shade)"/>'
+        content += f'<rect x="27" y="27" width="970" height="970" rx="38" stroke="{accent}" stroke-opacity=".45" stroke-width="1.5" fill="none"/>'
+        content += place_symbol(num, 56, 58, 51, paper) + place_logo(num, 119, 40, 292, paper)
+    return content
+
+
+def quiet_overlay_frame(brand):
+    num = brand['id']
+    paper, ink, accent, secondary, _ = [c for _, c in brand['palette']]
+    if num == '05':
+        content = f'<defs><linearGradient id="forest-shade" x1="0" y1="0" x2="0" y2="1"><stop stop-color="{ink}" stop-opacity=".7"/><stop offset=".27" stop-color="{ink}" stop-opacity="0"/><stop offset=".55" stop-color="{ink}" stop-opacity="0"/><stop offset=".81" stop-color="{ink}" stop-opacity=".85"/><stop offset="1" stop-color="{ink}"/></linearGradient></defs><rect width="1024" height="1024" fill="url(#forest-shade)"/>'
+        content += f'<rect x="31" y="31" width="962" height="962" fill="none" stroke="{paper}" stroke-opacity=".45" stroke-width="1.2"/>'
+        content += place_logo(num, 59, 46, 319, paper) + place_symbol(num, 880, 53, 83, paper)
+    elif num == '06':
+        content = f'<path d="M0 0H1024V1024H0ZM36 190V730H988V190Z" fill="{paper}" fill-rule="evenodd"/>'
+        content += place_logo(num, 43, 30, 365, ink) + place_symbol(num, 890, 55, 73, ink)
+        content += f'<path d="M36 748H988M36 758H336M706 758H988" fill="none" stroke="{ink}" stroke-width="1" stroke-opacity=".6"/>'
+    elif num == '07':
+        content = f'<path d="M0 0H1024V1024H0ZM65 270Q65 181 154 181H882Q969 181 969 270V698Q969 754 913 754H121Q65 754 65 698Z" fill="{ink}" fill-rule="evenodd"/>'
+        content += f'<rect x="0" y="0" width="28" height="1024" fill="{accent}"/><path d="M41 15V1010" stroke="{paper}" stroke-opacity=".5" stroke-dasharray="2 9"/><rect x="55" y="808" width="940" height="185" fill="{paper}"/>'
+        content += place_logo(num, 61, 28, 389, paper) + place_symbol(num, 879, 42, 83, paper)
+    else:
+        content = f'<defs><linearGradient id="alpine-mist" x1="0" y1="0" x2="0" y2="1"><stop stop-color="{paper}" stop-opacity=".86"/><stop offset=".25" stop-color="{paper}" stop-opacity="0"/><stop offset=".6" stop-color="{paper}" stop-opacity="0"/><stop offset=".8" stop-color="{paper}" stop-opacity=".92"/><stop offset="1" stop-color="{paper}"/></linearGradient></defs><rect width="1024" height="1024" fill="url(#alpine-mist)"/>'
+        content += f'<path d="M40 97V40H97M927 40H984V97M40 927V984H97M927 984H984V927" stroke="{ink}" stroke-opacity=".5" fill="none" stroke-width="1.2"/>'
+        content += place_logo(num, 54, 41, 334, ink) + place_symbol(num, 882, 53, 80, ink)
+        content += f'<path d="M62 790V945" stroke="{accent}" stroke-width="3"/><circle cx="62" cy="782" r="5" fill="{secondary}"/>'
+    return content
+
+
 def frame(brand, ep):
     num = brand['id']
     if int(num) >= 5:

@@ -58,10 +58,11 @@
 .studio-cover {
   width: 100%;
   max-width: 340px;
-  aspect-ratio: 1;
-  object-fit: contain;
   border-radius: var(--basalt-radius);
   align-self: center;
+}
+.studio-cover .framed-cover-image {
+  object-fit: contain;
 }
 .studio-stack audio {
   width: 100%;
@@ -544,12 +545,10 @@
   overflow: hidden;
   background: hsl(var(--basalt-bright));
 }
-.library-cover img,
-.library-thumbnail img {
+.library-cover .framed-cover,
+.library-thumbnail .framed-cover {
   width: 100%;
   height: 100%;
-  display: block;
-  object-fit: cover;
 }
 .library-cover-placeholder {
   display: flex;

@@ -13,6 +13,10 @@ export function useAppearance() {
   return value;
 }
 
+export function useOptionalAppearance() {
+  return useContext(AppearanceContext);
+}
+
 export function PublicLink({ to, ...props }: Omit<LinkProps, 'to'> & { to: string }) {
   const { preview } = useAppearance();
   return <Link {...props} to={appearanceHref(to, preview)} />;

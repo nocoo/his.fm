@@ -305,13 +305,9 @@ html:has(.public-site) body {
   border-radius: var(--radius);
 }
 .public-site .episode-cover {
-  aspect-ratio: 1;
-  overflow: hidden;
   background: var(--well);
 }
-.public-site .episode-cover img {
-  width: 100%;
-  height: 100%;
+.public-site .episode-cover .framed-cover-image {
   object-fit: contain;
 }
 .public-site .art-arrow {
