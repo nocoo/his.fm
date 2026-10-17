@@ -95,6 +95,10 @@ beforeEach(async () => {
       env.DB.prepare(`DELETE FROM ${table}`),
     ),
   );
+  await env.DB.batch([
+    env.DB.prepare("UPDATE site_seo SET data = '{}' WHERE id = 1"),
+    env.DB.prepare("UPDATE categories SET seo = '{}'"),
+  ]);
   let objects = await env.MEDIA.list({ limit: 1000 });
   const keys = objects.objects.map((object) => object.key);
   while (objects.truncated) {
@@ -114,6 +118,71 @@ afterAll(async () => {
 });
 
 describe('owner R2 inventory and cleanup', () => {
+  it('protects uploaded site, episode and category SEO images and episode mentions during cleanup', async () => {
+    const keys = [
+      'site-og',
+      'site-cover',
+      'site-override',
+      'episode-og',
+      'category-og',
+      'mention',
+      'production-og',
+    ].map((name) => `uploads/${name}.png`);
+    await env.DB.prepare('UPDATE site_seo SET data = ? WHERE id = 1')
+      .bind(
+        JSON.stringify({
+          defaultOgImageUrl: `https://f.no.mt/${keys[0]}`,
+          podcastCoverUrl: `/media/${keys[1]}`,
+          overrides: { ogImageUrl: `https://his.fm/media/${keys[2]}` },
+        }),
+      )
+      .run();
+    await env.DB.prepare('UPDATE categories SET seo = ? WHERE id = ?')
+      .bind(JSON.stringify({ ogImageUrl: `https://f.no.mt/${keys[4]}` }), 'life')
+      .run();
+    await env.DB.prepare(`INSERT INTO episodes (id, slug, episode_number, title, summary, transcript, show_notes, cover_url, category, status, created_at, updated_at, seo, mentions)
+      VALUES ('seo-episode', 'seo-episode', 1, '节目', '', '', '', '/images/episode-01.webp', 'life', 'draft', 'now', 'now', ?, ?)`)
+      .bind(
+        JSON.stringify({ ogImageUrl: `/media/${keys[3]}` }),
+        JSON.stringify([{ name: '图片', description: '节目提及', url: `https://f.no.mt/${keys[5]}` }]),
+      )
+      .run();
+    const production = readyFixture({ seo: { ogImageUrl: `/media/${keys[6]}` } });
+    await env.DB.prepare('INSERT INTO productions VALUES (?, ?, ?, ?, ?, ?, ?)')
+      .bind(
+        production.id,
+        production.version,
+        production.stage,
+        JSON.stringify(production),
+        production.createdAt,
+        production.updatedAt,
+        crypto.randomUUID(),
+      )
+      .run();
+    for (const key of keys) await put(key, 'image/png');
+    const objects = (await scan(aged())).objects;
+    expect(objects).toHaveLength(keys.length);
+    expect(objects.every((object) => object.state === 'referenced')).toBe(true);
+    expect(
+      (await remove(objects.map(({ key, version }) => ({ key, version })))).every(
+        (result) => result.status === 'skipped',
+      ),
+    ).toBe(true);
+    for (const key of keys) expect(await env.MEDIA.head(key)).not.toBeNull();
+  });
+
+  it('revalidates newly saved SEO references rather than trusting an earlier unused scan', async () => {
+    const object = await put('uploads/newly-configured.png');
+    expect((await scan(aged())).objects[0].state).toBe('unused');
+    await env.DB.prepare('UPDATE site_seo SET data = ? WHERE id = 1')
+      .bind(JSON.stringify({ defaultOgImageUrl: `https://f.no.mt/${object.key}` }))
+      .run();
+    expect(await remove([{ key: object.key, version: object.version }])).toEqual([
+      expect.objectContaining({ key: object.key, status: 'skipped', reason: '站点 SEO' }),
+    ]);
+    expect(await env.MEDIA.head(object.key)).not.toBeNull();
+  });
+
   it('requires owner authentication and same-origin writes with strict bounded inputs', async () => {
     expect((await call('', { headers: { Cookie: '' } })).status).toBe(401);
     expect((await call('/object?key=x', { headers: { Cookie: '' } })).status).toBe(401);
@@ -319,6 +388,38 @@ describe('owner R2 inventory and cleanup', () => {
         )
       ).status,
     ).toBe(500);
+    expect(await env.MEDIA.head(object.key)).not.toBeNull();
+  });
+
+  it('fails closed when any reference query returns a partial unsuccessful result', async () => {
+    const object = await put('uploads/partial-scan.png');
+    const bindings = {
+      ...aged(),
+      DB: {
+        prepare: env.DB.prepare.bind(env.DB),
+        batch: async (statements: D1PreparedStatement[]) => {
+          const results = await env.DB.batch(statements);
+          return results.map((result, index) =>
+            index === results.length - 1 ? { ...result, success: false, results: [] } : result,
+          );
+        },
+      } as unknown as D1Database,
+    };
+    expect((await call('', {}, bindings)).status).toBe(503);
+    expect(
+      (
+        await call(
+          '/cleanup',
+          {
+            method: 'POST',
+            body: JSON.stringify({
+              items: [{ key: object.key, version: object.version }],
+            }),
+          },
+          bindings,
+        )
+      ).status,
+    ).toBe(503);
     expect(await env.MEDIA.head(object.key)).not.toBeNull();
   });
 });

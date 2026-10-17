@@ -46,26 +46,42 @@ function collect(value: unknown, label: string, keys: References['keys'], proper
 }
 
 async function references(db: D1Database): Promise<References> {
-  const [productions, episodes, provenance, channel, bumpers, categories] = await db.batch<
+  const [productions, episodes, provenance, channel, bumpers, categories, siteSeo] = await db.batch<
     Record<string, unknown>
   >([
     db.prepare('SELECT data FROM productions'),
-    db.prepare('SELECT title, cover_url, audio_url, transcript, show_notes, summary FROM episodes'),
+    db.prepare(
+      'SELECT title, cover_url, audio_url, transcript, show_notes, summary, seo, mentions FROM episodes',
+    ),
     db.prepare('SELECT data FROM media_provenance'),
     db.prepare('SELECT content, prompts FROM channel_profile'),
     db.prepare('SELECT name, data FROM bumpers'),
-    db.prepare('SELECT name, prompt FROM categories'),
+    db.prepare('SELECT name, prompt, seo FROM categories'),
+    db.prepare('SELECT data FROM site_seo'),
   ]);
+  if (
+    [productions, episodes, provenance, channel, bumpers, categories, siteSeo].some(
+      (result) => !result.success,
+    )
+  )
+    throw new HttpError(503, '资源引用暂时无法读取，请重试');
   const refs: References = { keys: new Map() };
   for (const row of productions.results) {
     const data = JSON.parse(String(row.data));
     collect(data, `制作：${data.title}`, refs.keys);
   }
-  for (const row of episodes.results) collect(row, `节目：${row.title}`, refs.keys);
+  for (const row of episodes.results)
+    collect(
+      { ...row, seo: JSON.parse(String(row.seo)), mentions: JSON.parse(String(row.mentions)) },
+      `节目：${row.title}`,
+      refs.keys,
+    );
   for (const row of provenance.results) collect(JSON.parse(String(row.data)), '历史音频素材', refs.keys);
   for (const row of bumpers.results) collect(JSON.parse(String(row.data)), `贴片：${row.name}`, refs.keys);
   for (const row of channel.results) collect(row, '频道定位', refs.keys);
-  for (const row of categories.results) collect(row.prompt, `栏目：${row.name}`, refs.keys);
+  for (const row of categories.results)
+    collect({ prompt: row.prompt, seo: JSON.parse(String(row.seo)) }, `栏目：${row.name}`, refs.keys);
+  for (const row of siteSeo.results) collect(JSON.parse(String(row.data)), '站点 SEO', refs.keys);
   return refs;
 }
 
