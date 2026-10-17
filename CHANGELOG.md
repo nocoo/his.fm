@@ -2,6 +2,12 @@
 
 All notable changes to his.fm are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions use the owner’s patch-only deployment policy in `AGENTS.md`, with the authoritative version in `package.json`.
 
+## 2.5.1 - 2026-10-17
+
+### Fixed
+
+- Count every image URL stored in site, category and episode SEO settings as a storage reference during inventory scans and orphan cleanup, including absolute `f.no.mt` CDN URLs and `/images` or `/media` path forms.
+
 ## 2.5.0 - 2026-10-17
 
 The owner explicitly requested this minor release (Y+1). The comparison baseline is the deployed release v2.4.9.

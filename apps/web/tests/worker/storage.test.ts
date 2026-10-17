@@ -242,6 +242,97 @@ describe('owner R2 inventory and cleanup', () => {
     for (const object of protectedItems) expect(await env.MEDIA.head(object.key)).not.toBeNull();
   });
 
+  it('collects multiple references separated by CJK punctuation in prose', async () => {
+    const imageKey = 'images/episode-01.webp';
+    const uploadKey = 'uploads/cover.png';
+    await env.DB.prepare(
+      "INSERT INTO channel_profile (id, version, content, updated_at, updated_by) VALUES (1, 1, ?, 'now', 'owner')",
+    )
+      .bind(`封面参考：/${imageKey}，备用图：https://f.no.mt/${uploadKey}`)
+      .run();
+    for (const key of [imageKey, uploadKey]) await put(key, 'image/png');
+    const objects = (await scan(aged())).objects;
+    const states = Object.fromEntries(objects.map((object) => [object.key, object.state]));
+    expect(states[imageKey]).toBe('referenced');
+    expect(states[uploadKey]).toBe('referenced');
+    expect(states[`${uploadKey}?v=1`]).toBeUndefined();
+    const cleanup = await remove(
+      [imageKey, uploadKey].map((key) => {
+        const object = objects.find((candidate) => candidate.key === key);
+        expect(object).toBeDefined();
+        return { key, version: object?.version ?? '' };
+      }),
+    );
+    expect(cleanup.every((result) => result.status === 'skipped')).toBe(true);
+  });
+
+  it('strips query and fragment from relative media and image paths when resolving references', async () => {
+    const mediaKey = 'uploads/ref-media-query.png';
+    const imageKey = 'images/ref-image-fragment.webp';
+    await env.DB.prepare(
+      `INSERT INTO episodes (id, slug, episode_number, title, summary, transcript, show_notes, cover_url, category, seo, status, created_at, updated_at)
+      VALUES ('seo-path', 'seo-path', 2, '路径引用', '', '', '', '', 'life', ?, 'draft', 'now', 'now')`,
+    )
+      .bind(
+        JSON.stringify({
+          ogImageUrl: `/media/${mediaKey}?v=2`,
+          description: `备用 /${imageKey}#preview`,
+        }),
+      )
+      .run();
+    for (const key of [mediaKey, imageKey]) await put(key, 'image/png');
+    const objects = (await scan(aged())).objects;
+    expect(objects.find((candidate) => candidate.key === mediaKey)?.state).toBe('referenced');
+    expect(objects.find((candidate) => candidate.key === imageKey)?.state).toBe('referenced');
+    expect(objects.some((candidate) => candidate.key.includes('?'))).toBe(false);
+    expect(objects.some((candidate) => candidate.key.includes('#'))).toBe(false);
+  });
+
+  it('treats SEO image fields as referenced for site, category and episode scopes', async () => {
+    const cdnKey = 'uploads/c457d853-8487-4c07-9346-7c9ee13cf024.png';
+    const categoryKey = 'uploads/723aebb9-d547-4246-ac40-d0f758bb26c1.jpg';
+    const episodeKey = 'uploads/episode-seo-only-share.jpg';
+    const imagesKey = 'images/custom-og.webp';
+    await env.DB.prepare(
+      'UPDATE site_seo SET data = ?, version = version + 1, updated_at = ?, updated_by = ? WHERE id = 1',
+    )
+      .bind(
+        JSON.stringify({
+          defaultOgImageUrl: `/images/${imagesKey.split('/').pop()}`,
+          podcastCoverUrl: `https://f.no.mt/${cdnKey}`,
+        }),
+        'now',
+        'owner',
+      )
+      .run();
+    await env.DB.prepare('UPDATE categories SET seo = ? WHERE id = ?')
+      .bind(JSON.stringify({ ogImageUrl: `https://f.no.mt/${categoryKey}` }), 'life')
+      .run();
+    await env.DB.prepare(
+      `INSERT INTO episodes (id, slug, episode_number, title, summary, transcript, show_notes, cover_url, category, seo, status, created_at, updated_at)
+      VALUES ('episode', 'episode', 1, 'SEO 节目', '', '', '', '', 'life', ?, 'draft', 'now', 'now')`,
+    )
+      .bind(JSON.stringify({ ogImageUrl: `/media/${episodeKey}` }))
+      .run();
+    for (const key of [cdnKey, categoryKey, episodeKey, imagesKey]) await put(key, 'image/png');
+    const objects = (await scan(aged())).objects;
+    const states = Object.fromEntries(objects.map((object) => [object.key, object.state]));
+    for (const key of [cdnKey, categoryKey, episodeKey, imagesKey]) {
+      expect(states[key]).toBe('referenced');
+      expect(objects.find((object) => object.key === key)?.reasons.join('')).toMatch(/SEO/);
+    }
+    expect(objects.find((object) => object.key === episodeKey)?.reasons.join('')).toContain('节目');
+    expect(objects.find((object) => object.key === categoryKey)?.reasons.join('')).toContain('栏目 SEO');
+    const cleanup = await remove(
+      [cdnKey, categoryKey, episodeKey, imagesKey].map((key) => {
+        const object = objects.find((candidate) => candidate.key === key);
+        expect(object).toBeDefined();
+        return { key, version: object?.version ?? '' };
+      }),
+    );
+    expect(cleanup.every((result) => result.status === 'skipped')).toBe(true);
+  });
+
   it('keeps new uploads, rechecks references, detects replacement and reports individual failure', async () => {
     const fresh = await put('fresh.wav', 'audio/wav');
     expect((await scan()).objects[0]).toMatchObject({
