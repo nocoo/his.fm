@@ -25,6 +25,7 @@ import { CoverDownload } from './production/CoverDownload';
 import { Confirm } from './production/controls';
 import { canDeleteStandaloneEpisode } from './production/model';
 import { useUnsavedChanges } from './production/useUnsavedChanges';
+import { EpisodeSocialPreview } from './seo/EpisodeSocialPreview';
 import { SeoOverrideFields } from './seo/SeoOverrideFields';
 import { adminService } from './service';
 
@@ -40,7 +41,13 @@ export function EpisodeEditor() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [coverPreview, setCoverPreview] = useState('');
-  const [coverCopy, setCoverCopy] = useState({ title: '', episodeNumber: 1, category: '' });
+  const [coverCopy, setCoverCopy] = useState({
+    title: '',
+    episodeNumber: 1,
+    category: '',
+    summary: '',
+    slug: '',
+  });
   const { categories } = useCategories();
   const [mentions, setMentions] = useState<Mention[]>(emptyEpisode.mentions);
   const [seo, setSeo] = useState<SeoOverride>(emptyEpisode.seo);
@@ -72,7 +79,13 @@ export function EpisodeEditor() {
   useEffect(() => {
     setCoverPreview(episode?.coverUrl ?? emptyEpisode.coverUrl);
     const source = episode ?? emptyEpisode;
-    setCoverCopy({ title: source.title, episodeNumber: source.episodeNumber, category: source.category });
+    setCoverCopy({
+      title: source.title,
+      episodeNumber: source.episodeNumber,
+      category: source.category,
+      summary: source.summary,
+      slug: source.slug,
+    });
   }, [episode]);
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -149,6 +162,12 @@ export function EpisodeEditor() {
             </Link>
           </div>
         </LayerCard>
+        <EpisodeSocialPreview
+          episode={episode}
+          saved={episode}
+          categoryName={categories.find((item) => item.id === episode.category)?.name ?? episode.category}
+          notice="预览当前节目发布快照。内容修改请前往制作记录；草稿或未来发布时间的快照不加载公开分享图。"
+        />
       </div>
     );
   }
@@ -217,6 +236,8 @@ export function EpisodeEditor() {
               title: String(data.get('title') ?? ''),
               episodeNumber: Number(data.get('episodeNumber')),
               category: String(data.get('category') ?? ''),
+              summary: String(data.get('summary') ?? ''),
+              slug: String(data.get('slug') ?? ''),
             });
           }}
           className="admin-editor-form"
@@ -504,6 +525,22 @@ export function EpisodeEditor() {
             </div>
           </fieldset>
         </form>
+      )}
+      {!loading && !(id && !episode) && (
+        <EpisodeSocialPreview
+          episode={{
+            ...value,
+            ...coverCopy,
+            coverUrl: coverPreview,
+            seo,
+            id: episode?.id ?? '',
+            version: episode?.version ?? 0,
+            createdAt: episode?.createdAt ?? '',
+            updatedAt: episode?.updatedAt ?? '',
+          }}
+          saved={episode ?? undefined}
+          categoryName={categories.find((item) => item.id === coverCopy.category)?.name ?? coverCopy.category}
+        />
       )}
       {deleteOpen && episode && (
         <Confirm

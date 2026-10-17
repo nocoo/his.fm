@@ -6,6 +6,7 @@ import { type Production, type Publication, publicationSchema } from '../../shar
 import { formatWechat, formatXiaoyuzhou } from '../../shared/publication-format';
 import { useDraft } from '../draft/useDraft';
 import { toLocalDateTime } from '../model';
+import { PublicationSocialPreview } from '../seo/PublicationSocialPreview';
 import { CoverDownload } from './CoverDownload';
 import { Choice, Confirm, CopyButton } from './controls';
 import { dateLabel } from './model';
@@ -71,6 +72,7 @@ export function PublicationPanel({
             />
           </div>
         )}
+        <PublicationSocialPreview production={production} />
         <Tabs defaultValue="wechat">
           <TabsList aria-label="发布平台预览">
             <TabsTrigger value="wechat">微信公众号</TabsTrigger>

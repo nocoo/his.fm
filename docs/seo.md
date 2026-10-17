@@ -85,6 +85,41 @@ embedded ICC profile and never overwrite clean originals or saved publication
 snapshots. Static brand assets are committed with their reproducible generation
 script. These code defaults do not rewrite saved or live SEO settings.
 
+## Studio social previews
+
+The standalone episode editor, linked episode snapshot, production publication
+panel and homepage SEO settings include a live platform selector for X/Twitter,
+Facebook, LinkedIn, WeChat chat, Slack, Discord, iMessage and Telegram. These are
+responsive CSS approximations, not embedded platform renderers or crawler checks.
+Landscape cards use the resolved sharing image; WeChat center-crops that same
+image to a square thumbnail. Platform-specific widths, line clamps, colors and
+image placement simulate common presentations, but actual apps may crop,
+truncate, omit descriptions or cache old data differently. WeChat may also need
+publisher-side JS-SDK configuration; this preview does not implement it.
+
+Episode metadata reuses `projectPublicEpisode` and its shared `seo-resolve` chain,
+including the category label, site and episode overrides, canonical category/slug
+URL and stable record-ID `share.jpg` URL. Homepage previews call
+`resolveSiteDefaults`. The expandable metadata section shows the exact resolved
+title, description, URL, image, Twitter card type and robots value. The configured
+site name is shown as a settings value, not a claim that `og:site_name` is emitted.
+Local previews use the current origin; selecting production data uses `https://his.fm`.
+
+Editor text follows unsaved edits without saving them. Images load only for a
+saved, already-published, non-future snapshot whose cover and image override are
+unchanged; drafts, changed images and future publications show an explicit
+placeholder without requesting their public image endpoint. Homepage images also
+wait until their resolved URL matches the saved settings. Failed image loads show
+an unavailable state, never a substitute original cover. This is not proof that a
+platform crawler can access or has refreshed the image.
+
+The production panel finds linked snapshots only by `sourceProductionId`. When a
+snapshot exists it previews that snapshot, not a newer production revision; a
+clear notice distinguishes the two. Before first publication it projects the
+currently saved production as a draft, without loading a public image or claiming
+publication. None of these previews publishes content, changes approval state,
+uploads media or posts to an external platform.
+
 ## Podcast launch requirements
 
 The site and category feeds use published episodes with real, positive-length
