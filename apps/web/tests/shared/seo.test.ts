@@ -8,6 +8,9 @@ describe('seo', () => {
     expect(siteSeoSchema.parse({}).defaultTitle).toContain('his.fm');
     expect(siteSeoSchema.safeParse({ defaultOgImageUrl: 'https://f.no.mt/x.webp' }).success).toBe(true);
     expect(siteSeoSchema.safeParse({ defaultOgImageUrl: 'ftp://bad' }).success).toBe(false);
+    expect(siteSeoSchema.safeParse({ defaultOgImageUrl: '/images/hero.webp' }).success).toBe(true);
+    expect(siteSeoSchema.safeParse({ defaultOgImageUrl: '/media/../secret' }).success).toBe(false);
     expect(parseSeoOverride({ title: 'ok' })).toEqual({ title: 'ok' });
+    expect(parseSeoOverride(null)).toEqual({});
   });
 });

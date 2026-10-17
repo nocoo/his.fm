@@ -25,6 +25,13 @@ describe('mentions schema', () => {
       description: '没有链接也可以只写说明。',
     });
     expect(mentionsSchema.safeParse([{ name: 'A', description: 'B', note: 'old' }]).success).toBe(false);
+    expect(mentionSchema.safeParse({ name: 'A', description: 'B', url: 'http://example.com' }).success).toBe(
+      true,
+    );
+    expect(
+      mentionSchema.safeParse({ name: 'A', description: 'B', url: 'https://user:pass@example.com' }).success,
+    ).toBe(false);
+    expect(mentionSchema.safeParse({ name: 'A', description: 'B', url: 'not-a-url' }).success).toBe(false);
   });
 });
 

@@ -2,6 +2,17 @@
 
 All notable changes to his.fm are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions use the owner’s patch-only deployment policy in `AGENTS.md`, with the authoritative version in `package.json`.
 
+## 2.4.9 - 2026-10-17
+
+### Changed
+
+- Restored Worker coverage gates for `categories`, `episodes` and `production` while keeping other SEO shell modules excluded; client navigation now upserts `og:type`, canonical and Twitter tags instead of only updating existing nodes.
+- Login and not-found client routes continue to clear stale JSON-LD before rendering shell pages.
+
+### Fixed
+
+- Regression tests lock RSS enclosure `type`/`length`, catalogue `category` URL sync, unified legacy slug resolution, version-guarded category alias deletes, and the absence of legacy category-id **301** redirects on feeds or catalogue queries.
+
 ## 2.4.8 - 2026-10-17
 
 ### Added

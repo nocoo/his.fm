@@ -628,3 +628,11 @@ than full CJK fonts, enforce 4 MiB and 4MP before decoding, and admit one render
 per isolate. Exercise real PNG/JPEG/WebP in workerd with actual theme layouts.
 WASM high-water measurements are not total isolate memory or production CPU
 certification; preserve that distinction in the operational contract.
+
+## 2026-10-17: Isolate provider requests in component tests
+
+An upstream JSON-LD shell test mounted the real SEO provider without stubbing
+fetch. Its revalidation request escaped Happy DOM and logged a socket error on
+unmount even though the assertions passed. Keep the real component lifecycle,
+return a valid API payload from an explicit fetch stub, and assert the requested
+endpoint. Passing assertions do not make unintended test network traffic safe.

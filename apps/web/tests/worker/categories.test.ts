@@ -11,6 +11,7 @@ import {
   routeCategories,
 } from '../../worker/categories';
 import { resolveCategoryAlias } from '../../worker/episode-public';
+import { getEpisode, listEpisodes } from '../../worker/episodes';
 import worker from '../../worker/index';
 import { routeProductions } from '../../worker/production';
 import { applyPatch } from '../../worker/production-model';
@@ -400,6 +401,48 @@ it('does not move episode or production references when rename uses a stale vers
 it('rejects category ids that already exist', async () => {
   await expect(assertCategoryIdAvailable(env.DB, 'learning')).rejects.toMatchObject({ status: 409 });
 });
+it('allows the current category id when checking availability during rename', async () => {
+  await expect(assertCategoryIdAvailable(env.DB, 'learning', 'learning')).resolves.toBeUndefined();
+});
+it('creates categories without prompts using only categories:write', async () => {
+  const response = await routeCategories(
+    request('POST', { name: '无提示栏目', icon: 'mic', color: 'blue' }),
+    env,
+    {
+      kind: 'agent',
+      name: 'categories-writer',
+      scopes: ['categories:write'],
+    },
+  );
+  expect(response.status).toBe(201);
+});
+it('requires prompts:write when creating a category that includes a prompt', async () => {
+  await expect(
+    routeCategories(request('POST', input), env, {
+      kind: 'agent',
+      name: 'categories-writer',
+      scopes: ['categories:write'],
+    }),
+  ).rejects.toMatchObject({ status: 403 });
+});
+it('includes prompts on category detail when the actor has prompts:read', async () => {
+  const created = await create();
+  const response = await routeCategories(request(), env, reader, created.id);
+  const body = (await response.json()) as { category: Category };
+  expect(body.category.prompt).toBe(input.prompt);
+});
+it('omits prompts from category list when the actor lacks prompts:read', async () => {
+  const created = await create();
+  const response = await routeCategories(request(), env, {
+    kind: 'agent',
+    name: 'categories-only',
+    scopes: ['categories:read'],
+  });
+  const body = (await response.json()) as { categories: Category[] };
+  const listed = body.categories.find((category) => category.id === created.id);
+  expect(listed).toBeDefined();
+  expect(listed).not.toHaveProperty('prompt');
+});
 it('rejects legacy alias ids for new identifiers', async () => {
   await env.DB.prepare('INSERT INTO category_id_aliases (alias, category_id) VALUES (?, ?)')
     .bind('legacy-slot', 'life')
@@ -426,6 +469,17 @@ it('moves episode number claims when renaming category ids', async () => {
       .bind('claim-holder')
       .first<{ category: string }>(),
   ).toEqual({ category: nextId });
+});
+it('rejects category deletes without a valid version query', async () => {
+  const category = await create();
+  await expect(
+    routeCategories(
+      request('DELETE', undefined, `/admin/api/categories/${category.id}`),
+      env,
+      human,
+      category.id,
+    ),
+  ).rejects.toMatchObject({ status: 400 });
 });
 it('keeps aliases when category delete fails on a stale version', async () => {
   const category = await create();
@@ -515,6 +569,10 @@ it('maps duplicate nextId insert races to conflict responses', async () => {
     }),
   ).rejects.toMatchObject({ status: 409 });
   expect(await getCategory(env.DB, category.id)).toMatchObject({ id: category.id, version: 1 });
+});
+it('requires episode read scope for private episode listings', async () => {
+  await expect(listEpisodes(env.DB, false)).rejects.toMatchObject({ status: 403 });
+  await expect(getEpisode(env.DB, 'missing-slug', true)).rejects.toMatchObject({ status: 404 });
 });
 it('protects owner category writes with authentication and same-origin checks', async () => {
   expect((await worker.fetch(request(), env)).status).toBe(401);
