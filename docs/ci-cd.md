@@ -9,7 +9,7 @@ Runs on every push to `main`, pull requests against `main`, and manual dispatch.
 - `quality.yml` — typecheck (`npm run typecheck`, `cf workers types` followed by strict `tsc --noEmit`), lint (`npm run lint`, Biome recommended preset, warnings rejected), unit tests with the four 95% coverage floors (`npm run test:coverage`), Gitleaks secret scan plus OSV dependency scan on `package-lock.json`, and a build (`npm run build`, Vite plus the Cloudflare Workers build). The aggregate emits `tested-sha` only when every enabled job succeeded on the same commit.
 - `workflow-lint.yml` — actionlint syntax validation of both workflow files and enforcement of full-SHA base-ci references.
 
-Runtime is pinned to Node `26.9.0` and npm `11.19.1` with frozen `npm ci`. `install-policy: project` keeps the project lifecycle (Husky `prepare`) because the Vite/Workers toolchain requires native postinstall binaries (esbuild, workerd).
+Runtime is pinned to Node `26.9.0` and npm `11.19.1` (`packageManager` in root `package.json`) with frozen `npm ci`. `install-policy: project` keeps the project lifecycle (Husky `prepare`) because the Vite/Workers toolchain requires native postinstall binaries (esbuild, workerd). Root `allowScripts` approves pinned `workerd` postinstalls, `.npmrc` keeps optional platform packages enabled, and CI `prepare-command` rebuilds `workerd` across workspaces so `cf:typegen` always resolves `@cloudflare/workerd-linux-64`.
 
 ## Release (`.github/workflows/release.yml`)
 
