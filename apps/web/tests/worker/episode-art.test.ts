@@ -234,7 +234,7 @@ describe('versioned artwork edge cache', () => {
     const rendered = await first.arrayBuffer();
     const second = await routeEpisodeArt(new Request(url), env, 'one', 'share');
     expect(second.headers.get('X-Hisfm-Art')).toBe('edge-hit');
-    expect(await second.arrayBuffer()).toEqual(rendered);
+    expect(Buffer.from(await second.arrayBuffer()).equals(Buffer.from(rendered))).toBe(true);
   });
 
   it('uses the complete URL, separating kind, size, host and query order', async () => {
@@ -398,7 +398,7 @@ describe('public episode JPEG artwork', () => {
     const bindings = { ...env, MEDIA: { head, get } as unknown as R2Bucket };
     const second = await routeEpisodeArt(new Request(url), bindings, 'one', 'share');
     expect(second.headers.get('X-Hisfm-Art')).toBe('r2-hit');
-    expect(await second.arrayBuffer()).toEqual(bytes);
+    expect(Buffer.from(await second.arrayBuffer()).equals(Buffer.from(bytes))).toBe(true);
     const cachedHead = await routeEpisodeArt(new Request(url, { method: 'HEAD' }), bindings, 'one', 'share');
     expect(cachedHead.headers).toEqual(second.headers);
     expect(await cachedHead.text()).toBe('');
@@ -522,7 +522,7 @@ describe('public episode JPEG artwork', () => {
     expect(metadata.orientation).toBeUndefined();
     const stored = await env.MEDIA.get(key);
     if (!stored) throw new Error('Missing original');
-    expect(Buffer.from(await stored.arrayBuffer())).toEqual(source);
+    expect(Buffer.from(await stored.arrayBuffer()).equals(source)).toBe(true);
   });
 
   it.each([1024, 1400, 3000])(
@@ -601,7 +601,7 @@ describe('public episode JPEG artwork', () => {
     expect(first.equals(second)).toBe(false);
     expect(assetReads).toContain('/brand/frames/interval.svg');
     await env.MEDIA.delete(key);
-    expect(Buffer.from(await (await call()).arrayBuffer())).toEqual(second);
+    expect(Buffer.from(await (await call()).arrayBuffer()).equals(second)).toBe(true);
   });
 
   it('keeps share artwork independent of theme and episode copy', async () => {
@@ -609,7 +609,7 @@ describe('public episode JPEG artwork', () => {
     await env.DB.prepare("UPDATE site_appearance SET theme = 'grove'").run();
     await env.DB.prepare("UPDATE episodes SET title = 'Different title', episode_number = 999").run();
     const second = Buffer.from(await (await call('share')).arrayBuffer());
-    expect(first).toEqual(second);
+    expect(first.equals(second)).toBe(true);
     expect(assetReads.every((path) => path === '/brand/stillwood-wordmark.svg')).toBe(true);
   });
 
