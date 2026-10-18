@@ -358,55 +358,66 @@ describe('owner R2 inventory and cleanup', () => {
     expect(await env.MEDIA.head(object.key)).not.toBeNull();
   });
 
-  it('revalidates newly saved channel and category slot media while preserving legacy fields', async () => {
-    const objects = await Promise.all([
-      put('uploads/channel-slot-reference.webp'),
-      put('uploads/category-slot-reference.webp'),
-    ]);
-    const staleScan = await scan(aged());
-    expect(staleScan.objects.every((object) => object.state === 'unused')).toBe(true);
-    const promptRequest = (path: string, method = 'GET', data?: unknown) =>
-      worker.fetch(
-        new Request(`${origin}/admin/api${path}`, {
-          method,
-          headers: { Cookie: cookie, Origin: origin, 'Content-Type': 'application/json' },
-          ...(data === undefined ? {} : { body: JSON.stringify(data) }),
-        }),
-        env,
-      );
-    for (const [index, path] of ['/channel/prompt-slots', '/categories/life/prompt-slots'].entries()) {
-      const preview = await promptRequest(`${path}/migration/dry-run`);
-      expect(preview.status).toBe(200);
-      const { version, legacyVersion } = (await preview.json()) as { version: number; legacyVersion: number };
-      expect(
-        (await promptRequest(`${path}/migration/apply`, 'POST', { version, legacyVersion })).status,
-      ).toBe(200);
-      const legacySql =
-        index === 0
-          ? 'SELECT content,prompts FROM channel_profile'
-          : "SELECT prompt FROM categories WHERE id='life'";
-      const legacy = await env.DB.prepare(legacySql).first();
-      const updated = await promptRequest(path, 'PUT', {
-        version: 1,
-        slots: [
-          {
-            id: 'media-reference',
-            title: 'Media reference',
-            body: `![Reference](${index === 0 ? '/media/' : 'https://f.no.mt/'}${objects[index].key})`,
-            order: 0,
-            enabled: index === 0,
-            mode: 'append',
-          },
-        ],
-      });
-      expect(updated.status).toBe(200);
-      expect(await env.DB.prepare(legacySql).first()).toEqual(legacy);
-    }
-    expect((await scan(aged())).objects.every((object) => object.state === 'referenced')).toBe(true);
-    const results = await remove(staleScan.objects.map(({ key, version }) => ({ key, version })));
-    expect(results.every((result) => result.status === 'skipped' && result.bytes === 0)).toBe(true);
-    for (const object of objects) expect(await env.MEDIA.head(object.key)).not.toBeNull();
-  });
+  it.each([
+    ['/media/', '\n'],
+    ['https://f.no.mt/', '\r\n'],
+    ['https://his.fm/media/', '\n'],
+    ['https://his.fm/media/', '\r\n'],
+  ])(
+    'revalidates saved slot media at %s followed by %j while preserving legacy fields',
+    async (prefix, newline) => {
+      const objects = await Promise.all([
+        put('uploads/channel-slot-reference.webp'),
+        put('uploads/category-slot-reference.webp'),
+      ]);
+      const staleScan = await scan(aged());
+      expect(staleScan.objects.every((object) => object.state === 'unused')).toBe(true);
+      const promptRequest = (path: string, method = 'GET', data?: unknown) =>
+        worker.fetch(
+          new Request(`${origin}/admin/api${path}`, {
+            method,
+            headers: { Cookie: cookie, Origin: origin, 'Content-Type': 'application/json' },
+            ...(data === undefined ? {} : { body: JSON.stringify(data) }),
+          }),
+          env,
+        );
+      for (const [index, path] of ['/channel/prompt-slots', '/categories/life/prompt-slots'].entries()) {
+        const preview = await promptRequest(`${path}/migration/dry-run`);
+        expect(preview.status).toBe(200);
+        const { version, legacyVersion } = (await preview.json()) as {
+          version: number;
+          legacyVersion: number;
+        };
+        expect(
+          (await promptRequest(`${path}/migration/apply`, 'POST', { version, legacyVersion })).status,
+        ).toBe(200);
+        const legacySql =
+          index === 0
+            ? 'SELECT content,prompts FROM channel_profile'
+            : "SELECT prompt FROM categories WHERE id='life'";
+        const legacy = await env.DB.prepare(legacySql).first();
+        const updated = await promptRequest(path, 'PUT', {
+          version: 1,
+          slots: [
+            {
+              id: 'media-reference',
+              title: 'Media reference',
+              body: `${prefix}${objects[index].key}${newline}Next paragraph`,
+              order: 0,
+              enabled: index === 0,
+              mode: 'append',
+            },
+          ],
+        });
+        expect(updated.status).toBe(200);
+        expect(await env.DB.prepare(legacySql).first()).toEqual(legacy);
+      }
+      expect((await scan(aged())).objects.every((object) => object.state === 'referenced')).toBe(true);
+      const results = await remove(staleScan.objects.map(({ key, version }) => ({ key, version })));
+      expect(results.every((result) => result.status === 'skipped' && result.bytes === 0)).toBe(true);
+      for (const object of objects) expect(await env.MEDIA.head(object.key)).not.toBeNull();
+    },
+  );
 
   it('requires owner authentication and same-origin writes with strict bounded inputs', async () => {
     expect((await call('', { headers: { Cookie: '' } })).status).toBe(401);
