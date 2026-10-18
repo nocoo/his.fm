@@ -185,6 +185,29 @@ async function mockPlayer(page: Page) {
 }
 
 const currentTime = (audio: Locator) => audio.evaluate((element: HTMLAudioElement) => element.currentTime);
+
+for (const width of [375, 390, 430, 1440]) {
+  test(`episode cover and player remain a top-aligned column at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 1000 });
+    await mockPlayer(page);
+    await page.goto('/episodes/player-first?theme=interval');
+    await ready(page);
+    const player = await page.locator('.his-audio-player').boundingBox();
+    const hero = await page.locator('.episode-detail-hero').boundingBox();
+    const intro = await page.locator('.detail-intro').boundingBox();
+    if (!player || !hero || !intro) throw new Error('Missing player layout');
+    expect(Math.abs(player.y - hero.y)).toBeLessThan(1);
+    expect(Math.abs(player.x - hero.x)).toBeLessThan(1);
+    if (width < 760) {
+      expect(Math.abs(player.width - hero.width)).toBeLessThan(1);
+      expect(intro.y).toBeGreaterThan(player.y + player.height);
+    } else {
+      expect(Math.abs(player.y - intro.y)).toBeLessThan(1);
+    }
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  });
+}
+
 async function nearTime(audio: Locator, target: number) {
   await expect.poll(async () => Math.abs((await currentTime(audio)) - target)).toBeLessThan(2);
 }

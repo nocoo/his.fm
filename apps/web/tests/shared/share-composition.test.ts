@@ -2,11 +2,15 @@ import { readFileSync } from 'node:fs';
 import { Renderer } from '@takumi-rs/wasm/node';
 import sharp from 'sharp';
 import { describe, expect, it } from 'vitest';
-import { composeShareSvg } from '../../src/shared/share-composition';
+import { composeShareSvg, shareArtworkFocusY } from '../../src/shared/share-composition';
 
 const wordmark = readFileSync(new URL('../../../../docs/design/assets/05/logo.svg', import.meta.url), 'utf8');
 
 describe('share artwork composition', () => {
+  it('anchors the crop window on the upper-middle subject, not the crop remainder', () => {
+    expect(shareArtworkFocusY).toBe(0.4);
+  });
+
   it('uses the archived outlined identity, a thin inset border and seeded flax paper', () => {
     const svg = composeShareSvg(wordmark);
     expect(svg).toContain('width="1200" height="630" viewBox="0 0 1200 630"');
@@ -18,7 +22,6 @@ describe('share artwork composition', () => {
     expect(svg).toContain(wordmark.match(/<path[^>]+\/>/)?.[0]);
     expect(svg).not.toMatch(/<text|<image|<linearGradient|<title/);
     expect(composeShareSvg(wordmark)).toBe(svg);
-    expect(composeShareSvg(wordmark, '')).toBe(svg);
   });
 
   it('scales the same identity and safe area to square podcast artwork', () => {
@@ -29,9 +32,13 @@ describe('share artwork composition', () => {
   });
 
   it('cover-crops original artwork with only a light wordmark and border above it', () => {
-    const svg = composeShareSvg(wordmark, 'data:image/png;base64,AAAA');
+    const svg = composeShareSvg(wordmark, {
+      dataUrl: 'data:image/png;base64,AAAA',
+      width: 1400,
+      height: 1400,
+    });
     expect(svg).toContain(
-      '<image width="1200" height="630" preserveAspectRatio="xMidYMid slice" href="data:image/png;base64,AAAA"/>',
+      '<image x="0" y="-165" width="1200" height="1200" href="data:image/png;base64,AAAA"/>',
     );
     expect(svg).toContain('fill="#ECEBE1" transform="matrix(');
     expect(svg).toContain('stroke="#ECEBE1" stroke-opacity=".6"');
@@ -41,12 +48,16 @@ describe('share artwork composition', () => {
   });
 
   it('escapes artwork attributes without dependencies on browser-only composition modules', () => {
-    const svg = composeShareSvg(wordmark, 'data:image/svg+xml,<svg a="b">&\'</svg>');
+    const svg = composeShareSvg(wordmark, {
+      dataUrl: 'data:image/svg+xml,<svg a="b">&\'</svg>',
+      width: 1200,
+      height: 630,
+    });
     expect(svg).toContain('href="data:image/svg+xml,&lt;svg a=&quot;b&quot;&gt;&amp;&apos;&lt;/svg&gt;"');
     expect(svg).not.toContain('<svg a=');
   });
 
-  it('renders the original edge-to-edge with a centered crop and no bottom shade', async () => {
+  it('renders the upper-middle subject edge-to-edge without a bottom shade', async () => {
     const original = await sharp({
       create: { width: 120, height: 120, channels: 3, background: '#668844' },
     })
@@ -72,7 +83,11 @@ describe('share artwork composition', () => {
       ])
       .png()
       .toBuffer();
-    const svg = composeShareSvg(wordmark, `data:image/png;base64,${original.toString('base64')}`);
+    const svg = composeShareSvg(wordmark, {
+      dataUrl: `data:image/png;base64,${original.toString('base64')}`,
+      width: 120,
+      height: 120,
+    });
     const renderer = new Renderer();
     try {
       const png = await renderer.render(
@@ -89,7 +104,7 @@ describe('share artwork composition', () => {
         ...data.subarray((y * info.width + x) * 3, (y * info.width + x) * 3 + 3),
       ];
       expect(pixel(600, 2)).toEqual([255, 0, 0]);
-      expect(pixel(600, 627)).toEqual([0, 0, 255]);
+      expect(pixel(600, 627)).toEqual([102, 136, 68]);
       for (const [x, y] of [
         [2, 315],
         [1197, 315],

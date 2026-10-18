@@ -175,7 +175,7 @@ export function productionCapabilities(production: Production, actor: Actor, ori
   };
 }
 
-export async function routeAgent(request: Request, env: Env): Promise<Response> {
+export async function routeAgent(request: Request, env: Env, ctx?: ExecutionContext): Promise<Response> {
   const url = new URL(request.url);
   const path = url.pathname.slice('/api/agent'.length).replace(/\/$/, '');
   const headers: Record<string, string> = { Link: discoveryLinks(url.origin) };
@@ -216,7 +216,7 @@ export async function routeAgent(request: Request, env: Env): Promise<Response> 
         headers,
       );
     }
-    const response = await routeManagement(request, env, path, actor);
+    const response = await routeManagement(request, env, path, actor, ctx);
     if (!response) throw new HttpError(404, '接口不存在，请读取服务发现和 OpenAPI 中的实际路径');
     response.headers.set('Link', headers.Link);
     return response;

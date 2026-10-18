@@ -1,8 +1,10 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { Miniflare } from 'miniflare';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { artLocation } from '../../src/shared/episode-art';
 import type { StorageCleanupResult, StoragePage } from '../../src/shared/storage';
 import worker from '../../worker';
+import { artRecords } from '../../worker/episode-art-cache';
 import { readyFixture } from './production-fixture';
 
 vi.setConfig({ testTimeout: 30000, hookTimeout: 30000 });
@@ -98,6 +100,7 @@ beforeEach(async () => {
   await env.DB.batch([
     env.DB.prepare("UPDATE site_seo SET data = '{}' WHERE id = 1"),
     env.DB.prepare("UPDATE categories SET seo = '{}'"),
+    env.DB.prepare("UPDATE site_appearance SET theme = 'stillwood', version = 1"),
   ]);
   let objects = await env.MEDIA.list({ limit: 1000 });
   const keys = objects.objects.map((object) => object.key);
@@ -118,6 +121,173 @@ afterAll(async () => {
 });
 
 describe('owner R2 inventory and cleanup', () => {
+  it('routes a versioned single-object deletion through the same reference revalidation', async () => {
+    const object = await put('rendered/deleted-record/old.jpg', 'image/jpeg');
+    expect((await call('/object', { method: 'DELETE' })).status).toBe(400);
+    expect((await call('', { method: 'PUT' })).status).toBe(405);
+    const response = await call(
+      `/object?key=${encodeURIComponent(object.key)}&version=${encodeURIComponent(object.version)}`,
+      { method: 'DELETE' },
+      aged(),
+    );
+    expect(response.status).toBe(200);
+    expect((await response.json()) as StorageCleanupResult).toEqual({
+      results: [{ key: object.key, status: 'deleted', reason: '已删除', bytes: 10 }],
+    });
+    expect(await env.MEDIA.head(object.key)).toBeNull();
+  });
+
+  async function artworkFixtures() {
+    const production = readyFixture();
+    await env.DB.prepare('INSERT INTO productions VALUES (?, ?, ?, ?, ?, ?, ?)')
+      .bind(
+        production.id,
+        production.version,
+        production.stage,
+        JSON.stringify(production),
+        production.createdAt,
+        production.updatedAt,
+        crypto.randomUUID(),
+      )
+      .run();
+    await env.DB.prepare(`INSERT INTO episodes (id, slug, episode_number, title, summary, transcript, show_notes, cover_url, category, status, created_at, updated_at)
+      VALUES ('art-episode', 'art-episode', 1, '当前节目', '', '', '', '/images/episode-01.webp', 'life', 'draft', 'now', 'now')`).run();
+    return artRecords(env.DB);
+  }
+
+  it('protects all current rendered sizes for episodes and productions while collecting superseded versions and themes', async () => {
+    const records = await artworkFixtures();
+    const current: string[] = [];
+    const stale: string[] = [];
+    for (const record of records) {
+      for (const size of [1400, 1600, 3000]) {
+        current.push((await artLocation(record, 'stillwood', size)).key);
+      }
+      current.push((await artLocation(record, null)).key);
+      stale.push(
+        (await artLocation(record, 'interval')).key,
+        (await artLocation({ ...record, title: '旧标题' }, 'stillwood')).key,
+        (await artLocation({ ...record, coverUrl: '/media/old-cover.png' }, 'stillwood')).key,
+        (await artLocation({ ...record, coverUrl: '/media/old-cover.png' }, null)).key,
+      );
+    }
+    stale.push('rendered/episodes/deleted/art/stillwood/old/1400.jpg');
+    for (const key of [...current, ...stale]) await put(key, 'image/jpeg');
+    const objects = (await scan(aged())).objects;
+    for (const key of current) {
+      expect(objects.find((object) => object.key === key)).toMatchObject({
+        state: 'referenced',
+        reasons: ['当前节目合成图片'],
+      });
+    }
+    for (const key of stale) expect(objects.find((object) => object.key === key)?.state).toBe('unused');
+    const results = await remove(objects.map(({ key, version }) => ({ key, version })));
+    for (const key of current) {
+      expect(results.find((result) => result.key === key)?.status).toBe('skipped');
+      expect(await env.MEDIA.head(key)).not.toBeNull();
+    }
+    for (const key of stale) {
+      expect(results.find((result) => result.key === key)?.status).toBe('deleted');
+      expect(await env.MEDIA.head(key)).toBeNull();
+    }
+  });
+
+  it('revalidates newly current rendered prefixes for both resource types instead of trusting an unused scan', async () => {
+    const records = await artworkFixtures();
+    const nextTitle = '扫描后保存的新标题';
+    const keys = await Promise.all(
+      records.map(
+        async (record) => (await artLocation({ ...record, title: nextTitle }, 'stillwood', 3000)).key,
+      ),
+    );
+    for (const key of keys) await put(key, 'image/jpeg');
+    const objects = (await scan(aged())).objects;
+    expect(objects.every((object) => object.state === 'unused')).toBe(true);
+    await env.DB.batch([
+      env.DB.prepare('UPDATE episodes SET title = ?').bind(nextTitle),
+      env.DB.prepare("UPDATE productions SET data = json_set(data, '$.title', ?)").bind(nextTitle),
+    ]);
+    const results = await remove(objects.map(({ key, version }) => ({ key, version })));
+    expect(
+      results.every((result) => result.status === 'skipped' && result.reason === '当前节目合成图片'),
+    ).toBe(true);
+    for (const key of keys) expect(await env.MEDIA.head(key)).not.toBeNull();
+  });
+
+  it('rechecks the saved theme on cleanup while keeping theme-independent share objects referenced', async () => {
+    const records = await artworkFixtures();
+    const squares = await Promise.all(
+      records.map(async (record) => (await artLocation(record, 'stillwood')).key),
+    );
+    const shares = await Promise.all(records.map(async (record) => (await artLocation(record, null)).key));
+    for (const key of [...squares, ...shares]) await put(key, 'image/jpeg');
+    const objects = (await scan(aged())).objects;
+    expect(objects.every((object) => object.state === 'referenced')).toBe(true);
+    await env.DB.prepare("UPDATE site_appearance SET theme = 'interval'").run();
+    const results = await remove(objects.map(({ key, version }) => ({ key, version })));
+    for (const key of squares) expect(results.find((result) => result.key === key)?.status).toBe('deleted');
+    for (const key of shares) expect(results.find((result) => result.key === key)?.status).toBe('skipped');
+  });
+
+  it.each(['episodes', 'productions', 'appearance'] as const)(
+    'fails closed when current rendered %s references cannot be read',
+    async (resource) => {
+      await artworkFixtures();
+      const object = await put('rendered/unused/old.jpg', 'image/jpeg');
+      const bindings = {
+        ...aged(),
+        DB: {
+          batch: env.DB.batch.bind(env.DB),
+          prepare: (sql: string) => {
+            if (resource === 'appearance' && sql.startsWith('SELECT theme, version'))
+              return { first: async () => null } as unknown as D1PreparedStatement;
+            if (
+              (resource === 'episodes' && sql.startsWith('SELECT e.id, e.title')) ||
+              (resource === 'productions' && sql.startsWith('SELECT p.data, c.name'))
+            )
+              return { all: async () => ({ success: false, results: [] }) } as unknown as D1PreparedStatement;
+            return env.DB.prepare(sql);
+          },
+        } as unknown as D1Database,
+      };
+      expect((await call('', {}, bindings)).status).toBe(503);
+      expect(
+        (
+          await call(
+            '/cleanup',
+            {
+              method: 'POST',
+              body: JSON.stringify({ items: [{ key: object.key, version: object.version }] }),
+            },
+            bindings,
+          )
+        ).status,
+      ).toBe(503);
+      expect(await env.MEDIA.head(object.key)).not.toBeNull();
+    },
+  );
+
+  it('does not delete when rendered reference revalidation becomes partial after cleanup begins', async () => {
+    await artworkFixtures();
+    const object = await put('rendered/unused/old.jpg', 'image/jpeg');
+    let reads = 0;
+    const bindings = {
+      ...aged(),
+      DB: {
+        batch: env.DB.batch.bind(env.DB),
+        prepare: (sql: string) => {
+          if (sql.startsWith('SELECT p.data, c.name') && ++reads > 1)
+            return { all: async () => ({ success: false, results: [] }) } as unknown as D1PreparedStatement;
+          return env.DB.prepare(sql);
+        },
+      } as unknown as D1Database,
+    };
+    expect(await remove([{ key: object.key, version: object.version }], bindings)).toEqual([
+      expect.objectContaining({ key: object.key, status: 'failed', bytes: 0 }),
+    ]);
+    expect(await env.MEDIA.head(object.key)).not.toBeNull();
+  });
+
   it('protects uploaded site, episode and category SEO images and episode mentions during cleanup', async () => {
     const keys = [
       'site-og',

@@ -904,7 +904,7 @@ test('sidebar separates content, brand and settings with a highlighted website s
   const website = sidebar.getByRole('link', { name: '访问网站', exact: true });
   const github = page.getByRole('link', { name: 'GitHub 仓库', exact: true });
   const groups = [
-    ['内容制作', ['节目库', '新建节目', '栏目管理', '提示词', '贴片库']],
+    ['内容制作', ['节目库', '栏目管理', '提示词', '贴片库']],
     ['品牌外观', ['品牌外观', '搜索与分享', '音色预览']],
     ['全站设置', ['连接管理', '资源管理']],
   ] as const;
@@ -916,6 +916,7 @@ test('sidebar separates content, brand and settings with a highlighted website s
       for (const item of items)
         await expect(region.getByRole('button', { name: item, exact: true })).toBeVisible();
     }
+    await expect(sidebar.getByRole('button', { name: '新建节目', exact: true })).toHaveCount(0);
     await expect(website).toBeInViewport();
     await expect(website).toHaveAttribute('href', '/');
     await expect(website).toHaveClass(/bg-basalt-primary/);
@@ -934,6 +935,18 @@ test('sidebar separates content, brand and settings with a highlighted website s
     'aria-current',
     'page',
   );
+  const create = page.locator('.library-page').getByRole('link', { name: '新建节目', exact: true }).first();
+  await expect(create).toBeVisible();
+  await expect(create).toHaveAttribute('href', '/admin/productions/new');
+  await create.click();
+  await expect(page).toHaveURL(/\/admin\/productions\/new$/);
+  await expect(sidebar.getByRole('button', { name: '节目库', exact: true })).toHaveAttribute(
+    'aria-current',
+    'page',
+  );
+  await expect(sidebar.getByRole('button', { name: '新建节目', exact: true })).toHaveCount(0);
+  await sidebar.getByRole('button', { name: '节目库', exact: true }).click();
+  await expect(page).toHaveURL(/\/admin\/?$/);
   await expect(sidebar.getByRole('link', { name: 'GitHub 仓库', exact: true })).toHaveCount(0);
   await expect(page.getByRole('link', { name: '访问网站', exact: true })).toHaveCount(1);
   const logo = sidebar.locator('.admin-rail-mark');

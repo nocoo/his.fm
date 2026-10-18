@@ -39,7 +39,7 @@ export function SeoOverrideFields({
       <Field
         label="分享图地址"
         htmlFor={`${idPrefix}-og-image`}
-        hint="HTTPS 或站内 /images/、/media/ 路径；留空使用封面或站点默认图。"
+        hint="HTTPS 或站内 /brand/、/images/、/media/ 路径；节目留空使用专属 share.jpg，其他页面使用站点分享图。"
       >
         <Input
           id={`${idPrefix}-og-image`}

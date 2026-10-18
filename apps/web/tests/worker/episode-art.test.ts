@@ -29,8 +29,17 @@ let mf: Miniflare;
 let env: Env;
 const request = (kind = 'art', query = '', method = 'GET', id = 'one') =>
   new Request(`${origin}/episodes/${id}/${kind}.jpg${query}`, { method });
-const call = (kind: 'art' | 'share' = 'art', query = '', method = 'GET', bindings = env) =>
-  routeEpisodeArt(request(kind, query, method), bindings, 'one', kind);
+const call = async (kind: 'art' | 'share' = 'art', query = '', method = 'GET', bindings = env) => {
+  const response = await routeEpisodeArt(request(kind, query, method), bindings, 'one', kind);
+  return response.status === 302
+    ? routeEpisodeArt(
+        new Request(new URL(response.headers.get('Location') ?? '', origin), { method }),
+        bindings,
+        'one',
+        kind,
+      )
+    : response;
+};
 
 beforeAll(async () => {
   mf = new Miniflare({
@@ -86,6 +95,8 @@ beforeAll(async () => {
 });
 
 beforeEach(async () => {
+  const cached = await env.MEDIA.list({ prefix: 'rendered/' });
+  if (cached.objects.length) await env.MEDIA.delete(cached.objects.map((object) => object.key));
   assetOverrides.clear();
   assetReads.length = 0;
   await env.DB.prepare('DELETE FROM episodes').run();
@@ -107,17 +118,120 @@ afterAll(() => mf.dispose());
 afterEach(() => vi.restoreAllMocks());
 
 describe('public episode JPEG artwork', () => {
+  it('serves immutable cache hits, HEAD and conditional requests without rendering again', async () => {
+    const redirect = await routeEpisodeArt(request('share'), env, 'one', 'share');
+    const url = new URL(redirect.headers.get('Location') ?? '', origin);
+    const first = await routeEpisodeArt(new Request(url), env, 'one', 'share');
+    const bytes = await first.arrayBuffer();
+    const render = vi.spyOn(raster, 'renderCoverJpeg');
+    const head = vi.fn((key: string) => env.MEDIA.head(key));
+    const get = vi.fn((key: string) => env.MEDIA.get(key));
+    const bindings = { ...env, MEDIA: { head, get } as unknown as R2Bucket };
+    const second = await routeEpisodeArt(new Request(url), bindings, 'one', 'share');
+    expect(await second.arrayBuffer()).toEqual(bytes);
+    const cachedHead = await routeEpisodeArt(new Request(url, { method: 'HEAD' }), bindings, 'one', 'share');
+    expect(cachedHead.headers).toEqual(first.headers);
+    expect(await cachedHead.text()).toBe('');
+    expect(get).toHaveBeenCalledTimes(1);
+    for (const headers of [
+      { 'If-None-Match': first.headers.get('ETag') ?? '' },
+      { 'If-None-Match': `"other", W/${first.headers.get('ETag')}` },
+      { 'If-None-Match': '*' },
+      { 'If-Modified-Since': first.headers.get('Last-Modified') ?? '' },
+    ] as HeadersInit[]) {
+      const response = await routeEpisodeArt(new Request(url, { headers }), bindings, 'one', 'share');
+      expect(response.status).toBe(304);
+      expect(await response.text()).toBe('');
+      expect(response.headers.has('Content-Length')).toBe(false);
+    }
+    for (const headers of [
+      { 'If-None-Match': '"other"', 'If-Modified-Since': 'Fri, 01 Jan 2100 00:00:00 GMT' },
+      { 'If-Modified-Since': 'Wed, 01 Jan 2020 00:00:00 GMT' },
+      { 'If-Modified-Since': 'invalid' },
+    ] as HeadersInit[])
+      expect((await routeEpisodeArt(new Request(url, { headers }), env, 'one', 'share')).status).toBe(200);
+    expect(head).toHaveBeenCalled();
+    expect(render).not.toHaveBeenCalled();
+    await env.DB.prepare("UPDATE episodes SET status = 'draft'").run();
+    await expect(routeEpisodeArt(new Request(url), env, 'one', 'share')).rejects.toMatchObject({
+      status: 404,
+    });
+  });
+
+  it('changes art URLs for copy and category edits and both variants for a new original', async () => {
+    const location = async (kind: 'art' | 'share') =>
+      (await routeEpisodeArt(request(kind), env, 'one', kind)).headers.get('Location');
+    let art = await location('art');
+    const share = await location('share');
+    for (const sql of [
+      "UPDATE episodes SET title = 'New title'",
+      'UPDATE episodes SET episode_number = 2',
+      "UPDATE categories SET name = '新栏目'",
+    ]) {
+      await env.DB.prepare(sql).run();
+      const updated = await location('art');
+      expect(updated).not.toBe(art);
+      expect(await location('share')).toBe(share);
+      art = updated;
+    }
+    await env.DB.prepare("UPDATE episodes SET cover_url = '/media/new-original.webp'").run();
+    expect(await location('art')).not.toBe(art);
+    expect(await location('share')).not.toBe(share);
+    const stale = await routeEpisodeArt(new Request(new URL(share ?? '', origin)), env, 'one', 'share');
+    expect(stale.status).toBe(302);
+    expect(stale.headers.get('Location')).toBe(await location('share'));
+    await env.DB.prepare("UPDATE categories SET name = '生活'").run();
+  });
+
+  it('keeps cached objects immutable when another isolate wins storage', async () => {
+    const put = env.MEDIA.put.bind(env.MEDIA);
+    const bindings = {
+      ...env,
+      MEDIA: {
+        get: (key: string) => env.MEDIA.get(key),
+        head: (key: string) => env.MEDIA.head(key),
+        put: async (...args: Parameters<R2Bucket['put']>) => {
+          await put(...args);
+          return null;
+        },
+      } as unknown as R2Bucket,
+    };
+    expect((await call('share', '', 'GET', bindings)).status).toBe(200);
+  });
+
+  it('reports unavailable cache storage and allows a later retry', async () => {
+    const bindings = {
+      ...env,
+      MEDIA: {
+        get: (key: string) => env.MEDIA.get(key),
+        head: (key: string) => env.MEDIA.head(key),
+        put: async () => null,
+      } as unknown as R2Bucket,
+    };
+    expect((await call('share', '', 'GET', bindings)).status).toBe(503);
+    await call('share');
+    bindings.MEDIA.get = vi.fn().mockResolvedValue(null);
+    expect((await call('share', '', 'GET', bindings)).status).toBe(503);
+  });
   it.each([
     ['art', 1400, 1400],
     ['share', 1200, 630],
   ] as const)('serves %s through the uncached gateway with real JPEG bytes', async (kind, width, height) => {
     const fetch = vi.fn();
     const context = { exports: { PublicContent: { fetch } } } as unknown as ExecutionContext;
-    const response = await worker.fetch(request(kind), env, context);
+    const redirect = await worker.fetch(request(kind), env, context);
+    expect(redirect.status).toBe(302);
+    expect(redirect.headers.get('Cache-Control')).toBe('no-store');
+    const response = await worker.fetch(
+      new Request(new URL(redirect.headers.get('Location') ?? '', origin)),
+      env,
+      context,
+    );
     expect(response.status).toBe(200);
     expect(response.headers.get('Content-Type')).toBe('image/jpeg');
-    expect(response.headers.get('Cache-Control')).toBe('no-store');
-    expect(response.headers.has('ETag')).toBe(false);
+    expect(response.headers.get('Cache-Control')).toBe('public, max-age=31536000, immutable');
+    expect(response.headers.has('ETag')).toBe(true);
+    expect(response.headers.has('Last-Modified')).toBe(true);
     expect(response.headers.has('X-Public-Cache')).toBe(false);
     expect(cacheablePublicRequest(request(kind))).toBe(false);
     expect(fetch).not.toHaveBeenCalled();
@@ -209,14 +323,14 @@ describe('public episode JPEG artwork', () => {
     expect(Math.max(...channels.map((channel) => channel.mean))).toBeLessThan(2);
   });
 
-  it('uses the saved theme and reads fresh sources on every request', async () => {
+  it('versions the saved theme and serves cached bytes without rereading originals', async () => {
     const first = Buffer.from(await (await call()).arrayBuffer());
     await env.DB.prepare("UPDATE site_appearance SET theme = 'interval'").run();
     const second = Buffer.from(await (await call()).arrayBuffer());
     expect(first.equals(second)).toBe(false);
     expect(assetReads).toContain('/brand/frames/interval.svg');
     await env.MEDIA.delete(key);
-    await expect(call()).rejects.toMatchObject({ status: 404 });
+    expect(Buffer.from(await (await call()).arrayBuffer())).toEqual(second);
   });
 
   it('keeps share artwork independent of theme and episode copy', async () => {
@@ -226,6 +340,40 @@ describe('public episode JPEG artwork', () => {
     const second = Buffer.from(await (await call('share')).arrayBuffer());
     expect(first).toEqual(second);
     expect(assetReads.every((path) => path === '/brand/stillwood-wordmark.svg')).toBe(true);
+  });
+
+  it.each([
+    [1400, 1400],
+    [700, 1400],
+    [1400, 900],
+    [2800, 700],
+  ])('anchors the share band at 0.4 and clamps a %i x %i original', async (width, height) => {
+    const pixels = Buffer.alloc(width * height * 3);
+    for (let row = 0; row < height; row++) {
+      for (let column = 0; column < width; column++) {
+        const offset = (row * width + column) * 3;
+        pixels[offset] = Math.round((column / width) * 255);
+        pixels[offset + 1] = Math.round((row / height) * 255);
+        pixels[offset + 2] = 100;
+      }
+    }
+    const original = await sharp(pixels, { raw: { width, height, channels: 3 } })
+      .png()
+      .toBuffer();
+    await env.MEDIA.put(key, original);
+    const response = await call('share');
+    const { data, info } = await sharp(await response.arrayBuffer())
+      .raw()
+      .toBuffer({ resolveWithObject: true });
+    const scale = Math.max(1200 / width, 630 / height);
+    const cropHeight = 630 / scale;
+    const top = Math.max(0, Math.min(height - cropHeight, height * 0.4 - cropHeight / 2));
+    for (const row of [5, 315, 624]) {
+      const offset = (row * info.width + 600) * info.channels;
+      expect(Math.abs(data[offset] - 128)).toBeLessThan(4);
+      expect(Math.abs(data[offset + 1] - ((top + row / scale) / height) * 255)).toBeLessThan(4);
+      expect(Math.abs(data[offset + 2] - 100)).toBeLessThan(4);
+    }
   });
 
   it('supports bodyless HEAD with the same JPEG headers', async () => {
@@ -248,13 +396,19 @@ describe('public episode JPEG artwork', () => {
     expect(assetReads).toEqual([]);
   });
 
-  it.each(['?size=1399', '?size=3001', '?size=1500.5', '?size=', '?theme=grove', '?size=1400&size=1400'])(
-    'rejects invalid or duplicate options %s',
-    async (query) => {
-      await expect(call('art', query)).rejects.toMatchObject({ status: 400 });
-      expect(cacheablePublicRequest(request('art', query))).toBe(false);
-    },
-  );
+  it.each([
+    '?size=1399',
+    '?size=3001',
+    '?size=1500.5',
+    '?size=',
+    '?theme=grove',
+    '?size=1400&size=1400',
+    '?v=invalid',
+    `?v=${'a'.repeat(64)}&v=${'a'.repeat(64)}`,
+  ])('rejects invalid or duplicate options %s', async (query) => {
+    await expect(call('art', query)).rejects.toMatchObject({ status: 400 });
+    expect(cacheablePublicRequest(request('art', query))).toBe(false);
+  });
 
   it('rejects share options, mutations and malformed encoded IDs', async () => {
     await expect(call('share', '?size=1400')).rejects.toMatchObject({ status: 400 });
@@ -262,7 +416,8 @@ describe('public episode JPEG artwork', () => {
     await expect(routeEpisodeArt(request(), env, '%xx', 'art')).rejects.toMatchObject({ status: 400 });
     await env.DB.prepare("UPDATE episodes SET id = 'one two'").run();
     const response = await worker.fetch(request('share', '', 'GET', 'one%20two'), env);
-    expect(response.status).toBe(200);
+    expect(response.status).toBe(302);
+    expect(response.headers.get('Location')).toContain('/episodes/one%20two/share.jpg?v=');
   });
 
   it('only reads trusted sources and preserves local seed support', async () => {
@@ -277,7 +432,10 @@ describe('public episode JPEG artwork', () => {
   it('rejects oversized sources and invalid pixels, then recovers', async () => {
     const body = new ReadableStream();
     const cancel = vi.spyOn(body, 'cancel');
-    const bindings = { ...env, MEDIA: { get: async () => ({ size: 20_000_001, body }) } } as unknown as Env;
+    const bindings = {
+      ...env,
+      MEDIA: { head: () => null, get: async () => ({ size: 20_000_001, body }) },
+    } as unknown as Env;
     await expect(call('share', '', 'GET', bindings)).rejects.toMatchObject({ status: 413 });
     expect(cancel).toHaveBeenCalled();
     await env.MEDIA.put(key, 'corrupt image');
@@ -289,9 +447,9 @@ describe('public episode JPEG artwork', () => {
   it('fails explicitly for unavailable or malformed frame and local source assets', async () => {
     const path = '/brand/stillwood-wordmark.svg';
     assetOverrides.set(path, { body: 'missing', status: 404 });
-    await expect(call('share')).rejects.toMatchObject({ status: 503 });
+    expect((await call('share')).status).toBe(503);
     assetOverrides.set(path, { body: 'invalid' });
-    await expect(call('share')).rejects.toMatchObject({ status: 503 });
+    expect((await call('share')).status).toBe(503);
     assetOverrides.clear();
     await env.DB.prepare("UPDATE episodes SET cover_url = '/images/missing.png'").run();
     await expect(call('share')).rejects.toMatchObject({ status: 404 });
@@ -299,7 +457,7 @@ describe('public episode JPEG artwork', () => {
     await expect(call('share')).rejects.toMatchObject({ status: 413 });
   });
 
-  it('bounds simultaneous composition without caching or queuing', async () => {
+  it('bounds simultaneous cache-miss composition without queuing', async () => {
     let notifyReady = () => {};
     let release: (object: R2ObjectBody | null) => void = () => {};
     const ready = new Promise<void>((resolve) => {
@@ -311,7 +469,11 @@ describe('public episode JPEG artwork', () => {
     const bindings = {
       ...env,
       MEDIA: {
-        get: () => {
+        head: (objectKey: string) => env.MEDIA.head(objectKey),
+        put: (objectKey: string, value: Uint8Array, options: R2PutOptions) =>
+          env.MEDIA.put(objectKey, value, options),
+        get: (objectKey: string) => {
+          if (objectKey !== key) return env.MEDIA.get(objectKey);
           notifyReady();
           return released;
         },

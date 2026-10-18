@@ -6,6 +6,7 @@ import { routeBumpers } from './bumpers';
 import { routeCategories } from './categories';
 import { routeChannel } from './channel';
 import { routeCover } from './cover';
+import { pregenerateEpisodeArt } from './episode-art-pregenerate';
 import { getEpisode, listEpisodes, mutateEpisode } from './episodes';
 import { HttpError, json } from './http';
 import { routeProductions } from './production';
@@ -17,6 +18,7 @@ export async function routeManagement(
   env: Env,
   path: string,
   actor: Actor,
+  ctx?: ExecutionContext,
 ): Promise<Response | null> {
   let response: Response | null = null;
   const category = /^\/categories(?:\/([a-z0-9-]+))?$/.exec(path);
@@ -62,5 +64,13 @@ export async function routeManagement(
       response = await mutateEpisode(request, env.DB, actor, episode[1]);
     else throw new HttpError(405, 'Unsupported episode method');
   } else response = await routeProductions(request, env, path, actor);
+  if (response?.ok && !['GET', 'HEAD', 'DELETE'].includes(request.method)) {
+    const generationPath = category?.[1]
+      ? `/categories/${((await response.clone().json()) as { category: { id: string } }).category.id}`
+      : path;
+    const generation = pregenerateEpisodeArt(env, new URL(request.url).origin, generationPath);
+    if (ctx) ctx.waitUntil(generation);
+    else await generation;
+  }
   return response;
 }

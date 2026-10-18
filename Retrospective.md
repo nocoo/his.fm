@@ -725,3 +725,65 @@ The new shared raster lock also exposed an existing catch-all in authenticated
 PNG export: it relabeled contention as a 422 decode failure. Preserve typed
 errors and return retryable 503 responses at both public and authenticated entry
 points; test guard release after cross-format contention.
+
+## 2026-10-18 — Verify crop pixels, not only binding types
+
+The Images binding exposes coordinate gravity, but the pinned Miniflare runtime
+only implements named edge positions and silently centers coordinate requests.
+Gradient pixel tests caught the incorrect local share crop before acceptance.
+Keep the original stream bounded through native Images, then apply the shared
+focal-point geometry to its bounded intermediate in SVG. Verify square, portrait,
+landscape and edge-clamped pixels in the actual runtime instead of assuming
+generated types prove emulator behavior. No environment-specific fallback is needed.
+
+Changing the SVG helper's artwork argument also required updating the embedded
+workerd test source, which static typechecking cannot inspect. The enabled commit
+hook caught that stale call; update all callers, including generated test strings,
+and measure the new bounded intermediate in the deployed-like memory test.
+
+The initial social-preview browser suite also pinned its temporary validation
+port. That passed the targeted run but rejected the repository's default Caddy
+URL and the final preview port. Guard local hostnames instead, while honoring
+Playwright's configured base URL and keeping the no-content-write tripwire.
+
+The max review found two recovery gaps: a transient share-image 503 stayed locked
+to its stable URL, and episode previews could substitute a category ID after a
+failed lookup. Offer a same-URL image retry without navigating or saving, and
+resolve category metadata inside the shared preview with loading/error/retry
+states. Test failure followed by recovery, not just the successful initial render.
+The browser recovery test additionally caught the failed selector's missing form
+entry clearing the preview category during an unrelated title edit. Preserve the
+current category when its input is temporarily absent; absence is not an edit.
+
+Herdr's split ratio describes the leading pane, not the new worker pane. Verify
+the returned layout rather than inferring geometry: the controller must use
+0.33 on the left, with workers on the right. The initial 0.67 split was corrected.
+
+## 2026-10-18 — Invoke targeted tests in the owning workspace
+
+Passing Playwright flags through the root script's nested `npm run` consumed the
+flags and selected no tests. Invoke `npm run test:e2e --workspace @his-fm/web --`
+directly when adding test filters; the corrected two-test sidebar run passed.
+
+## 2026-10-18 — Verify generated-art inputs and test boundaries
+
+The initial pregeneration selector missed the publication collection route and
+used the old category ID after a combined ID/name rename. Trace successful writes
+through their shared controller and use the saved identity for follow-up work.
+Regression tests now cover publication, republication and category renaming.
+
+Spying directly on Miniflare's R2 binding proxy did not intercept its methods.
+Use explicit forwarding binding wrappers when testing cache races and failures;
+otherwise a passing test can exercise the real binding instead of the fault.
+Async Web Crypto also requires async preview-model tests and deterministic digest
+mocks in view tests; the shared helper tests retain real hashing.
+
+I repeated the documented Herdr split-ratio mistake before checking the layout.
+The controller was corrected to the left 0.33 immediately after inspection.
+Check geometry directly after creating a pane, not after starting delegated work.
+
+The max review found two more input-changing paths omitted from the initial
+pregeneration selector: atomic action changes and external-platform publication
+corrections. A route's name does not establish which data it writes. Trace every
+shared mutation implementation before classifying it as unrelated; exercise the
+real write, approval and correction flow rather than only testing route strings.

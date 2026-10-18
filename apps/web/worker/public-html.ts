@@ -1,5 +1,6 @@
 import { themeIdSchema } from '../src/shared/appearance';
 import { projectPublicEpisode } from '../src/shared/episode';
+import { withShareArtwork } from '../src/shared/episode-art';
 import { episodePublicPath } from '../src/shared/episode-url';
 import { injectSeoIntoHtml } from '../src/shared/seo-head';
 import { episodeBreadcrumbs, podcastEpisodeJsonLd, podcastSeriesJsonLd } from '../src/shared/seo-jsonld';
@@ -61,8 +62,13 @@ export async function maybeServePublicHtml(request: Request, env: Env): Promise<
   ]);
   const { version: _version, updatedAt: _updatedAt, updatedBy: _updatedBy, ...site } = siteRecord;
   const names = new Map(categories.map((category) => [category.id, category.name]));
-  const episodes = records.map((episode) =>
-    projectPublicEpisode(episode, origin, { site, categoryName: names.get(episode.category) }),
+  const episodes = await Promise.all(
+    records.map((episode) =>
+      withShareArtwork(
+        projectPublicEpisode(episode, origin, { site, categoryName: names.get(episode.category) }),
+        origin,
+      ),
+    ),
   );
   let seo = resolveSiteDefaults(site, origin);
   let jsonLd: unknown[] = [podcastSeriesJsonLd(origin, site)];

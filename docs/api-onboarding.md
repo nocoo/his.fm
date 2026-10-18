@@ -76,6 +76,14 @@ curl --fail-with-body -X PUT \
 
 Fetch the new version after every successful mutation. Never blindly retry a body after a conflict.
 
+### Cached podcast and share artwork
+
+Uploading a clean cover with `PUT /api/agent/productions/{id}/assets/cover?version=N` pregenerates the production's square podcast art and landscape share image as immutable generated R2 objects before publication, using the same path as studio cover uploads. Publication and republication warm the linked episode's current artwork keys. Only generated outputs are cached; the original upload remains unchanged. Storage cleanup protects current generated versions and may reclaim superseded versions subject to the existing safety rules.
+
+Provide a clean **1400 x 1400 square original**; smaller originals are accepted and upscaled without inventing detail. Do not add text, branding, borders or overlays. Keep the main subject near **x = 50%, y = 40%** for the landscape share crop. On a square original, that crop spans **y = 13.75-66.25%**; keep essential details inside this safe area and clear of the finished border and wordmark. Square art keeps a centered artwork window in the active website theme; landscape sharing remains theme-independent.
+
+Public `GET|HEAD /episodes/{id}/art.jpg` and `GET|HEAD /episodes/{id}/share.jpg` serve only currently published, non-future episode snapshots; warming a production does not expose its draft. These stable record-ID URLs resolve to current versioned URLs: `art.jpg?v=<hash>` (optionally with `&size=N`) and `share.jpg?v=<hash>`. Square art defaults to **1400 x 1400** and retains `?size=N` for integers from **1400 through 3000**; landscape sharing is **1200 x 630**. Versioned URLs serve immutable generated R2 objects. Relevant cover, title, episode number, category or website-theme changes select a new square-art version; landscape sharing is independent of the website theme. A cache miss renders and stores the generated output without changing the original.
+
 ## Finished-cover PNG
 
 Read a saved original and its current metadata as one themed image:
@@ -136,7 +144,7 @@ standalone content edits.
 - SEO: GET/PUT `/seo` uses `prompts:read` / `prompts:write`. PUT is partial plus the current version and preserves omitted settings. `podcastAuthorUrl` is HTTPS or empty; `podcastOwnerEmail` must be owner-supplied. Empty `podcastCoverUrl` and `defaultOgImageUrl` use bundled brand JPEGs without writing settings. See `docs/seo-content-checklist.md` for artwork and identity fields.
 - Storage: GET `/storage?cursor=...` must follow all cursors. GET/HEAD `/storage/object?key=...` streams single byte ranges. DELETE `/storage/object?key=...&version=...` or POST `/storage/cleanup` with `{items:[{key,version}]}` needs `storage:delete` and reports per-object results, not unconditional deletion.
 
-Cleanup protects current references (including site/episode/category SEO and mention URLs), retained media provenance, `images/`, `reference/` and uploads younger than 24 hours. Failed reference-query batches block deletion. It cannot prove an object has no external users or atomically coordinate arbitrary R2 overwrites with D1; avoid concurrent reference changes. Deletion does not purge CDN caches.
+Cleanup protects current references (including site/episode/category SEO and mention URLs), current generated podcast/share artwork versions, retained media provenance, `images/`, `reference/` and uploads younger than 24 hours. Superseded generated versions may be reclaimed subject to the same safety rules. Failed reference-query batches block deletion. It cannot prove an object has no external users or atomically coordinate arbitrary R2 overwrites with D1; avoid concurrent reference changes. Deletion does not purge CDN caches.
 
 ## Delegation and response privacy
 

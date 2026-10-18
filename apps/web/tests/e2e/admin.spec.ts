@@ -145,9 +145,10 @@ test.describe('phone workspace', () => {
     await menu.click();
     const drawer = page.getByRole('dialog', { name: '工作室导航' });
     await expect(drawer).toBeVisible();
-    await drawer.getByRole('button', { name: '新建节目', exact: true }).click();
+    await expect(drawer.getByRole('button', { name: '新建节目', exact: true })).toHaveCount(0);
+    await drawer.getByRole('button', { name: '栏目管理', exact: true }).click();
     await expect(drawer).toBeHidden();
-    await expect(page).toHaveURL(/\/admin\/productions\/new$/);
+    await expect(page).toHaveURL(/\/admin\/categories$/);
     await expect(menu).toBeFocused();
     await menu.click();
     await expect(drawer).toBeVisible();

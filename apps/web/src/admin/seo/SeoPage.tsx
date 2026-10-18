@@ -10,8 +10,11 @@ import {
 } from '@nocoo/basalt/components/select';
 import { Check } from 'lucide-react';
 import type { SiteSeo } from '../../shared/seo';
+import { getEnvironment } from '../environment';
 import { Failure } from '../production/controls';
 import { SeoOverrideFields } from './SeoOverrideFields';
+import { SocialPreview } from './SocialPreview';
+import { homepageSocialPreview } from './social-preview.model';
 import { useSiteSeoSettings } from './useSiteSeoSettings';
 
 function SiteSeoForm({
@@ -252,6 +255,14 @@ export default function SeoPage() {
             </LayerCard>
           )}
           <SiteSeoForm value={vm.value} setValue={vm.setValue} pending={vm.pending} />
+          <SocialPreview
+            {...homepageSocialPreview(
+              vm.value,
+              vm.saved,
+              getEnvironment() === 'production' ? 'https://his.fm' : window.location.origin,
+            )}
+            notice="首页预览跟随当前 SEO 设置；未保存的文字不影响公开页面，新图片保存后才加载。"
+          />
           {vm.saved && (
             <p className="admin-muted" role="status">
               {vm.dirty ? '有未保存改动' : `已保存 · v${vm.saved.version}`}

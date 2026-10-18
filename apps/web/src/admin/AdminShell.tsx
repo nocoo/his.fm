@@ -35,7 +35,6 @@ import {
   Palette,
   PanelLeft,
   Plug,
-  Plus,
   Search,
   Tags,
 } from 'lucide-react';
@@ -148,9 +147,8 @@ export function AdminShell({ session, children }: { session: Session; children: 
           href: '/admin',
           label: '节目库',
           icon: Library,
-          active: isList || catalog || (location.pathname.startsWith('/admin/productions/') && !creating),
+          active: isList || catalog || location.pathname.startsWith('/admin/productions/'),
         },
-        { href: '/admin/productions/new', label: '新建节目', icon: Plus, active: creating },
         { href: '/admin/categories', label: '栏目管理', icon: Tags, active: categories },
         { href: '/admin/channel', label: '提示词', icon: Compass, active: channel },
         {

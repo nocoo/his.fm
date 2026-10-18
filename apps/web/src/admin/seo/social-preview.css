@@ -1,0 +1,273 @@
+.social-preview {
+  min-width: 0;
+}
+
+.social-preview-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--basalt-space-content-gap);
+}
+
+.social-preview-selector {
+  width: 168px;
+  max-width: 100%;
+}
+
+.social-preview-stage {
+  display: grid;
+  justify-items: center;
+  min-width: 0;
+  padding: var(--basalt-space-card);
+  background: hsl(var(--basalt-bright));
+  border-radius: var(--basalt-radius);
+}
+
+.social-card {
+  --social-background: #fff;
+  --social-foreground: #14171a;
+  --social-muted: #536471;
+  --social-border: #cfd9de;
+  --social-link: #1264a3;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 500px;
+  overflow: hidden;
+  border: 1px solid var(--social-border);
+  border-radius: 12px;
+  background: var(--social-background);
+  color: var(--social-foreground);
+  font-family: Helvetica, Arial, sans-serif;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.social-card-image {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1200 / 630;
+  overflow: hidden;
+  background: #edf0f2;
+  color: #536471;
+}
+
+.social-card-image img {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  object-fit: cover;
+  object-position: center;
+}
+
+.social-card-image > span {
+  padding: 8px;
+  font-size: 12px;
+  text-align: center;
+}
+
+.social-card-copy {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 4px;
+  padding: 12px;
+}
+
+.social-card-site,
+.social-card-domain {
+  overflow: hidden;
+  color: var(--social-muted);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.social-card-title,
+.social-card-description {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow-wrap: anywhere;
+}
+
+.social-card-title {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.social-card-description {
+  margin: 0;
+  color: var(--social-muted);
+  font-size: 13px;
+}
+
+.social-card-x .social-card-title,
+.social-card-x .social-card-description {
+  -webkit-line-clamp: 1;
+}
+
+.social-card-x .social-card-domain {
+  display: none;
+}
+
+.social-card-facebook {
+  --social-background: #f0f2f5;
+  --social-border: #dadde1;
+  border-radius: 0;
+}
+
+.social-card-facebook .social-card-site,
+.social-card-linkedin .social-card-site {
+  display: none;
+}
+
+.social-card-facebook .social-card-domain {
+  order: -1;
+  text-transform: uppercase;
+}
+
+.social-card-facebook .social-card-title {
+  font-size: 17px;
+}
+
+.social-card-facebook .social-card-description {
+  -webkit-line-clamp: 1;
+}
+
+.social-card-linkedin {
+  --social-background: #f3f2ef;
+  --social-border: #d5d3d0;
+  border-radius: 2px;
+}
+
+.social-card-linkedin .social-card-description {
+  display: none;
+}
+
+.social-card-wechat {
+  flex-direction: row-reverse;
+  align-items: center;
+  max-width: 320px;
+  padding: 12px;
+  gap: 12px;
+  border-radius: 4px;
+}
+
+.social-card-wechat .social-card-image {
+  flex: 0 0 64px;
+  width: 64px;
+  height: 64px;
+  aspect-ratio: 1;
+}
+
+.social-card-wechat .social-card-copy {
+  flex: 1;
+  padding: 0;
+}
+
+.social-card-wechat .social-card-title {
+  font-size: 14px;
+}
+
+.social-card-wechat .social-card-site,
+.social-card-wechat .social-card-domain {
+  display: none;
+}
+
+.social-card-slack,
+.social-card-discord,
+.social-card-telegram {
+  max-width: 420px;
+  border: 0;
+  border-left: 4px solid var(--social-border);
+  border-radius: 4px;
+}
+
+.social-card-slack .social-card-image,
+.social-card-discord .social-card-image,
+.social-card-telegram .social-card-image {
+  order: 1;
+  margin: 0 12px 12px;
+  border-radius: 4px;
+}
+
+.social-card-slack .social-card-title,
+.social-card-discord .social-card-title,
+.social-card-telegram .social-card-title {
+  color: var(--social-link);
+}
+
+.social-card-slack .social-card-domain,
+.social-card-discord .social-card-domain,
+.social-card-telegram .social-card-domain {
+  display: none;
+}
+
+.social-card-slack .social-card-description,
+.social-card-discord .social-card-description,
+.social-card-telegram .social-card-description {
+  -webkit-line-clamp: 3;
+}
+
+.social-card-discord {
+  --social-background: #2b2d31;
+  --social-foreground: #f2f3f5;
+  --social-muted: #b5bac1;
+  --social-border: #1e1f22;
+  --social-link: #5cb7f2;
+}
+
+.social-card-imessage {
+  --social-background: #e9e9eb;
+  --social-border: #e9e9eb;
+  max-width: 320px;
+  border-radius: 18px;
+}
+
+.social-card-imessage .social-card-site,
+.social-card-imessage .social-card-description {
+  display: none;
+}
+
+.social-card-imessage .social-card-title {
+  -webkit-line-clamp: 3;
+}
+
+.social-card-telegram {
+  --social-background: #eef7e7;
+  --social-border: #6da453;
+  --social-link: #39752b;
+  max-width: 360px;
+}
+
+.social-preview-metadata {
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.social-preview-metadata summary {
+  cursor: pointer;
+}
+
+.social-preview-metadata dl {
+  display: grid;
+  gap: var(--basalt-space-content-gap);
+  margin-block: var(--basalt-space-content-gap) 0;
+}
+
+.social-preview-metadata dt {
+  color: hsl(var(--basalt-muted-foreground));
+}
+
+.social-preview-metadata dd {
+  margin: 0;
+}
+
+@media (max-width: 480px) {
+  .social-preview-stage {
+    padding: var(--basalt-space-content-gap);
+  }
+}

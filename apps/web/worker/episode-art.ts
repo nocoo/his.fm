@@ -1,11 +1,14 @@
 import { Buffer } from 'node:buffer';
 import { themeCoverFrameSrc } from '../src/brand/themes';
+import type { ThemeId } from '../src/shared/appearance';
 import { composeCoverSvg, coverArtwork, coverDesignSize, coverText } from '../src/shared/cover-composition';
+import { type ArtRecord, artLocation } from '../src/shared/episode-art';
 import { composeShareSvg } from '../src/shared/share-composition';
 import { getAppearance } from './appearance';
 import { coverSource } from './cover';
 import { loadCoverFonts } from './cover-fonts';
 import { HttpError, json } from './http';
+import { coverDimensions } from './media-validation';
 import { readBytes } from './production-body';
 
 export const episodeArtRoute = /^\/episodes\/([^/]+)\/(art|share)\.jpg$/;
@@ -51,10 +54,12 @@ export async function routeEpisodeArt(
   const parameters = [...url.searchParams];
   const sizeValue = url.searchParams.get('size') ?? '1400';
   const size = Number(sizeValue);
+  const version = url.searchParams.get('v');
   if (
-    (kind === 'share' && parameters.length !== 0) ||
-    parameters.some(([key]) => key !== 'size') ||
-    parameters.length > 1 ||
+    (kind === 'share' && url.searchParams.has('size')) ||
+    parameters.some(([key]) => key !== 'size' && key !== 'v') ||
+    parameters.length !== new Set(parameters.map(([key]) => key)).size ||
+    (version !== null && !/^[a-f0-9]{64}$/.test(version)) ||
     !/^\d{4}$/.test(sizeValue) ||
     size < 1400 ||
     size > 3000
@@ -68,43 +73,93 @@ export async function routeEpisodeArt(
     throw new HttpError(400, '节目编号无效');
   }
   const episode = await env.DB.prepare(
-    "SELECT e.title, e.episode_number AS episodeNumber, e.cover_url AS coverUrl, c.name AS categoryName FROM episodes e JOIN categories c ON c.id = e.category WHERE e.id = ? AND e.status = 'published' AND e.published_at <= ?",
+    "SELECT e.id, e.title, e.episode_number AS episodeNumber, e.cover_url AS coverUrl, c.name AS categoryName FROM episodes e JOIN categories c ON c.id = e.category WHERE e.id = ? AND e.status = 'published' AND e.published_at <= ?",
   )
     .bind(id, new Date().toISOString())
-    .first<{ title: string; episodeNumber: number; coverUrl: string; categoryName: string }>();
+    .first<Omit<ArtRecord, 'resource'>>();
   if (!episode) throw new HttpError(404, '这期节目不存在');
-  if (composing) return json({ error: '封面正在生成，请稍后重试' }, 503, { 'Retry-After': '1' });
+  const theme = kind === 'art' ? (await getAppearance(env.DB)).theme : null;
+  const record: ArtRecord = { ...episode, resource: 'episodes' };
+  const location = await artLocation(record, theme, size);
+  if (version !== location.version)
+    return new Response(null, {
+      status: 302,
+      headers: { Location: location.url, 'Cache-Control': 'no-store' },
+    });
+  try {
+    const object = await ensureEpisodeArt(env, url.origin, record, theme, size);
+    const headers = new Headers({
+      'Content-Type': 'image/jpeg',
+      'Content-Length': String(object.size),
+      'Cache-Control': 'public, max-age=31536000, immutable',
+      'X-Content-Type-Options': 'nosniff',
+      ETag: object.httpEtag,
+      'Last-Modified': object.uploaded.toUTCString(),
+    });
+    const etags = request.headers.get('If-None-Match');
+    const modifiedSince = request.headers.get('If-Modified-Since');
+    if (
+      etags
+        ? etags
+            .split(',')
+            .some((tag) => tag.trim().replace(/^W\//, '') === object.httpEtag || tag.trim() === '*')
+        : modifiedSince && Date.parse(modifiedSince) >= Math.floor(object.uploaded.getTime() / 1000) * 1000
+    ) {
+      headers.delete('Content-Length');
+      return new Response(null, { status: 304, headers });
+    }
+    if (request.method === 'HEAD') return new Response(null, { headers });
+    const cached = await env.MEDIA.get(location.key);
+    if (!cached) throw new HttpError(503, '封面缓存暂时不可用，请稍后重试');
+    return new Response(cached.body, { headers });
+  } catch (error) {
+    if (error instanceof HttpError && error.status === 503)
+      return json({ error: error.message }, 503, { 'Retry-After': '1' });
+    throw error;
+  }
+}
+
+export async function ensureEpisodeArt(
+  env: Env,
+  origin: string,
+  episode: ArtRecord,
+  theme: ThemeId | null,
+  size = 1400,
+): Promise<R2Object> {
+  const { key } = await artLocation(episode, theme, size);
+  const cached = await env.MEDIA.head(key);
+  if (cached) return cached;
+  if (composing) throw new HttpError(503, '封面正在生成，请稍后重试');
   composing = true;
   try {
-    const theme = kind === 'art' ? (await getAppearance(env.DB)).theme : null;
-    const width = kind === 'art' ? size : 1200;
-    const height = kind === 'art' ? size : 630;
+    const width = theme ? size : 1200;
+    const height = theme ? size : 630;
     const renderWidth = Math.min(width, 1600);
     const renderHeight = Math.min(height, 1600);
     const frame = await readSvg(
       env,
-      url.origin,
+      origin,
       theme ? themeCoverFrameSrc(theme) : '/brand/stillwood-wordmark.svg',
     );
     const { fonts, families } = theme
-      ? await loadCoverFonts(env, url.origin, coverText(theme, episode))
+      ? await loadCoverFonts(env, origin, coverText(theme, episode))
       : { fonts: [], families: {} };
-    const stream = await sourceStream(env, url.origin, episode.coverUrl);
+    const stream = await sourceStream(env, origin, episode.coverUrl);
     let jpeg: Uint8Array;
     try {
       const artwork = theme ? coverArtwork(theme) : null;
       const source = await env.IMAGES.input(stream)
         .transform({
-          width: artwork ? Math.ceil((renderWidth * artwork.width) / coverDesignSize) : renderWidth,
-          height: artwork ? Math.ceil((renderHeight * artwork.height) / coverDesignSize) : renderHeight,
-          fit: 'cover',
+          width: artwork ? Math.ceil((renderWidth * artwork.width) / coverDesignSize) : 1600,
+          height: artwork ? Math.ceil((renderHeight * artwork.height) / coverDesignSize) : 1600,
+          fit: artwork ? 'cover' : 'contain',
         })
         .output({ format: 'image/webp', quality: 95, anim: false });
       const bytes = await readBytes(source.response(), maxSourceBytes);
       const dataUrl = `data:image/webp;base64,${Buffer.from(bytes).toString('base64')}`;
       const svg = theme
         ? composeCoverSvg(theme, episode, dataUrl, frame, families)
-        : composeShareSvg(frame, dataUrl);
+        : composeShareSvg(frame, { dataUrl, ...coverDimensions(bytes) });
       const { renderCoverJpeg } = await import('./cover-raster');
       jpeg = await renderCoverJpeg(svg, fonts, renderWidth, renderHeight);
       if (width > renderWidth) {
@@ -114,19 +169,16 @@ export async function routeEpisodeArt(
         jpeg = await readBytes(output.response(), maxSourceBytes);
       }
     } catch (error) {
-      if (error instanceof HttpError && error.status === 503)
-        return json({ error: error.message }, 503, { 'Retry-After': '1' });
       if (error instanceof HttpError) throw error;
       throw new HttpError(422, '封面图片无法解码或排版，请检查原图后重试');
     }
-    return new Response(request.method === 'HEAD' ? null : new Uint8Array(jpeg), {
-      headers: {
-        'Content-Type': 'image/jpeg',
-        'Content-Length': String(jpeg.byteLength),
-        'Cache-Control': 'no-store',
-        'X-Content-Type-Options': 'nosniff',
-      },
+    const stored = await env.MEDIA.put(key, jpeg, {
+      httpMetadata: { contentType: 'image/jpeg', cacheControl: 'public, max-age=31536000, immutable' },
+      onlyIf: { etagDoesNotMatch: '*' },
     });
+    const object = stored ?? (await env.MEDIA.head(key));
+    if (!object) throw new HttpError(503, '封面缓存暂时无法保存，请稍后重试');
+    return object;
   } finally {
     composing = false;
   }

@@ -12,6 +12,7 @@ import {
 
 type EpisodeUpdate = z.infer<typeof episodeUpdateSchema>;
 
+import { withShareArtwork } from '../src/shared/episode-art';
 import type { Actor } from '../src/shared/production';
 import { parseSeoOverride } from '../src/shared/seo';
 import { requireScope } from './authorization';
@@ -34,19 +35,27 @@ async function categoryNames(db: D1Database) {
 
 async function projectPublishedEpisode(db: D1Database, episode: Episode, origin: string) {
   const [site, names] = await Promise.all([getSiteSeo(db), categoryNames(db)]);
-  return projectPublicEpisode(episode, origin, {
-    site,
-    categoryName: names.get(episode.category) ?? episode.category,
-  });
-}
-
-async function projectPublishedEpisodes(db: D1Database, episodes: Episode[], origin: string) {
-  const [site, names] = await Promise.all([getSiteSeo(db), categoryNames(db)]);
-  return episodes.map((episode) =>
+  return withShareArtwork(
     projectPublicEpisode(episode, origin, {
       site,
       categoryName: names.get(episode.category) ?? episode.category,
     }),
+    origin,
+  );
+}
+
+async function projectPublishedEpisodes(db: D1Database, episodes: Episode[], origin: string) {
+  const [site, names] = await Promise.all([getSiteSeo(db), categoryNames(db)]);
+  return Promise.all(
+    episodes.map((episode) =>
+      withShareArtwork(
+        projectPublicEpisode(episode, origin, {
+          site,
+          categoryName: names.get(episode.category) ?? episode.category,
+        }),
+        origin,
+      ),
+    ),
   );
 }
 

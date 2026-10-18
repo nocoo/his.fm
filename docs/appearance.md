@@ -48,6 +48,8 @@ The image uploader requires explicit `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_API
 
 Generated, uploaded and stored episode covers must be clean images without typography, branding, borders or overlays. The public site and studio preview the selected theme's finished composition without modifying those originals. The artwork is center-cropped with `object-fit: cover` into the design's actual window, not stretched or padded into a generic square. Website theme changes do not rewrite cover bytes or published snapshots.
 
+Provide a **1400 x 1400 square original**; smaller originals are accepted and upscaled without inventing source detail. Keep the main subject near **x = 50%, y = 40%** for landscape sharing, with essential details inside the **y = 13.75-66.25%** crop band on square originals and clear of the finished border and wordmark. Square themed compositions retain a centered artwork window.
+
 `scripts/export-theme-cover-frames.py` derives eight static frame SVGs and `apps/web/src/brand/cover-frame-layouts.json` from the archived `frame()` designs. Logos and decorative microcopy stay outlined; actual title, episode number and category are independent text slots. `src/shared/cover-composition.ts` supplies the same text layout and centered crop to both `FramedCover` and PNG export. Bounded artwork bleeds two design units beneath the frame to prevent a light antialiasing seam. Titles balance across two lines; short titles center vertically and overlong copy shrinks before truncating. ASCII fitting uses generated per-font/per-weight advances, not a uniform Latin-width guess; Chinese glyphs retain their em-width layout. A right-hand safe area keeps long titles clear of the public action. Window Seat uses tighter baselines optically centered in its ticket panel. Public hover arrows use the theme's dark primary circle and a white icon, inset at the bottom-right; these navigation controls are not part of exported artwork.
 
 “下载封面成品” requests a real **1600 x 1600 PNG** from the authenticated Worker endpoint, not a browser canvas or an HTML screenshot. Both production and episode exports take an explicit theme and an optional expected saved version; the studio sends that version and disables download for unsaved episode edits. See [API onboarding](api-onboarding.md#finished-cover-png) for paths and scopes. Export performs no upload, approval, publication or content mutation. There is no arbitrary remote image fetch or browser CORS dependency: originals come from the configured R2 binding or same-origin bundled images. In local development only, the three exact seeded CDN episode URLs resolve to their bundled local images.
@@ -68,16 +70,48 @@ other copy. Outputs are flattened sRGB JPEGs without ICC or EXIF metadata.
 Empty SEO artwork settings use these assets in code; generation never changes
 saved settings or uploads assets to R2.
 
-Public `GET|HEAD /episodes/{id}/art.jpg` renders the current website theme's
+Public `GET|HEAD /episodes/{id}/art.jpg` serves the current website theme's
 exact framed composition, including saved title, episode number and category.
 The default is 1400 square; `?size=N` accepts integers from 1400 through 3000.
-`GET|HEAD /episodes/{id}/share.jpg` renders 1200 x 630, cover-cropping the original
+`GET|HEAD /episodes/{id}/share.jpg` serves 1200 x 630, cover-cropping the original
 full-bleed under the theme-independent Stillwood border and wordmark. It contains
-no episode copy or title panel and accepts no query parameters.
+no episode copy or title panel and has no size parameter. These stable record-ID
+URLs resolve to current versioned URLs: `art.jpg?v=<hash>` (optionally with
+`&size=N`) and `share.jpg?v=<hash>`.
+
+Uploading a clean cover through either the studio or
+`PUT /api/agent/productions/{id}/assets/cover?version=N` pregenerates the
+production's square podcast art and landscape share image as immutable generated
+R2 objects before publication. Publication and republication warm the linked
+episode's current artwork keys. Cover changes select new generated versions;
+title, episode number, category and website-theme changes select new square-art
+versions when they affect the composition. Square art follows the selected
+website theme; landscape sharing remains theme-independent. Only generated
+outputs are cached, never replacements for originals. Storage cleanup protects
+current generated versions; superseded versions may be reclaimed subject to the
+existing reference and age safeguards.
+
+The shared `shareArtworkFocusY` in `src/shared/share-composition.ts` anchors
+this landscape crop at **x = 50%, y = 40%** of the original (a focal point, not
+a percentage of leftover crop space).
+For a square original, the 1200:630 crop covers 52.5% of its height: its top is
+`clamp(0.40 * height - cropHeight / 2, 0, height - cropHeight)`, or 13.75%,
+and its bottom is 66.25%. This prioritizes the upper-middle subject zone
+(approximately y = 22–58%), rather than the logo zone (0–25%) or title panel
+(57–100%) of the cover safe-area convention. The shared SVG composition clamps
+the window to the source bounds for other aspect ratios. Native Images streams
+the original into an aspect-preserving WebP bounded to 1600 x 1600 before the
+SVG positions and clips it; only this bounded intermediate has its dimensions
+parsed. This keeps decoding bounded without applying PNG-export input limits
+to originals, and works identically in local and production runtimes (the pinned
+local Images emulator ignores coordinate gravity). Square framed artwork retains
+its centered crop.
 
 Both routes use only currently published, non-future episode snapshots, return
-404 for private/missing episodes, and bypass the named public cache. Every
-request renders on demand with `Cache-Control: no-store`; no composite is stored.
+404 for private/missing episodes, and bypass the named public cache. Warming
+production assets never makes drafts public. Versioned URLs serve immutable
+generated R2 objects with cache headers, ETag and Last-Modified; HEAD returns the
+same headers without a body. Cache misses render and store the generated output.
 Native Images streams trusted R2 or bundled sources (up to 20 MB), cropping the
 real original to the theme's artwork window before Takumi composition. Cropped
 intermediates use WebP to retain transparency over the theme paper. Square
@@ -88,7 +122,7 @@ WASM composition exceeds the Workers memory budget. Larger originals supply more
 detail up to the composition cap; no thumbnail replaces the original. Existing
 1400 originals are the expected input; smaller 1024 originals still upscale
 gracefully without inventing source detail. Landscape
-artwork uses native cropping followed by a bounded 1200 x 630 JPEG render.
+artwork uses the bounded native intermediate followed by a 1200 x 630 JPEG render.
 The separate authenticated PNG export retains its 4 MiB / 4MP source guards.
 Render contention returns 503; source/asset/decode failures remain explicit.
 Directory acceptance still requires live Apple/Spotify validation.
