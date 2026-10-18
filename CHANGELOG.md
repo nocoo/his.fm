@@ -2,6 +2,12 @@
 
 All notable changes to his.fm are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions use the owner’s patch-only deployment policy in `AGENTS.md`, with the authoritative version in `package.json`.
 
+## 2.8.4 - 2026-10-18
+
+### Changed
+
+- Polish the admin voice preview page with one shared header for the fixed script and comparison style, fully expanded Gemini and ElevenLabs catalogs (no accordions), theme-aware provider marks, consistent missing-sample copy, and mobile-first layout. Add catalog and render unit tests; the site still does not host voice generation.
+
 ## 2.8.3 - 2026-10-18
 
 ### Fixed
