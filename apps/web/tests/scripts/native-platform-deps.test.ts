@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   collectPlatformInstallTargets,
+  installDirForLockPath,
   optionalPackageMatchesHost,
-  workspaceDirForLockPath,
 } from '../../../../scripts/native-platform-deps.mjs';
 
 describe('native platform optional dependencies', () => {
@@ -34,10 +34,11 @@ describe('native platform optional dependencies', () => {
     expect(optionalPackageMatchesHost('@biomejs/cli-linux-x64', host)).toBe(false);
   });
 
-  it('maps lockfile paths to workspace install directories', () => {
-    expect(workspaceDirForLockPath('node_modules/@biomejs/biome')).toBe('.');
-    expect(workspaceDirForLockPath('apps/web/node_modules/workerd')).toBe('apps/web');
-    expect(workspaceDirForLockPath('packages/contracts/node_modules/typescript')).toBe('packages/contracts');
+  it('maps lockfile paths to install directories', () => {
+    expect(installDirForLockPath('node_modules/@biomejs/biome')).toBe('.');
+    expect(installDirForLockPath('apps/web/node_modules/workerd')).toBe('apps/web');
+    expect(installDirForLockPath('packages/contracts/node_modules/typescript')).toBe('packages/contracts');
+    expect(installDirForLockPath('node_modules/cf/node_modules/workerd')).toBe('node_modules/cf');
   });
 
   it('collects per-workspace platform specs with every required version', () => {

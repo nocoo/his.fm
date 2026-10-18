@@ -5,7 +5,7 @@ export type PlatformInstallTarget = { installDir: string; name: string; version:
 export function isMuslLinux(): boolean;
 export function detectHost(): HostPlatform;
 export function optionalPackageMatchesHost(packageName: string, host: HostPlatform): boolean;
-export function workspaceDirForLockPath(lockPath: string): string;
+export function installDirForLockPath(lockPath: string): string;
 export function collectPlatformInstallTargets(
   packages: Record<string, { optionalDependencies?: Record<string, string> }>,
   host: HostPlatform,

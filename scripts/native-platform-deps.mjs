@@ -75,10 +75,11 @@ export function optionalPackageMatchesHost(packageName, host) {
 }
 
 /**
+ * Directory (relative to repo root) whose `node_modules/` should hold the platform package.
  * @param {string} lockPath
  * @returns {string}
  */
-export function workspaceDirForLockPath(lockPath) {
+export function installDirForLockPath(lockPath) {
   const idx = lockPath.indexOf('/node_modules/');
   if (idx === -1) return '.';
   const prefix = lockPath.slice(0, idx);
@@ -97,7 +98,7 @@ export function collectPlatformInstallTargets(packages, host) {
   for (const [pkgPath, meta] of Object.entries(packages)) {
     const optional = meta.optionalDependencies;
     if (!optional) continue;
-    const installDir = workspaceDirForLockPath(pkgPath);
+    const installDir = installDirForLockPath(pkgPath);
     for (const [name, version] of Object.entries(optional)) {
       if (!optionalPackageMatchesHost(name, host)) continue;
       const key = `${installDir}\0${name}\0${version}`;

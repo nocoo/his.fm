@@ -1,5 +1,6 @@
-import { execSync, spawnSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { execFileSync, execSync, spawnSync } from 'node:child_process';
+import { mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { collectPlatformInstallTargets, detectHost, isPackageInstalledAt } from './native-platform-deps.mjs';
@@ -19,18 +20,61 @@ function missingInstallTargets(host) {
   );
 }
 
-function installInDirectory(installDir, packages) {
-  if (!packages.length) return;
-  const cwd = join(repoRoot, installDir);
-  const spec = packages.map(({ name, version }) => `${name}@${version}`).join(' ');
+function npmInstallArgs(installDir, name, version) {
+  const spec = `${name}@${version}`;
+  if (installDir === '.') return ['install', '--no-save', '--include=optional', spec];
+  if (installDir === 'apps/web')
+    return ['install', '--no-save', '--include=optional', '-w', '@his-fm/web', spec];
+  if (installDir === 'packages/contracts') {
+    return ['install', '--no-save', '--include=optional', '-w', '@his-fm/contracts', spec];
+  }
+  return ['install', '--no-save', '--include=optional', '--prefix', join(repoRoot, installDir), spec];
+}
+
+function installOneViaPack(installDir, name, version) {
+  const target = join(repoRoot, installDir, 'node_modules', ...name.split('/'));
+  let lastError;
+  for (let attempt = 0; attempt < installAttempts; attempt++) {
+    if (installBackoffMs[attempt]) {
+      execSync(`sleep ${Math.ceil(installBackoffMs[attempt] / 1000)}`, { stdio: 'inherit' });
+    }
+    const staging = mkdtempSync(join(tmpdir(), 'hisfm-native-'));
+    try {
+      execFileSync('npm', ['pack', `${name}@${version}`, '--pack-destination', staging], {
+        cwd: repoRoot,
+        stdio: 'inherit',
+      });
+      const tarball = readdirSync(staging).find((file) => file.endsWith('.tgz'));
+      if (!tarball) throw new Error(`npm pack produced no tarball for ${name}@${version}`);
+      rmSync(target, { recursive: true, force: true });
+      execFileSync('mkdir', ['-p', target]);
+      execFileSync('tar', ['-xzf', join(staging, tarball), '-C', target, '--strip-components=1'], {
+        stdio: 'inherit',
+      });
+      return;
+    } catch (error) {
+      lastError = error;
+    } finally {
+      rmSync(staging, { recursive: true, force: true });
+    }
+  }
+  throw lastError;
+}
+
+function installOne(installDir, name, version) {
+  if (installDir.startsWith('node_modules/')) {
+    installOneViaPack(installDir, name, version);
+    return;
+  }
+  const args = npmInstallArgs(installDir, name, version);
   let lastError;
   for (let attempt = 0; attempt < installAttempts; attempt++) {
     if (installBackoffMs[attempt]) {
       execSync(`sleep ${Math.ceil(installBackoffMs[attempt] / 1000)}`, { stdio: 'inherit' });
     }
     try {
-      execSync(`npm install --no-save --include=optional ${spec}`, {
-        cwd,
+      execFileSync('npm', args, {
+        cwd: repoRoot,
         stdio: 'inherit',
         env: { ...process.env, npm_config_include: 'optional' },
       });
@@ -40,6 +84,12 @@ function installInDirectory(installDir, packages) {
     }
   }
   throw lastError;
+}
+
+function installInDirectory(installDir, packages) {
+  for (const { name, version } of packages) {
+    installOne(installDir, name, version);
+  }
 }
 
 function installTargets(targets) {
