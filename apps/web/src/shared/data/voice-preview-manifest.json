@@ -17,6 +17,14 @@
   },
   {
     "provider": "elevenlabs",
+    "voiceName": "Bill",
+    "voiceId": "pqHfZKP75CvOlQylNhV4",
+    "style": "male, American, trustworthy",
+    "durationSeconds": 122.72,
+    "objectKey": "reference/voices/elevenlabs-Bill.mp3"
+  },
+  {
+    "provider": "elevenlabs",
     "voiceName": "Brian",
     "voiceId": "nPczCjzI2devNBz1zQrb",
     "style": "male, American, deep",

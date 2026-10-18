@@ -47,7 +47,8 @@ describe('admin voice preview page', () => {
     const geminiCards = container.querySelectorAll('.appearance-voice-card[data-provider="gemini"]');
     const elevenlabsCards = container.querySelectorAll('.appearance-voice-card[data-provider="elevenlabs"]');
     expect(geminiCards).toHaveLength(30);
-    expect(elevenlabsCards).toHaveLength(19);
+    expect(elevenlabsCards).toHaveLength(20);
+    expect(container.textContent).toContain('ElevenLabs · Bill');
 
     for (const mark of container.querySelectorAll('.appearance-provider-mark [data-logo]')) {
       expect(mark).not.toBeNull();

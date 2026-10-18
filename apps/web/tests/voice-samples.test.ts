@@ -9,9 +9,14 @@ import {
 } from '../src/shared/voice-samples';
 
 describe('voice preview manifest', () => {
-  it('lists 30 gemini and 19 elevenlabs voices with MP3 object keys', () => {
+  it('lists 50 manifest voices with MP3 object keys', () => {
+    expect(voicePreviewEntries).toHaveLength(50);
     expect(voicePreviewCatalog('gemini')).toHaveLength(30);
-    expect(voicePreviewCatalog('elevenlabs')).toHaveLength(19);
+    expect(voicePreviewCatalog('elevenlabs')).toHaveLength(20);
+    expect(voicePreviewCatalog('elevenlabs').some((entry) => entry.voiceName === 'Bill')).toBe(true);
+    expect(voicePreviewEntries.find((entry) => entry.voiceId === 'pqHfZKP75CvOlQylNhV4')?.objectKey).toBe(
+      'reference/voices/elevenlabs-Bill.mp3',
+    );
     for (const entry of voicePreviewEntries) {
       expect(entry.objectKey.startsWith(voicePreviewStoragePrefix)).toBe(true);
       expect(entry.objectKey.endsWith('.mp3')).toBe(true);
@@ -23,10 +28,10 @@ describe('voice preview manifest', () => {
     const rows = voicePreviewComparisonRows();
     expect(rows).toHaveLength(30);
     expect(rows.filter((row) => row.gemini).length).toBe(30);
-    expect(rows.filter((row) => row.elevenlabs).length).toBe(19);
-    expect(rows[18]?.gemini?.voiceName).toBeTruthy();
-    expect(rows[18]?.elevenlabs?.voiceName).toBeTruthy();
-    expect(rows[19]?.elevenlabs).toBeUndefined();
+    expect(rows.filter((row) => row.elevenlabs).length).toBe(20);
+    expect(rows[19]?.gemini?.voiceName).toBeTruthy();
+    expect(rows[19]?.elevenlabs?.voiceName).toBeTruthy();
+    expect(rows[20]?.elevenlabs).toBeUndefined();
   });
 
   it('embeds the full fixed sample script verbatim', () => {

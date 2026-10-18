@@ -6,7 +6,7 @@ All notable changes to his.fm are documented here. The format follows [Keep a Ch
 
 ### Changed
 
-- Drive the admin voice preview page from committed manifest data (30 Gemini and 19 ElevenLabs MP3 entries under `reference/voices/`), with a unified header, fully expanded row-by-row comparison, single active player, theme-aware provider marks, and mobile-first layout. Embed the full fixed sample script verbatim; the site still does not host voice generation.
+- Drive the admin voice preview page from committed manifest data (30 Gemini and 20 ElevenLabs MP3 entries under `reference/voices/`), with a unified header, fully expanded row-by-row comparison, single active player, theme-aware provider marks, and mobile-first layout. Embed the full fixed sample script verbatim; the site still does not host voice generation.
 
 ### Fixed
 
