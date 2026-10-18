@@ -109,20 +109,17 @@ export function buildPromptSlotMigration(input: {
         });
     }
     byId.positioning.body = input.content.slice(0, headings[0]?.start ?? input.content.length);
+    const skillNames = new Set<string>();
     for (const [index, heading] of headings.entries()) {
       const end = headings[index + 1]?.start ?? input.content.length;
       const chunk = input.content.slice(heading.start, end);
       const role = roleForHeading(heading.text, input.categoryId);
       if (role === 'skills') {
-        const names = input.content.slice(heading.bodyStart, end);
         byId.positioning.body += chunk;
-        if (
-          names
-            .split(/\r\n|\r|\n/)
-            .every((name) => !name.trim() || /^[a-zA-Z0-9][a-zA-Z0-9._/-]*$/.test(name.trim()))
-        )
-          byId.skills.body += names;
-        else unmappedHeadings.push(heading.text);
+        for (const [name] of input.content
+          .slice(heading.bodyStart, end)
+          .matchAll(/[a-zA-Z0-9][a-zA-Z0-9._/-]*/g))
+          skillNames.add(name);
       } else if (role) {
         byId[role].body += chunk;
       } else {
@@ -130,6 +127,7 @@ export function buildPromptSlotMigration(input: {
         unmappedHeadings.push(heading.text);
       }
     }
+    byId.skills.body = [...skillNames].join('\n');
   }
   for (const [key, body] of Object.entries(input.prompts ?? {})) {
     const slot = byId[Object.hasOwn(legacyRoles, key) ? legacyRoles[key] : 'producer'];

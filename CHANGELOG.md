@@ -2,6 +2,13 @@
 
 All notable changes to his.fm are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions use the owner’s patch-only deployment policy in `AGENTS.md`, with the authoritative version in `package.json`.
 
+## 2.8.2 - 2026-10-18
+
+### Fixed
+
+- Keep recognized category and role-alias skills headings mapped even when their bodies contain prose or no skill-name tokens. Extract pattern-matching names one per line, preserving first-occurrence order and removing duplicates across sections, while retaining the complete original Markdown in positioning.
+- Cover learning and manager-notes dry-run and explicit apply with regression tests, including read-only previews and preserved migration backups; document character-pattern extraction without changing skills write validation.
+
 ## 2.8.1 - 2026-10-18
 
 ### Fixed
