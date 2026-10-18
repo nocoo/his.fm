@@ -94,11 +94,11 @@ describe('buildPromptSlotMigration', () => {
     ...managerHeadings.map(([heading, role]) => ['manager-notes', heading, role]),
   ])('maps the complete %s heading %s to %s without rewriting source bytes', (categoryId, heading, role) => {
     for (const variant of [heading, heading.replace(/ /g, ''), heading.replace(/ /g, '\t  \u3000')]) {
-      const body = '\r\n  web-perf  \r\nowner/repo.skill_2\r\n';
+      const body = '\r\n  hisfm-bumpers  \r\nowner/repo.skill_2\r\n';
       const content = `## \t${variant}\u3000 ###\r\n${body}`;
       const result = bodies(content, categoryId);
-      expect(result.bodies[role]).toBe(role === 'skills' ? 'web-perf\nowner/repo.skill_2' : content);
-      expect(result.bodies.positioning).toBe(['positioning', 'skills'].includes(role) ? content : '');
+      expect(result.bodies[role]).toBe(role === 'skills' ? 'hisfm-bumpers' : content);
+      expect(result.bodies.positioning).toBe(role === 'positioning' ? content : '');
       expect(result.unmappedHeadings).toEqual([]);
       expect(promptSlotInputsSchema.safeParse(result.slots).success).toBe(true);
     }
@@ -112,10 +112,9 @@ describe('buildPromptSlotMigration', () => {
     const expected = Object.fromEntries(Object.keys(initialPromptSlotTitles).map((id) => [id, '']));
     expected.positioning = preamble;
     const chunks = headings.map(([heading, role], index) => {
-      const body = `\nskill-${index}\n\n`;
+      const body = `\nhisfm-skill-${index}\n\n`;
       const chunk = `## ${heading}\n${body}`;
-      expected[role] += role === 'skills' ? `skill-${index}` : chunk;
-      if (role === 'skills') expected.positioning += chunk;
+      expected[role] += role === 'skills' ? `hisfm-skill-${index}` : chunk;
       return chunk;
     });
     const result = bodies(preamble + chunks.join(''), categoryId);
@@ -149,13 +148,32 @@ describe('buildPromptSlotMigration', () => {
   );
 
   it.each(['learning', 'manager-notes'])(
-    'extracts skill names from prose under the %s alias',
+    'extracts only hisfm skill names and removes the entire %s skills section from positioning',
     (categoryId) => {
-      const content =
-        '## 通用 skill\n请使用 **hisfm-bumpers**、`owner/repo.skill_2`，再调用imagegen。\n- hisfm-bumpers\n';
-      const result = bodies(content, categoryId);
-      expect(result.bodies.skills).toBe('hisfm-bumpers\nowner/repo.skill_2\nimagegen');
-      expect(result.bodies.positioning).toBe(content);
+      const preamble = '# 栏目名\n\n';
+      const positioning = '## 栏目定位\n保持栏目定位。\n\n';
+      const skills =
+        '## 通用 skill\n跨栏目规则见 skill：**hisfm-bumpers**、`hisfm-episode-production`、hisfm-site-api、hisfm-raw-archive。\nprompt skill web-perf owner/repo.skill_2 imagegen\n- hisfm-bumpers\n';
+      const otherPositioning = '## 栏目受众\n保留其他定位内容。\n';
+      const result = bodies(preamble + positioning + skills + otherPositioning, categoryId);
+      expect(result.bodies.skills).toBe(
+        'hisfm-bumpers\nhisfm-episode-production\nhisfm-site-api\nhisfm-raw-archive',
+      );
+      expect(result.bodies.positioning).toBe(preamble + positioning + otherPositioning);
+      expect(result.unmappedHeadings).toEqual(['栏目受众']);
+      expect(promptSlotInputsSchema.safeParse(result.slots).success).toBe(true);
+    },
+  );
+
+  it.each(['learning', 'manager-notes'])(
+    'rejects whole nonmatching tokens rather than extracting hisfm substrings for %s',
+    (categoryId) => {
+      const result = bodies(
+        '## 通用 skill\nskill prompt hisfm- HISFM-bumpers hisfm-Bumpers other-hisfm-bumpers hisfm-site_api hisfm-site.api owner/hisfm-site-api hisfm-bumpers/extra\n',
+        categoryId,
+      );
+      expect(result.bodies.skills).toBe('');
+      expect(result.bodies.positioning).toBe('');
       expect(result.unmappedHeadings).toEqual([]);
       expect(promptSlotInputsSchema.safeParse(result.slots).success).toBe(true);
     },
@@ -173,7 +191,7 @@ describe('buildPromptSlotMigration', () => {
       const content = `## ${heading}\n${body}`;
       const result = bodies(content, categoryId);
       expect(result.bodies.skills).toBe('');
-      expect(result.bodies.positioning).toBe(content);
+      expect(result.bodies.positioning).toBe('');
       expect(result.unmappedHeadings).toEqual([]);
     }
   });
@@ -290,64 +308,66 @@ describe('buildPromptSlotMigration', () => {
     expect(result.unmappedHeadings).toEqual(['']);
   });
 
-  it('preserves the entire original skills section in positioning and copies names only into skills', () => {
+  it('removes the entire mapped skills section and copies only hisfm names into skills', () => {
     const preamble = '# Skills policy\r\n';
     const section =
-      '## 技能名称（Skills）\r\n\r\nweb-perf\r\n  system0-design-basalt  \r\nowner/repo.skill_2\r\n\r\n';
+      '## 技能名称（Skills）\r\n\r\nhisfm-bumpers\r\n  system0-design-basalt  \r\nowner/repo.skill_2\r\n\r\n';
     const editor = '## editor\r\nKeep facts.\r\n';
     const result = bodies(preamble + section + editor);
-    expect(result.bodies.positioning).toBe(preamble + section);
-    expect(result.bodies.skills).toBe('web-perf\nsystem0-design-basalt\nowner/repo.skill_2');
+    expect(result.bodies.positioning).toBe(preamble);
+    expect(result.bodies.skills).toBe('hisfm-bumpers');
     expect(result.bodies.editor).toBe(editor);
     expect(result.unmappedHeadings).toEqual([]);
     expect(promptSlotInputsSchema.safeParse(result.slots).success).toBe(true);
   });
 
   it.each([
-    ['Use web-perf to inspect the site.', 'web-perf\nUse\nto\ninspect\nthe\nsite.'],
-    ['- web-perf', 'web-perf'],
-    ['请运行技能', 'web-perf'],
-    ['```\nweb-perf\n```', 'web-perf'],
-    ['name: instructions', 'web-perf\nname\ninstructions'],
-  ])('extracts pattern-matching tokens while preserving skills prose: %s', (prose, names) => {
-    const content = `## skills\n\nweb-perf\n${prose}\n`;
+    ['Use hisfm-site-api to inspect the site.', 'hisfm-bumpers\nhisfm-site-api'],
+    ['- hisfm-bumpers', 'hisfm-bumpers'],
+    ['请运行技能', 'hisfm-bumpers'],
+    ['```\nhisfm-bumpers\n```', 'hisfm-bumpers'],
+    ['name: instructions', 'hisfm-bumpers'],
+  ])('extracts only hisfm tokens from skills prose: %s', (prose, names) => {
+    const content = `## skills\n\nhisfm-bumpers\n${prose}\n`;
     const result = bodies(content);
     expect(result.bodies.skills).toBe(names);
-    expect(result.bodies.positioning).toBe(content);
+    expect(result.bodies.positioning).toBe('');
     expect(result.unmappedHeadings).toEqual([]);
     expect(promptSlotInputsSchema.safeParse(result.slots).success).toBe(true);
   });
 
-  it('keeps repeated skills originals while deduplicating names in source order', () => {
-    const content = '## skills\nweb-perf\n\n## 技能\n\nimagegen\nweb-perf\n\n## skills';
+  it('removes repeated skills sections while deduplicating names in first-appearance order', () => {
+    const content = '## skills\nhisfm-site-api\n\n## 技能\n\nhisfm-bumpers\nhisfm-site-api\n\n## skills';
     const result = bodies(content);
-    expect(result.bodies.skills).toBe('web-perf\nimagegen');
-    expect(result.bodies.positioning).toBe(content);
+    expect(result.bodies.skills).toBe('hisfm-site-api\nhisfm-bumpers');
+    expect(result.bodies.positioning).toBe('');
     expect(result.unmappedHeadings).toEqual([]);
   });
 
   it('combines names from plain and prose-containing skills sections', () => {
-    const valid = '## skills\n\nweb-perf\n\n';
-    const prose = '## 技能清单\n\n请使用 imagegen 生成封面，再用 web-perf 检查。\n';
+    const valid = '## skills\n\nhisfm-bumpers\n\n';
+    const prose = '## 技能清单\n\n请使用 hisfm-site-api，再用 hisfm-bumpers 检查。\n';
     const result = bodies(valid + prose);
-    expect(result.bodies.skills).toBe('web-perf\nimagegen');
-    expect(result.bodies.positioning).toBe(valid + prose);
+    expect(result.bodies.skills).toBe('hisfm-bumpers\nhisfm-site-api');
+    expect(result.bodies.positioning).toBe('');
     expect(result.unmappedHeadings).toEqual([]);
   });
 
   it('preserves a final valid skills body without inventing a trailing newline', () => {
-    const content = '## skills\nweb-perf';
+    const content = '## skills\nhisfm-bumpers';
     const result = bodies(content);
-    expect(result.bodies.positioning).toBe(content);
-    expect(result.bodies.skills).toBe('web-perf');
+    expect(result.bodies.positioning).toBe('');
+    expect(result.bodies.skills).toBe('hisfm-bumpers');
     expect(result.unmappedHeadings).toEqual([]);
   });
 
   it('keeps channel content byte-for-byte in positioning without applying category heading rules', () => {
-    const content = '\n# Channel\r\n\r\n## editor\r\n\r\nGlobal content.  \r\n## Unknown';
+    const content =
+      '\n# Channel\r\n\r\n## editor\r\n\r\nGlobal content.  \r\n## 通用 skill\r\nhisfm-bumpers\r\n## skills\r\nhisfm-site-api\r\n## Unknown';
     const result = buildPromptSlotMigration({ content });
     expect(result.slots.find((slot) => slot.id === 'positioning')?.body).toBe(content);
     expect(result.slots.find((slot) => slot.id === 'editor')?.body).toBe('');
+    expect(result.slots.find((slot) => slot.id === 'skills')?.body).toBe('');
     expect(result.unmappedHeadings).toEqual([]);
   });
 

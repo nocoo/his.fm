@@ -115,11 +115,10 @@ export function buildPromptSlotMigration(input: {
       const chunk = input.content.slice(heading.start, end);
       const role = roleForHeading(heading.text, input.categoryId);
       if (role === 'skills') {
-        byId.positioning.body += chunk;
         for (const [name] of input.content
           .slice(heading.bodyStart, end)
           .matchAll(/[a-zA-Z0-9][a-zA-Z0-9._/-]*/g))
-          skillNames.add(name);
+          if (/^hisfm-[a-z0-9-]+$/.test(name)) skillNames.add(name);
       } else if (role) {
         byId[role].body += chunk;
       } else {
