@@ -2,6 +2,13 @@
 
 All notable changes to his.fm are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions use the owner’s patch-only deployment policy in `AGENTS.md`, with the authoritative version in `package.json`.
 
+## 2.8.1 - 2026-10-18
+
+### Fixed
+
+- Map complete learning and manager-notes prompt headings to their intended slots using explicit, whitespace-normalized aliases. Recognize collection, voice, skill-name and positioning sections without changing original Markdown, channel migration or skills validation.
+- Cover all known category heading aliases, empty unmapped results, whitespace variants and negative matches with regression tests; synchronize migration and external API guidance.
+
 ## 2.8.0 - 2026-10-18
 
 The owner explicitly approved this minor version, overriding the patch-only deployment policy.
