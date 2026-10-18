@@ -1,5 +1,32 @@
 # Retrospective
 
+## 2026-10-18 - Compare artwork bytes without blocking binding I/O
+
+Main CI run 39084092857 failed twice in the next test's `beforeEach` R2
+`list`, not in share rendering. The preceding test deeply compared a large
+JPEG Buffer after its final I/O. Vitest recursively walks byte entries;
+blocking Node's event loop prevents Miniflare's one-second idle-pool timer
+from retiring sockets before workerd's five-second idle timeout. The next
+binding request can reuse the closed socket, while subsequent requests and
+the runtime remain healthy. Do not infer a workerd crash or OOM from a socket
+disconnect alone.
+
+A local isolated probe reproduced the same binding stack: an 8 MiB Buffer
+deep comparison took 7,978 ms and the next R2 list failed with ECONNRESET.
+Native Buffer equality took 0.21 ms and the next list succeeded. A separate
+6.5-second event-loop block reproduced the idle-socket failure without image
+rendering. Use native byte equality for real artwork assertions, preserving
+exact contents and length checks rather than adding retries or changing
+worker concurrency, isolation, deadlines or coverage floors. Raw ArrayBuffer
+`toEqual` also accepted unequal bytes in the installed Vitest; convert both
+buffers before native comparison so cache assertions actually check bytes.
+
+Keep shell loop variables away from zsh's special `path` variable, which
+rewrites PATH. Use explicit verified Herdr pane IDs: `--current` again resolved
+to another tab during setup (no layout change), so the controller's 0.33 split
+was applied and verified by ID. Run Node/Miniflare probes from an `.mjs` file;
+`--input-type=module` also affects Miniflare's CommonJS eval worker.
+
 ## 2026-10-18 - Exercise native artwork cache metadata
 
 The first edge-cache regression run exposed that Miniflare's Cache API can omit
