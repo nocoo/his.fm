@@ -6,7 +6,10 @@ import { artRecords } from './episode-art-cache';
 export async function pregenerateEpisodeArt(env: Env, origin: string, path: string) {
   try {
     let records: ArtRecord[];
-    const production = /^\/productions\/([^/]+)(?:\/(?:assets\/cover|publications(?:\/site)?))?$/.exec(path);
+    const production =
+      /^\/productions\/([^/]+)(?:\/(?:actions|assets\/cover|publications(?:\/(?:site|wechat|xiaoyuzhou))?))?$/.exec(
+        path,
+      );
     const episode = /^\/episodes(?:\/([^/]+))?$/.exec(path);
     const category = /^\/categories\/([a-z0-9-]+)$/.exec(path);
     if (path === '/appearance') records = await artRecords(env.DB);

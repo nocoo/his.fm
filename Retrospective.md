@@ -781,3 +781,9 @@ mocks in view tests; the shared helper tests retain real hashing.
 I repeated the documented Herdr split-ratio mistake before checking the layout.
 The controller was corrected to the left 0.33 immediately after inspection.
 Check geometry directly after creating a pane, not after starting delegated work.
+
+The max review found two more input-changing paths omitted from the initial
+pregeneration selector: atomic action changes and external-platform publication
+corrections. A route's name does not establish which data it writes. Trace every
+shared mutation implementation before classifying it as unrelated; exercise the
+real write, approval and correction flow rather than only testing route strings.

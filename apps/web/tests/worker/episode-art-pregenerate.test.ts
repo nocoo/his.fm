@@ -146,9 +146,12 @@ describe('artwork pregeneration selection and failures', () => {
 
   it.each([
     '/productions/production-test',
+    '/productions/production-test/actions',
     '/productions/production-test/assets/cover',
     '/productions/production-test/publications',
     '/productions/production-test/publications/site',
+    '/productions/production-test/publications/wechat',
+    '/productions/production-test/publications/xiaoyuzhou',
   ])('renders both variants for a production and only its linked episodes after %s', async (path) => {
     await pregeneration.pregenerateEpisodeArt(env, origin, path);
     expect(rendered()).toEqual([
@@ -197,9 +200,8 @@ describe('artwork pregeneration selection and failures', () => {
   it.each([
     '/channel',
     '/productions',
-    '/productions/production-test/actions',
     '/productions/production-test/assets/audio',
-    '/productions/production-test/publications/wechat',
+    '/productions/production-test/publications/unknown',
     '/productions/missing',
     '/episodes/missing',
     '/categories/missing',
@@ -331,6 +333,28 @@ describe('successful shared management mutations trigger pregeneration', () => {
     expect(ensure.mock.calls[0][2].categoryName).toBe(category?.name);
   });
 
+  it('pregenerates freshly saved image inputs from atomic action changes', async () => {
+    await insert(readyFixture());
+    await success('/productions/production-test/actions', 'POST', {
+      version: 1,
+      action: 'submit_brief',
+      changes: { title: '新选题标题', episodeNumber: 21, category: 'learning' },
+    });
+    expect(rendered()).toEqual([
+      ['productions', 'production-test', 'stillwood'],
+      ['productions', 'production-test', null],
+    ]);
+    expect(ensure.mock.calls[0][2]).toMatchObject({
+      title: '新选题标题',
+      episodeNumber: 21,
+      coverUrl: 'https://f.no.mt/cover.png',
+    });
+    const category = await env.DB.prepare("SELECT name FROM categories WHERE id = 'learning'").first<{
+      name: string;
+    }>();
+    expect(ensure.mock.calls[0][2].categoryName).toBe(category?.name);
+  });
+
   it('pregenerates publication snapshots after publish and explicit site republication', async () => {
     await insert(readyFixture());
     const path = '/productions/production-test';
@@ -350,6 +374,60 @@ describe('successful shared management mutations trigger pregeneration', () => {
       coverUrl: 'https://f.no.mt/cover.png',
     });
   });
+
+  it.each(['wechat', 'xiaoyuzhou'] as const)(
+    'pregenerates the revised cover snapshot after %s correction',
+    async (platform) => {
+      await insert(readyFixture());
+      const path = '/productions/production-test';
+      const publication = {
+        platform,
+        url:
+          platform === 'wechat'
+            ? 'https://mp.weixin.qq.com/s/example'
+            : 'https://www.xiaoyuzhoufm.com/episode/example',
+        publishedAt: '2020-01-01T00:00:00.000Z',
+      };
+      await success(`${path}/publications`, 'POST', { ...publication, version: 1 });
+      const upload = await routeManagement(
+        new Request(`${origin}${path}/assets/cover?version=2`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'image/webp' },
+          body: readFileSync(new URL('../../public/images/episode-01.webp', import.meta.url)),
+        }),
+        env,
+        `${path}/assets/cover`,
+        human,
+      );
+      expect(upload?.status).toBe(200);
+      if (!upload) throw new Error('Missing upload response');
+      let production = ((await upload.json()) as { production: Production }).production;
+      const coverUrl = production.assets.cover?.url;
+      expect(coverUrl).not.toBe('https://f.no.mt/cover.png');
+      for (const action of ['submit_final', 'approve_final']) {
+        const response = await success(`${path}/actions`, 'POST', { version: production.version, action });
+        production = ((await response.json()) as { production: Production }).production;
+      }
+      expect(
+        await env.DB.prepare("SELECT cover_url FROM episodes WHERE id = 'production-test'").first(),
+      ).toEqual({ cover_url: 'https://f.no.mt/cover.png' });
+      ensure.mockClear();
+      await success(`${path}/publications/${platform}`, 'PATCH', {
+        ...publication,
+        version: production.version,
+      });
+      expect(rendered()).toEqual([
+        ['productions', 'production-test', 'stillwood'],
+        ['productions', 'production-test', null],
+        ['episodes', 'production-test', 'stillwood'],
+        ['episodes', 'production-test', null],
+      ]);
+      expect(ensure.mock.calls.every(([, , record]) => record.coverUrl === coverUrl)).toBe(true);
+      expect(
+        await env.DB.prepare("SELECT cover_url FROM episodes WHERE id = 'production-test'").first(),
+      ).toEqual({ cover_url: coverUrl });
+    },
+  );
 
   it('pregenerates standalone episode create/update, category display rename and saved theme changes', async () => {
     const created = await management('/episodes', 'POST', episodeInput);
