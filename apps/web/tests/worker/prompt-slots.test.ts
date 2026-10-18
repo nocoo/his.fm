@@ -1,5 +1,10 @@
 import { readdirSync, readFileSync } from 'node:fs';
-import type { PromptSlotInput, PromptSlotTable, Scope } from '@his-fm/contracts';
+import {
+  type PromptSlotInput,
+  type PromptSlotTable,
+  promptSlotInputSchema,
+  type Scope,
+} from '@his-fm/contracts';
 import { Miniflare } from 'miniflare';
 import { afterAll, beforeAll, beforeEach, expect, it, vi } from 'vitest';
 import { channelProfileSchema } from '../../src/shared/channel';
@@ -283,7 +288,11 @@ it('fences migration snapshots against legacy and collection changes and keeps o
   ).toEqual(applied);
   expect(await backups()).toEqual(snapshot);
   const again = await preview(categoryPath);
-  expect(again).toMatchObject({ initialized: true, version: 1, slots: applied.slots, unmappedHeadings: [] });
+  expect(again).toMatchObject({ initialized: true, version: 1, unmappedHeadings: [] });
+  expect(again.slots).toEqual(
+    applied.slots.map(({ version: _version, updatedAt: _at, updatedBy: _by, ...input }) => input),
+  );
+  expect(again.slots.every((entry) => promptSlotInputSchema.safeParse(entry).success)).toBe(true);
   const edited = await replace(categoryPath, [slot('custom', 'After migration')]);
   expect(
     await json(await api(`${categoryPath}/migration/apply`, 'POST', { version: 0, legacyVersion: 11 })),
@@ -476,6 +485,7 @@ it('merges enabled slots by ID with override, append and deterministic role orde
     PromptSlotTable & { body: string; versions: { channel: number; category: number } }
   >(await api(`${categoryPath}?slot=category-only,voice,editor,collector,hidden,missing`));
   expect(merged.versions).toEqual({ channel: 2, category: 2 });
+  expect(merged.slots.every((entry) => promptSlotInputSchema.safeParse(entry).success)).toBe(true);
   expect(merged.slots.map((entry) => [entry.id, entry.body])).toEqual([
     ['editor', 'LOCAL_EDITOR'],
     ['collector', 'GLOBAL_COLLECTOR\n\nLOCAL_COLLECTOR'],

@@ -2,6 +2,8 @@
 
 ## 2026-10-18 - Validate refined schemas and staged warnings
 
+The first merged-role and already-initialized dry-run responses reused stored slot objects, leaking their audit/version fields into strict editable-slot response schemas. A synthesized append body is not the original audited slot. Project editable fields explicitly and verify real responses against the shared strict schema; collection versions still identify the merge inputs.
+
 Prompt-slot integration initially called Zod `omit` on the refined category mutation schema. TypeScript accepted the call, but constructing OpenAPI threw at runtime and affected method-error responses too. Build the metadata-only schema from the existing field shapes and retain its nonempty-mutation validation; test actual OpenAPI generation rather than only static types.
 
 The first foundation commit attempt staged a Biome optional-chain warning after formatting. The normal index hook correctly blocked it; fix the warning explicitly and restage only the owned paths before retrying. Formatting success is not warning-free lint success.

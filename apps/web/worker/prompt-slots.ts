@@ -71,7 +71,10 @@ export async function promptSlotDryRun(db: D1Database, categoryId?: string) {
     legacyVersion: row.version,
     initialized: current.initialized,
     ...(current.initialized
-      ? { slots: current.slots, unmappedHeadings: [] as string[] }
+      ? {
+          slots: current.slots.map(({ version: _version, updatedAt: _at, updatedBy: _by, ...slot }) => slot),
+          unmappedHeadings: [] as string[],
+        }
       : buildPromptSlotMigration({
           content: row.content,
           ...(categoryId

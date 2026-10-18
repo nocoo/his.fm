@@ -265,4 +265,11 @@ describe('mergePromptSlots', () => {
     ]);
     expect(mergePromptSlots([], [])).toEqual([]);
   });
+
+  it('does not attach stored audit stamps to synthesized role bodies', () => {
+    const stored = { ...slot(), version: 9, updatedAt: '2026-10-18', updatedBy: 'Original author' };
+    const merged = mergePromptSlots([stored], [{ ...stored, body: 'Category text.' }]);
+    expect(merged[0]).toEqual(slot({ body: 'Original Markdown.\n\n\nCategory text.' }));
+    expect(promptSlotInputSchema.safeParse(merged[0]).success).toBe(true);
+  });
 });

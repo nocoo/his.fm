@@ -93,5 +93,12 @@ export function mergePromptSlots(channel: PromptSlotInput[], category: PromptSlo
           : slot.body,
     });
   }
-  return orderedPromptSlots([...merged.values()]);
+  return orderedPromptSlots([...merged.values()]).map(({ id, title, body, order, enabled, mode }) => ({
+    id,
+    title,
+    body,
+    order,
+    enabled,
+    mode,
+  }));
 }
