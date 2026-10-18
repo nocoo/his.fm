@@ -2,6 +2,14 @@
 
 All notable changes to his.fm are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions use the owner’s patch-only deployment policy in `AGENTS.md`, with the authoritative version in `package.json`.
 
+## 2.7.1 - 2026-10-18
+
+### Fixed
+
+- Cache versioned podcast and share artwork at the Cloudflare edge by the full URL, skipping R2 on repeat hits while retaining current publication/version checks, immutable headers, HEAD and conditional 304 responses.
+- Expose `x-hisfm-art: edge-hit | r2-hit | rendered` and synchronize agent-facing cache verification instructions, including pregenerated first reads and asynchronous edge warming.
+- Keep plain and stale-version redirects `no-store` so withdrawal and artwork changes remain immediately visible to the Worker.
+
 ## 2.7.0 - 2026-10-18
 
 The owner explicitly approved this minor release, overriding the patch-only deployment policy.

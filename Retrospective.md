@@ -15,6 +15,17 @@ Always use explicit verified IDs when multiple tabs share a workspace. Keep
 dependency searches scoped to source/type files instead of source maps, and use
 formatted, bounded runtime probes so syntax failures and hangs stay isolated.
 
+The release lockfile-only npm synchronization also removed unrelated platform
+peer metadata. Abort the pending commit, restore those metadata entries and
+inspect the exact lockfile diff before staging; a patch-only release should
+change the root version fields without dependency graph churn. Rerun the normal
+hook after correcting the staged snapshot rather than bypassing it.
+
+Final release review also caught a build started concurrently with the release
+hook: it contained version 2.7.1 but the preceding commit's revision. Vite reads
+HEAD when building. Finish the release commit first, rebuild afterward, and
+verify both version and revision in the output before requesting final approval.
+
 ## 2026-10-16 - Verify the v2.4.0 retirement cutover
 
 Release v2.4.0 deployed source revision `ac3dc04fd4cde841e984e1460e1d1157c3cff6e2` through successful CI run `38835389473` and Release run `38835591256`. Migrations 0014/0015 completed and Cloudflare confirmed deletion of AgentHub. Pre/post canonical digests match for preserved productions, episodes, categories, bumpers, saved prompt bodies and appearance. The D1 Time Travel bookmark and verification evidence remain ignored under `.local/releases/v2.4.0/`. Public routes, discovery, exact live revision and anonymous management rejection passed; authenticated production acceptance remains pending because the cached Access session expired.
