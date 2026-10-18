@@ -252,21 +252,23 @@ it('previews live v11 data without writes, preserves unknown headings and learni
 });
 
 it.each(['learning', 'manager-notes'])(
-  'previews and applies skills prose for %s without losing source text',
+  'cleans %s skills and positioning in preview and apply while backing up original text',
   async (id) => {
-    const content = '## 通用 skill\n请使用 `hisfm-bumpers`。\n- web-perf\n再次使用 hisfm-bumpers。\n';
+    const positioning = '# 栏目名\n\n## 栏目定位\n保留栏目定位。\n\n';
+    const skills = 'hisfm-bumpers\nhisfm-episode-production\nhisfm-site-api\nhisfm-raw-archive';
+    const content = `${positioning}## 通用 skill\n跨栏目规则见 skill：\n${skills}\n- web-perf\nprompt skill\n再次使用 hisfm-bumpers。\n`;
     await env.DB.prepare('UPDATE categories SET prompt = ? WHERE id = ?').bind(content, id).run();
     const path = `/categories/${id}/prompt-slots`;
     const before = await env.DB.prepare('SELECT * FROM categories WHERE id = ?').bind(id).first();
     const report = await preview(path);
     expect(report.unmappedHeadings).toEqual([]);
-    expect(report.slots.find((entry) => entry.id === 'skills')?.body).toBe('hisfm-bumpers\nweb-perf');
-    expect(report.slots.find((entry) => entry.id === 'positioning')?.body).toBe(content);
+    expect(report.slots.find((entry) => entry.id === 'skills')?.body).toBe(skills);
+    expect(report.slots.find((entry) => entry.id === 'positioning')?.body).toBe(positioning);
     expect(await env.DB.prepare('SELECT * FROM categories WHERE id = ?').bind(id).first()).toEqual(before);
     expect(await backups()).toEqual([]);
     const applied = await apply(path);
-    expect(applied.slots.find((entry) => entry.id === 'skills')?.body).toBe('hisfm-bumpers\nweb-perf');
-    expect(applied.slots.find((entry) => entry.id === 'positioning')?.body).toBe(content);
+    expect(applied.slots.find((entry) => entry.id === 'skills')?.body).toBe(skills);
+    expect(applied.slots.find((entry) => entry.id === 'positioning')?.body).toBe(positioning);
     const snapshot = await backups();
     expect(snapshot).toHaveLength(1);
     expect(JSON.parse(snapshot[0].data as string)).toMatchObject({ content });

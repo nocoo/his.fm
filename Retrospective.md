@@ -1,5 +1,14 @@
 # Retrospective
 
+## 2026-10-18 - Discover Herdr commands before using them
+
+During the prompt-skills cleanup, the controller tried the nonexistent
+`herdr context` command while inspecting its pane. The command made no changes.
+Use `herdr pane current --current` and the installed command-group help rather
+than guessing context-discovery commands. The initial split also used `0.67`
+for the new pane, but Herdr assigns that ratio to the existing pane. Inspect
+`herdr pane layout --current` and keep the controller at the left third.
+
 ## 2026-10-18 - Stream large fixtures across the Miniflare boundary
 
 PR #76 CI run 39088567547 failed twice while uploading the thumbnail test's
