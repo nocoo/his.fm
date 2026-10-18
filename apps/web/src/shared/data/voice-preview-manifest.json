@@ -1,0 +1,394 @@
+[
+  {
+    "provider": "elevenlabs",
+    "voiceName": "Alice",
+    "voiceId": "Xb7hH8MSUJpSbSDYk0k2",
+    "style": "female, British, confident",
+    "durationSeconds": 123.84,
+    "objectKey": "reference/voices/elevenlabs-Alice.mp3"
+  },
+  {
+    "provider": "elevenlabs",
+    "voiceName": "Aria",
+    "voiceId": "9BWtsMINqrJLrRacOk9x",
+    "style": "female, American, expressive",
+    "durationSeconds": 97.28,
+    "objectKey": "reference/voices/elevenlabs-Aria.mp3"
+  },
+  {
+    "provider": "elevenlabs",
+    "voiceName": "Brian",
+    "voiceId": "nPczCjzI2devNBz1zQrb",
+    "style": "male, American, deep",
+    "durationSeconds": 100.16,
+    "objectKey": "reference/voices/elevenlabs-Brian.mp3"
+  },
+  {
+    "provider": "elevenlabs",
+    "voiceName": "Callum",
+    "voiceId": "N2lVS1w4EtoT3dr4eOWO",
+    "style": "male, transatlantic, intense",
+    "durationSeconds": 116.48,
+    "objectKey": "reference/voices/elevenlabs-Callum.mp3"
+  },
+  {
+    "provider": "elevenlabs",
+    "voiceName": "Charlie",
+    "voiceId": "IKne3meq5aSn9XLyUdCD",
+    "style": "male, Australian, natural",
+    "durationSeconds": 99.84,
+    "objectKey": "reference/voices/elevenlabs-Charlie.mp3"
+  },
+  {
+    "provider": "elevenlabs",
+    "voiceName": "Charlotte",
+    "voiceId": "XB0fDUnXU5powFXDhCwa",
+    "style": "female, Swedish, seductive",
+    "durationSeconds": 118.96,
+    "objectKey": "reference/voices/elevenlabs-Charlotte.mp3"
+  },
+  {
+    "provider": "elevenlabs",
+    "voiceName": "Chris",
+    "voiceId": "iP95p4xoKVk53GoZ742B",
+    "style": "male, American, casual",
+    "durationSeconds": 109.76,
+    "objectKey": "reference/voices/elevenlabs-Chris.mp3"
+  },
+  {
+    "provider": "elevenlabs",
+    "voiceName": "Daniel",
+    "voiceId": "onwK4e9ZLuTAKqWW03F9",
+    "style": "male, British, authoritative",
+    "durationSeconds": 113.76,
+    "objectKey": "reference/voices/elevenlabs-Daniel.mp3"
+  },
+  {
+    "provider": "elevenlabs",
+    "voiceName": "Eric",
+    "voiceId": "cjVigY5qzO86Huf0OWal",
+    "style": "male, American, friendly",
+    "durationSeconds": 98.56,
+    "objectKey": "reference/voices/elevenlabs-Eric.mp3"
+  },
+  {
+    "provider": "elevenlabs",
+    "voiceName": "George",
+    "voiceId": "JBFqnCBsd6RMkjVDRZzb",
+    "style": "male, British, warm storyteller",
+    "durationSeconds": 123.92,
+    "objectKey": "reference/voices/elevenlabs-George.mp3"
+  },
+  {
+    "provider": "elevenlabs",
+    "voiceName": "Jessica",
+    "voiceId": "cgSgspJ2msm6clMCkdW9",
+    "style": "female, American, expressive",
+    "durationSeconds": 117.2,
+    "objectKey": "reference/voices/elevenlabs-Jessica.mp3"
+  },
+  {
+    "provider": "elevenlabs",
+    "voiceName": "Laura",
+    "voiceId": "FGY2WhTYpPnrIDTdsKH5",
+    "style": "female, American, upbeat",
+    "durationSeconds": 122,
+    "objectKey": "reference/voices/elevenlabs-Laura.mp3"
+  },
+  {
+    "provider": "elevenlabs",
+    "voiceName": "Liam",
+    "voiceId": "TX3LPaxmHKxFdv7VOQHJ",
+    "style": "male, American, articulate",
+    "durationSeconds": 85.84,
+    "objectKey": "reference/voices/elevenlabs-Liam.mp3"
+  },
+  {
+    "provider": "elevenlabs",
+    "voiceName": "Lily",
+    "voiceId": "pFZP5JQG7iQjIQuC4Bku",
+    "style": "female, British, warm",
+    "durationSeconds": 115.12,
+    "objectKey": "reference/voices/elevenlabs-Lily.mp3"
+  },
+  {
+    "provider": "elevenlabs",
+    "voiceName": "Matilda",
+    "voiceId": "XrExE9yKIg1WjnnlVkGX",
+    "style": "female, American, friendly",
+    "durationSeconds": 127.52,
+    "objectKey": "reference/voices/elevenlabs-Matilda.mp3"
+  },
+  {
+    "provider": "elevenlabs",
+    "voiceName": "River",
+    "voiceId": "SAz9YHcvj6GT2YYXdXww",
+    "style": "non-binary, American, calm",
+    "durationSeconds": 118.64,
+    "objectKey": "reference/voices/elevenlabs-River.mp3"
+  },
+  {
+    "provider": "elevenlabs",
+    "voiceName": "Roger",
+    "voiceId": "CwhRBWXzGAHq8TQ4Fs17",
+    "style": "male, American, confident",
+    "durationSeconds": 96.16,
+    "objectKey": "reference/voices/elevenlabs-Roger.mp3"
+  },
+  {
+    "provider": "elevenlabs",
+    "voiceName": "Sarah",
+    "voiceId": "EXAVITQu4vr4xnSDxMaL",
+    "style": "female, American, soft news",
+    "durationSeconds": 123.92,
+    "objectKey": "reference/voices/elevenlabs-Sarah.mp3"
+  },
+  {
+    "provider": "elevenlabs",
+    "voiceName": "Will",
+    "voiceId": "bIHbv24MWmeRgasZH58o",
+    "style": "male, American, friendly",
+    "durationSeconds": 112.24,
+    "objectKey": "reference/voices/elevenlabs-Will.mp3"
+  },
+  {
+    "provider": "gemini",
+    "voiceName": "Achernar",
+    "voiceId": "Achernar",
+    "style": "Soft",
+    "durationSeconds": 90.48,
+    "objectKey": "reference/voices/gemini-Achernar.mp3"
+  },
+  {
+    "provider": "gemini",
+    "voiceName": "Achird",
+    "voiceId": "Achird",
+    "style": "Friendly",
+    "durationSeconds": 73.2,
+    "objectKey": "reference/voices/gemini-Achird.mp3"
+  },
+  {
+    "provider": "gemini",
+    "voiceName": "Algenib",
+    "voiceId": "Algenib",
+    "style": "Gravelly",
+    "durationSeconds": 84.04,
+    "objectKey": "reference/voices/gemini-Algenib.mp3"
+  },
+  {
+    "provider": "gemini",
+    "voiceName": "Algieba",
+    "voiceId": "Algieba",
+    "style": "Smooth",
+    "durationSeconds": 90.32,
+    "objectKey": "reference/voices/gemini-Algieba.mp3"
+  },
+  {
+    "provider": "gemini",
+    "voiceName": "Alnilam",
+    "voiceId": "Alnilam",
+    "style": "Firm",
+    "durationSeconds": 87.16,
+    "objectKey": "reference/voices/gemini-Alnilam.mp3"
+  },
+  {
+    "provider": "gemini",
+    "voiceName": "Aoede",
+    "voiceId": "Aoede",
+    "style": "Breezy",
+    "durationSeconds": 85.24,
+    "objectKey": "reference/voices/gemini-Aoede.mp3"
+  },
+  {
+    "provider": "gemini",
+    "voiceName": "Autonoe",
+    "voiceId": "Autonoe",
+    "style": "Bright",
+    "durationSeconds": 88.56,
+    "objectKey": "reference/voices/gemini-Autonoe.mp3"
+  },
+  {
+    "provider": "gemini",
+    "voiceName": "Callirrhoe",
+    "voiceId": "Callirrhoe",
+    "style": "Easy-going",
+    "durationSeconds": 93.04,
+    "objectKey": "reference/voices/gemini-Callirrhoe.mp3"
+  },
+  {
+    "provider": "gemini",
+    "voiceName": "Charon",
+    "voiceId": "Charon",
+    "style": "Informative",
+    "durationSeconds": 80.32,
+    "objectKey": "reference/voices/gemini-Charon.mp3"
+  },
+  {
+    "provider": "gemini",
+    "voiceName": "Despina",
+    "voiceId": "Despina",
+    "style": "Smooth",
+    "durationSeconds": 87.72,
+    "objectKey": "reference/voices/gemini-Despina.mp3"
+  },
+  {
+    "provider": "gemini",
+    "voiceName": "Enceladus",
+    "voiceId": "Enceladus",
+    "style": "Breathy",
+    "durationSeconds": 88.04,
+    "objectKey": "reference/voices/gemini-Enceladus.mp3"
+  },
+  {
+    "provider": "gemini",
+    "voiceName": "Erinome",
+    "voiceId": "Erinome",
+    "style": "Clear",
+    "durationSeconds": 92.52,
+    "objectKey": "reference/voices/gemini-Erinome.mp3"
+  },
+  {
+    "provider": "gemini",
+    "voiceName": "Fenrir",
+    "voiceId": "Fenrir",
+    "style": "Excitable",
+    "durationSeconds": 80.92,
+    "objectKey": "reference/voices/gemini-Fenrir.mp3"
+  },
+  {
+    "provider": "gemini",
+    "voiceName": "Gacrux",
+    "voiceId": "Gacrux",
+    "style": "Mature",
+    "durationSeconds": 92.12,
+    "objectKey": "reference/voices/gemini-Gacrux.mp3"
+  },
+  {
+    "provider": "gemini",
+    "voiceName": "Iapetus",
+    "voiceId": "Iapetus",
+    "style": "Clear",
+    "durationSeconds": 80.92,
+    "objectKey": "reference/voices/gemini-Iapetus.mp3"
+  },
+  {
+    "provider": "gemini",
+    "voiceName": "Kore",
+    "voiceId": "Kore",
+    "style": "Firm",
+    "durationSeconds": 90.6,
+    "objectKey": "reference/voices/gemini-Kore.mp3"
+  },
+  {
+    "provider": "gemini",
+    "voiceName": "Laomedeia",
+    "voiceId": "Laomedeia",
+    "style": "Upbeat",
+    "durationSeconds": 92.52,
+    "objectKey": "reference/voices/gemini-Laomedeia.mp3"
+  },
+  {
+    "provider": "gemini",
+    "voiceName": "Leda",
+    "voiceId": "Leda",
+    "style": "Youthful",
+    "durationSeconds": 90.16,
+    "objectKey": "reference/voices/gemini-Leda.mp3"
+  },
+  {
+    "provider": "gemini",
+    "voiceName": "Orus",
+    "voiceId": "Orus",
+    "style": "Firm",
+    "durationSeconds": 78,
+    "objectKey": "reference/voices/gemini-Orus.mp3"
+  },
+  {
+    "provider": "gemini",
+    "voiceName": "Puck",
+    "voiceId": "Puck",
+    "style": "Upbeat",
+    "durationSeconds": 82.48,
+    "objectKey": "reference/voices/gemini-Puck.mp3"
+  },
+  {
+    "provider": "gemini",
+    "voiceName": "Pulcherrima",
+    "voiceId": "Pulcherrima",
+    "style": "Forward",
+    "durationSeconds": 84.16,
+    "objectKey": "reference/voices/gemini-Pulcherrima.mp3"
+  },
+  {
+    "provider": "gemini",
+    "voiceName": "Rasalgethi",
+    "voiceId": "Rasalgethi",
+    "style": "Informative",
+    "durationSeconds": 81.96,
+    "objectKey": "reference/voices/gemini-Rasalgethi.mp3"
+  },
+  {
+    "provider": "gemini",
+    "voiceName": "Sadachbia",
+    "voiceId": "Sadachbia",
+    "style": "Lively",
+    "durationSeconds": 81.32,
+    "objectKey": "reference/voices/gemini-Sadachbia.mp3"
+  },
+  {
+    "provider": "gemini",
+    "voiceName": "Sadaltager",
+    "voiceId": "Sadaltager",
+    "style": "Knowledgeable",
+    "durationSeconds": 88.04,
+    "objectKey": "reference/voices/gemini-Sadaltager.mp3"
+  },
+  {
+    "provider": "gemini",
+    "voiceName": "Schedar",
+    "voiceId": "Schedar",
+    "style": "Even",
+    "durationSeconds": 78.2,
+    "objectKey": "reference/voices/gemini-Schedar.mp3"
+  },
+  {
+    "provider": "gemini",
+    "voiceName": "Sulafat",
+    "voiceId": "Sulafat",
+    "style": "Warm",
+    "durationSeconds": 85.88,
+    "objectKey": "reference/voices/gemini-Sulafat.mp3"
+  },
+  {
+    "provider": "gemini",
+    "voiceName": "Umbriel",
+    "voiceId": "Umbriel",
+    "style": "Easy-going",
+    "durationSeconds": 80.68,
+    "objectKey": "reference/voices/gemini-Umbriel.mp3"
+  },
+  {
+    "provider": "gemini",
+    "voiceName": "Vindemiatrix",
+    "voiceId": "Vindemiatrix",
+    "style": "Gentle",
+    "durationSeconds": 84.28,
+    "objectKey": "reference/voices/gemini-Vindemiatrix.mp3"
+  },
+  {
+    "provider": "gemini",
+    "voiceName": "Zephyr",
+    "voiceId": "Zephyr",
+    "style": "Bright",
+    "durationSeconds": 92,
+    "objectKey": "reference/voices/gemini-Zephyr.mp3"
+  },
+  {
+    "provider": "gemini",
+    "voiceName": "Zubenelgenubi",
+    "voiceId": "Zubenelgenubi",
+    "style": "Casual",
+    "durationSeconds": 85.12,
+    "objectKey": "reference/voices/gemini-Zubenelgenubi.mp3"
+  }
+]

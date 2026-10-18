@@ -4,11 +4,7 @@ import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { VoicePreviewContent } from '../src/admin/voice-preview/VoicePreview';
-import {
-  elevenlabsVoiceCatalog,
-  geminiVoiceCatalog,
-  voiceComparisonPairs,
-} from '../src/shared/voice-samples';
+import { voicePreviewCatalog, voicePreviewSampleScript } from '../src/shared/voice-samples';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -33,31 +29,28 @@ describe('admin voice preview page', () => {
     vi.unstubAllGlobals();
   });
 
-  it('renders unified header, comparison pairs and both provider sections without details', async () => {
+  it('renders unified header, full script and both providers without details', async () => {
     await act(async () => {
       root.render(<VoicePreviewContent />);
     });
 
     expect(container.querySelector('details')).toBeNull();
     expect(container.textContent).toContain('全部音色预览（Gemini + ElevenLabs）');
+    expect(container.textContent).toContain(voicePreviewSampleScript.slice(0, 24));
     expect(container.textContent).toContain('reference/voices/');
 
-    const pairSections = container.querySelectorAll('.appearance-voice-pair');
-    expect(pairSections).toHaveLength(voiceComparisonPairs.length);
+    const rows = container.querySelectorAll('.appearance-voice-compare-row');
+    expect(rows.length).toBe(
+      Math.max(voicePreviewCatalog('gemini').length, voicePreviewCatalog('elevenlabs').length),
+    );
 
-    const providerSections = container.querySelectorAll('.appearance-voice-provider-section');
-    expect(providerSections).toHaveLength(2);
-    expect(providerSections[0]?.getAttribute('data-provider')).toBe('gemini');
-    expect(providerSections[1]?.getAttribute('data-provider')).toBe('elevenlabs');
+    const geminiCards = container.querySelectorAll('.appearance-voice-card[data-provider="gemini"]');
+    const elevenlabsCards = container.querySelectorAll('.appearance-voice-card[data-provider="elevenlabs"]');
+    expect(geminiCards).toHaveLength(30);
+    expect(elevenlabsCards).toHaveLength(19);
 
-    expect(container.textContent).toContain(`${geminiVoiceCatalog.length} 个音色`);
-    expect(container.textContent).toContain(`${elevenlabsVoiceCatalog.length} 个音色`);
-
-    const marks = container.querySelectorAll('.appearance-provider-mark');
-    expect(marks.length).toBeGreaterThan(0);
-    for (const mark of marks) {
-      const logo = mark.querySelector('[data-logo]');
-      expect(logo).not.toBeNull();
+    for (const mark of container.querySelectorAll('.appearance-provider-mark [data-logo]')) {
+      expect(mark).not.toBeNull();
     }
   });
 });
