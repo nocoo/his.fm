@@ -1,9 +1,34 @@
+import { readFileSync } from 'node:fs';
 import { scopes } from '@his-fm/contracts';
 import { describe, expect, it } from 'vitest';
 import { themeIds } from '../../src/shared/appearance';
 import { agentOpenApi } from '../../worker/agent-contract';
 
 describe('scoped OpenAPI contract', () => {
+  it('keeps artwork cache diagnostics identical in every agent-facing contract', () => {
+    const onboarding = readFileSync(new URL('../../../../docs/api-onboarding.md', import.meta.url), 'utf8');
+    const diagnostic = onboarding
+      .split('\n')
+      .find((line) => line.startsWith('Successful versioned artwork responses'));
+    expect(diagnostic).toBeDefined();
+    for (const phrase of [
+      'x-hisfm-art: edge-hit | r2-hit | rendered',
+      'r2-hit (pregenerated), not rendered (lazy fallback)',
+      'same full versioned URL at the same edge',
+      'after asynchronous cache fill, not globally guaranteed',
+      'HEAD reads cached GET metadata without a body and cannot warm the edge',
+      'cold HEAD/304 may use only R2 metadata without populating it',
+      'same ETag and Last-Modified validators',
+    ])
+      expect(diagnostic).toContain(phrase);
+    for (const file of ['README.md', 'docs/agent-api.md']) {
+      expect(readFileSync(new URL(`../../../../${file}`, import.meta.url), 'utf8')).toContain(diagnostic);
+    }
+    expect(
+      agentOpenApi('https://example.test').paths['/productions/{id}/assets/cover'].put.summary,
+    ).toContain(diagnostic);
+  });
+
   it('publishes theme-specific PNG downloads with only the matching record read grant', () => {
     const contract = agentOpenApi('https://example.test');
     for (const resource of ['productions', 'episodes'] as const) {

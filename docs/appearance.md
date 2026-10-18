@@ -108,10 +108,22 @@ local Images emulator ignores coordinate gravity). Square framed artwork retains
 its centered crop.
 
 Both routes use only currently published, non-future episode snapshots, return
-404 for private/missing episodes, and bypass the named public cache. Warming
-production assets never makes drafts public. Versioned URLs serve immutable
-generated R2 objects with cache headers, ETag and Last-Modified; HEAD returns the
-same headers without a body. Cache misses render and store the generated output.
+404 for private/missing episodes, and bypass the named `PublicContent` cache.
+Warming production assets never makes drafts public. After current database
+publication/version checks, an independent native `caches.default` cache uses
+the full versioned request URL. An edge hit skips R2; an edge miss reads the
+generated R2 object, rendering and storing it only if that object is missing.
+Successful GETs populate the edge asynchronously through `ctx.waitUntil`.
+Versioned responses retain immutable cache headers, ETag and Last-Modified;
+conditional 304s honor the same validators. HEAD reads cached GET metadata
+without a body; cold HEAD/304 may remain R2 metadata-only and do not populate
+the edge. Successful versioned responses and 304s include `x-hisfm-art`:
+`edge-hit`, `r2-hit` or `rendered`. Default 1400-square art and share images
+should be `r2-hit` after successful upload/publication warming, or `edge-hit`
+if already cached; other sizes may render. Repeat GETs at the same edge can
+hit after asynchronous fill, but cache residency is not globally guaranteed.
+Plain and stale-version URLs retain no-store 302 redirects to preserve immediate
+withdrawal and version changes. This cache does not alter `PublicContent`.
 Native Images streams trusted R2 or bundled sources (up to 20 MB), cropping the
 real original to the theme's artwork window before Takumi composition. Cropped
 intermediates use WebP to retain transparency over the theme paper. Square

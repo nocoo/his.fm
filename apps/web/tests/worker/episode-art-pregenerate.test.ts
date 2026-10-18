@@ -117,7 +117,7 @@ beforeAll(async () => {
   }
 });
 beforeEach(async () => {
-  ensure.mockReset().mockResolvedValue({} as R2Object);
+  ensure.mockReset().mockResolvedValue({ object: {} as R2Object, source: 'rendered' });
   await env.DB.batch(
     ['episodes', 'productions', 'episode_number_claims', 'agent_tokens', 'local_sessions'].map((table) =>
       env.DB.prepare(`DELETE FROM ${table}`),

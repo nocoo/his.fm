@@ -61,6 +61,8 @@ no endpoint posts to an external platform.
 - Write does not grant read: production/episode/bumper receipts may be only resource `{id, version}`; channel may be `{version}`. Prompt and publication projections are independent.
 - Stored invalid grants are never normalized into valid authority. Revocation/deletion can clean up such records without issuing new rights.
 
+Successful versioned artwork responses and 304s include x-hisfm-art: edge-hit | r2-hit | rendered. After successful cover upload/publication warming, the first default 1400-square art or share GET should report r2-hit (pregenerated), not rendered (lazy fallback); an already warm edge may report edge-hit. Repeat GETs to the same full versioned URL at the same edge should become edge-hit after asynchronous cache fill, not globally guaranteed. Other sizes may render. HEAD reads cached GET metadata without a body and cannot warm the edge; cold HEAD/304 may use only R2 metadata without populating it. Conditional 304s honor the same ETag and Last-Modified validators.
+
 ## Testing
 
 Worker tests use actual Miniflare D1/R2 and scoped fixtures. They cover a full external upload/review/publication workflow, denials, projected responses, token delegation, snapshots, storage references and migration preservation. Browser tests cover the owner interface and custom playback separately. Local verification uses synthetic media and does not imply production validation.

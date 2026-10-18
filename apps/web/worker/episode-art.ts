@@ -48,6 +48,7 @@ export async function routeEpisodeArt(
   env: Env,
   encodedId: string,
   kind: 'art' | 'share',
+  ctx?: ExecutionContext,
 ): Promise<Response> {
   if (!['GET', 'HEAD'].includes(request.method)) throw new HttpError(405, '节目图片只支持 GET 或 HEAD');
   const url = new URL(request.url);
@@ -87,31 +88,64 @@ export async function routeEpisodeArt(
       headers: { Location: location.url, 'Cache-Control': 'no-store' },
     });
   try {
-    const object = await ensureEpisodeArt(env, url.origin, record, theme, size);
-    const headers = new Headers({
-      'Content-Type': 'image/jpeg',
-      'Content-Length': String(object.size),
-      'Cache-Control': 'public, max-age=31536000, immutable',
-      'X-Content-Type-Options': 'nosniff',
-      ETag: object.httpEtag,
-      'Last-Modified': object.uploaded.toUTCString(),
+    const cache =
+      env.ENVIRONMENT !== 'local' && typeof caches !== 'undefined'
+        ? (caches as CacheStorage & { default: Cache }).default
+        : undefined;
+    const cacheKey = new Request(request.url);
+    const cached = await cache?.match(cacheKey).catch((error: unknown) => {
+      console.error(JSON.stringify({ event: 'episode_art_edge_read_failed', message: String(error) }));
     });
+    let headers: Headers;
+    if (cached) {
+      headers = new Headers(cached.headers);
+      const length = headers.get('X-Hisfm-Art-Length');
+      if (length) headers.set('Content-Length', length);
+      headers.delete('X-Hisfm-Art-Length');
+      headers.set('X-Hisfm-Art', 'edge-hit');
+    } else {
+      const { object, source } = await ensureEpisodeArt(env, url.origin, record, theme, size);
+      headers = new Headers({
+        'Content-Type': 'image/jpeg',
+        'Content-Length': String(object.size),
+        'Cache-Control': 'public, max-age=31536000, immutable',
+        'X-Content-Type-Options': 'nosniff',
+        ETag: object.httpEtag,
+        'Last-Modified': object.uploaded.toUTCString(),
+        'X-Hisfm-Art': source,
+      });
+    }
     const etags = request.headers.get('If-None-Match');
     const modifiedSince = request.headers.get('If-Modified-Since');
     if (
       etags
         ? etags
             .split(',')
-            .some((tag) => tag.trim().replace(/^W\//, '') === object.httpEtag || tag.trim() === '*')
-        : modifiedSince && Date.parse(modifiedSince) >= Math.floor(object.uploaded.getTime() / 1000) * 1000
+            .some((tag) => tag.trim().replace(/^W\//, '') === headers.get('ETag') || tag.trim() === '*')
+        : modifiedSince && Date.parse(modifiedSince) >= Date.parse(headers.get('Last-Modified') ?? '')
     ) {
+      await cached?.body?.cancel();
       headers.delete('Content-Length');
       return new Response(null, { status: 304, headers });
     }
-    if (request.method === 'HEAD') return new Response(null, { headers });
-    const cached = await env.MEDIA.get(location.key);
-    if (!cached) throw new HttpError(503, '封面缓存暂时不可用，请稍后重试');
-    return new Response(cached.body, { headers });
+    if (request.method === 'HEAD') {
+      await cached?.body?.cancel();
+      return new Response(null, { headers });
+    }
+    if (cached) return new Response(cached.body, { headers });
+    const object = await env.MEDIA.get(location.key);
+    if (!object) throw new HttpError(503, '封面缓存暂时不可用，请稍后重试');
+    const response = new Response(object.body, { headers });
+    if (cache) {
+      const entry = response.clone();
+      entry.headers.set('X-Hisfm-Art-Length', String(object.size));
+      const write = cache.put(cacheKey, entry).catch((error: unknown) => {
+        console.error(JSON.stringify({ event: 'episode_art_edge_write_failed', message: String(error) }));
+      });
+      if (ctx) ctx.waitUntil(write);
+      else await write;
+    }
+    return response;
   } catch (error) {
     if (error instanceof HttpError && error.status === 503)
       return json({ error: error.message }, 503, { 'Retry-After': '1' });
@@ -125,10 +159,10 @@ export async function ensureEpisodeArt(
   episode: ArtRecord,
   theme: ThemeId | null,
   size = 1400,
-): Promise<R2Object> {
+): Promise<{ object: R2Object; source: 'r2-hit' | 'rendered' }> {
   const { key } = await artLocation(episode, theme, size);
   const cached = await env.MEDIA.head(key);
-  if (cached) return cached;
+  if (cached) return { object: cached, source: 'r2-hit' };
   if (composing) throw new HttpError(503, '封面正在生成，请稍后重试');
   composing = true;
   try {
@@ -178,7 +212,7 @@ export async function ensureEpisodeArt(
     });
     const object = stored ?? (await env.MEDIA.head(key));
     if (!object) throw new HttpError(503, '封面缓存暂时无法保存，请稍后重试');
-    return object;
+    return { object, source: 'rendered' };
   } finally {
     composing = false;
   }

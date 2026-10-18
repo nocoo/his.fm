@@ -1408,6 +1408,12 @@ describe('agent discovery and real bearer routing', () => {
     const instructions = await (await call('/api/agent/instructions')).text();
     expect(instructions).toContain('External clients create text, artwork and recordings outside the site');
     expect(instructions).toContain('productions:approve');
+    const artworkDescription = agentOpenApi(origin).paths['/productions/{id}/assets/cover'].put.summary;
+    const diagnostic = artworkDescription.slice(
+      artworkDescription.indexOf('Successful versioned artwork responses'),
+    );
+    expect(diagnostic).toContain('x-hisfm-art: edge-hit | r2-hit | rendered');
+    expect(instructions).toContain(diagnostic);
     expect(instructions).not.toContain('X-Hisfm-Station');
     expect(instructions).not.toContain('/api/agent/runtime/connect');
     expect(instructions).not.toContain('https://his.fm');
