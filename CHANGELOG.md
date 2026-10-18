@@ -2,6 +2,13 @@
 
 All notable changes to his.fm are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions use the owner’s patch-only deployment policy in `AGENTS.md`, with the authoritative version in `package.json`.
 
+## 2.8.3 - 2026-10-18
+
+### Fixed
+
+- Filter mapped category skills sections to whole tokens matching `^hisfm-[a-z0-9-]+$`, dropping bare `skill`, `prompt` and other nonmatching tokens while preserving first-appearance order and deduplicating names.
+- Remove mapped skills headings and their complete bodies from category positioning. Cover learning and manager-notes dry-run/apply with exact four-name regressions, preserve other positioning content, channel migration and original backups, and synchronize migration and API onboarding guidance.
+
 ## 2.8.2 - 2026-10-18
 
 ### Fixed
