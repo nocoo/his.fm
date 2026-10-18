@@ -2,6 +2,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { type Principal, type Scope, wavHeader } from '@his-fm/contracts';
 import { Miniflare } from 'miniflare';
 import { afterAll, beforeAll, beforeEach, expect, it, vi } from 'vitest';
+import { tinyMp3Bytes } from '../../../../packages/contracts/src/mp3-fixtures.ts';
 import type { Episode } from '../../src/shared/episode';
 import { routeAppearance } from '../../worker/appearance';
 import { routeBumpers } from '../../worker/bumpers';
@@ -439,6 +440,13 @@ it('uploads immutable validated media and applies storage grants and versioned d
   const { object } = (await created.json()) as { object: { key: string; version: string } };
   expect(object.key).toMatch(/^uploads\/[a-f0-9-]+\.wav$/);
   expect(await env.MEDIA.head(object.key)).toMatchObject({ httpMetadata: { contentType: 'audio/wav' } });
+  const mp3Created = await routeStorage(upload('audio/mpeg', tinyMp3Bytes), env, granted('storage:write'));
+  expect(mp3Created.status).toBe(201);
+  const mp3Object = (await mp3Created.json()) as { object: { key: string } };
+  expect(mp3Object.object.key).toMatch(/^uploads\/[a-f0-9-]+\.mp3$/);
+  expect(await env.MEDIA.head(mp3Object.object.key)).toMatchObject({
+    httpMetadata: { contentType: 'audio/mpeg' },
+  });
   const path = `storage/object?key=${encodeURIComponent(object.key)}&version=${object.version}`;
   await expect(
     routeStorage(request('DELETE', undefined, path), env, granted('storage:write')),
