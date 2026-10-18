@@ -73,7 +73,7 @@ async function route(request: Request, env: Env, ctx?: ExecutionContext): Promis
     return Response.redirect(url.href, 308);
   }
   const episodeArt = episodeArtRoute.exec(path);
-  if (episodeArt) return routeEpisodeArt(request, env, episodeArt[1], episodeArt[2] as 'art' | 'share');
+  if (episodeArt) return routeEpisodeArt(request, env, episodeArt[1], episodeArt[2] as 'art' | 'share', ctx);
   if (ctx && env.ENVIRONMENT !== 'local' && cacheablePublicRequest(request)) {
     const cached = await ctx.exports.PublicContent.fetch(new Request(url, { method: 'GET' }));
     const response = new Response(request.method === 'HEAD' ? null : cached.body, cached);
