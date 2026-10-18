@@ -2,6 +2,17 @@
 
 All notable changes to his.fm are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions use the owner’s patch-only deployment policy in `AGENTS.md`, with the authoritative version in `package.json`.
 
+## 2.8.4 - 2026-10-18
+
+### Changed
+
+- Drive the admin voice preview page from committed manifest data (30 Gemini and 20 ElevenLabs MP3 entries under `reference/voices/`), with a unified header, fully expanded row-by-row comparison, single active player, theme-aware provider marks, and mobile-first layout. Embed the full fixed sample script verbatim; the site still does not host voice generation.
+
+### Fixed
+
+- Allow validated `audio/mpeg` uploads through `POST /admin/api/storage`.
+- Keep voice preview objects under `reference/voices/` out of unreferenced 24-hour storage cleanup.
+
 ## 2.8.3 - 2026-10-18
 
 ### Fixed

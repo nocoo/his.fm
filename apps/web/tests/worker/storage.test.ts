@@ -508,6 +508,7 @@ describe('owner R2 inventory and cleanup', () => {
       'bumper-current.wav',
       'images/hero.webp',
       'reference/voices/Kore.wav',
+      'reference/voices/gemini-Kore.mp3',
       'not-ours.wav',
       'unused.mp4',
     ])
@@ -529,7 +530,7 @@ describe('owner R2 inventory and cleanup', () => {
       'bumper-failed.wav',
     ])
       expect(states[key]).toBe('referenced');
-    for (const key of ['images/hero.webp', 'reference/voices/Kore.wav'])
+    for (const key of ['images/hero.webp', 'reference/voices/Kore.wav', 'reference/voices/gemini-Kore.mp3'])
       expect(states[key]).toBe('protected');
     for (const key of [
       'unused.mp4',

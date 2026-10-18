@@ -36,6 +36,11 @@ import {
 } from '../src/shared/production';
 import { seoOverrideSchema, siteSeoSchema, siteSeoUpdateSchema } from '../src/shared/seo';
 import { storageCleanupSchema, storageKinds } from '../src/shared/storage';
+import {
+  voicePreviewStorageKeyMaxLength,
+  voicePreviewStorageKeyMinLength,
+  voicePreviewStorageKeyOpenApiPattern,
+} from '../src/shared/voice-preview-prefix';
 import { tokenSchema } from './agent-tokens';
 import { bumperInputSchema, bumperUpdateSchema } from './bumpers';
 
@@ -999,12 +1004,25 @@ export function agentOpenApi(origin: string) {
         post: {
           ...operation(
             'uploadStorageObject',
-            'Upload validated raster or mono 24 kHz PCM16 WAV, at most 25 MiB. Server generates a new immutable key; caller paths/query parameters are rejected.',
+            'Upload validated raster, mono 24 kHz PCM16 WAV or MP3, at most 25 MiB. By default the server generates a new immutable uploads/<uuid> key. Optional query key=reference/voices/<name>.mp3 writes or replaces a voice-preview reference MP3 (audio/mpeg only); no traversal, no other query parameters with key.',
             schema(z.object({ object: storageObject, url: z.string() })),
             ['storage:write'],
             201,
           ),
-          requestBody: binaryBody(['image/png', 'image/jpeg', 'image/webp', 'audio/wav']),
+          parameters: [
+            {
+              name: 'key',
+              in: 'query',
+              required: false,
+              schema: {
+                type: 'string',
+                minLength: voicePreviewStorageKeyMinLength,
+                maxLength: voicePreviewStorageKeyMaxLength,
+                pattern: voicePreviewStorageKeyOpenApiPattern,
+              },
+            },
+          ],
+          requestBody: binaryBody(['image/png', 'image/jpeg', 'image/webp', 'audio/wav', 'audio/mpeg']),
         },
       },
       '/storage/object': {

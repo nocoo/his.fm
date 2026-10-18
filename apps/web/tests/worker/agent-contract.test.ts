@@ -2,6 +2,12 @@ import { readFileSync } from 'node:fs';
 import { scopes } from '@his-fm/contracts';
 import { describe, expect, it } from 'vitest';
 import { themeIds } from '../../src/shared/appearance';
+import {
+  parseVoicePreviewStorageKey,
+  voicePreviewStorageKeyMinLength,
+  voicePreviewStorageKeyOpenApiPattern,
+} from '../../src/shared/voice-preview-prefix';
+import { voicePreviewEntries } from '../../src/shared/voice-samples';
 import { agentOpenApi, promptSlotContractSummary } from '../../worker/agent-contract';
 
 describe('scoped OpenAPI contract', () => {
@@ -166,6 +172,11 @@ describe('scoped OpenAPI contract', () => {
       contract.paths['/episodes/{id}'].patch.requestBody.content['application/json'].schema.required,
     ).toEqual(['version', 'featured']);
     expect(contract.paths['/storage/cleanup'].post['x-required-scopes']).toEqual(['storage:delete']);
+    expect(contract.paths['/storage'].post.requestBody.content).toHaveProperty('audio/mpeg');
+    expect(contract.paths['/storage'].post.parameters).toContainEqual(
+      expect.objectContaining({ name: 'key', in: 'query', required: false }),
+    );
+    expect(contract.paths['/storage'].post.summary).toContain('reference/voices/');
     expect(
       contract.paths['/bumpers/{id}'].put.requestBody.content['application/json'].schema.required,
     ).toEqual(['name', 'position', 'version']);
@@ -231,5 +242,25 @@ describe('scoped OpenAPI contract', () => {
       required: true,
       schema: { type: 'string', enum: ['wechat', 'xiaoyuzhou', 'site'] },
     });
+  });
+
+  it('matches voice preview storage key OpenAPI schema to server parsing', () => {
+    const contract = agentOpenApi('https://example.test');
+    const keyParam = contract.paths['/storage'].post.parameters?.find(
+      (parameter) => parameter.name === 'key',
+    );
+    expect(keyParam?.schema).toMatchObject({
+      minLength: voicePreviewStorageKeyMinLength,
+      pattern: voicePreviewStorageKeyOpenApiPattern,
+    });
+    const pattern = new RegExp(String(keyParam?.schema?.pattern));
+    expect(parseVoicePreviewStorageKey('reference/voices/a.mp3')).toBe('reference/voices/a.mp3');
+    expect(pattern.test('reference/voices/a.mp3')).toBe(true);
+    expect(parseVoicePreviewStorageKey('reference/voices/a..b.mp3')).toBeNull();
+    expect(pattern.test('reference/voices/a..b.mp3')).toBe(false);
+    for (const entry of voicePreviewEntries) {
+      expect(parseVoicePreviewStorageKey(entry.objectKey)).toBe(entry.objectKey);
+      expect(pattern.test(entry.objectKey)).toBe(true);
+    }
   });
 });

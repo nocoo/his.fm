@@ -1,57 +1,46 @@
-export const voiceSampleTranscript =
-  '大家好，欢迎来到 his.fm，面向开发者的 AI 分享频道，今天正式开播。这里会聊模型的新进展，分享编程工具和真实项目里的实践。哪些好用，哪些踩坑，我们一起试。欢迎关注 his.fm，让灵感从耳边出发，在代码里落地。';
-export const voiceComparisonStyle =
-  'Friendly podcast announcement, natural conversational delivery, brisk pace, approximately 20 seconds.';
+import manifest from './data/voice-preview-manifest.json';
+import sampleScript from './data/voice-preview-sample.md?raw';
+import { voicePreviewStoragePrefix } from './voice-preview-prefix';
+
+export { voicePreviewStoragePrefix };
 
 export const voiceMediaBase = 'https://f.no.mt';
 
-export function referenceVoiceUrl(fileName: string) {
-  return `${voiceMediaBase}/reference/voices/${fileName}.wav`;
+export type VoiceProvider = 'gemini' | 'elevenlabs';
+
+export type VoicePreviewEntry = {
+  provider: VoiceProvider;
+  voiceName: string;
+  voiceId: string;
+  style: string;
+  durationSeconds: number;
+  objectKey: string;
+};
+
+export const voicePreviewEntries = manifest as VoicePreviewEntry[];
+
+export const voicePreviewSampleScript = sampleScript.trimEnd();
+
+export function voicePreviewMediaUrl(objectKey: string, cacheVersion?: string | null) {
+  const base = `${voiceMediaBase}/${objectKey}`;
+  if (!cacheVersion) return base;
+  const token = cacheVersion.replace(/^"|"$/g, '');
+  if (!token) return base;
+  return `${base}?v=${encodeURIComponent(token)}`;
 }
 
-export const voiceComparisonPairs = [
-  {
-    id: 'narrative',
-    label: '温暖叙述',
-    gemini: { voice: 'Charon', name: 'Charon', character: '叙述感', file: 'Charon', durationSeconds: 16.76 },
-    elevenlabs: {
-      voice: 'JBFqnCBsd6RMkjVDRZzb',
-      name: 'George',
-      character: '温暖叙述',
-      file: 'elevenlabs-George',
-    },
-  },
-  {
-    id: 'gentle',
-    label: '轻柔清晰',
-    gemini: { voice: 'Aoede', name: 'Aoede', character: '轻松', file: 'Aoede', durationSeconds: 18.6 },
-    elevenlabs: {
-      voice: 'EXAVITQu4vr4xnSDxMaL',
-      name: 'Sarah',
-      character: '柔和清晰',
-      file: 'elevenlabs-Sarah',
-    },
-  },
-  {
-    id: 'steady',
-    label: '沉稳自然',
-    gemini: { voice: 'Orus', name: 'Orus', character: '坚定', file: 'Orus', durationSeconds: 19.72 },
-    elevenlabs: {
-      voice: 'TX3LPaxmHKxFdv7VOQHJ',
-      name: 'Liam',
-      character: '自然稳健',
-      file: 'elevenlabs-Liam',
-    },
-  },
-] as const;
+export function voicePreviewCatalog(provider: VoiceProvider) {
+  return voicePreviewEntries
+    .filter((entry) => entry.provider === provider)
+    .sort((left, right) => left.voiceName.localeCompare(right.voiceName, 'zh-CN'));
+}
 
-export const geminiVoiceCatalog = [
-  { voice: 'Kore', character: '沉稳坚定', durationSeconds: 19.28 },
-  { voice: 'Zephyr', character: '明亮', durationSeconds: 17.28 },
-  { voice: 'Puck', character: '活泼', durationSeconds: 16.92 },
-  { voice: 'Charon', character: '叙述感', durationSeconds: 16.76 },
-  { voice: 'Aoede', character: '轻松', durationSeconds: 18.6 },
-  { voice: 'Orus', character: '坚定', durationSeconds: 19.72 },
-] as const;
-
-export type VoiceProvider = 'gemini' | 'elevenlabs';
+export function voicePreviewComparisonRows() {
+  const gemini = voicePreviewCatalog('gemini');
+  const elevenlabs = voicePreviewCatalog('elevenlabs');
+  const rowCount = Math.max(gemini.length, elevenlabs.length);
+  return Array.from({ length: rowCount }, (_, index) => ({
+    gemini: gemini[index],
+    elevenlabs: elevenlabs[index],
+  }));
+}

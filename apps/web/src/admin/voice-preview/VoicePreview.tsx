@@ -1,33 +1,42 @@
 import { LayerCard } from '@nocoo/basalt';
-import { SectionRule } from '@nocoo/basalt/components/section-rule';
 import { AudioPlayer } from '../../components/AudioPlayer';
 import {
-  geminiVoiceCatalog,
-  referenceVoiceUrl,
+  type VoicePreviewEntry,
   type VoiceProvider,
-  voiceComparisonPairs,
-  voiceComparisonStyle,
-  voiceSampleTranscript,
+  voicePreviewCatalog,
+  voicePreviewComparisonRows,
+  voicePreviewMediaUrl,
+  voicePreviewSampleScript,
+  voicePreviewStoragePrefix,
 } from '../../shared/voice-samples';
 import { ProviderMark } from './ProviderMark';
 import { useReferenceSample } from './useReferenceSample';
 
-function ComparisonCard({
+function sampleFileName(objectKey: string) {
+  return objectKey.split('/').pop() ?? objectKey;
+}
+
+function MissingSample({ objectKey }: { objectKey: string }) {
+  return (
+    <LayerCard className="appearance-voice-placeholder" padding="md">
+      <p className="admin-muted">尚未上传样片（{sampleFileName(objectKey)}）</p>
+    </LayerCard>
+  );
+}
+
+function VoiceSampleCard({
   provider,
-  title,
-  character,
+  entry,
   model,
-  sampleUrl,
-  durationSeconds,
 }: {
   provider: VoiceProvider;
-  title: string;
-  character: string;
+  entry: VoicePreviewEntry;
   model: string;
-  sampleUrl: string;
-  durationSeconds?: number;
 }) {
+  const sampleUrl = voicePreviewMediaUrl(entry.objectKey);
   const probe = useReferenceSample(sampleUrl);
+  const title = provider === 'gemini' ? `Gemini · ${entry.voiceName}` : `ElevenLabs · ${entry.voiceName}`;
+
   return (
     <LayerCard className="appearance-voice-card" data-provider={provider} padding="md">
       <div className="appearance-voice-heading">
@@ -35,99 +44,84 @@ function ComparisonCard({
           <ProviderMark provider={provider} />
           {title}
         </strong>
-        <span className="admin-muted">{character}</span>
+        <span className="admin-muted">{entry.style}</span>
       </div>
       <p className="admin-muted">{model}</p>
+      <p className="admin-muted appearance-voice-id">{entry.voiceId}</p>
       {!probe.ready ? (
         <p className="admin-muted">正在检查参考样片…</p>
       ) : probe.available ? (
         <AudioPlayer
-          src={sampleUrl}
+          src={probe.playbackUrl}
           title={title}
-          subtitle={durationSeconds ? `${durationSeconds.toFixed(2)} 秒 · 固定对比文稿` : '固定对比文稿'}
+          subtitle={`${entry.durationSeconds.toFixed(1)} 秒 · 固定对比文稿`}
           compact
-          preload="metadata"
+          preload="none"
         />
       ) : (
-        <LayerCard className="appearance-voice-placeholder" padding="md">
-          <p className="admin-muted">尚未上传同文稿样片</p>
-          <p className="admin-muted">
-            将 WAV 放到 R2 <code>reference/voices/</code> 对应路径（例如{' '}
-            <code>{sampleUrl.replace(/^.*\//, '')}</code>
-            ）后刷新本页即可试听；清理扫描会保留该前缀。
-          </p>
-        </LayerCard>
+        <MissingSample objectKey={entry.objectKey} />
       )}
     </LayerCard>
   );
 }
 
+function ComparisonSlot({
+  provider,
+  entry,
+  model,
+}: {
+  provider: VoiceProvider;
+  entry?: VoicePreviewEntry;
+  model: string;
+}) {
+  if (!entry) {
+    return <div className="appearance-voice-slot-empty" aria-hidden="true" />;
+  }
+  return <VoiceSampleCard provider={provider} entry={entry} model={model} />;
+}
+
 export function VoicePreviewContent() {
+  const rows = voicePreviewComparisonRows();
+  const geminiCount = voicePreviewCatalog('gemini').length;
+  const elevenlabsCount = voicePreviewCatalog('elevenlabs').length;
+
   return (
-    <section className="appearance-voices" aria-label="音色对比样片">
-      <p className="admin-muted">
-        左 Gemini、右 ElevenLabs；使用固定开播文稿与对比风格试听。站点不托管语音生成，仅播放已上传到 R2
-        的参考样片。
-      </p>
-      <details className="appearance-voice-script">
-        <summary>共同文稿与固定对比风格</summary>
-        <p className="studio-prose">{voiceSampleTranscript}</p>
-        <p className="admin-muted">{voiceComparisonStyle}</p>
-      </details>
-      {voiceComparisonPairs.map((pair) => (
-        <SectionRule
-          key={pair.id}
-          title={pair.label}
-          aria-label={pair.label}
-          className="appearance-voice-pair"
-        >
-          <div className="appearance-voice-grid">
-            <ComparisonCard
-              provider="gemini"
-              title={`Gemini · ${pair.gemini.name}`}
-              character={pair.gemini.character}
-              model="gemini-3.8-flash-tts"
-              sampleUrl={referenceVoiceUrl(pair.gemini.file)}
-              durationSeconds={pair.gemini.durationSeconds}
-            />
-            <ComparisonCard
-              provider="elevenlabs"
-              title={`ElevenLabs · ${pair.elevenlabs.name}`}
-              character={pair.elevenlabs.character}
-              model="eleven_v4"
-              sampleUrl={referenceVoiceUrl(pair.elevenlabs.file)}
-            />
+    <section className="appearance-voices" aria-label="全部音色预览">
+      <header className="appearance-voice-intro">
+        <h2>全部音色预览（Gemini + ElevenLabs）</h2>
+        <p className="admin-muted">
+          下方按行对比 Gemini（{geminiCount} 个音色）与 ElevenLabs（{elevenlabsCount}{' '}
+          个音色）；每个音色使用同一段固定中文文稿录制，便于横向试听。本站不托管语音生成；预览样片在站外生成后以
+          MP3（
+          <code>audio/mpeg</code>）上传到 R2 <code>{voicePreviewStoragePrefix}</code>
+          ，本页仅播放已上传文件。同一时间只能播放一个样片。
+        </p>
+        <p className="appearance-voice-intro-label">固定文稿</p>
+        <div className="appearance-voice-script studio-prose">{voicePreviewSampleScript}</div>
+      </header>
+
+      <div className="appearance-voice-compare-legend" aria-hidden="true">
+        <span>
+          <ProviderMark provider="gemini" />
+          Gemini
+        </span>
+        <span>
+          <ProviderMark provider="elevenlabs" />
+          ElevenLabs
+        </span>
+      </div>
+
+      <div className="appearance-voice-compare-rows">
+        {rows.map((row) => (
+          <div
+            className="appearance-voice-grid appearance-voice-compare-row"
+            key={`${row.gemini?.objectKey ?? 'gemini-empty'}-${row.elevenlabs?.objectKey ?? 'elevenlabs-empty'}`}
+          >
+            <ComparisonSlot provider="gemini" entry={row.gemini} model="gemini-2.5-flash-preview-tts" />
+            <ComparisonSlot provider="elevenlabs" entry={row.elevenlabs} model="eleven_v3" />
           </div>
-        </SectionRule>
-      ))}
-      <details className="appearance-voice-history">
-        <summary>更多 Gemini 参考样片</summary>
-        <div className="appearance-voice-grid">
-          {geminiVoiceCatalog.map((sample) => (
-            <LayerCard
-              key={sample.voice}
-              className="appearance-voice-card"
-              data-provider="gemini"
-              padding="md"
-            >
-              <div className="appearance-voice-heading">
-                <strong>
-                  <ProviderMark provider="gemini" />
-                  Gemini · {sample.voice}
-                </strong>
-                <span className="admin-muted">{sample.character}</span>
-              </div>
-              <AudioPlayer
-                src={referenceVoiceUrl(sample.voice)}
-                title={`Gemini · ${sample.voice}`}
-                subtitle={`${sample.durationSeconds.toFixed(2)} 秒`}
-                compact
-                preload="none"
-              />
-            </LayerCard>
-          ))}
-        </div>
-      </details>
+        ))}
+      </div>
     </section>
   );
 }

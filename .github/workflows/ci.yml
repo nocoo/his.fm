@@ -18,6 +18,7 @@ jobs:
       runtime-version: '11.19.1'
       node-version: '26.9.0'
       install-policy: project
+      prepare-command: npm rebuild workerd --workspaces --if-present
       lockfiles: 'package-lock.json'
       coverage-path: |
         apps/web/coverage
