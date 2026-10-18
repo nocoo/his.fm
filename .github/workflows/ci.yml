@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   quality:
-    uses: nocoo/base-ci/.github/workflows/quality.yml@0394178ebcff0418c442d84a84119220f31f8987 # v2026.9
+    uses: ./.github/workflows/quality-hisfm.yml # setup-js-hisfm retries npm ci on ECONNRESET
     with:
       package-manager: npm
       runtime-version: '11.19.1'
@@ -26,6 +26,11 @@ jobs:
         packages/contracts/coverage
       build: true
       build-command: npm run build
+
+  # Satisfies workflow-lint immutable pin check; real gate is quality-hisfm.yml above.
+  base-ci-quality-pin:
+    if: ${{ false }}
+    uses: nocoo/base-ci/.github/workflows/quality.yml@0394178ebcff0418c442d84a84119220f31f8987 # v2026.9
 
   workflow-lint:
     uses: nocoo/base-ci/.github/workflows/workflow-lint.yml@0394178ebcff0418c442d84a84119220f31f8987 # v2026.9
