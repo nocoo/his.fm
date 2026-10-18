@@ -8,7 +8,7 @@ import {
   storageKind,
 } from '../src/shared/storage';
 import { collectReferenceKeys } from '../src/shared/storage-references';
-import { voicePreviewStoragePrefix } from '../src/shared/voice-preview-prefix';
+import { parseVoicePreviewStorageKey, voicePreviewStoragePrefix } from '../src/shared/voice-preview-prefix';
 import { parseWav } from './audio';
 import { requireScope } from './authorization';
 import { currentArtPrefixes } from './episode-art-cache';
@@ -166,13 +166,23 @@ async function preview(request: Request, env: Env) {
 }
 
 async function upload(request: Request, env: Env) {
-  if ([...new URL(request.url).searchParams].length) throw new HttpError(400, '上传路径由服务器生成');
+  const url = new URL(request.url);
+  const keyQuery = url.searchParams.get('key');
+  const namedKey = parseVoicePreviewStorageKey(keyQuery);
+  if (keyQuery) {
+    if (url.searchParams.size !== 1 || !namedKey) throw new HttpError(400, '音色预览路径无效');
+  } else if (url.searchParams.size > 0) {
+    throw new HttpError(400, '上传路径由服务器生成');
+  }
   const contentType = request.headers.get('Content-Type')?.split(';')[0]?.trim().toLowerCase();
-  if (
+  if (namedKey) {
+    if (contentType !== 'audio/mpeg') throw new HttpError(415, '音色预览样片请上传 MP3');
+  } else if (
     !contentType ||
     !['image/png', 'image/jpeg', 'image/webp', 'audio/wav', 'audio/mpeg'].includes(contentType)
-  )
+  ) {
     throw new HttpError(415, '请上传 PNG、JPEG、WebP、PCM WAV 或 MP3');
+  }
   const bytes = await readBytes(request, 25 * 1024 * 1024);
   let type: { mime: string; extension: string };
   if (contentType === 'audio/wav') {
@@ -195,10 +205,10 @@ async function upload(request: Request, env: Env) {
     type = rasterType(bytes);
   }
   if (contentType !== type.mime) throw new HttpError(415, '媒体类型与文件内容不一致');
-  const key = `uploads/${crypto.randomUUID()}.${type.extension}`;
+  const key = namedKey ?? `uploads/${crypto.randomUUID()}.${type.extension}`;
   const object = await env.MEDIA.put(key, bytes, {
     httpMetadata: { contentType: type.mime, cacheControl: 'public, max-age=31536000, immutable' },
-    onlyIf: { etagDoesNotMatch: '*' },
+    ...(namedKey ? {} : { onlyIf: { etagDoesNotMatch: '*' } }),
   });
   if (!object) throw new HttpError(409, '资源路径已存在，请重试');
   return json(

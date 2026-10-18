@@ -447,6 +447,34 @@ it('uploads immutable validated media and applies storage grants and versioned d
   expect(await env.MEDIA.head(mp3Object.object.key)).toMatchObject({
     httpMetadata: { contentType: 'audio/mpeg' },
   });
+  const voiceKey = 'reference/voices/elevenlabs-Bill.mp3';
+  for (const denied of [
+    upload('audio/mpeg', tinyMp3Bytes, `storage?key=${encodeURIComponent('uploads/evil.mp3')}`),
+    upload('audio/wav', wav, `storage?key=${encodeURIComponent(voiceKey)}`),
+    upload('audio/mpeg', tinyMp3Bytes, `storage?key=${encodeURIComponent(voiceKey)}&evil=1`),
+    upload('audio/mpeg', tinyMp3Bytes, `storage?key=${encodeURIComponent('reference/voices/../evil.mp3')}`),
+  ]) {
+    await expect(routeStorage(denied, env, granted('storage:write'))).rejects.toMatchObject({
+      status: expect.any(Number),
+    });
+  }
+  const named = await routeStorage(
+    upload('audio/mpeg', tinyMp3Bytes, `storage?key=${encodeURIComponent(voiceKey)}`),
+    env,
+    granted('storage:write'),
+  );
+  expect(named.status).toBe(201);
+  const namedObject = (await named.json()) as { object: { key: string; version: string } };
+  expect(namedObject.object.key).toBe(voiceKey);
+  const replaced = await routeStorage(
+    upload('audio/mpeg', tinyMp3Bytes, `storage?key=${encodeURIComponent(voiceKey)}`),
+    env,
+    granted('storage:write'),
+  );
+  expect(replaced.status).toBe(201);
+  expect(((await replaced.json()) as { object: { version: string } }).object.version).not.toBe(
+    namedObject.object.version,
+  );
   const path = `storage/object?key=${encodeURIComponent(object.key)}&version=${object.version}`;
   await expect(
     routeStorage(request('DELETE', undefined, path), env, granted('storage:write')),
