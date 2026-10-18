@@ -54,4 +54,36 @@ export const geminiVoiceCatalog = [
   { voice: 'Orus', character: '坚定', durationSeconds: 19.72 },
 ] as const;
 
+export const elevenlabsVoiceCatalog = [
+  {
+    voice: 'JBFqnCBsd6RMkjVDRZzb',
+    name: 'George',
+    character: '温暖叙述',
+    file: 'elevenlabs-George',
+  },
+  {
+    voice: 'EXAVITQu4vr4xnSDxMaL',
+    name: 'Sarah',
+    character: '柔和清晰',
+    file: 'elevenlabs-Sarah',
+  },
+  {
+    voice: 'TX3LPaxmHKxFdv7VOQHJ',
+    name: 'Liam',
+    character: '自然稳健',
+    file: 'elevenlabs-Liam',
+  },
+] as const;
+
+const comparedGeminiVoices = new Set<string>(voiceComparisonPairs.map((pair) => pair.gemini.voice));
+const comparedElevenlabsFiles = new Set<string>(voiceComparisonPairs.map((pair) => pair.elevenlabs.file));
+
+export function geminiVoicesBeyondComparisons() {
+  return geminiVoiceCatalog.filter((sample) => !comparedGeminiVoices.has(sample.voice));
+}
+
+export function elevenlabsVoicesBeyondComparisons() {
+  return elevenlabsVoiceCatalog.filter((sample) => !comparedElevenlabsFiles.has(sample.file));
+}
+
 export type VoiceProvider = 'gemini' | 'elevenlabs';
