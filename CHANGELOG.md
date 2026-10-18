@@ -2,6 +2,17 @@
 
 All notable changes to his.fm are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions use the owner’s patch-only deployment policy in `AGENTS.md`, with the authoritative version in `package.json`.
 
+## 2.7.2 - 2026-10-18
+
+This release includes the artwork edge-cache changes listed under 2.7.1.
+The 2.7.1 tag and GitHub Release were created, but failed main CI prevented
+deployment; those changes ship with 2.7.2 instead.
+
+### Fixed
+
+- Compare artwork bytes with native Buffer equality in integration tests, avoiding synchronous deep traversal that can outlive Miniflare's idle sockets on CI runners. Preserve full byte validation without retries, skipped tests or reduced quality gates.
+- Validate actual bytes in edge and R2 cache-hit assertions instead of applying object equality to raw ArrayBuffers.
+
 ## 2.7.1 - 2026-10-18
 
 ### Fixed
