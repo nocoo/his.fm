@@ -1,9 +1,9 @@
 import { execSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
-import { createRequire } from 'node:module';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 /** @typedef {{ os: 'darwin' | 'linux' | 'win32' | string, arch: string, libc?: 'gnu' | 'musl' }} HostPlatform */
+/** @typedef {{ installDir: string, name: string, version: string }} PlatformInstallTarget */
 
 export function isMuslLinux() {
   try {
@@ -75,33 +75,54 @@ export function optionalPackageMatchesHost(packageName, host) {
 }
 
 /**
- * @param {Record<string, { optionalDependencies?: Record<string, string> }>} packages
- * @param {HostPlatform} host
- * @returns {Map<string, string>}
+ * @param {string} lockPath
+ * @returns {string}
  */
-export function collectOptionalPlatformSpecs(packages, host) {
-  const specs = new Map();
-  for (const meta of Object.values(packages)) {
-    const optional = meta.optionalDependencies;
-    if (!optional) continue;
-    for (const [name, version] of Object.entries(optional)) {
-      if (!optionalPackageMatchesHost(name, host)) continue;
-      specs.set(name, version);
-    }
-  }
-  return specs;
+export function workspaceDirForLockPath(lockPath) {
+  const idx = lockPath.indexOf('/node_modules/');
+  if (idx === -1) return '.';
+  const prefix = lockPath.slice(0, idx);
+  return prefix || '.';
 }
 
 /**
+ * @param {Record<string, { optionalDependencies?: Record<string, string> }>} packages
+ * @param {HostPlatform} host
+ * @returns {PlatformInstallTarget[]}
+ */
+export function collectPlatformInstallTargets(packages, host) {
+  /** @type {PlatformInstallTarget[]} */
+  const targets = [];
+  const seen = new Set();
+  for (const [pkgPath, meta] of Object.entries(packages)) {
+    const optional = meta.optionalDependencies;
+    if (!optional) continue;
+    const installDir = workspaceDirForLockPath(pkgPath);
+    for (const [name, version] of Object.entries(optional)) {
+      if (!optionalPackageMatchesHost(name, host)) continue;
+      const key = `${installDir}\0${name}\0${version}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      targets.push({ installDir, name, version });
+    }
+  }
+  return targets;
+}
+
+/**
+ * @param {string} installDir
  * @param {string} packageName
  * @param {string} repoRoot
+ * @param {string} expectedVersion
  */
-export function isPackageInstalled(packageName, repoRoot) {
-  const require = createRequire(join(repoRoot, 'package.json'));
+export function isPackageInstalledAt(installDir, packageName, repoRoot, expectedVersion) {
+  const base = join(repoRoot, installDir);
+  const localPkg = join(base, 'node_modules', ...packageName.split('/'), 'package.json');
+  if (!existsSync(localPkg)) return false;
   try {
-    require.resolve(`${packageName}/package.json`);
-    return true;
+    const { version } = JSON.parse(readFileSync(localPkg, 'utf8'));
+    return version === expectedVersion;
   } catch {
-    return existsSync(join(repoRoot, 'node_modules', ...packageName.split('/'), 'package.json'));
+    return false;
   }
 }

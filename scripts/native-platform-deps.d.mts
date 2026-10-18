@@ -1,10 +1,18 @@
 export type HostPlatform = { os: string; arch: string; libc?: 'gnu' | 'musl' };
 
+export type PlatformInstallTarget = { installDir: string; name: string; version: string };
+
 export function isMuslLinux(): boolean;
 export function detectHost(): HostPlatform;
 export function optionalPackageMatchesHost(packageName: string, host: HostPlatform): boolean;
-export function collectOptionalPlatformSpecs(
+export function workspaceDirForLockPath(lockPath: string): string;
+export function collectPlatformInstallTargets(
   packages: Record<string, { optionalDependencies?: Record<string, string> }>,
   host: HostPlatform,
-): Map<string, string>;
-export function isPackageInstalled(packageName: string, repoRoot: string): boolean;
+): PlatformInstallTarget[];
+export function isPackageInstalledAt(
+  installDir: string,
+  packageName: string,
+  repoRoot: string,
+  expectedVersion: string,
+): boolean;

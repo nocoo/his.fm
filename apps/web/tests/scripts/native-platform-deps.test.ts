@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
-  collectOptionalPlatformSpecs,
+  collectPlatformInstallTargets,
   optionalPackageMatchesHost,
+  workspaceDirForLockPath,
 } from '../../../../scripts/native-platform-deps.mjs';
 
 describe('native platform optional dependencies', () => {
@@ -33,28 +34,48 @@ describe('native platform optional dependencies', () => {
     expect(optionalPackageMatchesHost('@biomejs/cli-linux-x64', host)).toBe(false);
   });
 
-  it('collects platform specs from lockfile optionalDependencies', () => {
+  it('maps lockfile paths to workspace install directories', () => {
+    expect(workspaceDirForLockPath('node_modules/@biomejs/biome')).toBe('.');
+    expect(workspaceDirForLockPath('apps/web/node_modules/workerd')).toBe('apps/web');
+    expect(workspaceDirForLockPath('packages/contracts/node_modules/typescript')).toBe('packages/contracts');
+  });
+
+  it('collects per-workspace platform specs with every required version', () => {
     const packages = {
+      'node_modules/workerd': {
+        optionalDependencies: {
+          '@cloudflare/workerd-linux-64': '1.0.0',
+          '@cloudflare/workerd-darwin-arm64': '1.0.0',
+        },
+      },
+      'apps/web/node_modules/workerd': {
+        optionalDependencies: {
+          '@cloudflare/workerd-linux-64': '2.0.0',
+        },
+      },
       'node_modules/@biomejs/biome': {
         optionalDependencies: {
           '@biomejs/cli-linux-x64': '2.5.15',
           '@biomejs/cli-darwin-arm64': '2.5.15',
         },
       },
-      'node_modules/workerd': {
-        optionalDependencies: {
-          '@cloudflare/workerd-linux-64': '1.2.3',
-          '@cloudflare/workerd-darwin-arm64': '1.2.3',
-        },
-      },
     };
-    const linux = collectOptionalPlatformSpecs(packages, { os: 'linux', arch: 'x64', libc: 'gnu' });
-    expect(linux.get('@biomejs/cli-linux-x64')).toBe('2.5.15');
-    expect(linux.get('@cloudflare/workerd-linux-64')).toBe('1.2.3');
-    expect(linux.has('@biomejs/cli-darwin-arm64')).toBe(false);
-
-    const mac = collectOptionalPlatformSpecs(packages, { os: 'darwin', arch: 'arm64' });
-    expect(mac.get('@biomejs/cli-darwin-arm64')).toBe('2.5.15');
-    expect(mac.has('@cloudflare/workerd-linux-64')).toBe(false);
+    const linux = collectPlatformInstallTargets(packages, { os: 'linux', arch: 'x64', libc: 'gnu' });
+    expect(linux).toContainEqual({
+      installDir: '.',
+      name: '@cloudflare/workerd-linux-64',
+      version: '1.0.0',
+    });
+    expect(linux).toContainEqual({
+      installDir: 'apps/web',
+      name: '@cloudflare/workerd-linux-64',
+      version: '2.0.0',
+    });
+    expect(linux).toContainEqual({
+      installDir: '.',
+      name: '@biomejs/cli-linux-x64',
+      version: '2.5.15',
+    });
+    expect(linux.some((target) => target.name.includes('darwin'))).toBe(false);
   });
 });

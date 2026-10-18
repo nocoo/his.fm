@@ -2,7 +2,7 @@ import { execSync, spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { collectOptionalPlatformSpecs, detectHost, isPackageInstalled } from './native-platform-deps.mjs';
+import { collectPlatformInstallTargets, detectHost, isPackageInstalledAt } from './native-platform-deps.mjs';
 
 const repoRoot = join(fileURLToPath(new URL('.', import.meta.url)), '..');
 const installAttempts = 5;
@@ -12,18 +12,17 @@ function loadLockfile() {
   return JSON.parse(readFileSync(join(repoRoot, 'package-lock.json'), 'utf8'));
 }
 
-function missingPlatformPackages(host) {
-  const specs = collectOptionalPlatformSpecs(loadLockfile().packages ?? {}, host);
-  const missing = [];
-  for (const [name, version] of specs) {
-    if (!isPackageInstalled(name, repoRoot)) missing.push([name, version]);
-  }
-  return missing;
+function missingInstallTargets(host) {
+  const targets = collectPlatformInstallTargets(loadLockfile().packages ?? {}, host);
+  return targets.filter(
+    (target) => !isPackageInstalledAt(target.installDir, target.name, repoRoot, target.version),
+  );
 }
 
-function installPackages(packages) {
+function installInDirectory(installDir, packages) {
   if (!packages.length) return;
-  const spec = packages.map(([name, version]) => `${name}@${version}`).join(' ');
+  const cwd = join(repoRoot, installDir);
+  const spec = packages.map(({ name, version }) => `${name}@${version}`).join(' ');
   let lastError;
   for (let attempt = 0; attempt < installAttempts; attempt++) {
     if (installBackoffMs[attempt]) {
@@ -31,7 +30,7 @@ function installPackages(packages) {
     }
     try {
       execSync(`npm install --no-save --include=optional ${spec}`, {
-        cwd: repoRoot,
+        cwd,
         stdio: 'inherit',
         env: { ...process.env, npm_config_include: 'optional' },
       });
@@ -41,6 +40,20 @@ function installPackages(packages) {
     }
   }
   throw lastError;
+}
+
+function installTargets(targets) {
+  const byDir = new Map();
+  for (const target of targets) {
+    const list = byDir.get(target.installDir) ?? [];
+    list.push(target);
+    byDir.set(target.installDir, list);
+  }
+  for (const [installDir, list] of byDir) {
+    const label = installDir === '.' ? 'root' : installDir;
+    console.log(`Installing ${list.length} platform package(s) in ${label}`);
+    installInDirectory(installDir, list);
+  }
 }
 
 function runStep(label, command, args, options = {}) {
@@ -70,15 +83,17 @@ function main() {
   const host = detectHost();
   console.log(`ensure-native-binaries: host=${host.os}/${host.arch}${host.libc ? `/${host.libc}` : ''}`);
 
-  let missing = missingPlatformPackages(host);
+  let missing = missingInstallTargets(host);
   if (missing.length) {
     console.log(
-      `Installing ${missing.length} missing platform package(s): ${missing.map(([n]) => n).join(', ')}`,
+      `Missing ${missing.length} platform package(s): ${missing.map((t) => `${t.name}@${t.version} (${t.installDir})`).join(', ')}`,
     );
-    installPackages(missing);
-    missing = missingPlatformPackages(host);
+    installTargets(missing);
+    missing = missingInstallTargets(host);
     if (missing.length) {
-      throw new Error(`Still missing after install: ${missing.map(([n]) => n).join(', ')}`);
+      throw new Error(
+        `Still missing after install: ${missing.map((t) => `${t.name}@${t.version}@${t.installDir}`).join(', ')}`,
+      );
     }
   } else {
     console.log('All lockfile platform optional dependencies are present.');
