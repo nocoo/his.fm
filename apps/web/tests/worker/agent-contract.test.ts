@@ -166,6 +166,11 @@ describe('scoped OpenAPI contract', () => {
       contract.paths['/episodes/{id}'].patch.requestBody.content['application/json'].schema.required,
     ).toEqual(['version', 'featured']);
     expect(contract.paths['/storage/cleanup'].post['x-required-scopes']).toEqual(['storage:delete']);
+    expect(contract.paths['/storage'].post.requestBody.content).toHaveProperty('audio/mpeg');
+    expect(contract.paths['/storage'].post.parameters).toContainEqual(
+      expect.objectContaining({ name: 'key', in: 'query', required: false }),
+    );
+    expect(contract.paths['/storage'].post.summary).toContain('reference/voices/');
     expect(
       contract.paths['/bumpers/{id}'].put.requestBody.content['application/json'].schema.required,
     ).toEqual(['name', 'position', 'version']);
