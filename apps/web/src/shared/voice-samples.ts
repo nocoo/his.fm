@@ -21,8 +21,12 @@ export const voicePreviewEntries = manifest as VoicePreviewEntry[];
 
 export const voicePreviewSampleScript = sampleScript.trimEnd();
 
-export function voicePreviewMediaUrl(objectKey: string) {
-  return `${voiceMediaBase}/${objectKey}`;
+export function voicePreviewMediaUrl(objectKey: string, cacheVersion?: string | null) {
+  const base = `${voiceMediaBase}/${objectKey}`;
+  if (!cacheVersion) return base;
+  const token = cacheVersion.replace(/^"|"$/g, '');
+  if (!token) return base;
+  return `${base}?v=${encodeURIComponent(token)}`;
 }
 
 export function voicePreviewCatalog(provider: VoiceProvider) {

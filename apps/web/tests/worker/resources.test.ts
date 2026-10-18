@@ -466,6 +466,9 @@ it('uploads immutable validated media and applies storage grants and versioned d
   expect(named.status).toBe(201);
   const namedObject = (await named.json()) as { object: { key: string; version: string } };
   expect(namedObject.object.key).toBe(voiceKey);
+  expect(await env.MEDIA.head(voiceKey)).toMatchObject({
+    httpMetadata: { cacheControl: 'public, max-age=300, must-revalidate' },
+  });
   const replaced = await routeStorage(
     upload('audio/mpeg', tinyMp3Bytes, `storage?key=${encodeURIComponent(voiceKey)}`),
     env,

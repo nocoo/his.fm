@@ -52,7 +52,7 @@ function VoiceSampleCard({
         <p className="admin-muted">正在检查参考样片…</p>
       ) : probe.available ? (
         <AudioPlayer
-          src={sampleUrl}
+          src={probe.playbackUrl}
           title={title}
           subtitle={`${entry.durationSeconds.toFixed(1)} 秒 · 固定对比文稿`}
           compact

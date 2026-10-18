@@ -21,6 +21,9 @@ describe('voice preview manifest', () => {
       expect(entry.objectKey.startsWith(voicePreviewStoragePrefix)).toBe(true);
       expect(entry.objectKey.endsWith('.mp3')).toBe(true);
       expect(voicePreviewMediaUrl(entry.objectKey)).toBe(`https://f.no.mt/${entry.objectKey}`);
+      expect(voicePreviewMediaUrl(entry.objectKey, '"abc123"')).toBe(
+        `https://f.no.mt/${entry.objectKey}?v=abc123`,
+      );
     }
   });
 

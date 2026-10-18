@@ -19,6 +19,8 @@ import { readBytes, readJson } from './production-body';
 import { mediaUrl } from './production-store';
 
 const retentionMs = 24 * 60 * 60 * 1000;
+const immutableUploadCacheControl = 'public, max-age=31536000, immutable';
+const voicePreviewReferenceCacheControl = 'public, max-age=300, must-revalidate';
 type References = { keys: Map<string, Set<string>>; artPrefixes: string[] };
 
 function collect(value: unknown, label: string, keys: References['keys'], property = '') {
@@ -207,7 +209,10 @@ async function upload(request: Request, env: Env) {
   if (contentType !== type.mime) throw new HttpError(415, '媒体类型与文件内容不一致');
   const key = namedKey ?? `uploads/${crypto.randomUUID()}.${type.extension}`;
   const object = await env.MEDIA.put(key, bytes, {
-    httpMetadata: { contentType: type.mime, cacheControl: 'public, max-age=31536000, immutable' },
+    httpMetadata: {
+      contentType: type.mime,
+      cacheControl: namedKey ? voicePreviewReferenceCacheControl : immutableUploadCacheControl,
+    },
     ...(namedKey ? {} : { onlyIf: { etagDoesNotMatch: '*' } }),
   });
   if (!object) throw new HttpError(409, '资源路径已存在，请重试');
