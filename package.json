@@ -8,7 +8,9 @@
     "node": ">=26.0.0"
   },
   "optionalDependencies": {
-    "@cloudflare/workerd-linux-64": "1.20260930.2"
+    "@biomejs/cli-linux-x64": "2.5.15",
+    "@cloudflare/workerd-linux-64": "1.20260930.2",
+    "@typescript/typescript-linux-x64": "7.0.2"
   },
   "workspaces": [
     "apps/*",
