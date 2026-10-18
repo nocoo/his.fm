@@ -11,6 +11,7 @@ import * as raster from '../../worker/cover-raster';
 import { routeEpisodeArt } from '../../worker/episode-art';
 import { HttpError } from '../../worker/http';
 import { cacheablePublicRequest } from '../../worker/public-cache';
+import { putR2Fixture, r2FixtureWorker } from './r2-fixtures';
 
 vi.mock('@takumi-rs/wasm/takumi_wasm_bg.wasm', async () => ({
   default: new WebAssembly.Module(
@@ -53,7 +54,7 @@ beforeAll(async () => {
           manifest: {
             mainModule: 'index.js',
             modules: {
-              'index.js': { type: 'esm', contents: 'export default {fetch(){return new Response("ok")}}' },
+              'index.js': { type: 'esm', contents: r2FixtureWorker },
             },
           },
           env: {
@@ -114,7 +115,7 @@ beforeEach(async () => {
     .run();
   await env.DB.prepare("UPDATE site_appearance SET theme = 'stillwood'").run();
   await env.DB.prepare("UPDATE categories SET name = '生活'").run();
-  await env.MEDIA.put(key, source);
+  await putR2Fixture(mf, key, source);
 });
 afterAll(() => mf.dispose());
 afterEach(() => {
@@ -522,14 +523,14 @@ describe('public episode JPEG artwork', () => {
     expect(metadata.orientation).toBeUndefined();
     const stored = await env.MEDIA.get(key);
     if (!stored) throw new Error('Missing original');
-    expect(Buffer.from(await stored.arrayBuffer()).equals(source)).toBe(true);
+    expect(Buffer.from(await new Response(stored.body).arrayBuffer()).equals(source)).toBe(true);
   });
 
   it.each([1024, 1400, 3000])(
     'renders a 3000-square output from a %i-square original',
     async (originalSize) => {
       const original = await sharp(source).resize(originalSize, originalSize).jpeg().toBuffer();
-      await env.MEDIA.put(key, original);
+      await putR2Fixture(mf, key, original);
       const response = await call('art', '?size=3000');
       const metadata = await sharp(await response.arrayBuffer()).metadata();
       expect(metadata).toMatchObject({
@@ -570,7 +571,7 @@ describe('public episode JPEG artwork', () => {
     })
       .png()
       .toBuffer();
-    await env.MEDIA.put(key, original);
+    await putR2Fixture(mf, key, original);
     const actual = Buffer.from(await (await call('art', '?size=1600')).arrayBuffer());
     const copy = { title: '下班后，慢慢来', episodeNumber: 1, categoryName: '生活' };
     const { fonts, families } = await loadCoverFonts(env, origin, coverText('stillwood', copy));
@@ -631,7 +632,7 @@ describe('public episode JPEG artwork', () => {
     const original = await sharp(pixels, { raw: { width, height, channels: 3 } })
       .png()
       .toBuffer();
-    await env.MEDIA.put(key, original);
+    await putR2Fixture(mf, key, original);
     const response = await call('share');
     const { data, info } = await sharp(await response.arrayBuffer())
       .raw()
@@ -711,7 +712,7 @@ describe('public episode JPEG artwork', () => {
     expect(cancel).toHaveBeenCalled();
     await env.MEDIA.put(key, 'corrupt image');
     await expect(call('share')).rejects.toMatchObject({ status: 422 });
-    await env.MEDIA.put(key, source);
+    await putR2Fixture(mf, key, source);
     expect((await call('share')).status).toBe(200);
   });
 

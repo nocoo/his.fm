@@ -67,6 +67,7 @@ Install through an allowed registry; never retry blocked `registry.npmjs.org`. `
 - Features, database migrations, authentication changes, diff size and elapsed time must not trigger automatic major/minor bumps. This project rule overrides generic release-skill version selection.
 - L1 checks meaningful Worker, shared contracts, model and service behavior with Vitest across all workspaces. All four coverage floors are 95%; React views and generated platform declarations are excluded from unit coverage.
 - The web suite caps Vitest at four workers to bound concurrent isolated Miniflare runtimes. Preserve test isolation, deadlines and coverage thresholds when tuning concurrency.
+- Large R2 test fixtures use `tests/worker/r2-fixtures.ts` and its local fixture Worker: raw byte arguments to binding proxies synchronously serialize as Base64/JSON, while arbitrary streams lack R2's required length. Read stored bodies as streams, consume responses promptly and compare bytes with native `Buffer.equals`, not deep equality.
 - Biome uses its maintained recommended preset and rejects warnings. TypeScript is strict.
 - Husky runs checks against the Git index snapshot, without changing the working tree or restaging fixes. Stage explicit paths, then commit through the normal hook.
 - Audit evidence belongs in nmem, using `6dq-audit-github.com-nocoo-his.fm-l1`; no full 6DQ certification is implied by L1.
