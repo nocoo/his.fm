@@ -36,6 +36,11 @@ import {
 } from '../src/shared/production';
 import { seoOverrideSchema, siteSeoSchema, siteSeoUpdateSchema } from '../src/shared/seo';
 import { storageCleanupSchema, storageKinds } from '../src/shared/storage';
+import {
+  voicePreviewStorageKeyMaxLength,
+  voicePreviewStorageKeyMinLength,
+  voicePreviewStorageKeyOpenApiPattern,
+} from '../src/shared/voice-preview-prefix';
 import { tokenSchema } from './agent-tokens';
 import { bumperInputSchema, bumperUpdateSchema } from './bumpers';
 
@@ -1011,9 +1016,9 @@ export function agentOpenApi(origin: string) {
               required: false,
               schema: {
                 type: 'string',
-                minLength: 24,
-                maxLength: 1024,
-                pattern: '^reference/voices/[A-Za-z0-9][A-Za-z0-9._-]*\\.mp3$',
+                minLength: voicePreviewStorageKeyMinLength,
+                maxLength: voicePreviewStorageKeyMaxLength,
+                pattern: voicePreviewStorageKeyOpenApiPattern,
               },
             },
           ],
