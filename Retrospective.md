@@ -4,6 +4,8 @@
 
 The max review found that prompt-slot media scanning inspected serialized JSON rather than slot values. An escaped newline after a same-origin absolute URL became part of its apparent object key, making a referenced upload eligible for cleanup. Decode JSON before recursive scanning, including legacy channel bundles, and exercise channel/category, disabled slots, real newlines and stale inventory cleanup through the API.
 
+Adding a synchronized transition paragraph did not remove contradictory legacy write instructions elsewhere in onboarding and `/llms.txt`. Review every served discovery surface and assert that retired write guidance is absent, not only that new documentation is present.
+
 ## 2026-10-18 - Validate refined schemas and staged warnings
 
 The first merged-role and already-initialized dry-run responses reused stored slot objects, leaking their audit/version fields into strict editable-slot response schemas. A synthesized append body is not the original audited slot. Project editable fields explicitly and verify real responses against the shared strict schema; collection versions still identify the merge inputs.

@@ -1418,6 +1418,18 @@ describe('agent discovery and real bearer routing', () => {
     const instructions = await (await call('/api/agent/instructions')).text();
     expect(instructions).toContain('External clients create text, artwork and recordings outside the site');
     expect(instructions).toContain('productions:approve');
+    expect(instructions).toContain('supplying legacy `prompt` is rejected');
+    expect(instructions).not.toContain('Channel: GET/PUT `/channel`');
+    const summary = await (await call('/llms.txt')).text();
+    for (const fragment of [
+      '/api/agent/channel/prompt-slots',
+      '/api/agent/categories/:id/prompt-slots',
+      'deprecated read-only projections',
+      "GET each slot table's /migration/dry-run with prompts:read",
+      'POST /migration/apply with prompts:write',
+    ])
+      expect(summary).toContain(fragment);
+    expect(summary).not.toContain('editable prompts bundle');
     const artworkDescription = agentOpenApi(origin).paths['/productions/{id}/assets/cover'].put.summary;
     const diagnostic = artworkDescription.slice(
       artworkDescription.indexOf('Successful versioned artwork responses'),
