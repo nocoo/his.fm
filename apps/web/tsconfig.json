@@ -25,6 +25,7 @@
     "cloudflare.config.ts",
     ".cloudflare/types/**/*.d.ts",
     "*.d.ts",
-    "scripts/**/*.d.mts"
+    "scripts/**/*.d.mts",
+    "../../scripts/**/*.d.mts"
   ]
 }

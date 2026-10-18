@@ -2,6 +2,12 @@
 
 All notable changes to his.fm are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions use the owner’s patch-only deployment policy in `AGENTS.md`, with the authoritative version in `package.json`.
 
+## 2.8.5 - 2026-10-18
+
+### Fixed
+
+- After `npm ci` on Linux CI runners, install any missing lockfile platform optional packages (Biome, workerd, TypeScript, Vite/Rolldown/Lightning CSS, Sharp, and similar), verify they load, and retry npm registry fetches on transient `ECONNRESET` so main quality gates stay green without pinning OS-specific binaries in root `package.json`.
+
 ## 2.8.4 - 2026-10-18
 
 ### Changed
