@@ -908,3 +908,11 @@ pregeneration selector: atomic action changes and external-platform publication
 corrections. A route's name does not establish which data it writes. Trace every
 shared mutation implementation before classifying it as unrelated; exercise the
 real write, approval and correction flow rather than only testing route strings.
+
+## 2026-10-18 — Inspect migration backup storage before asserting its shape
+
+The skills-alias regression initially expected original content directly on a
+backup row. Backups store that snapshot inside the JSON `data` column. Read the
+existing backup assertions before adding coverage, and decode the stored snapshot
+when checking that migration preserves source text. The corrected regression
+also verifies dry-run leaves both category rows and backups unchanged.

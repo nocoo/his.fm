@@ -251,6 +251,28 @@ it('previews live v11 data without writes, preserves unknown headings and learni
   expect((await api(categoryPath, 'PUT', { version: 0, slots: [] })).status).toBe(409);
 });
 
+it.each(['learning', 'manager-notes'])(
+  'previews and applies skills prose for %s without losing source text',
+  async (id) => {
+    const content = '## 通用 skill\n请使用 `hisfm-bumpers`。\n- web-perf\n再次使用 hisfm-bumpers。\n';
+    await env.DB.prepare('UPDATE categories SET prompt = ? WHERE id = ?').bind(content, id).run();
+    const path = `/categories/${id}/prompt-slots`;
+    const before = await env.DB.prepare('SELECT * FROM categories WHERE id = ?').bind(id).first();
+    const report = await preview(path);
+    expect(report.unmappedHeadings).toEqual([]);
+    expect(report.slots.find((entry) => entry.id === 'skills')?.body).toBe('hisfm-bumpers\nweb-perf');
+    expect(report.slots.find((entry) => entry.id === 'positioning')?.body).toBe(content);
+    expect(await env.DB.prepare('SELECT * FROM categories WHERE id = ?').bind(id).first()).toEqual(before);
+    expect(await backups()).toEqual([]);
+    const applied = await apply(path);
+    expect(applied.slots.find((entry) => entry.id === 'skills')?.body).toBe('hisfm-bumpers\nweb-perf');
+    expect(applied.slots.find((entry) => entry.id === 'positioning')?.body).toBe(content);
+    const snapshot = await backups();
+    expect(snapshot).toHaveLength(1);
+    expect(JSON.parse(snapshot[0].data as string)).toMatchObject({ content });
+  },
+);
+
 it('fences migration snapshots against legacy and collection changes and keeps one immutable backup', async () => {
   const stale = await preview(categoryPath);
   await env.DB.prepare(

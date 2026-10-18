@@ -97,7 +97,7 @@ describe('buildPromptSlotMigration', () => {
       const body = '\r\n  web-perf  \r\nowner/repo.skill_2\r\n';
       const content = `## \t${variant}\u3000 ###\r\n${body}`;
       const result = bodies(content, categoryId);
-      expect(result.bodies[role]).toBe(role === 'skills' ? body : content);
+      expect(result.bodies[role]).toBe(role === 'skills' ? 'web-perf\nowner/repo.skill_2' : content);
       expect(result.bodies.positioning).toBe(['positioning', 'skills'].includes(role) ? content : '');
       expect(result.unmappedHeadings).toEqual([]);
       expect(promptSlotInputsSchema.safeParse(result.slots).success).toBe(true);
@@ -114,7 +114,7 @@ describe('buildPromptSlotMigration', () => {
     const chunks = headings.map(([heading, role], index) => {
       const body = `\nskill-${index}\n\n`;
       const chunk = `## ${heading}\n${body}`;
-      expected[role] += role === 'skills' ? body : chunk;
+      expected[role] += role === 'skills' ? `skill-${index}` : chunk;
       if (role === 'skills') expected.positioning += chunk;
       return chunk;
     });
@@ -148,9 +148,39 @@ describe('buildPromptSlotMigration', () => {
     },
   );
 
-  it.each(['learning', 'manager-notes'])('still rejects skill prose under the %s alias', (categoryId) => {
-    const content = '## 通用 skill\nUse web-perf to inspect the site.\n';
-    const result = bodies(content, categoryId);
+  it.each(['learning', 'manager-notes'])(
+    'extracts skill names from prose under the %s alias',
+    (categoryId) => {
+      const content =
+        '## 通用 skill\n请使用 **hisfm-bumpers**、`owner/repo.skill_2`，再调用imagegen。\n- hisfm-bumpers\n';
+      const result = bodies(content, categoryId);
+      expect(result.bodies.skills).toBe('hisfm-bumpers\nowner/repo.skill_2\nimagegen');
+      expect(result.bodies.positioning).toBe(content);
+      expect(result.unmappedHeadings).toEqual([]);
+      expect(promptSlotInputsSchema.safeParse(result.slots).success).toBe(true);
+    },
+  );
+
+  it.each([
+    ['learning', '通用 skill'],
+    ['manager-notes', '通用 skill'],
+    ['other', 'skills'],
+    ['other', '技能'],
+    ['other', '技能名称'],
+    ['other', '技能清单'],
+  ])('keeps %s heading %s mapped even without skill-name tokens', (categoryId, heading) => {
+    for (const body of ['', '\r\n', '请遵守栏目规范。\n']) {
+      const content = `## ${heading}\n${body}`;
+      const result = bodies(content, categoryId);
+      expect(result.bodies.skills).toBe('');
+      expect(result.bodies.positioning).toBe(content);
+      expect(result.unmappedHeadings).toEqual([]);
+    }
+  });
+
+  it('does not extract skills from a category alias outside its categories', () => {
+    const content = '## 通用 skill\n请使用 hisfm-bumpers。\n';
+    const result = bodies(content, 'other');
     expect(result.bodies.skills).toBe('');
     expect(result.bodies.positioning).toBe(content);
     expect(result.unmappedHeadings).toEqual(['通用 skill']);
@@ -267,43 +297,42 @@ describe('buildPromptSlotMigration', () => {
     const editor = '## editor\r\nKeep facts.\r\n';
     const result = bodies(preamble + section + editor);
     expect(result.bodies.positioning).toBe(preamble + section);
-    expect(result.bodies.skills).toBe(
-      '\r\nweb-perf\r\n  system0-design-basalt  \r\nowner/repo.skill_2\r\n\r\n',
-    );
+    expect(result.bodies.skills).toBe('web-perf\nsystem0-design-basalt\nowner/repo.skill_2');
     expect(result.bodies.editor).toBe(editor);
     expect(result.unmappedHeadings).toEqual([]);
     expect(promptSlotInputsSchema.safeParse(result.slots).success).toBe(true);
   });
 
   it.each([
-    'Use web-perf to inspect the site.',
-    '- web-perf',
-    '请运行技能',
-    '```\nweb-perf\n```',
-    'name: instructions',
-  ])('preserves unsafe skills prose outside skills: %s', (prose) => {
+    ['Use web-perf to inspect the site.', 'web-perf\nUse\nto\ninspect\nthe\nsite.'],
+    ['- web-perf', 'web-perf'],
+    ['请运行技能', 'web-perf'],
+    ['```\nweb-perf\n```', 'web-perf'],
+    ['name: instructions', 'web-perf\nname\ninstructions'],
+  ])('extracts pattern-matching tokens while preserving skills prose: %s', (prose, names) => {
     const content = `## skills\n\nweb-perf\n${prose}\n`;
     const result = bodies(content);
-    expect(result.bodies.skills).toBe('');
+    expect(result.bodies.skills).toBe(names);
     expect(result.bodies.positioning).toBe(content);
-    expect(result.unmappedHeadings).toEqual(['skills']);
+    expect(result.unmappedHeadings).toEqual([]);
+    expect(promptSlotInputsSchema.safeParse(result.slots).success).toBe(true);
   });
 
-  it('keeps repeated skills originals while appending only valid newline-delimited names', () => {
-    const content = '## skills\nweb-perf\n\n## skills\n\nimagegen\n\n## skills';
+  it('keeps repeated skills originals while deduplicating names in source order', () => {
+    const content = '## skills\nweb-perf\n\n## 技能\n\nimagegen\nweb-perf\n\n## skills';
     const result = bodies(content);
-    expect(result.bodies.skills).toBe('web-perf\n\n\nimagegen\n\n');
+    expect(result.bodies.skills).toBe('web-perf\nimagegen');
     expect(result.bodies.positioning).toBe(content);
     expect(result.unmappedHeadings).toEqual([]);
   });
 
-  it('retains valid skill names when a later skills section contains unsafe prose', () => {
+  it('combines names from plain and prose-containing skills sections', () => {
     const valid = '## skills\n\nweb-perf\n\n';
-    const invalid = '## 技能清单\n\nUse imagegen for all covers.\n';
-    const result = bodies(valid + invalid);
-    expect(result.bodies.skills).toBe('\nweb-perf\n\n');
-    expect(result.bodies.positioning).toBe(valid + invalid);
-    expect(result.unmappedHeadings).toEqual(['技能清单']);
+    const prose = '## 技能清单\n\n请使用 imagegen 生成封面，再用 web-perf 检查。\n';
+    const result = bodies(valid + prose);
+    expect(result.bodies.skills).toBe('web-perf\nimagegen');
+    expect(result.bodies.positioning).toBe(valid + prose);
+    expect(result.unmappedHeadings).toEqual([]);
   });
 
   it('preserves a final valid skills body without inventing a trailing newline', () => {

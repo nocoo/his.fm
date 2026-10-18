@@ -40,7 +40,7 @@ Schema migration `0023_prompt_slots.sql` adds storage and `prompt_slot_backups` 
 
 Channel `content` moves unchanged into `positioning`. Legacy named bodies are preserved in matching roles: coordinator/executor and remaining workflow/tool templates -> producer; reviewer/script/description -> editor; brief/boundary -> collector; speech/voiceComparison/narration -> voice; cover -> cover; editorial -> positioning. Migration labels appended legacy keys but does not rewrite their bodies or treat retired tooling prose as executable site features.
 
-Valid category skills sections retain the entire original section in `positioning` and copy only skill names into `skills`; this deliberate duplication preserves the original Markdown block. Invalid skill prose remains only in positioning and is reported for human correction. The dry-run is the evidence for a real dataset: synthetic test success does not prove all live headings were recognized.
+Recognized category skills sections retain the entire original section in `positioning`. Their bodies are scanned for tokens matching `[a-zA-Z0-9][a-zA-Z0-9._/-]*`, copied into `skills` one per line, unique across sections in first-occurrence order. Extraction uses this character pattern, not a skill registry or language classifier; ordinary English words also match. Prose or an absence of matching tokens never makes a recognized skills heading unmapped. The dry-run is the evidence for a real dataset: synthetic test success does not prove all live headings were recognized.
 
 ## Deprecation
 
