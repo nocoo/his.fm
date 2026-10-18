@@ -74,6 +74,88 @@ describe('buildPromptSlotMigration', () => {
     expect(result.unmappedHeadings).toEqual([]);
   });
 
+  const learningHeadings = [
+    ['收集信息', 'collector'],
+    ['②类（社区新鲜事 / 极客新闻）时间口径', 'collector'],
+    ['素材量与甄别分工', 'collector'],
+    ['声音生成', 'voice'],
+    ['通用 skill', 'skills'],
+    ['栏目：慢慢学会 · 每日手冲', 'positioning'],
+    ['栏目定位', 'positioning'],
+  ];
+  const managerHeadings = [
+    ['声音生成', 'voice'],
+    ['通用 skill', 'skills'],
+    ['栏目定位', 'positioning'],
+  ];
+
+  it.each([
+    ...learningHeadings.map(([heading, role]) => ['learning', heading, role]),
+    ...managerHeadings.map(([heading, role]) => ['manager-notes', heading, role]),
+  ])('maps the complete %s heading %s to %s without rewriting source bytes', (categoryId, heading, role) => {
+    for (const variant of [heading, heading.replace(/ /g, ''), heading.replace(/ /g, '\t  \u3000')]) {
+      const body = '\r\n  web-perf  \r\nowner/repo.skill_2\r\n';
+      const content = `## \t${variant}\u3000 ###\r\n${body}`;
+      const result = bodies(content, categoryId);
+      expect(result.bodies[role]).toBe(role === 'skills' ? body : content);
+      expect(result.bodies.positioning).toBe(['positioning', 'skills'].includes(role) ? content : '');
+      expect(result.unmappedHeadings).toEqual([]);
+      expect(promptSlotInputsSchema.safeParse(result.slots).success).toBe(true);
+    }
+  });
+
+  it.each([
+    ['learning', learningHeadings],
+    ['manager-notes', managerHeadings],
+  ] as const)('fully maps the known %s heading fixture', (categoryId, headings) => {
+    const preamble = '# Original policy\n\n';
+    const expected = Object.fromEntries(Object.keys(initialPromptSlotTitles).map((id) => [id, '']));
+    expected.positioning = preamble;
+    const chunks = headings.map(([heading, role], index) => {
+      const body = `\nskill-${index}\n\n`;
+      const chunk = `## ${heading}\n${body}`;
+      expected[role] += role === 'skills' ? body : chunk;
+      if (role === 'skills') expected.positioning += chunk;
+      return chunk;
+    });
+    const result = bodies(preamble + chunks.join(''), categoryId);
+    expect(result.bodies).toEqual(expected);
+    expect(result.unmappedHeadings).toEqual([]);
+  });
+
+  it.each(learningHeadings)('does not match partial aliases containing %s', (heading) => {
+    for (const variant of [`说明：${heading}`, `${heading}补充`]) {
+      const content = `## ${variant}\nweb-perf\n`;
+      const result = bodies(content);
+      expect(result.bodies.positioning).toBe(content);
+      expect(result.unmappedHeadings).toEqual([variant]);
+    }
+  });
+
+  it.each(['manager-notes', 'other', '__proto__', 'constructor'])(
+    'does not apply learning-only aliases to %s',
+    (categoryId) => {
+      for (const heading of [
+        '收集信息',
+        '②类（社区新鲜事 / 极客新闻）时间口径',
+        '栏目：慢慢学会 · 每日手冲',
+      ]) {
+        const content = `## ${heading}\nOriginal text.\n`;
+        const result = bodies(content, categoryId);
+        expect(result.bodies.positioning).toBe(content);
+        expect(result.unmappedHeadings).toEqual([heading]);
+      }
+    },
+  );
+
+  it.each(['learning', 'manager-notes'])('still rejects skill prose under the %s alias', (categoryId) => {
+    const content = '## 通用 skill\nUse web-perf to inspect the site.\n';
+    const result = bodies(content, categoryId);
+    expect(result.bodies.skills).toBe('');
+    expect(result.bodies.positioning).toBe(content);
+    expect(result.unmappedHeadings).toEqual(['通用 skill']);
+  });
+
   it.each(Object.keys(initialPromptSlotTitles).filter((id) => id !== 'skills'))(
     'recognizes the exact English initial ID %s with optional closing hashes',
     (id) => {

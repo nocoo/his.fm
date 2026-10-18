@@ -13,6 +13,30 @@ const roleAliases: Record<InitialSlotId, string[]> = {
   skills: ['技能', '技能名称', '技能清单'],
 };
 
+const categoryHeadingAliases = new Map<string, Map<string, InitialSlotId>>([
+  [
+    'learning',
+    new Map([
+      ['收集信息', 'collector'],
+      ['②类时间口径', 'collector'],
+      ['②类（社区新鲜事/极客新闻）时间口径', 'collector'],
+      ['素材量与甄别分工', 'collector'],
+      ['声音生成', 'voice'],
+      ['通用skill', 'skills'],
+      ['栏目：慢慢学会·每日手冲', 'positioning'],
+      ['栏目定位', 'positioning'],
+    ]),
+  ],
+  [
+    'manager-notes',
+    new Map([
+      ['声音生成', 'voice'],
+      ['通用skill', 'skills'],
+      ['栏目定位', 'positioning'],
+    ]),
+  ],
+]);
+
 const legacyRoles: Record<string, InitialSlotId> = {
   coordinator: 'producer',
   executor: 'producer',
@@ -29,11 +53,11 @@ const legacyRoles: Record<string, InitialSlotId> = {
 };
 
 function roleForHeading(heading: string, categoryId: string): InitialSlotId | undefined {
+  const alias = categoryHeadingAliases.get(categoryId)?.get(heading.replace(/\s+/g, ''));
+  if (alias) return alias;
   const label = heading
     .replace(/^(?:\d+[.)）、:：｜-]|[（(]\d+[)）]|[一二三四五六七八九十]+[、.：:]|[①-⑳])\s*/, '')
     .replace(/^(\*\*|__)(.*?)\1$/, '$2');
-  if (categoryId === 'learning' && (/^②\s*类时间口径$/.test(heading) || label === '素材量与甄别分工'))
-    return 'collector';
   const role = label
     .replace(/\s*(?:\([^()]*\)|（[^（）]*）)\s*$/, '')
     .trim()
