@@ -10,6 +10,7 @@ import { pregenerateEpisodeArt } from './episode-art-pregenerate';
 import { getEpisode, listEpisodes, mutateEpisode } from './episodes';
 import { HttpError, json } from './http';
 import { routeProductions } from './production';
+import { routePromptSlots } from './prompt-slots';
 import { routeSiteSeo } from './seo-store';
 import { routeStorage } from './storage';
 
@@ -25,7 +26,9 @@ export async function routeManagement(
   const bumper = /^\/bumpers(?:\/([^/]+))?$/.exec(path);
   const episode = /^\/episodes(?:\/([^/]+))?$/.exec(path);
   const cover = /^\/(productions|episodes)\/([^/]+)\/cover\.png$/.exec(path);
-  if (cover)
+  const promptSlots = /^\/(?:channel|categories\/([a-z0-9-]+))\/prompt-slots(\/.*)?$/.exec(path);
+  if (promptSlots) response = await routePromptSlots(request, env, actor, promptSlots[1], promptSlots[2]);
+  else if (cover)
     response = await routeCover(
       request,
       env,

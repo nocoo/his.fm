@@ -2,9 +2,20 @@ import { readFileSync } from 'node:fs';
 import { scopes } from '@his-fm/contracts';
 import { describe, expect, it } from 'vitest';
 import { themeIds } from '../../src/shared/appearance';
-import { agentOpenApi } from '../../worker/agent-contract';
+import { agentOpenApi, promptSlotContractSummary } from '../../worker/agent-contract';
 
 describe('scoped OpenAPI contract', () => {
+  it('keeps the prompt slot transition contract identical in every agent-facing document', () => {
+    for (const file of ['README.md', 'docs/agent-api.md', 'docs/api-onboarding.md']) {
+      expect(readFileSync(new URL(`../../../../${file}`, import.meta.url), 'utf8')).toContain(
+        promptSlotContractSummary,
+      );
+    }
+    const contract = agentOpenApi('https://example.test');
+    for (const path of ['/channel/prompt-slots', '/categories/{id}/prompt-slots'] as const)
+      expect(contract.paths[path].get.description).toBe(promptSlotContractSummary);
+  });
+
   it('keeps artwork cache diagnostics identical in every agent-facing contract', () => {
     const onboarding = readFileSync(new URL('../../../../docs/api-onboarding.md', import.meta.url), 'utf8');
     const diagnostic = onboarding
@@ -111,7 +122,8 @@ describe('scoped OpenAPI contract', () => {
     const contract = agentOpenApi('https://example.test');
     expect(contract.paths['/categories'].get.summary).toContain('prompts:read');
     expect(contract.paths['/productions/{id}'].get.summary).toContain('version');
-    expect(contract.paths['/channel'].put.summary).toContain('only the new version');
+    expect(Object.keys(contract.paths['/channel'])).toEqual(['get']);
+    expect(contract.paths['/channel'].get.summary).toContain('Deprecated read-only');
     expect(contract.components.schemas.ServiceCapabilities.properties).toHaveProperty('scopes');
     expect(contract.components.schemas.ServiceCapabilities.properties).not.toHaveProperty('humanOnly');
     expect(contract.components.schemas.ServiceManifest.properties).toHaveProperty('approvalScopes');
@@ -157,6 +169,42 @@ describe('scoped OpenAPI contract', () => {
     expect(
       contract.paths['/bumpers/{id}'].put.requestBody.content['application/json'].schema.required,
     ).toEqual(['name', 'position', 'version']);
+  });
+
+  it('documents slot CRUD, independent prompt grants, collection versions and explicit migrations', () => {
+    const contract = agentOpenApi('https://example.test');
+    for (const base of ['/channel/prompt-slots', '/categories/{id}/prompt-slots'] as const) {
+      const table = contract.paths[base];
+      expect(table.get['x-required-scopes']).toEqual(['prompts:read']);
+      expect(table.put['x-required-scopes']).toEqual(['prompts:write']);
+      expect(table.post['x-required-scopes']).toEqual(['prompts:write']);
+      expect(table.put.requestBody.content['application/json'].schema.required).toEqual(['version', 'slots']);
+      expect(table.get.parameters).toContainEqual(expect.objectContaining({ name: 'slot', in: 'query' }));
+      expect(JSON.stringify(table.get.responses).match(/"maxLength":120000/g)).toHaveLength(1);
+      expect(JSON.stringify(table.put.requestBody)).toContain('"maxLength":120000');
+      const item = contract.paths[`${base}/{slotId}`];
+      expect(item.patch['x-required-scopes']).toEqual(['prompts:write']);
+      expect(item.delete['x-required-scopes']).toEqual(['prompts:write']);
+      expect(item.patch.summary).toContain('collection version');
+      expect(item.delete.parameters).toContainEqual(
+        expect.objectContaining({ name: 'version', required: true }),
+      );
+      const dryRun = contract.paths[`${base}/migration/dry-run`];
+      expect(Object.keys(dryRun).filter((key) => key !== 'parameters')).toEqual(['get']);
+      expect(dryRun.get['x-required-scopes']).toEqual(['prompts:read']);
+      expect(dryRun.get.summary).toContain('Does not write');
+      expect(JSON.stringify(dryRun.get.responses)).not.toContain('"maxLength":120000');
+      const apply = contract.paths[`${base}/migration/apply`];
+      expect(Object.keys(apply).filter((key) => key !== 'parameters')).toEqual(['post']);
+      expect(apply.post['x-required-scopes']).toEqual(['prompts:write']);
+      expect(apply.post.requestBody.content['application/json'].schema.required).toEqual([
+        'version',
+        'legacyVersion',
+      ]);
+      expect(apply.post.summary).toContain('Atomically backs up');
+      expect(apply.post.summary).toContain('no-op');
+      expect(table.put.summary).toContain('Without prompts:read returns only version');
+    }
   });
 
   it('keeps approval separate from every revise and reopen action', () => {

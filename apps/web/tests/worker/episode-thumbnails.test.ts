@@ -7,6 +7,7 @@ import { coverArtwork } from '../../src/shared/cover-composition';
 import { episodeThumbnailWidths } from '../../src/shared/episode-thumbnail';
 import { routeEpisodeThumbnail } from '../../worker/episode-thumbnails';
 import { coverDimensions } from '../../worker/media-validation';
+import { putR2Fixture, r2FixtureWorker } from './r2-fixtures';
 
 vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 });
 
@@ -30,7 +31,7 @@ beforeAll(async () => {
           manifest: {
             mainModule: 'index.js',
             modules: {
-              'index.js': { type: 'esm', contents: 'export default {fetch(){return new Response("ok")}}' },
+              'index.js': { type: 'esm', contents: r2FixtureWorker },
             },
           },
           env: {
@@ -54,7 +55,7 @@ beforeEach(async () => {
   await env.DB.prepare('INSERT INTO episodes VALUES (?, ?, ?, ?, ?)')
     .bind('one', `https://f.no.mt/${key}`, 3, 'published', '2020-01-01T00:00:00.000Z')
     .run();
-  await env.MEDIA.put(key, source);
+  await putR2Fixture(mf, key, source);
 });
 
 afterAll(() => mf.dispose());
@@ -77,7 +78,7 @@ describe('published episode thumbnails', () => {
     }
     const original = await env.MEDIA.get(key);
     if (!original) throw new Error('Missing original');
-    expect(new Uint8Array(await original.arrayBuffer())).toEqual(new Uint8Array(source));
+    expect(Buffer.from(await new Response(original.body).arrayBuffer()).equals(source)).toBe(true);
   });
 
   it('keeps valid HEAD bodyless without running a transformation', async () => {
@@ -95,7 +96,7 @@ describe('published episode thumbnails', () => {
     const rectangular = await env.IMAGES.input(new Blob([source]).stream())
       .transform({ width: 640, height: 320, fit: 'cover' })
       .output({ format: 'image/png' });
-    await env.MEDIA.put(key, await rectangular.response().arrayBuffer());
+    await putR2Fixture(mf, key, new Uint8Array(await rectangular.response().arrayBuffer()));
     for (const theme of themeIds) {
       const response = await routeEpisodeThumbnail(request(), env, 'one', '3', theme, '160');
       const artwork = coverArtwork(theme);
@@ -106,7 +107,7 @@ describe('published episode thumbnails', () => {
     }
     const stored = await env.MEDIA.get(key);
     if (!stored) throw new Error('Missing original');
-    expect(coverDimensions(new Uint8Array(await stored.arrayBuffer()))).toEqual({
+    expect(coverDimensions(new Uint8Array(await new Response(stored.body).arrayBuffer()))).toEqual({
       width: 640,
       height: 320,
     });
@@ -170,7 +171,7 @@ describe('published episode thumbnails', () => {
     expect(png.byteLength).toBeGreaterThan(4 * 1024 * 1024);
     expect(png.byteLength).toBeLessThan(8 * 1024 * 1024);
     for (const original of [jpeg, png]) {
-      await env.MEDIA.put(key, original);
+      await putR2Fixture(mf, key, original);
       const response = await call();
       expect(response.status).toBe(200);
       expect(response.headers.get('Content-Type')).toBe('image/webp');
@@ -180,12 +181,12 @@ describe('published episode thumbnails', () => {
       });
       const stored = await env.MEDIA.get(key);
       if (!stored) throw new Error('Missing original');
-      expect(Buffer.from(await stored.arrayBuffer()).equals(original)).toBe(true);
+      expect(Buffer.from(await new Response(stored.body).arrayBuffer()).equals(original)).toBe(true);
     }
   });
 
   it('preserves oversized originals without buffering or transforming beyond the native input limit', async () => {
-    await env.MEDIA.put(key, new Uint8Array(20_000_001));
+    await putR2Fixture(mf, key, new Uint8Array(20_000_001));
     const input = vi.fn();
     for (const method of ['GET', 'HEAD']) {
       const response = await call(method, '3', '320', '', {
@@ -199,6 +200,7 @@ describe('published episode thumbnails', () => {
       expect(await response.text()).toBe('');
     }
     expect(input).not.toHaveBeenCalled();
+    expect((await env.MEDIA.head(key))?.size).toBe(20_000_001);
   });
 
   it('uses fixed native parameters and keeps a trusted original available when Images fails', async () => {
@@ -216,9 +218,7 @@ describe('published episode thumbnails', () => {
     expect(log).toHaveBeenCalledWith(expect.stringContaining('episode_thumbnail_failed'));
     expect(transform).toHaveBeenCalledWith({ width: 320, height: 320, fit: 'cover' });
     expect(output).toHaveBeenCalledWith({ format: 'image/webp', quality: 80, anim: false });
-    expect(new Uint8Array(await new Response(input.mock.calls[0][0]).arrayBuffer())).toEqual(
-      new Uint8Array(source),
-    );
+    expect(Buffer.from(await new Response(input.mock.calls[0][0]).arrayBuffer()).equals(source)).toBe(true);
   });
 
   it('never caches or labels a non-WebP or failed native response as a successful thumbnail', async () => {

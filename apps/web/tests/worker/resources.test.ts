@@ -125,16 +125,12 @@ it('rejects unsupported resource methods and unavailable profile storage', async
   ).rejects.toMatchObject({ status: 503 });
 });
 
-it('preserves channel content on named-prompt updates and returns full profiles only with read grants', async () => {
+it('keeps deprecated channel fields read-only and returns full profiles only with read grants', async () => {
   const current = await getChannel(env.DB);
-  const updated = await routeChannel(
-    request('PUT', { version: current.version, prompts: current.prompts }),
-    env,
-    human,
-  );
-  expect(await updated.json()).toMatchObject({
-    channel: { version: current.version + 1, content: current.content, prompts: current.prompts },
-  });
+  await expect(
+    routeChannel(request('PUT', { version: current.version, prompts: current.prompts }), env, human),
+  ).rejects.toMatchObject({ status: 405 });
+  expect(await getChannel(env.DB)).toEqual(current);
   const created = await routeCategories(
     request('POST', { name: 'Metadata only', icon: 'leaf', color: 'teal' }),
     env,
@@ -294,14 +290,15 @@ it('bounds and validates episode bodies and preserves the original on slug confl
 
 it('projects private category prompts independently and preserves omitted prompt fields', async () => {
   const category = { name: 'Private', icon: 'leaf', color: 'teal', prompt: 'SECRET PROMPT' };
-  const create = await routeCategories(request('POST', category), env, human);
+  const { prompt: _prompt, ...fields } = category;
+  const create = await routeCategories(request('POST', fields), env, human);
   const { category: saved } = (await create.json()) as { category: { id: string } };
+  await env.DB.prepare('UPDATE categories SET prompt=? WHERE id=?').bind(category.prompt, saved.id).run();
   const metadata = granted('categories:read', 'categories:write');
   const response = await routeCategories(request(), env, metadata, saved.id);
   expect(await response.json()).toMatchObject({ category: { id: saved.id, version: 1 } });
   const list = await routeCategories(request(), env, metadata);
   expect(JSON.stringify(await list.json())).not.toContain('SECRET PROMPT');
-  const { prompt: _prompt, ...fields } = category;
   const update = await routeCategories(
     request('PUT', { ...fields, name: 'Renamed', version: 1 }),
     env,
@@ -317,38 +314,45 @@ it('projects private category prompts independently and preserves omitted prompt
   await expect(
     routeCategories(request('PUT', { ...category, prompt: '', version: 2 }), env, metadata, saved.id),
   ).rejects.toMatchObject({ status: 403 });
-  const same = await routeCategories(request('PUT', { ...category, version: 2 }), env, metadata, saved.id);
-  expect(JSON.stringify(await same.json())).not.toContain('SECRET PROMPT');
-  const promptOnly = await routeCategories(
-    request('PUT', { prompt: 'New private prompt', version: 3 }),
-    env,
-    granted('categories:write', 'prompts:write', 'prompts:read'),
-    saved.id,
-  );
-  expect(await promptOnly.json()).toMatchObject({
-    category: { name: 'Private', icon: 'leaf', color: 'teal', prompt: 'New private prompt', version: 4 },
-  });
+  await expect(
+    routeCategories(request('PUT', { ...category, version: 2 }), env, metadata, saved.id),
+  ).rejects.toMatchObject({ status: 403 });
+  await expect(
+    routeCategories(
+      request('PUT', { prompt: 'New private prompt', version: 2 }),
+      env,
+      granted('categories:write', 'prompts:write', 'prompts:read'),
+      saved.id,
+    ),
+  ).rejects.toMatchObject({ status: 400 });
+  expect(
+    await env.DB.prepare('SELECT prompt, version FROM categories WHERE id=?').bind(saved.id).first(),
+  ).toEqual({ prompt: category.prompt, version: 2 });
   await expect(
     routeCategories(request('PUT', { version: 4 }), env, metadata, saved.id),
   ).rejects.toMatchObject({ status: 400 });
   await expect(routeCategories(request('POST', category), env, metadata)).rejects.toMatchObject({
     status: 403,
   });
+  await expect(routeCategories(request('POST', category), env, human)).rejects.toMatchObject({
+    status: 400,
+  });
 });
 
-it('authorizes versioned channel and appearance writes without leaking prompt bodies to write-only actors', async () => {
+it('rejects legacy channel writes and authorizes versioned appearance writes', async () => {
   const channel = await getChannel(env.DB);
-  const result = await routeChannel(
-    request('PUT', { version: channel.version, content: 'Private updated prompt' }),
-    env,
-    granted('prompts:write'),
-  );
-  expect(await result.json()).toEqual({ version: channel.version + 1 });
+  await expect(
+    routeChannel(
+      request('PUT', { version: channel.version, content: 'Private updated prompt' }),
+      env,
+      granted('prompts:write'),
+    ),
+  ).rejects.toMatchObject({ status: 405 });
   await expect(
     routeChannel(request('PUT', { version: channel.version, content: 'Stale' }), env, human),
-  ).rejects.toMatchObject({ status: 409 });
+  ).rejects.toMatchObject({ status: 405 });
   expect(await (await routeChannel(request(), env, granted('prompts:read'))).json()).toMatchObject({
-    channel: { content: 'Private updated prompt' },
+    channel,
   });
   await expect(
     routeChannel(request('PUT', { version: 1, content: 'No grant' }), env, granted('prompts:read')),

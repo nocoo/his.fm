@@ -2,6 +2,25 @@
 
 All notable changes to his.fm are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions use the owner’s patch-only deployment policy in `AGENTS.md`, with the authoritative version in `package.json`.
 
+## 2.8.0 - 2026-10-18
+
+The owner explicitly approved this minor version, overriding the patch-only deployment policy.
+
+### Added
+
+- Manage versioned channel and category prompt slots through scoped CRUD APIs and a shared studio editor with explicit whole-table saves, reordering, merge modes and preserved drafts/undo across navigation.
+- Read enabled role guidance merged by stable ID with category append or override semantics, preserving channel → category → episode intent → source priority.
+- Preview legacy prompt splitting from current database rows through read-only dry-run endpoints, then explicitly apply it with atomic backups and optimistic versions. Preserve original Markdown, learning's special collector sections and unmapped headings; deployment never applies content migration automatically.
+
+### Changed
+
+- Retire legacy whole-prompt writes while retaining read-only stored values before migration and enabled-slot Markdown projections afterward. Synchronize Agent API onboarding, OpenAPI and discovery guidance.
+
+### Fixed
+
+- Protect prompt-slot media references during stale-inventory cleanup, including disabled slots and URLs followed by newlines.
+- Preserve browser back/forward editor undo and newer drafts created during an in-flight save; keep synthesized role and migration-preview bodies lossless beyond individual write limits.
+
 ## 2.7.2 - 2026-10-18
 
 This release includes the artwork edge-cache changes listed under 2.7.1.

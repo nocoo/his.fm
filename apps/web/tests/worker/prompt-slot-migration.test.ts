@@ -1,0 +1,292 @@
+import { initialPromptSlotTitles, promptKeys, promptSlotInputsSchema } from '@his-fm/contracts';
+import { describe, expect, it } from 'vitest';
+import { buildPromptSlotMigration } from '../../worker/prompt-slot-migration';
+
+function bodies(content: string, categoryId = 'learning') {
+  const result = buildPromptSlotMigration({ content, categoryId });
+  return { ...result, bodies: Object.fromEntries(result.slots.map((slot) => [slot.id, slot.body])) };
+}
+
+describe('buildPromptSlotMigration', () => {
+  it('always creates the eight ordered, enabled append slots, including for empty input', () => {
+    const result = buildPromptSlotMigration({ content: '' });
+    expect(result).toEqual({
+      slots: Object.entries(initialPromptSlotTitles).map(([id, title], order) => ({
+        id,
+        title,
+        body: '',
+        order,
+        enabled: true,
+        mode: 'append',
+      })),
+      unmappedHeadings: [],
+    });
+    expect(bodies('').slots).toEqual(result.slots);
+    expect(promptSlotInputsSchema.parse(result.slots)).toEqual(result.slots);
+  });
+
+  it('splits a learning v11-like document without trimming any mapped Markdown', () => {
+    const preamble = '# Daily learning\r\n\r\n  Keep these opening bytes.  \r\n\r\n';
+    const positioning = '## 一、栏目定位\r\n\r\nA quiet coffee break.  \r\n\r\n';
+    const editor = '## 2. 编辑（Editor）\r\n\r\nWrite carefully.  \r\n### Structure\r\n\r\n- detail\r\n\r\n';
+    const collector = '## ③ 采集者（Collector）\r\n\r\nKeep citations.\r\n\r\n';
+    const time = '## ②类时间口径\r\n\r\nKeep the original date.\r\n\r\n';
+    const quantity = '## 素材量与甄别分工\r\n\r\nCompare all source material.\r\n\r\n';
+    const voice = '## 4) 声音（Voice）\r\n\r\nSpeak naturally.\r\n\r\n';
+    const cover = '## （5）封面设计师（Cover）\r\n\r\nNo text.\r\n\r\n';
+    const producer = '## 六、制作人（Producer）\r\n\r\nCheck delivery.\r\n\r\n';
+    const brand = '## 7｜品牌（Brand）\r\n\r\nKeep the identity.\r\n';
+    const result = bodies(
+      preamble + positioning + editor + collector + time + quantity + voice + cover + producer + brand,
+    );
+    expect(result.bodies).toEqual({
+      positioning: preamble + positioning,
+      editor,
+      collector: collector + time + quantity,
+      voice,
+      cover,
+      producer,
+      brand,
+      skills: '',
+    });
+    expect(result.unmappedHeadings).toEqual([]);
+  });
+
+  it('recognizes manager-notes role headings and preserves repeated chunks in source order', () => {
+    const chunks = [
+      '## 定位\n\nNotes for adults.\n\n',
+      '## 编辑\n\nReflect on real experience.\n\n',
+      '## 素材采集\n\nKeep useful sources.\n\n',
+      '## 旁白\n\nCalm voice.\n\n',
+      '## 封面\n\nOriginal art.\n\n',
+      '## 制作统筹\n\nDeliver only approved work.\n\n',
+      '## 品牌规范\n\nConsistent visual identity.\n\n',
+      '## 编辑（审稿）\n\nRetain limitations.\n',
+    ];
+    const result = bodies(chunks.join(''), 'manager-notes');
+    expect(result.bodies.editor).toBe(chunks[1] + chunks[7]);
+    expect(result.bodies.collector).toBe(chunks[2]);
+    expect(result.bodies.voice).toBe(chunks[3]);
+    expect(result.bodies.cover).toBe(chunks[4]);
+    expect(result.bodies.producer).toBe(chunks[5]);
+    expect(result.bodies.brand).toBe(chunks[6]);
+    expect(result.bodies.positioning).toBe(chunks[0]);
+    expect(result.unmappedHeadings).toEqual([]);
+  });
+
+  it.each(Object.keys(initialPromptSlotTitles).filter((id) => id !== 'skills'))(
+    'recognizes the exact English initial ID %s with optional closing hashes',
+    (id) => {
+      const content = `   ## ${id.toUpperCase()} ###\n\n  unchanged body  \n`;
+      expect(bodies(content).bodies[id]).toBe(content);
+      expect(bodies(content).unmappedHeadings).toEqual([]);
+    },
+  );
+
+  it('accepts emphasized exact role labels without rewriting their original Markdown', () => {
+    const editor = '## **编辑（Editor）**\n\n  保留事实、全角标点与空白。  \n\n';
+    const collector = '## __collector__\n\n核对来源。\n';
+    const result = bodies(editor + collector);
+    expect(result.bodies.editor).toBe(editor);
+    expect(result.bodies.collector).toBe(collector);
+    expect(result.unmappedHeadings).toEqual([]);
+  });
+
+  it('keeps preambles, plain Markdown and unknown sections in positioning and reports heading text', () => {
+    const preamble = '\n# Column policy\n\nOpen notes.\n';
+    const first = '## Unknown heading ###\n\nKeep this too.\n\n';
+    const editor = '## editor\n\nKnown.\n\n';
+    const second = '## Archive policy\n\nNo silent loss.  \n\n';
+    const result = bodies(preamble + first + editor + second);
+    expect(result.bodies.positioning).toBe(preamble + first + second);
+    expect(result.bodies.editor).toBe(editor);
+    expect(result.unmappedHeadings).toEqual(['Unknown heading', 'Archive policy']);
+    expect(bodies(preamble).bodies.positioning).toBe(preamble);
+  });
+
+  it.each([
+    '编辑与采集',
+    '关于编辑的说明',
+    '不是编辑',
+    '声音与人的距离',
+    '品牌与配图',
+    '如何联系制作人',
+    'editorial',
+    'editor guidelines',
+    'cover letter',
+    'voiceComparison',
+    'positioning matters',
+    'Future section（editor）',
+    'editor（first）（second）',
+  ])('does not guess a role from incidental mentions in %s', (heading) => {
+    const content = `## ${heading}\n\nOriginal text.\n`;
+    const result = bodies(content);
+    expect(result.bodies.positioning).toBe(content);
+    expect(result.unmappedHeadings).toEqual([heading]);
+  });
+
+  it('only applies learning-specific standalone collector sections to learning', () => {
+    const content = '## ②类时间口径\n\nTime.\n\n## 素材量与甄别分工\n\nMaterial.\n';
+    expect(bodies(content).bodies.collector).toBe(content);
+    const result = bodies(content, 'manager-notes');
+    expect(result.bodies.collector).toBe('');
+    expect(result.bodies.positioning).toBe(content);
+    expect(result.unmappedHeadings).toEqual(['②类时间口径', '素材量与甄别分工']);
+  });
+
+  it('ignores headings in backtick and tilde fences and retains them with their surrounding chunk', () => {
+    const preamble = '````md\n## editor\n```\n## voice\n~~~~\n## producer\n````\n\n';
+    const editor = '## editor\n\n~~~ markdown\n## cover\n~~~~\n\n  ```\n## collector\n  ```  \n';
+    const voice = '## voice\n\nFinal.\n';
+    const result = bodies(preamble + editor + voice);
+    expect(result.bodies.positioning).toBe(preamble);
+    expect(result.bodies.editor).toBe(editor);
+    expect(result.bodies.voice).toBe(voice);
+    expect(result.bodies.cover).toBe('');
+    expect(result.bodies.collector).toBe('');
+    expect(result.unmappedHeadings).toEqual([]);
+  });
+
+  it('does not close fences with shorter markers, other markers or trailing text', () => {
+    const content = '## editor\n````\n```\n## collector\n~~~~\n## voice\n```` invalid\n## cover\n';
+    const result = bodies(content);
+    expect(result.bodies.editor).toBe(content);
+    expect(result.unmappedHeadings).toEqual([]);
+  });
+
+  it('does not treat invalid backtick info strings or four-space-indented fences as open fences', () => {
+    const preamble = '```bad`info\n    ```\n';
+    const editor = '## editor\nKeep this.\n';
+    const result = bodies(preamble + editor);
+    expect(result.bodies.positioning).toBe(preamble);
+    expect(result.bodies.editor).toBe(editor);
+  });
+
+  it('splits only actual level-two headings, not other heading depths, quotations or inline text', () => {
+    const content =
+      '# editor\n### collector\n#### voice\n> ## cover\n    ## producer\n\\## brand\n##editor\ntext ## cover\n';
+    const result = bodies(content);
+    expect(result.bodies.positioning).toBe(content);
+    expect(result.unmappedHeadings).toEqual([]);
+  });
+
+  it('handles empty headings, final headings without newlines and carriage-return-only source bytes', () => {
+    const result = bodies('##\r\rBlank.\r## editor\rFirst.\r## voice');
+    expect(result.bodies.positioning).toBe('##\r\rBlank.\r');
+    expect(result.bodies.editor).toBe('## editor\rFirst.\r');
+    expect(result.bodies.voice).toBe('## voice');
+    expect(result.unmappedHeadings).toEqual(['']);
+  });
+
+  it('preserves the entire original skills section in positioning and copies names only into skills', () => {
+    const preamble = '# Skills policy\r\n';
+    const section =
+      '## 技能名称（Skills）\r\n\r\nweb-perf\r\n  system0-design-basalt  \r\nowner/repo.skill_2\r\n\r\n';
+    const editor = '## editor\r\nKeep facts.\r\n';
+    const result = bodies(preamble + section + editor);
+    expect(result.bodies.positioning).toBe(preamble + section);
+    expect(result.bodies.skills).toBe(
+      '\r\nweb-perf\r\n  system0-design-basalt  \r\nowner/repo.skill_2\r\n\r\n',
+    );
+    expect(result.bodies.editor).toBe(editor);
+    expect(result.unmappedHeadings).toEqual([]);
+    expect(promptSlotInputsSchema.safeParse(result.slots).success).toBe(true);
+  });
+
+  it.each([
+    'Use web-perf to inspect the site.',
+    '- web-perf',
+    '请运行技能',
+    '```\nweb-perf\n```',
+    'name: instructions',
+  ])('preserves unsafe skills prose outside skills: %s', (prose) => {
+    const content = `## skills\n\nweb-perf\n${prose}\n`;
+    const result = bodies(content);
+    expect(result.bodies.skills).toBe('');
+    expect(result.bodies.positioning).toBe(content);
+    expect(result.unmappedHeadings).toEqual(['skills']);
+  });
+
+  it('keeps repeated skills originals while appending only valid newline-delimited names', () => {
+    const content = '## skills\nweb-perf\n\n## skills\n\nimagegen\n\n## skills';
+    const result = bodies(content);
+    expect(result.bodies.skills).toBe('web-perf\n\n\nimagegen\n\n');
+    expect(result.bodies.positioning).toBe(content);
+    expect(result.unmappedHeadings).toEqual([]);
+  });
+
+  it('retains valid skill names when a later skills section contains unsafe prose', () => {
+    const valid = '## skills\n\nweb-perf\n\n';
+    const invalid = '## 技能清单\n\nUse imagegen for all covers.\n';
+    const result = bodies(valid + invalid);
+    expect(result.bodies.skills).toBe('\nweb-perf\n\n');
+    expect(result.bodies.positioning).toBe(valid + invalid);
+    expect(result.unmappedHeadings).toEqual(['技能清单']);
+  });
+
+  it('preserves a final valid skills body without inventing a trailing newline', () => {
+    const content = '## skills\nweb-perf';
+    const result = bodies(content);
+    expect(result.bodies.positioning).toBe(content);
+    expect(result.bodies.skills).toBe('web-perf');
+    expect(result.unmappedHeadings).toEqual([]);
+  });
+
+  it('keeps channel content byte-for-byte in positioning without applying category heading rules', () => {
+    const content = '\n# Channel\r\n\r\n## editor\r\n\r\nGlobal content.  \r\n## Unknown';
+    const result = buildPromptSlotMigration({ content });
+    expect(result.slots.find((slot) => slot.id === 'positioning')?.body).toBe(content);
+    expect(result.slots.find((slot) => slot.id === 'editor')?.body).toBe('');
+    expect(result.unmappedHeadings).toEqual([]);
+  });
+
+  it('migrates every legacy prompt under a labeled heading and preserves every body byte', () => {
+    const prompts = Object.fromEntries(promptKeys.map((key) => [key, ` \r\n${key} original body  \r\n\r\n`]));
+    const result = buildPromptSlotMigration({ content: '\nChannel original.\n', prompts });
+    const byId = Object.fromEntries(result.slots.map((slot) => [slot.id, slot.body]));
+    const expected: Record<string, string[]> = {
+      producer: [
+        'coordinator',
+        'executor',
+        'capabilities',
+        'network',
+        'decisionPlan',
+        'decisionThinking',
+        'compaction',
+      ],
+      editor: ['reviewer', 'script', 'description'],
+      collector: ['boundary', 'brief'],
+      voice: ['speech', 'voiceComparison', 'narration'],
+      cover: ['cover'],
+      positioning: ['editorial'],
+    };
+    for (const [role, keys] of Object.entries(expected)) {
+      const legacy = keys.map((key) => `## Legacy prompt: ${key}\n\n${prompts[key]}`).join('\n\n');
+      expect(byId[role]).toBe(role === 'positioning' ? `\nChannel original.\n\n\n${legacy}` : legacy);
+    }
+    expect(byId.brand).toBe('');
+    expect(byId.skills).toBe('');
+    expect(result.unmappedHeadings).toEqual([]);
+  });
+
+  it('conservatively retains unrecognized and empty legacy prompt bodies in producer', () => {
+    const result = buildPromptSlotMigration({
+      content: '',
+      prompts: { custom: ' Original unknown body.\n', empty: '' },
+    });
+    expect(result.slots.find((slot) => slot.id === 'producer')?.body).toBe(
+      '## Legacy prompt: custom\n\n Original unknown body.\n\n\n## Legacy prompt: empty\n\n',
+    );
+  });
+
+  it('treats prototype-shaped legacy keys as ordinary unknown names without touching prototypes', () => {
+    const prompts = JSON.parse(
+      '{"__proto__":"Keep prototype text.","constructor":"Keep constructor text.","toString":"Keep method text."}',
+    );
+    const result = buildPromptSlotMigration({ content: '', prompts });
+    expect(result.slots.find((slot) => slot.id === 'producer')?.body).toBe(
+      '## Legacy prompt: __proto__\n\nKeep prototype text.\n\n## Legacy prompt: constructor\n\nKeep constructor text.\n\n## Legacy prompt: toString\n\nKeep method text.',
+    );
+    expect(Object.hasOwn(Object.prototype, 'body')).toBe(false);
+  });
+});

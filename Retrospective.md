@@ -1,5 +1,73 @@
 # Retrospective
 
+## 2026-10-18 - Stream large fixtures across the Miniflare boundary
+
+PR #76 CI run 39088567547 failed twice while uploading the thumbnail test's
+20,000,001-byte fixture, before the thumbnail handler ran. The following tests
+still passed. The branch did not change this test, Miniflare, its four-worker
+cap or its deadlines; it added prompt-slot suites to the existing workload.
+The previous native-equality fix removed an expensive assertion, but left
+large fixture uploads on another synchronous byte-processing path.
+
+The pinned Miniflare binding proxy serializes typed-array arguments through
+Base64 and devalue JSON before dispatching. Its one-second idle-pool timer
+cannot run during synchronous work, while workerd closes idle sockets after
+five seconds. The failed upload took 5.3 seconds and ended with EPIPE; this
+matches the earlier stale-connection failure, not evidence of an OOM or a
+workerd crash. The existing CI log cannot separate serialization, scheduling
+and GC time. Extra concurrent suites expose this timing-sensitive transport
+path; increasing test deadlines or retrying does not remove it.
+
+A local isolated 20 MB probe spent 76 ms synchronously entering the binding
+upload, versus less than 0.01 ms entering a normal Worker request. Passing a
+Blob stream directly to R2 failed because it had no known length. Use one
+shared test-only Worker to accept binary request bodies and stream them into
+R2 with their transport length intact. Both artwork suites now use this path;
+read original bodies through streams and retain native exact-byte comparisons.
+Regression coverage checks a 20,000,001-byte subarray, exact key and contents,
+response consumption and upload failure propagation. Keep runtime disposal,
+isolation, concurrency and all quality floors unchanged. A final sibling scan
+also found the PNG-export suite's 4 MiB rejection fixture using the raw binding
+path; it now shares the same upload helper without changing its size guard.
+
+A documentation patch assumed an older first entry and failed after another
+file had changed; the following shell command still started the commit hook.
+Anchor insertions to stable headings and stop chained mutations on failure.
+The hook kept its original index snapshot; record the incident separately
+rather than changing staged files while validation is running.
+
+## 2026-10-18 - Use documented terminal key names
+
+The isolated browser server restart initially used `ctrl-c`, which Herdr rejected without sending input. Its documented key name is `ctrl+c`. Verify the owned pane's working directory and the CLI key syntax before controlling a process; never fall back to broad process termination.
+
+## 2026-10-18 - Separate write limits from synthesized output
+
+The follow-up max review caught the same input/output distinction at the length boundary: two legal appended slots can exceed one slot's write limit, and a lossless dry-run must report oversized legacy text. Give projections an unbounded body schema while keeping every write limit intact. Test maximum-sized append responses and oversized migration reports, plus their advertised OpenAPI schemas, without truncating content.
+
+A focused validation command assumed the contracts workspace exposed the web workspace's `test` script. It only exposes `test:coverage`; inspect workspace scripts before choosing commands rather than assuming root or sibling aliases exist.
+
+The first OpenAPI length assertion indexed dynamically constructed response keys whose inferred type is empty. Unit execution passed but strict typecheck rejected it; inspect the serialized public contract without unsafe key casts and retain the normal hook's typecheck before committing.
+
+## 2026-10-18 - Record visited editors on URL navigation
+
+The max review reproduced lost undo history after browser back/forward: visited scopes and slots were recorded only by select callbacks, so history navigation unmounted editors that still held drafts. Track rendered selections for every navigation path and test both slot and scope history with actual undo. A separate browser trace exposed the test helper clicking the previous scope's slot selector before React committed navigation; wait for the requested scope label before the next interaction rather than retrying the test or weakening its assertions.
+
+## 2026-10-18 - Decode stored JSON before scanning media references
+
+The max review found that prompt-slot media scanning inspected serialized JSON rather than slot values. An escaped newline after a same-origin absolute URL became part of its apparent object key, making a referenced upload eligible for cleanup. Decode JSON before recursive scanning, including legacy channel bundles, and exercise channel/category, disabled slots, real newlines and stale inventory cleanup through the API.
+
+Adding a synchronized transition paragraph did not remove contradictory legacy write instructions elsewhere in onboarding and `/llms.txt`. Review every served discovery surface and assert that retired write guidance is absent, not only that new documentation is present.
+
+## 2026-10-18 - Validate refined schemas and staged warnings
+
+The first merged-role and already-initialized dry-run responses reused stored slot objects, leaking their audit/version fields into strict editable-slot response schemas. A synthesized append body is not the original audited slot. Project editable fields explicitly and verify real responses against the shared strict schema; collection versions still identify the merge inputs.
+
+Prompt-slot integration initially called Zod `omit` on the refined category mutation schema. TypeScript accepted the call, but constructing OpenAPI threw at runtime and affected method-error responses too. Build the metadata-only schema from the existing field shapes and retain its nonempty-mutation validation; test actual OpenAPI generation rather than only static types.
+
+The first foundation commit attempt staged a Biome optional-chain warning after formatting. The normal index hook correctly blocked it; fix the warning explicitly and restage only the owned paths before retrying. Formatting success is not warning-free lint success.
+
+A parser worker again used zsh's special `path` variable as a loop name and temporarily replaced PATH. No file changed; use `filePath` or `entry` instead. Reading a working Herdr agent's alternate-screen history also failed; use the visible surface for active inspection and wait for settled state before full transcript reads.
+
 ## 2026-10-18 - Compare artwork bytes without blocking binding I/O
 
 Main CI run 39084092857 failed twice in the next test's `beforeEach` R2

@@ -28,7 +28,9 @@ Paths are relative to `/api/agent`:
 | `/episodes[/:id]` | GET; POST create; PUT existing; DELETE existing |
 | `/episodes/:id` | PATCH only version and featured metadata |
 | `/categories[/:id]` | GET; POST create; PUT partial versioned changes; DELETE unreferenced |
-| `/channel` | GET/PUT versioned global content and named prompt bundle |
+| `/channel` | GET deprecated read-only whole-prompt projection |
+| `/channel/prompt-slots`, `/categories/:id/prompt-slots` | GET/PUT table; POST add; `/:slotId` PATCH/DELETE with collection version; `?slot=editor,collector` merged roles |
+| Either slot table + `/migration/dry-run`, `/migration/apply` | GET read-only runtime preview; POST explicit versioned apply with immutable backup |
 | `/seo` | GET/PUT versioned site defaults, podcast RSS metadata and global page overrides (`prompts:read` / `prompts:write`) |
 | `/appearance` | GET/PUT versioned theme |
 | `/bumpers[/:id]` | GET; POST WAV upload; PUT versioned metadata; DELETE catalogue record |
@@ -40,6 +42,10 @@ Paths are relative to `/api/agent`:
 | `/agent-tokens/:id` | DELETE already revoked list record |
 
 OpenAPI derives request schemas from shared/controller validators; use its `x-required-scopes` plus documented conditional grants. Zod input transformations such as publication timestamps must be represented as input schemas, not serialized output transforms. Generating the actual document is covered by tests.
+
+Prompt slots use GET/PUT/POST /channel/prompt-slots and /categories/{id}/prompt-slots, plus PATCH/DELETE /{slotId}. Reads require prompts:read; all writes require prompts:write, independently of category metadata grants. Mutations use the collection version; write-only responses contain only version. Category append adds after the same channel ID; override replaces it. Disabled category slots do not mask channel. Enabled results sort by order then ID. GET /migration/dry-run below either table is read-only; POST /migration/apply with version and legacyVersion explicitly initializes slots with an atomic original-value backup. Nothing auto-applies on deploy; reapply is a no-op. Old channel.content, channel.prompts.* and category.prompt are read-only: stored values until apply, then enabled local slots concatenated as Markdown. New clients must use slots; compatibility removal requires a separately announced, verified consumer cutover.
+
+See [prompt slots](prompts.md) and [onboarding](api-onboarding.md#prompt-slot-transition) for complete payloads, skills restrictions and live-data migration review. Category metadata grants are unnecessary for slot operations; legacy category `prompt` writes are rejected.
 
 ## Critical invariants
 

@@ -126,4 +126,8 @@ For v2.4.0, the owner authorized permanent deletion of the production `AgentHub`
 
 Issue tokens at `/admin/connections` with the minimum required explicit scopes and expiry. Read [API onboarding](api-onboarding.md) for the supported business workflow. Full scope grants permit real CRUD/review/publication-record operations, not paid generation or infrastructure access. Token revocation cascades; deleting an already revoked list record does not erase its authorization tombstone.
 
-Ordinary narration guidance lives in the current environment's versioned D1 prompt bundle, not shared provider configuration. Local/Production switches affect website data only; they never move content or credentials between environments.
+Ordinary narration guidance lives in the current environment's versioned D1 prompt slots (legacy bundle until explicit migration), not shared provider configuration. Local/Production switches affect website data only; they never move content or credentials between environments.
+
+## Prompt slot migration
+
+Deployment of migration 0023 only adds columns and a backup table. It never applies editorial migration. Follow the separately authorized per-level dry-run/apply procedure in [prompt slots](prompts.md). Inspect live `legacyVersion` and all unmapped headings, including learning/manager-notes; do not assume production still matches v11. Backups retain original text, versions and actor/timestamps in `prompt_slot_backups`; slot edits and category deletion do not delete them. R2 cleanup reads both legacy and current slot bodies so new media references remain protected. This implementation/testing does not authorize production apply.

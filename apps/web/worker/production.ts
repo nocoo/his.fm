@@ -1,4 +1,4 @@
-import { AudioError, hasScope } from '@his-fm/contracts';
+import { AudioError, hasScope, mergePromptSlots } from '@his-fm/contracts';
 import {
   type Actor,
   briefCreateSchema,
@@ -42,6 +42,7 @@ import {
   updateProduction,
   updateStatement,
 } from './production-store';
+import { getPromptSlotTable } from './prompt-slots';
 
 function versionQuery(request: Request) {
   const value = new URL(request.url).searchParams.get('version');
@@ -533,6 +534,10 @@ export async function routeProductions(
     requireScope(actor, 'productions:read');
     requireScope(actor, 'prompts:read');
     const production = await getProduction(env.DB, id);
+    const [channelSlots, categorySlots] = await Promise.all([
+      getPromptSlotTable(env.DB),
+      getPromptSlotTable(env.DB, production.category),
+    ]);
     return json(
       productionPrompts(
         {
@@ -543,6 +548,9 @@ export async function routeProductions(
         },
         await getChannel(env.DB),
         await getCategory(env.DB, production.category),
+        channelSlots.initialized && categorySlots.initialized
+          ? mergePromptSlots(channelSlots.slots, categorySlots.slots)
+          : undefined,
       ),
     );
   }

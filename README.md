@@ -34,7 +34,7 @@ his.fm is a podcast content-management site built with React 19, Vite 8, TypeScr
 - Public pages: searchable episodes, summaries, transcripts and a custom accessible audio player. A written episode without a recording is never presented as playable.
 - Studio: one cover-first library at `/admin`, grid/list views, metadata and source editing, manuscripts, uploaded artwork/recordings, explicit reviews and publication records. Existing standalone episodes remain editable.
 - Content creation happens outside the website. External agents use explicit scoped REST tokens to read prompts, edit content, upload assets, approve/reopen and record publication when authorized. There is no embedded agent, generation queue or provider configuration.
-- Settings: categories, versioned editorial/workflow/narration prompts, brand appearance, bumpers, storage and token management. Revoked token records can be deleted.
+- Settings: categories, versioned channel/category prompt slots, brand appearance, bumpers, storage and token management. Revoked token records can be deleted. Prompt migration is an explicit preview/apply operation, never a deployment side effect.
 - Local preview: **https://hisfm.dev.hexly.ai**. `npm run dev` applies local migrations and seeds preview data once, preserving later edits. The Local/Production segment selects the data environment; Production performs real operations using the editor's Access identity.
 - Production: **https://his.fm**, with D1 and R2 named `his-fm` and media at **https://f.no.mt**. Published GitHub Releases deploy only after exact-revision CI verification.
 
@@ -51,6 +51,12 @@ npm run build
 Husky checks the staged Git snapshot with coverage, strict lint and typecheck. All four unit coverage floors are 95%; browser tests verify rendered interactions. L1 evidence does not imply full 6DQ certification.
 
 See [production workflow](docs/production.md), [external API](docs/agent-api.md), [audio uploads](docs/audio.md), [architecture](docs/architecture.md), [operations](docs/operations.md), [CI/CD](docs/ci-cd.md) and [artwork provenance](artwork/README.md).
+
+### API prompt slots
+
+Prompt slots use GET/PUT/POST /channel/prompt-slots and /categories/{id}/prompt-slots, plus PATCH/DELETE /{slotId}. Reads require prompts:read; all writes require prompts:write, independently of category metadata grants. Mutations use the collection version; write-only responses contain only version. Category append adds after the same channel ID; override replaces it. Disabled category slots do not mask channel. Enabled results sort by order then ID. GET /migration/dry-run below either table is read-only; POST /migration/apply with version and legacyVersion explicitly initializes slots with an atomic original-value backup. Nothing auto-applies on deploy; reapply is a no-op. Old channel.content, channel.prompts.* and category.prompt are read-only: stored values until apply, then enabled local slots concatenated as Markdown. New clients must use slots; compatibility removal requires a separately announced, verified consumer cutover.
+
+Paths are relative to `/api/agent`. Read [onboarding](docs/api-onboarding.md#prompt-slot-transition) and [prompt slots](docs/prompts.md) before migration. The studio keeps local drafts and saves a level's complete slot table atomically; `skills` accepts names only. The founding Chinese editorial policy above remains unchanged.
 
 ### API cover artwork
 

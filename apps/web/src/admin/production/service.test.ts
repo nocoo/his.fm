@@ -22,7 +22,6 @@ describe('production service contracts', () => {
       [() => service.list(signal), '/productions', { productions: [fixture()] }],
       [() => service.get('a/b', signal), '/productions/a%2Fb', { production: fixture() }],
       [() => service.tokens(signal), '/agent-tokens', { tokens: [] }],
-      [() => service.channel(signal), '/channel', { channel: { version: 1, content: '定位' } }],
     ] as const) {
       response(body);
       expect(await call()).toEqual(body);
@@ -30,17 +29,9 @@ describe('production service contracts', () => {
     }
     expect(fetchMock.mock.calls[0][1]?.signal).toBe(signal);
     expect(fetchMock.mock.calls[1][1]?.signal).toBe(signal);
-    expect(fetchMock.mock.calls[3][1]?.signal).toBe(signal);
     expect(fetchMock.mock.calls[2][1]?.signal).toBe(signal);
   });
   it('sends expected versions for mutations, publication and deletion', async () => {
-    response({ channel: { version: 2, content: '新定位' } });
-    await service.saveChannel({ version: 1, content: '新定位' });
-    expect(lastRequest()).toMatchObject({
-      url: '/admin/api/channel',
-      method: 'PUT',
-      body: '{"version":1,"content":"新定位"}',
-    });
     const production = fixture();
     response({ production }, 201);
     expect(await service.create(brief)).toEqual({ production });

@@ -7,23 +7,24 @@ import { useUnsavedChanges } from '../production/useUnsavedChanges';
 import { ApiError } from '../service';
 import { categoryService } from './service';
 
-const empty: CategoryInput = { name: '', icon: 'mic', color: 'blue', prompt: '', seo: {} };
+type CategoryMetadata = Omit<CategoryInput, 'prompt'>;
+const metadataSchema = categoryInputSchema.omit({ prompt: true });
+const empty: CategoryMetadata = { name: '', icon: 'mic', color: 'blue', seo: {} };
 const draftSchema = z.object({
-  value: categoryInputSchema.extend({ name: z.string(), prompt: z.string() }),
+  value: metadataSchema.extend({ name: z.string() }),
   nextId: z.string().optional(),
   version: z.number().int().positive().optional(),
 });
-export function useCategory(id: string, promptOnly = false) {
+export function useCategory(id: string) {
   const [saved, setSaved] = useState<Category | null>(null);
-  const [value, setValue] = useState<CategoryInput>(empty);
+  const [value, setValue] = useState<CategoryMetadata>(empty);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(id !== 'new');
   const [pending, setPending] = useState(false);
   const [conflict, setConflict] = useState<Category | null>(null);
-  const [resetKey, setResetKey] = useState(0);
   const [version, setVersion] = useState<number | undefined>();
   const [nextId, setNextId] = useState('');
-  const storageKey = `hisfm-category-draft:${getEnvironment()}:${id}${promptOnly ? ':prompt' : ''}`;
+  const storageKey = `hisfm-category-draft:${getEnvironment()}:${id}`;
   const [ready, setReady] = useState(false);
   const dirty =
     JSON.stringify(value) !==
@@ -33,7 +34,6 @@ export function useCategory(id: string, promptOnly = false) {
               name: saved.name,
               icon: saved.icon,
               color: saved.color,
-              prompt: saved.prompt,
               seo: saved.seo,
             }
           : empty,
@@ -47,13 +47,11 @@ export function useCategory(id: string, promptOnly = false) {
       name: category.name,
       icon: category.icon,
       color: category.color,
-      prompt: category.prompt,
       seo: category.seo,
     });
     setNextId(category.id);
     setConflict(null);
     setError('');
-    setResetKey((key) => key + 1);
   };
   const load = useCallback(
     async (signal?: AbortSignal) => {
@@ -71,7 +69,6 @@ export function useCategory(id: string, promptOnly = false) {
                   name: result.category.name,
                   icon: result.category.icon,
                   color: result.category.color,
-                  prompt: result.category.prompt,
                   seo: result.category.seo,
                 }
               : empty,
@@ -115,25 +112,13 @@ export function useCategory(id: string, promptOnly = false) {
     }
   }, [value, nextId, version, ready, dirty, storageKey]);
   async function save(expectedVersion = version) {
-    const parsed = categoryInputSchema.safeParse(value);
+    const parsed = metadataSchema.safeParse(value);
     if (pending || !parsed.success) return null;
     setPending(true);
     setError('');
     try {
-      const latest = id === 'new' ? null : (await categoryService.get(id)).category;
-      const value = latest
-        ? promptOnly
-          ? {
-              name: latest.name,
-              icon: latest.icon,
-              color: latest.color,
-              prompt: parsed.data.prompt,
-              seo: latest.seo,
-            }
-          : { ...parsed.data, prompt: latest.prompt }
-        : parsed.data;
       const result = await categoryService.save(
-        value,
+        parsed.data,
         id === 'new' ? undefined : id,
         expectedVersion,
         id === 'new' ? undefined : nextId.trim(),
@@ -141,7 +126,7 @@ export function useCategory(id: string, promptOnly = false) {
       setSaved(result.category);
       setVersion(result.category.version);
       setNextId(result.category.id);
-      setValue(value);
+      setValue(parsed.data);
       setConflict(null);
       try {
         sessionStorage.removeItem(storageKey);
@@ -172,7 +157,6 @@ export function useCategory(id: string, promptOnly = false) {
     pending,
     conflict,
     dirty,
-    resetKey,
     save,
     replace,
     load,

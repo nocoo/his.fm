@@ -93,13 +93,18 @@ beforeAll(async () => {
 }, 30000);
 beforeEach(async () => {
   await env.DB.batch(
-    ['media_provenance', 'episodes', 'productions', 'episode_number_claims', 'channel_profile'].map((table) =>
-      env.DB.prepare(`DELETE FROM ${table}`),
-    ),
+    [
+      'media_provenance',
+      'episodes',
+      'productions',
+      'episode_number_claims',
+      'channel_profile',
+      'prompt_slot_backups',
+    ].map((table) => env.DB.prepare(`DELETE FROM ${table}`)),
   );
   await env.DB.batch([
     env.DB.prepare("UPDATE site_seo SET data = '{}' WHERE id = 1"),
-    env.DB.prepare("UPDATE categories SET seo = '{}'"),
+    env.DB.prepare("UPDATE categories SET seo = '{}', prompt_slots = NULL, prompt_slots_version = 0"),
     env.DB.prepare("UPDATE site_appearance SET theme = 'stillwood', version = 1"),
   ]);
   let objects = await env.MEDIA.list({ limit: 1000 });
@@ -352,6 +357,67 @@ describe('owner R2 inventory and cleanup', () => {
     ]);
     expect(await env.MEDIA.head(object.key)).not.toBeNull();
   });
+
+  it.each([
+    ['/media/', '\n'],
+    ['https://f.no.mt/', '\r\n'],
+    ['https://his.fm/media/', '\n'],
+    ['https://his.fm/media/', '\r\n'],
+  ])(
+    'revalidates saved slot media at %s followed by %j while preserving legacy fields',
+    async (prefix, newline) => {
+      const objects = await Promise.all([
+        put('uploads/channel-slot-reference.webp'),
+        put('uploads/category-slot-reference.webp'),
+      ]);
+      const staleScan = await scan(aged());
+      expect(staleScan.objects.every((object) => object.state === 'unused')).toBe(true);
+      const promptRequest = (path: string, method = 'GET', data?: unknown) =>
+        worker.fetch(
+          new Request(`${origin}/admin/api${path}`, {
+            method,
+            headers: { Cookie: cookie, Origin: origin, 'Content-Type': 'application/json' },
+            ...(data === undefined ? {} : { body: JSON.stringify(data) }),
+          }),
+          env,
+        );
+      for (const [index, path] of ['/channel/prompt-slots', '/categories/life/prompt-slots'].entries()) {
+        const preview = await promptRequest(`${path}/migration/dry-run`);
+        expect(preview.status).toBe(200);
+        const { version, legacyVersion } = (await preview.json()) as {
+          version: number;
+          legacyVersion: number;
+        };
+        expect(
+          (await promptRequest(`${path}/migration/apply`, 'POST', { version, legacyVersion })).status,
+        ).toBe(200);
+        const legacySql =
+          index === 0
+            ? 'SELECT content,prompts FROM channel_profile'
+            : "SELECT prompt FROM categories WHERE id='life'";
+        const legacy = await env.DB.prepare(legacySql).first();
+        const updated = await promptRequest(path, 'PUT', {
+          version: 1,
+          slots: [
+            {
+              id: 'media-reference',
+              title: 'Media reference',
+              body: `${prefix}${objects[index].key}${newline}Next paragraph`,
+              order: 0,
+              enabled: index === 0,
+              mode: 'append',
+            },
+          ],
+        });
+        expect(updated.status).toBe(200);
+        expect(await env.DB.prepare(legacySql).first()).toEqual(legacy);
+      }
+      expect((await scan(aged())).objects.every((object) => object.state === 'referenced')).toBe(true);
+      const results = await remove(staleScan.objects.map(({ key, version }) => ({ key, version })));
+      expect(results.every((result) => result.status === 'skipped' && result.bytes === 0)).toBe(true);
+      for (const object of objects) expect(await env.MEDIA.head(object.key)).not.toBeNull();
+    },
+  );
 
   it('requires owner authentication and same-origin writes with strict bounded inputs', async () => {
     expect((await call('', { headers: { Cookie: '' } })).status).toBe(401);

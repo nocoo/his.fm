@@ -5,7 +5,7 @@ export const categoryService = {
   list: (signal?: AbortSignal) => request<{ categories: PublicCategory[] }>('/categories', { signal }),
   get: (id: string, signal?: AbortSignal) =>
     request<{ category: Category }>(`/categories/${encodeURIComponent(id)}`, { signal }),
-  save: (value: CategoryInput, id?: string, version?: number, nextId?: string) =>
+  save: (value: Omit<CategoryInput, 'prompt'>, id?: string, version?: number, nextId?: string) =>
     request<{ category: Category }>(id ? `/categories/${encodeURIComponent(id)}` : '/categories', {
       method: id ? 'PUT' : 'POST',
       body: JSON.stringify(
