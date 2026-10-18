@@ -26,7 +26,9 @@ R2 with their transport length intact. Both artwork suites now use this path;
 read original bodies through streams and retain native exact-byte comparisons.
 Regression coverage checks a 20,000,001-byte subarray, exact key and contents,
 response consumption and upload failure propagation. Keep runtime disposal,
-isolation, concurrency and all quality floors unchanged.
+isolation, concurrency and all quality floors unchanged. A final sibling scan
+also found the PNG-export suite's 4 MiB rejection fixture using the raw binding
+path; it now shares the same upload helper without changing its size guard.
 
 A documentation patch assumed an older first entry and failed after another
 file had changed; the following shell command still started the commit hook.

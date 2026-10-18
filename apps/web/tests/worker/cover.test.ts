@@ -14,6 +14,7 @@ import { HttpError } from '../../worker/http';
 import { routeManagement } from '../../worker/management';
 import { getProduction } from '../../worker/production-store';
 import { agent, human, readyFixture } from './production-fixture';
+import { putR2Fixture, r2FixtureWorker } from './r2-fixtures';
 
 vi.mock('../../worker/cover-fonts', () => ({ loadCoverFonts: vi.fn() }));
 vi.mock('../../worker/cover-raster', () => ({ renderCoverPng: vi.fn() }));
@@ -67,7 +68,7 @@ beforeAll(async () => {
           manifest: {
             mainModule: 'index.js',
             modules: {
-              'index.js': { type: 'esm', contents: 'export default {fetch(){return new Response("ok")}}' },
+              'index.js': { type: 'esm', contents: r2FixtureWorker },
             },
           },
           env: {
@@ -151,7 +152,7 @@ beforeEach(async () => {
     human,
   );
   episode = ((await created.json()) as { episode: Episode }).episode;
-  await env.MEDIA.put('cover.png', png);
+  await putR2Fixture(mf, 'cover.png', png);
   assets.length = 0;
   overrides.clear();
   vi.mocked(loadCoverFonts)
@@ -334,7 +335,7 @@ describe('finished cover controller', () => {
     await expect(routeCover(coverRequest(), env, human, 'episodes', episode.id)).rejects.toMatchObject({
       status: 404,
     });
-    await env.MEDIA.put('cover.png', png);
+    await putR2Fixture(mf, 'cover.png', png);
     overrides.set('/brand/frames/interval.svg', { body: '', status: 503 });
     await expect(routeCover(coverRequest(), env, human, 'episodes', episode.id)).rejects.toMatchObject({
       status: 503,
@@ -351,7 +352,7 @@ describe('finished cover controller', () => {
   });
 
   it('fails closed on oversized, invalid and missing source bodies', async () => {
-    await env.MEDIA.put('cover.png', new Uint8Array(4 * 1024 * 1024 + 1));
+    await putR2Fixture(mf, 'cover.png', new Uint8Array(4 * 1024 * 1024 + 1));
     await expect(routeCover(coverRequest(), env, human, 'episodes', episode.id)).rejects.toMatchObject({
       status: 413,
     });
