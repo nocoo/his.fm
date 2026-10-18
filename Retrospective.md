@@ -1,5 +1,39 @@
 # Retrospective
 
+## 2026-10-18 - Stream large fixtures across the Miniflare boundary
+
+PR #76 CI run 39088567547 failed twice while uploading the thumbnail test's
+20,000,001-byte fixture, before the thumbnail handler ran. The following tests
+still passed. The branch did not change this test, Miniflare, its four-worker
+cap or its deadlines; it added prompt-slot suites to the existing workload.
+The previous native-equality fix removed an expensive assertion, but left
+large fixture uploads on another synchronous byte-processing path.
+
+The pinned Miniflare binding proxy serializes typed-array arguments through
+Base64 and devalue JSON before dispatching. Its one-second idle-pool timer
+cannot run during synchronous work, while workerd closes idle sockets after
+five seconds. The failed upload took 5.3 seconds and ended with EPIPE; this
+matches the earlier stale-connection failure, not evidence of an OOM or a
+workerd crash. The existing CI log cannot separate serialization, scheduling
+and GC time. Extra concurrent suites expose this timing-sensitive transport
+path; increasing test deadlines or retrying does not remove it.
+
+A local isolated 20 MB probe spent 76 ms synchronously entering the binding
+upload, versus less than 0.01 ms entering a normal Worker request. Passing a
+Blob stream directly to R2 failed because it had no known length. Use one
+shared test-only Worker to accept binary request bodies and stream them into
+R2 with their transport length intact. Both artwork suites now use this path;
+read original bodies through streams and retain native exact-byte comparisons.
+Regression coverage checks a 20,000,001-byte subarray, exact key and contents,
+response consumption and upload failure propagation. Keep runtime disposal,
+isolation, concurrency and all quality floors unchanged.
+
+A documentation patch assumed an older first entry and failed after another
+file had changed; the following shell command still started the commit hook.
+Anchor insertions to stable headings and stop chained mutations on failure.
+The hook kept its original index snapshot; record the incident separately
+rather than changing staged files while validation is running.
+
 ## 2026-10-18 - Use documented terminal key names
 
 The isolated browser server restart initially used `ctrl-c`, which Herdr rejected without sending input. Its documented key name is `ctrl+c`. Verify the owned pane's working directory and the CLI key syntax before controlling a process; never fall back to broad process termination.
