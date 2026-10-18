@@ -3,8 +3,8 @@ import {
   principalSchema,
   promptSlotApplySchema,
   promptSlotCreateSchema,
-  promptSlotInputSchema,
   promptSlotPatchSchema,
+  promptSlotProjectionSchema,
   promptSlotReplaceSchema,
   promptSlotTableSchema,
   type Scope,
@@ -353,7 +353,7 @@ export function agentOpenApi(origin: string) {
           z.union([
             promptSlotTableSchema,
             promptSlotTableSchema.extend({
-              slots: z.array(promptSlotInputSchema),
+              slots: z.array(promptSlotProjectionSchema),
               body: z.string(),
               versions: z.object({ channel: z.number(), category: z.number().optional() }),
             }),
@@ -421,7 +421,7 @@ export function agentOpenApi(origin: string) {
           version: z.number().int().min(0),
           legacyVersion: z.number().int().min(0),
           initialized: z.boolean(),
-          slots: z.array(promptSlotInputSchema),
+          slots: z.array(promptSlotProjectionSchema),
           unmappedHeadings: z.array(z.string()),
         }),
       ),

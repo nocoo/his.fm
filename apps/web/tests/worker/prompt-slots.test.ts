@@ -3,6 +3,7 @@ import {
   type PromptSlotInput,
   type PromptSlotTable,
   promptSlotInputSchema,
+  promptSlotProjectionSchema,
   type Scope,
 } from '@his-fm/contracts';
 import { Miniflare } from 'miniflare';
@@ -334,6 +335,7 @@ it('rejects oversized migration results without writing backups or initializing 
   await env.DB.prepare('UPDATE channel_profile SET content=?').bind('x'.repeat(120001)).run();
   const report = await preview();
   expect(report.slots.find((entry) => entry.id === 'positioning')?.body.length).toBeGreaterThan(120000);
+  expect(report.slots.every((entry) => promptSlotProjectionSchema.safeParse(entry).success)).toBe(true);
   expect(
     (await api(`${channelPath}/migration/apply`, 'POST', { version: 0, legacyVersion: 11 })).status,
   ).toBe(409);
@@ -562,6 +564,22 @@ it('reads long synthesized channel bodies without legacy named-prompt length lim
     content: legacyChannel,
     prompts: JSON.stringify(defaultPrompts),
   });
+});
+
+it('returns full appended role bodies beyond individual write limits', async () => {
+  await apply();
+  await apply(categoryPath);
+  const channelBody = 'c'.repeat(120000);
+  const categoryBody = 'k'.repeat(120000);
+  await replace(channelPath, [slot('editor', channelBody)]);
+  await replace(categoryPath, [slot('editor', categoryBody, { mode: 'append' })]);
+  const merged = await json<{ slots: PromptSlotInput[]; body: string }>(
+    await api(`${categoryPath}?slot=editor`),
+  );
+  expect(merged.slots).toHaveLength(1);
+  expect(promptSlotProjectionSchema.parse(merged.slots[0]).body).toBe(`${channelBody}\n\n${categoryBody}`);
+  expect(merged.body).toBe(`## editor\n\n${channelBody}\n\n${categoryBody}`);
+  expect(promptSlotInputSchema.safeParse(merged.slots[0]).success).toBe(false);
 });
 
 it('validates bodies, skills, duplicates, versions, unknown IDs and unsupported methods without mutations', async () => {

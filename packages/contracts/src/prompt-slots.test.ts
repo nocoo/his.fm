@@ -10,6 +10,7 @@ import {
   promptSlotInputSchema,
   promptSlotInputsSchema,
   promptSlotPatchSchema,
+  promptSlotProjectionSchema,
   promptSlotReplaceSchema,
   promptSlotSchema,
   promptSlotTableSchema,
@@ -27,6 +28,13 @@ const slot = (input: Partial<PromptSlotInput> = {}): PromptSlotInput => ({
 });
 
 describe('prompt slot schemas', () => {
+  it('preserves oversized synthesized and preview bodies without weakening write limits', () => {
+    const projected = slot({ body: 'x'.repeat(240002) });
+    expect(promptSlotProjectionSchema.parse(projected)).toEqual(projected);
+    expect(promptSlotInputSchema.safeParse(projected).success).toBe(false);
+    expect(promptSlotInputsSchema.safeParse([projected]).success).toBe(false);
+  });
+
   it('defines the initial eight independently editable role identities', () => {
     expect(Object.keys(initialPromptSlotTitles)).toEqual([
       'positioning',

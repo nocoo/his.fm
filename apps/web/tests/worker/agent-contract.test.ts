@@ -180,6 +180,8 @@ describe('scoped OpenAPI contract', () => {
       expect(table.post['x-required-scopes']).toEqual(['prompts:write']);
       expect(table.put.requestBody.content['application/json'].schema.required).toEqual(['version', 'slots']);
       expect(table.get.parameters).toContainEqual(expect.objectContaining({ name: 'slot', in: 'query' }));
+      expect(JSON.stringify(table.get.responses).match(/"maxLength":120000/g)).toHaveLength(1);
+      expect(JSON.stringify(table.put.requestBody)).toContain('"maxLength":120000');
       const item = contract.paths[`${base}/{slotId}`];
       expect(item.patch['x-required-scopes']).toEqual(['prompts:write']);
       expect(item.delete['x-required-scopes']).toEqual(['prompts:write']);
@@ -191,6 +193,7 @@ describe('scoped OpenAPI contract', () => {
       expect(Object.keys(dryRun).filter((key) => key !== 'parameters')).toEqual(['get']);
       expect(dryRun.get['x-required-scopes']).toEqual(['prompts:read']);
       expect(dryRun.get.summary).toContain('Does not write');
+      expect(JSON.stringify(dryRun.get.responses)).not.toContain('"maxLength":120000');
       const apply = contract.paths[`${base}/migration/apply`];
       expect(Object.keys(apply).filter((key) => key !== 'parameters')).toEqual(['post']);
       expect(apply.post['x-required-scopes']).toEqual(['prompts:write']);

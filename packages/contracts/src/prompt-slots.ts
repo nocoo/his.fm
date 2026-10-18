@@ -23,6 +23,7 @@ export const promptSlotInputSchema = z.strictObject({
   enabled: z.boolean(),
   mode: z.enum(['override', 'append']),
 });
+export const promptSlotProjectionSchema = promptSlotInputSchema.extend({ body: z.string() });
 export const promptSlotSchema = promptSlotInputSchema.extend({
   version: z.number().int().positive(),
   updatedAt: z.string(),

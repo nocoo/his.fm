@@ -1,5 +1,13 @@
 # Retrospective
 
+## 2026-10-18 - Separate write limits from synthesized output
+
+The follow-up max review caught the same input/output distinction at the length boundary: two legal appended slots can exceed one slot's write limit, and a lossless dry-run must report oversized legacy text. Give projections an unbounded body schema while keeping every write limit intact. Test maximum-sized append responses and oversized migration reports, plus their advertised OpenAPI schemas, without truncating content.
+
+A focused validation command assumed the contracts workspace exposed the web workspace's `test` script. It only exposes `test:coverage`; inspect workspace scripts before choosing commands rather than assuming root or sibling aliases exist.
+
+The first OpenAPI length assertion indexed dynamically constructed response keys whose inferred type is empty. Unit execution passed but strict typecheck rejected it; inspect the serialized public contract without unsafe key casts and retain the normal hook's typecheck before committing.
+
 ## 2026-10-18 - Record visited editors on URL navigation
 
 The max review reproduced lost undo history after browser back/forward: visited scopes and slots were recorded only by select callbacks, so history navigation unmounted editors that still held drafts. Track rendered selections for every navigation path and test both slot and scope history with actual undo. A separate browser trace exposed the test helper clicking the previous scope's slot selector before React committed navigation; wait for the requested scope label before the next interaction rather than retrying the test or weakening its assertions.
