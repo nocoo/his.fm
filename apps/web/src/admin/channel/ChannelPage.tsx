@@ -2,7 +2,7 @@ import { orderedPromptSlots, type PromptSlotInput, promptSlotInputSchema } from 
 import { Button, Field, Input, LayerCard, Switch } from '@nocoo/basalt';
 import { PageHeader } from '@nocoo/basalt/components/page-header';
 import { ArrowDown, ArrowUp, Plus, Save, Trash2 } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, useSearchParams } from 'react-router';
 import { FramedCover } from '../../components/FramedCover';
@@ -24,6 +24,9 @@ export default function ChannelPage() {
   const [actionsTarget, setActionsTarget] = useState<HTMLDivElement | null>(null);
   const [visited, setVisited] = useState<string[]>([]);
   const panels = [...new Set([...visited, selected])];
+  useEffect(() => {
+    setVisited((current) => (current.includes(selected) ? current : [...current, selected]));
+  }, [selected]);
   return (
     <div className="admin-page channel-page">
       <PageHeader
@@ -42,7 +45,6 @@ export default function ChannelPage() {
                   })),
                 ]}
                 onChange={(scope) => {
-                  setVisited(panels);
                   setParams({ scope });
                 }}
               />
@@ -92,12 +94,16 @@ function SlotTable({
     slots.find((slot) => slot.id === selectedId) ??
     slots[0];
   const mounted = new Set([...visited, ...(selected ? [selected.id] : [])]);
+  const activeSlotId = selected?.id;
+  useEffect(() => {
+    if (activeSlotId)
+      setVisited((current) => (current.includes(activeSlotId) ? current : [...current, activeSlotId]));
+  }, [activeSlotId]);
   const patch = (value: Partial<PromptSlotInput>) => {
     if (selected)
       vm.setSlots(vm.slots.map((slot) => (slot.id === selected.id ? { ...slot, ...value } : slot)));
   };
   const choose = (id: string) => {
-    setVisited([...mounted]);
     setSelectedId(id);
     onSelect(id);
   };

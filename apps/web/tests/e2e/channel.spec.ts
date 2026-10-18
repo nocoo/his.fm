@@ -127,6 +127,7 @@ async function mockSlots(page: Page, categoryName = '研究笔记') {
 async function choose(page: Page, label: string, name: string) {
   await page.getByRole('combobox', { name: label, exact: true }).click();
   await page.getByRole('option', { name, exact: true }).click();
+  await expect(page.getByRole('combobox', { name: label, exact: true })).toHaveText(name);
 }
 
 test('slot Markdown retains formatting, safe preview, undo, failed drafts and collection conflicts', async ({
@@ -234,6 +235,33 @@ test('collection drafts provide channel and category CRUD, enabled/mode controls
   }
   expect(state.writes.map((write) => write.method)).toEqual(['PUT', 'PUT', 'PUT', 'PUT']);
   expect(state.writes.filter((write) => write.path.includes('/categories/research/'))).toHaveLength(2);
+});
+
+test('browser back and forward retain slot and scope undo histories without saving', async ({ page }) => {
+  const state = await mockSlots(page);
+  await page.goto('/admin/channel?scope=channel&slot=positioning');
+  const positioning = page.getByRole('textbox', { name: '槽位正文 · positioning', exact: true });
+  const editor = page.getByRole('textbox', { name: '槽位正文 · editor', exact: true });
+  await choose(page, '提示词槽位', '编辑');
+  await editor.fill('频道编辑历史草稿');
+  await page.goBack();
+  await expect(positioning).toBeVisible();
+  await page.goForward();
+  await expect(editor).toContainText('频道编辑历史草稿');
+  await expect(page.getByRole('button', { name: '撤销', exact: true })).toBeEnabled();
+  await page.getByRole('button', { name: '撤销', exact: true }).click();
+  await expect(editor).toContainText(initialSlots[1].body);
+  await page.getByRole('button', { name: '重做', exact: true }).click();
+  await choose(page, '提示词范围', '栏目 · 研究笔记');
+  await positioning.fill('栏目历史草稿');
+  await page.goBack();
+  await expect(editor).toContainText('频道编辑历史草稿');
+  await page.goForward();
+  await expect(positioning).toContainText('栏目历史草稿');
+  await expect(page.getByRole('button', { name: '撤销', exact: true })).toBeEnabled();
+  await page.getByRole('button', { name: '撤销', exact: true }).click();
+  await expect(positioning).toContainText('从真实的人和细节出发');
+  expect(state.writes).toHaveLength(0);
 });
 
 test('visited slot and scope editors preserve independent drafts and undo without saving on navigation', async ({

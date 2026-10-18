@@ -1,5 +1,9 @@
 # Retrospective
 
+## 2026-10-18 - Record visited editors on URL navigation
+
+The max review reproduced lost undo history after browser back/forward: visited scopes and slots were recorded only by select callbacks, so history navigation unmounted editors that still held drafts. Track rendered selections for every navigation path and test both slot and scope history with actual undo. A separate browser trace exposed the test helper clicking the previous scope's slot selector before React committed navigation; wait for the requested scope label before the next interaction rather than retrying the test or weakening its assertions.
+
 ## 2026-10-18 - Decode stored JSON before scanning media references
 
 The max review found that prompt-slot media scanning inspected serialized JSON rather than slot values. An escaped newline after a same-origin absolute URL became part of its apparent object key, making a referenced upload eligible for cleanup. Decode JSON before recursive scanning, including legacy channel bundles, and exercise channel/category, disabled slots, real newlines and stale inventory cleanup through the API.
