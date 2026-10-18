@@ -1,5 +1,9 @@
 # Retrospective
 
+## 2026-10-18 - Use documented terminal key names
+
+The isolated browser server restart initially used `ctrl-c`, which Herdr rejected without sending input. Its documented key name is `ctrl+c`. Verify the owned pane's working directory and the CLI key syntax before controlling a process; never fall back to broad process termination.
+
 ## 2026-10-18 - Separate write limits from synthesized output
 
 The follow-up max review caught the same input/output distinction at the length boundary: two legal appended slots can exceed one slot's write limit, and a lossless dry-run must report oversized legacy text. Give projections an unbounded body schema while keeping every write limit intact. Test maximum-sized append responses and oversized migration reports, plus their advertised OpenAPI schemas, without truncating content.
