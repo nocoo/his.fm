@@ -15,7 +15,6 @@ it('uses explicit IDs, versions and authenticated owner requests', async () => {
     name: 'Test',
     icon: 'mic' as const,
     color: 'blue' as const,
-    prompt: 'Style',
     seo: {},
   };
   await categoryService.save(input);
@@ -26,6 +25,12 @@ it('uses explicit IDs, versions and authenticated owner requests', async () => {
     method: 'PUT',
     body: JSON.stringify({ ...input, version: 2 }),
   });
+  await categoryService.save(input, 'test', 3, 'renamed');
+  expect(fetcher.mock.calls.at(-1)?.[1]).toMatchObject({
+    body: JSON.stringify({ ...input, version: 3, nextId: 'renamed' }),
+  });
+  await categoryService.save(input, 'test', 4, 'test');
+  expect(fetcher.mock.calls.at(-1)?.[1]).toMatchObject({ body: JSON.stringify({ ...input, version: 4 }) });
   fetcher.mockResolvedValue(new Response(null, { status: 204 }));
   await categoryService.remove('test', 3);
   expect(fetcher.mock.calls.at(-1)?.[0]).toBe('/admin/api/categories/test?version=3');

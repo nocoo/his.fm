@@ -19,11 +19,14 @@ Published episode slugs are not renamed with display titles; the daily learning 
 | --- | --- |
 | `GET /api/categories` | Public ID/name/icon/color only |
 | `GET /api/agent/categories[/:id]` | `categories:read`; prompt additionally needs `prompts:read` |
-| `POST /api/agent/categories` | `categories:write`; setting a prompt additionally needs `prompts:write` |
-| `PUT /api/agent/categories/:id` | `categories:write`; changing a prompt additionally needs `prompts:write` |
+| `POST /api/agent/categories` | `categories:write`; legacy prompt input is rejected |
+| `PUT /api/agent/categories/:id` | `categories:write`; legacy prompt input is rejected |
+| `/api/agent/categories/:id/prompt-slots` | GET `prompts:read`; PUT/POST and child PATCH/DELETE `prompts:write`; independent collection version |
 | `DELETE /api/agent/categories/:id?version=N` | `categories:delete` |
 
-The same controllers serve authenticated owner routes under `/admin/api`. Updates accept `version` and partial metadata/prompt; omitted fields are preserved. Optional `nextId` on `PUT` atomically renames the category ID and updates `episodes.category` plus `productions.data.category` references. Names allow 80 characters and prompts 30,000; shared validators bound icons/colors. Prompt fields never appear in public responses.
+The same controllers serve authenticated owner routes under `/admin/api`. Updates accept `version` and partial metadata; omitted fields are preserved. Optional `nextId` on `PUT` atomically renames the category ID, preserves prompt slots/versions and updates `episodes.category` plus `productions.data.category` references. Names allow 80 characters; shared validators bound icons/colors. Prompt fields never appear in public responses.
+
+Whole `prompt` is a read-only transitional projection: stored legacy text until explicit migration, then enabled local slots concatenated in order. Slot reads/writes require only prompt grants, not metadata grants. The central Prompts page edits local slot drafts with explicit atomic table saves. See [prompt slots](prompts.md) for runtime dry-run/apply paths, backup, merge semantics and deprecation plan. Category metadata changes do not change the slot-table version; a prompt slot write also updates the parent compatibility version.
 
 Referenced categories cannot be deleted. Episode foreign keys and production category fences protect associations during writes. All updates/deletions check the optimistic version; concurrent changes return 409. The editor retains drafts and safe previews with explicit saving and conflict resolution.
 

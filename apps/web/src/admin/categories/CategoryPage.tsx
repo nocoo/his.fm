@@ -4,10 +4,8 @@ import { PageHeader } from '@nocoo/basalt/components/page-header';
 import { TagColorPicker } from '@nocoo/basalt/components/tag-color-picker';
 import { ArrowLeft, Pencil, Plus, Save, Trash2 } from 'lucide-react';
 import { useState } from 'react';
-import { createPortal } from 'react-dom';
 import { Link, useNavigate, useParams } from 'react-router';
 import { type Category, categoryColors, categoryIcons, type PublicCategory } from '../../shared/category';
-import { MarkdownEditor } from '../markdown/MarkdownEditor';
 import { Confirm, Failure } from '../production/controls';
 import { ReadingText } from '../production/ReadingText';
 import { SeoOverrideFields } from '../seo/SeoOverrideFields';
@@ -83,16 +81,8 @@ function CategoryList() {
     </div>
   );
 }
-export function CategoryEditor({
-  id,
-  promptOnly = false,
-  actionsTarget = null,
-}: {
-  id: string;
-  promptOnly?: boolean;
-  actionsTarget?: HTMLDivElement | null;
-}) {
-  const vm = useCategory(id, promptOnly);
+function CategoryEditor({ id }: { id: string }) {
+  const vm = useCategory(id);
   const navigate = useNavigate();
   const [replace, setReplace] = useState<Category | null>(null);
   const save = async (version?: number) => {
@@ -105,7 +95,7 @@ export function CategoryEditor({
   const saveButton = (
     <Button
       loading={vm.pending}
-      disabled={!vm.dirty || !vm.value.name.trim() || vm.value.prompt.length > 30000 || Boolean(vm.conflict)}
+      disabled={!vm.dirty || !vm.value.name.trim() || Boolean(vm.conflict)}
       onClick={() => void save()}
     >
       <Save size={16} />
@@ -113,32 +103,20 @@ export function CategoryEditor({
     </Button>
   );
   return (
-    <div className={promptOnly ? 'studio-stack category-editor' : 'admin-page category-editor'}>
-      {promptOnly ? (
-        <>
-          {actionsTarget && createPortal(saveButton, actionsTarget)}
-          <div className="channel-meta">
-            <span className="admin-muted">栏目风格 · {vm.saved?.name ?? '正在读取'}</span>
-            <Link className="studio-link" to="/admin/categories" aria-label="返回栏目管理">
-              管理栏目
-            </Link>
-          </div>
-        </>
-      ) : (
-        <PageHeader
-          title={
-            <span className="category-page-title">
-              <Button asChild variant="ghost" size="icon">
-                <Link to="/admin/categories" aria-label="返回栏目管理">
-                  <ArrowLeft size={18} />
-                </Link>
-              </Button>
-              {id === 'new' ? '新建栏目' : (vm.saved?.name ?? '编辑栏目')}
-            </span>
-          }
-          actions={saveButton}
-        />
-      )}
+    <div className="admin-page category-editor">
+      <PageHeader
+        title={
+          <span className="category-page-title">
+            <Button asChild variant="ghost" size="icon">
+              <Link to="/admin/categories" aria-label="返回栏目管理">
+                <ArrowLeft size={18} />
+              </Link>
+            </Button>
+            {id === 'new' ? '新建栏目' : (vm.saved?.name ?? '编辑栏目')}
+          </span>
+        }
+        actions={saveButton}
+      />
       {vm.error && (
         <Failure error={vm.error} retry={!vm.saved && id !== 'new' ? () => void vm.load() : undefined} />
       )}
@@ -146,70 +124,64 @@ export function CategoryEditor({
         <LayerCard.Loading label="正在读取栏目" />
       ) : (
         <>
-          {!promptOnly && (
-            <LayerCard className="studio-stack">
-              <div className="category-fields">
-                <Field label="栏目 ID" htmlFor="category-id">
-                  <Input
-                    id="category-id"
-                    value={vm.nextId}
-                    maxLength={120}
-                    disabled={vm.pending || id === 'new'}
-                    onChange={(event) => vm.setNextId(event.target.value)}
-                  />
-                  <p className="admin-muted">小写英文与连字符；保存时会同步更新已关联节目与制作任务。</p>
-                </Field>
-                <Field label="栏目名称" htmlFor="category-name" required>
-                  <Input
-                    id="category-name"
-                    value={vm.value.name}
-                    maxLength={80}
-                    disabled={vm.pending}
-                    onChange={(event) => vm.setValue({ ...vm.value, name: event.target.value })}
-                  />
-                </Field>
-                <Field label="Lucide 图标">
-                  <IconPicker
-                    label="栏目图标"
-                    value={vm.value.icon}
-                    onValueChange={(icon) => vm.setValue({ ...vm.value, icon: icon as typeof vm.value.icon })}
-                    disabled={vm.pending}
-                    searchPlaceholder="搜索图标"
-                    emptyLabel="没有匹配图标"
-                    options={categoryIcons.map((value) => {
-                      const Icon = categoryIconComponents[value];
-                      return { value, label: value, icon: <Icon size={16} strokeWidth={1.5} /> };
-                    })}
-                  />
-                </Field>
-              </div>
-              <Field label="栏目颜色">
-                <TagColorPicker
-                  label="栏目颜色"
-                  value={vm.value.color}
-                  colors={categoryColors}
-                  labels={{ slate: '灰', blue: '蓝', violet: '紫', teal: '青', amber: '琥珀', rose: '玫瑰' }}
-                  onValueChange={(color) =>
-                    vm.setValue({ ...vm.value, color: color as typeof vm.value.color })
-                  }
+          <LayerCard className="studio-stack">
+            <div className="category-fields">
+              <Field label="栏目 ID" htmlFor="category-id">
+                <Input
+                  id="category-id"
+                  value={vm.nextId}
+                  maxLength={120}
+                  disabled={vm.pending || id === 'new'}
+                  onChange={(event) => vm.setNextId(event.target.value)}
+                />
+                <p className="admin-muted">小写英文与连字符；保存时会同步更新已关联节目与制作任务。</p>
+              </Field>
+              <Field label="栏目名称" htmlFor="category-name" required>
+                <Input
+                  id="category-name"
+                  value={vm.value.name}
+                  maxLength={80}
                   disabled={vm.pending}
+                  onChange={(event) => vm.setValue({ ...vm.value, name: event.target.value })}
                 />
               </Field>
-              <CategoryBadge category={{ id, ...vm.value, name: vm.value.name || '栏目预览' }} />
-            </LayerCard>
-          )}
-          {!promptOnly && (
-            <LayerCard className="studio-stack">
-              <strong>栏目 SEO</strong>
-              <p className="admin-muted">作用于栏目列表筛选页与栏目 RSS。</p>
-              <SeoOverrideFields
-                idPrefix={`category-${id}`}
+              <Field label="Lucide 图标">
+                <IconPicker
+                  label="栏目图标"
+                  value={vm.value.icon}
+                  onValueChange={(icon) => vm.setValue({ ...vm.value, icon: icon as typeof vm.value.icon })}
+                  disabled={vm.pending}
+                  searchPlaceholder="搜索图标"
+                  emptyLabel="没有匹配图标"
+                  options={categoryIcons.map((value) => {
+                    const Icon = categoryIconComponents[value];
+                    return { value, label: value, icon: <Icon size={16} strokeWidth={1.5} /> };
+                  })}
+                />
+              </Field>
+            </div>
+            <Field label="栏目颜色">
+              <TagColorPicker
+                label="栏目颜色"
+                value={vm.value.color}
+                colors={categoryColors}
+                labels={{ slate: '灰', blue: '蓝', violet: '紫', teal: '青', amber: '琥珀', rose: '玫瑰' }}
+                onValueChange={(color) => vm.setValue({ ...vm.value, color: color as typeof vm.value.color })}
                 disabled={vm.pending}
-                value={vm.value.seo ?? {}}
-                onChange={(seo) => vm.setValue({ ...vm.value, seo })}
               />
-            </LayerCard>
-          )}
+            </Field>
+            <CategoryBadge category={{ id, ...vm.value, name: vm.value.name || '栏目预览' }} />
+          </LayerCard>
+          <LayerCard className="studio-stack">
+            <strong>栏目 SEO</strong>
+            <p className="admin-muted">作用于栏目列表筛选页与栏目 RSS。</p>
+            <SeoOverrideFields
+              idPrefix={`category-${id}`}
+              disabled={vm.pending}
+              value={vm.value.seo ?? {}}
+              onChange={(seo) => vm.setValue({ ...vm.value, seo })}
+            />
+          </LayerCard>
           {vm.conflict && (
             <LayerCard className="studio-stack">
               <strong>栏目已有新版本 · v{vm.conflict.version}</strong>
@@ -229,24 +201,9 @@ export function CategoryEditor({
               </div>
             </LayerCard>
           )}
-          {promptOnly ? (
-            <LayerCard padding="none" className="category-prompt">
-              <MarkdownEditor
-                key={vm.resetKey}
-                id="category-prompt"
-                label="栏目提示词"
-                value={vm.value.prompt}
-                maxLength={30000}
-                disabled={vm.pending}
-                onChange={(prompt) => vm.setValue({ ...vm.value, prompt })}
-              />
-            </LayerCard>
-          ) : (
-            <Button asChild variant="outline" disabled={id === 'new'}>
-              <Link to={`/admin/channel?prompt=category:${id}`}>前往提示词编辑栏目风格</Link>
-            </Button>
-          )}
-          {vm.value.prompt.length > 30000 && <Failure error="栏目提示词最多 30,000 字，超出的草稿仍保留。" />}
+          <Button asChild variant="outline" disabled={id === 'new'}>
+            <Link to={`/admin/channel?scope=category:${id}`}>前往提示词管理栏目槽位</Link>
+          </Button>
           <div className="studio-stage-footer">
             <span className="admin-muted" role="status">
               {vm.dirty ? '有未保存改动' : vm.saved ? `已保存 · v${vm.saved.version}` : '尚未保存'}

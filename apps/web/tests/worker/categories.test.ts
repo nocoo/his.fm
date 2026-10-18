@@ -32,8 +32,8 @@ const input = {
   name: '研究笔记',
   icon: 'book-open' as const,
   color: 'teal' as const,
-  prompt: '# 内部风格\n先讲结论，再交代证据边界。',
 };
+const legacyPrompt = '# 内部风格\n先讲结论，再交代证据边界。';
 function request(method = 'GET', data?: unknown, path = '/admin/api/categories') {
   return new Request(origin + path, {
     method,
@@ -43,7 +43,9 @@ function request(method = 'GET', data?: unknown, path = '/admin/api/categories')
 }
 async function create() {
   const response = await routeCategories(request('POST', input), env, human);
-  return ((await response.json()) as { category: Category }).category;
+  const { category } = (await response.json()) as { category: Category };
+  await env.DB.prepare('UPDATE categories SET prompt=? WHERE id=?').bind(legacyPrompt, category.id).run();
+  return getCategory(env.DB, category.id);
 }
 beforeAll(async () => {
   mf = new Miniflare({
@@ -98,10 +100,10 @@ it('keeps original identities, returns public metadata without prompts, and vali
   });
   expect(await getCategory(env.DB, 'learning')).toMatchObject({ name: '每日手冲', version: 1 });
   const category = await create();
-  expect(category).toMatchObject({ ...input, version: 1 });
+  expect(category).toMatchObject({ ...input, prompt: legacyPrompt, version: 1 });
   const publicResponse = await worker.fetch(new Request(`${origin}/api/categories`), env);
   const data = await publicResponse.json();
-  expect(JSON.stringify(data)).not.toContain(input.prompt);
+  expect(JSON.stringify(data)).not.toContain(legacyPrompt);
   expect(JSON.stringify(data)).not.toContain('updatedBy');
   for (const patch of [
     { name: '' },
@@ -207,7 +209,7 @@ it('accepts new categories in productions, prevents deleting referenced categori
   };
   const prompts = productionPrompts(production, channel, category);
   for (const prompt of Object.values(prompts)) {
-    expect(prompt.indexOf('GLOBAL-PROMPT')).toBeLessThan(prompt.indexOf(input.prompt.split('\n')[0]));
+    expect(prompt.indexOf('GLOBAL-PROMPT')).toBeLessThan(prompt.indexOf(legacyPrompt.split('\n')[0]));
     expect(prompt).toContain('1. 全局提示词；2. 栏目提示词；3. 本期中心思想');
   }
   const changed = applyPatch(readyFixture(), { category: category.id }, human);
@@ -418,7 +420,7 @@ it('creates categories without prompts using only categories:write', async () =>
 });
 it('requires prompts:write when creating a category that includes a prompt', async () => {
   await expect(
-    routeCategories(request('POST', input), env, {
+    routeCategories(request('POST', { ...input, prompt: legacyPrompt }), env, {
       kind: 'agent',
       name: 'categories-writer',
       scopes: ['categories:write'],
@@ -429,7 +431,7 @@ it('includes prompts on category detail when the actor has prompts:read', async 
   const created = await create();
   const response = await routeCategories(request(), env, reader, created.id);
   const body = (await response.json()) as { category: Category };
-  expect(body.category.prompt).toBe(input.prompt);
+  expect(body.category.prompt).toBe(legacyPrompt);
 });
 it('omits prompts from category list when the actor lacks prompts:read', async () => {
   const created = await create();

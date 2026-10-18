@@ -1,9 +1,8 @@
-import { hasScope, promptSetSchema } from '@his-fm/contracts';
-import { type ChannelProfile, channelUpdateSchema, editorialPriority } from '../src/shared/channel';
+import { type PromptSlot, promptKeys, promptSetSchema, synthesizePromptSlots } from '@his-fm/contracts';
+import { type ChannelProfile, editorialPriority } from '../src/shared/channel';
 import type { Actor } from '../src/shared/production';
 import { requireScope } from './authorization';
 import { HttpError, json } from './http';
-import { readJson } from './production-body';
 import { channelDefault as defaultContent, defaultPrompts } from './prompt-defaults';
 
 export async function getChannel(db: D1Database): Promise<ChannelProfile> {
@@ -14,16 +13,27 @@ export async function getChannel(db: D1Database): Promise<ChannelProfile> {
     .bind(defaultContent.trim(), JSON.stringify(defaultPrompts), new Date().toISOString(), 'his.fm')
     .run();
   await db
-    .prepare('UPDATE channel_profile SET prompts = ?, version = version + 1 WHERE id = 1 AND prompts IS NULL')
+    .prepare(
+      'UPDATE channel_profile SET prompts = ?, version = version + 1 WHERE id = 1 AND prompts IS NULL AND prompt_slots IS NULL',
+    )
     .bind(JSON.stringify(defaultPrompts))
     .run();
   const channel = await db
     .prepare(
-      'SELECT version, content, prompts, updated_at AS updatedAt, updated_by AS updatedBy FROM channel_profile WHERE id = 1',
+      'SELECT version, content, prompts, prompt_slots, updated_at AS updatedAt, updated_by AS updatedBy FROM channel_profile WHERE id = 1',
     )
-    .first<Omit<ChannelProfile, 'prompts'> & { prompts: string }>();
+    .first<Omit<ChannelProfile, 'prompts'> & { prompts: string; prompt_slots: string | null }>();
   if (!channel) throw new HttpError(503, '全局提示词暂时无法读取，请重试');
-  return { ...channel, prompts: promptSetSchema.parse(JSON.parse(channel.prompts)) };
+  const { prompt_slots, ...profile } = channel;
+  if (prompt_slots !== null) {
+    const body = synthesizePromptSlots(JSON.parse(prompt_slots) as PromptSlot[]);
+    return {
+      ...profile,
+      content: body,
+      prompts: Object.fromEntries(promptKeys.map((key) => [key, body])) as ChannelProfile['prompts'],
+    };
+  }
+  return { ...profile, prompts: promptSetSchema.parse(JSON.parse(channel.prompts)) };
 }
 
 export async function routeChannel(request: Request, env: Env, actor: Actor): Promise<Response> {
@@ -31,28 +41,6 @@ export async function routeChannel(request: Request, env: Env, actor: Actor): Pr
     requireScope(actor, 'prompts:read');
     return json({ channel: await getChannel(env.DB), priority: editorialPriority });
   }
-  if (request.method !== 'PUT') throw new HttpError(405, '全局提示词使用 GET 读取、PUT 更新');
   requireScope(actor, 'prompts:write');
-  const input = await readJson(request, channelUpdateSchema);
-  await getChannel(env.DB);
-  const channel = await env.DB.prepare(
-    'UPDATE channel_profile SET content = COALESCE(?, content), prompts = COALESCE(?, prompts), version = version + 1, updated_at = ?, updated_by = ? WHERE id = 1 AND version = ? RETURNING version, content, prompts, updated_at AS updatedAt, updated_by AS updatedBy',
-  )
-    .bind(
-      input.content ?? null,
-      input.prompts ? JSON.stringify(input.prompts) : null,
-      new Date().toISOString(),
-      actor.name,
-      input.version,
-    )
-    .first<Omit<ChannelProfile, 'prompts'> & { prompts: string }>();
-  if (!channel) throw new HttpError(409, '全局提示词已在别处更新。你的草稿已保留，请对照最新版本后保存。');
-  return json(
-    hasScope(actor, 'prompts:read')
-      ? {
-          channel: { ...channel, prompts: promptSetSchema.parse(JSON.parse(channel.prompts)) },
-          priority: editorialPriority,
-        }
-      : { version: channel.version },
-  );
+  throw new HttpError(405, '旧提示词字段已只读，请使用 /channel/prompt-slots');
 }

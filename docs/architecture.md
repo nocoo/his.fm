@@ -48,6 +48,8 @@ R2 assets use unique immutable keys. Detaching an asset does not delete bytes. C
 
 Migration 0015 retires operational tables, removes the production job field without changing assets/approvals/publications/versions, and retains allowlisted media provenance only. It preserves saved prompts, appends narration, and removes only retired text grants from valid token arrays. Unknown or malformed grants remain unusable; they never become authority.
 
+Channel and category prompt-slot JSON arrays live beside their legacy fields with independent collection counters; slot versions/audit live in each array. Migration 0023 adds schema only. Explicit runtime migration atomically backs up live legacy rows and initializes slots; GET dry-run never writes. Old fields remain read-only projections. Slot CRUD uses the collection CAS and does not mutate productions; merged reads apply category append/override by stable ID. See [prompt slots](prompts.md).
+
 ## Interface and verification
 
 - `/admin` is a unified cover-grid library with a list alternative. Production snapshots are deduplicated by explicit `sourceProductionId`, never by slug/title guesses.

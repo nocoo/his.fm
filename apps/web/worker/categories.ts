@@ -1,4 +1,4 @@
-import { hasScope } from '@his-fm/contracts';
+import { hasScope, type PromptSlot, synthesizePromptSlots } from '@his-fm/contracts';
 import {
   type Category,
   categoryCreateSchema,
@@ -12,10 +12,17 @@ import { HttpError, json } from './http';
 import { readJson } from './production-body';
 
 const fields =
-  'id, name, icon, color, prompt, seo, version, updated_at AS updatedAt, updated_by AS updatedBy';
+  'id, name, icon, color, prompt, prompt_slots, seo, version, updated_at AS updatedAt, updated_by AS updatedBy';
 
-function mapCategory(row: Category & { seo: string }): Category {
-  return { ...row, seo: parseSeoOverride(row.seo) };
+type CategoryRow = Category & { seo: string; prompt_slots: string | null };
+function mapCategory(row: CategoryRow): Category {
+  const { prompt_slots, ...category } = row;
+  return {
+    ...category,
+    prompt:
+      prompt_slots === null ? row.prompt : synthesizePromptSlots(JSON.parse(prompt_slots) as PromptSlot[]),
+    seo: parseSeoOverride(row.seo),
+  };
 }
 const categoryIdTaken = (error: unknown) =>
   error instanceof Error && /UNIQUE constraint failed: categories\.id/.test(error.message);
@@ -49,7 +56,7 @@ export async function getCategory(db: D1Database, id: string): Promise<Category>
   const category = await db
     .prepare(`SELECT ${fields} FROM categories WHERE id=?`)
     .bind(id)
-    .first<Category & { seo: string }>();
+    .first<CategoryRow>();
   if (!category) throw new HttpError(404, '栏目不存在，请重新选择');
   return mapCategory(category);
 }
@@ -75,8 +82,8 @@ export async function renameCategoryId(
     results = await db.batch([
       db
         .prepare(
-          `INSERT INTO categories (id,name,icon,color,prompt,seo,version,updated_at,updated_by)
-         SELECT ?,?,?,?,?,?,version+1,?,?
+          `INSERT INTO categories (id,name,icon,color,prompt,seo,version,updated_at,updated_by,prompt_slots,prompt_slots_version)
+         SELECT ?,?,?,?,prompt,?,version+1,?,?,prompt_slots,prompt_slots_version
          FROM categories WHERE id=? AND version=?`,
         )
         .bind(
@@ -84,7 +91,6 @@ export async function renameCategoryId(
           merged.name,
           merged.icon,
           merged.color,
-          merged.prompt,
           JSON.stringify(merged.seo ?? {}),
           now,
           actor.name,
@@ -168,16 +174,17 @@ export async function routeCategories(request: Request, env: Env, actor: Actor, 
       ? json({ category: project(await getCategory(env.DB, id)) })
       : json({
           categories: (
-            await env.DB.prepare(`SELECT ${fields} FROM categories ORDER BY rowid`).all<
-              Category & { seo: string }
-            >()
+            await env.DB.prepare(`SELECT ${fields} FROM categories ORDER BY rowid`).all<CategoryRow>()
           ).results.map((row) => project(mapCategory(row))),
         });
   }
   if (!id && request.method === 'POST') {
     requireScope(actor, 'categories:write');
     const input = await readJson(request, categoryCreateSchema);
-    if (input.prompt) requireScope(actor, 'prompts:write');
+    if (input.prompt !== undefined) {
+      requireScope(actor, 'prompts:write');
+      throw new HttpError(400, '旧提示词字段已只读，请使用栏目 prompt-slots');
+    }
     const category = await env.DB.prepare(
       `INSERT INTO categories (id,name,icon,color,prompt,seo,updated_at,updated_by) VALUES (?,?,?,?,?,?,?,?) RETURNING ${fields}`,
     )
@@ -191,7 +198,7 @@ export async function routeCategories(request: Request, env: Env, actor: Actor, 
         new Date().toISOString(),
         actor.name,
       )
-      .first<Category & { seo: string }>();
+      .first<CategoryRow>();
     if (!category) throw new HttpError(503, '栏目暂时无法创建，请重试');
     return json({ category: project(mapCategory(category)) }, 201);
   }
@@ -199,7 +206,10 @@ export async function routeCategories(request: Request, env: Env, actor: Actor, 
     requireScope(actor, 'categories:write');
     const input = await readJson(request, categoryMutationSchema);
     const current = await getCategory(env.DB, id);
-    if (input.prompt !== undefined && input.prompt !== current.prompt) requireScope(actor, 'prompts:write');
+    if (input.prompt !== undefined) {
+      requireScope(actor, 'prompts:write');
+      throw new HttpError(400, '旧提示词字段已只读，请使用栏目 prompt-slots');
+    }
     const nextId = input.nextId?.trim();
     if (nextId && nextId !== id) {
       await assertCategoryIdAvailable(env.DB, nextId, id);
@@ -214,20 +224,19 @@ export async function routeCategories(request: Request, env: Env, actor: Actor, 
       return json({ category: project(category) });
     }
     const category = await env.DB.prepare(
-      `UPDATE categories SET name=?,icon=?,color=?,prompt=?,seo=?,version=version+1,updated_at=?,updated_by=? WHERE id=? AND version=? RETURNING ${fields}`,
+      `UPDATE categories SET name=?,icon=?,color=?,seo=?,version=version+1,updated_at=?,updated_by=? WHERE id=? AND version=? RETURNING ${fields}`,
     )
       .bind(
         input.name ?? current.name,
         input.icon ?? current.icon,
         input.color ?? current.color,
-        input.prompt ?? current.prompt,
         JSON.stringify(input.seo ?? current.seo ?? {}),
         new Date().toISOString(),
         actor.name,
         id,
         input.version,
       )
-      .first<Category & { seo: string }>();
+      .first<CategoryRow>();
     if (!category) throw new HttpError(409, '栏目已被修改或删除，草稿已保留，请刷新后对照');
     return json({ category: project(mapCategory(category)) });
   }

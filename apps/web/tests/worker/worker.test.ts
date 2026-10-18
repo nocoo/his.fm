@@ -1252,13 +1252,18 @@ describe('agent discovery and real bearer routing', () => {
         .status,
     ).toBe(403);
     for (const method of ['POST', 'DELETE'])
-      expect((await agentCall('/channel', { method })).status).toBe(405);
+      expect((await agentCall('/channel', { method })).status).toBe(403);
     const changed = await call('/admin/api/channel', {
       method: 'PUT',
       ...body({ version: initial.version, content: '## 新的全局提示词\n\n自定义定位：从下班后的生活切入。' }),
     });
-    expect(changed.status).toBe(200);
-    const profile = channelProfileSchema.parse(((await changed.json()) as { channel: unknown }).channel);
+    expect(changed.status).toBe(405);
+    await env.DB.prepare('UPDATE channel_profile SET version=version+1, content=?, updated_by=? WHERE id=1')
+      .bind('## 新的全局提示词\n\n自定义定位：从下班后的生活切入。', 'editor@his.fm')
+      .run();
+    const profile = channelProfileSchema.parse(
+      ((await (await call('/admin/api/channel')).json()) as { channel: unknown }).channel,
+    );
     expect(profile.version).toBe(2);
     expect(profile.updatedBy).toBe('editor@his.fm');
     expect(((await (await call('/admin/api/channel')).json()) as { channel: unknown }).channel).toEqual(
@@ -1267,11 +1272,11 @@ describe('agent discovery and real bearer routing', () => {
     expect(
       (await call('/admin/api/channel', { method: 'PUT', ...body({ version: 1, content: 'Stale version' }) }))
         .status,
-    ).toBe(409);
+    ).toBe(405);
     for (const content of ['', ' ', 'x'.repeat(30001)])
       expect(
         (await call('/admin/api/channel', { method: 'PUT', ...body({ version: 2, content }) })).status,
-      ).toBe(400);
+      ).toBe(405);
     expect((await call('/admin/api/channel', { method: 'DELETE' })).status).toBe(405);
     expect(
       (
@@ -1326,8 +1331,13 @@ describe('agent discovery and real bearer routing', () => {
       method: 'PUT',
       ...body({ version: profile.version, prompts: edited }),
     });
-    expect(updated.status).toBe(200);
-    const saved = channelProfileSchema.parse(((await updated.json()) as { channel: unknown }).channel);
+    expect(updated.status).toBe(405);
+    await env.DB.prepare('UPDATE channel_profile SET version=version+1, prompts=? WHERE id=1')
+      .bind(JSON.stringify(edited))
+      .run();
+    const saved = channelProfileSchema.parse(
+      ((await (await call('/admin/api/channel')).json()) as { channel: unknown }).channel,
+    );
     expect(saved.content).toBe(profile.content);
     expect(saved.prompts).toEqual(edited);
     expect(saved.version).toBe(profile.version + 1);
@@ -1348,7 +1358,7 @@ describe('agent discovery and real bearer routing', () => {
       { version: saved.version, prompts: { ...edited, speech: '' } },
       { version: saved.version, prompts: { ...edited, decisionPlan: '中'.repeat(1501) } },
     ]) {
-      expect((await call('/admin/api/channel', { method: 'PUT', ...body(invalid) })).status).toBe(400);
+      expect((await call('/admin/api/channel', { method: 'PUT', ...body(invalid) })).status).toBe(405);
     }
     expect(
       (
@@ -1357,7 +1367,7 @@ describe('agent discovery and real bearer routing', () => {
           ...body({ version: profile.version, prompts: edited }),
         })
       ).status,
-    ).toBe(409);
+    ).toBe(405);
     for (const path of [
       '/api/agent',
       '/api/agent/openapi.json',

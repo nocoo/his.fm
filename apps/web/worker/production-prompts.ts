@@ -1,3 +1,4 @@
+import { type PromptSlotInput, synthesizePromptSlots } from '@his-fm/contracts';
 import type { Category } from '../src/shared/category';
 import type { ChannelProfile } from '../src/shared/channel';
 import type { Production, ProductionPrompts } from '../src/shared/production';
@@ -6,6 +7,7 @@ export function productionPrompts(
   production: Production,
   channel: ChannelProfile,
   category: Category,
+  slots?: PromptSlotInput[],
 ): ProductionPrompts {
   const context = JSON.stringify(
     {
@@ -22,6 +24,10 @@ export function productionPrompts(
     null,
     2,
   );
+  if (slots) {
+    const guidance = `${synthesizePromptSlots(slots)}\n${context}`;
+    return { brief: guidance, script: guidance, cover: guidance, description: guidance };
+  }
   const { prompts, ...profile } = channel;
   const editorial = `${prompts.editorial}\n${JSON.stringify({ channel: profile, category }, null, 2)}`;
   const render = (key: 'brief' | 'script' | 'cover' | 'description') =>

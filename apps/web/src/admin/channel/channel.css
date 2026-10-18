@@ -39,6 +39,35 @@
 .channel-help > p {
   padding-top: var(--admin-space-2);
 }
+.channel-slot-toolbar,
+.channel-slot-fields,
+.channel-new-fields {
+  display: flex;
+  align-items: center;
+  gap: var(--admin-space-2) var(--admin-space-3);
+  flex-wrap: wrap;
+  min-width: 0;
+}
+.channel-slot-selector {
+  flex: 1;
+  min-width: 8rem;
+}
+.channel-slot-fields {
+  align-items: end;
+}
+.channel-slot-fields > :first-child,
+.channel-new-fields > * {
+  flex: 1;
+  min-width: 8rem;
+}
+.channel-slot-id {
+  align-self: center;
+  overflow-wrap: anywhere;
+  font-size: 12px;
+}
+.channel-help > .studio-stack {
+  padding-top: var(--admin-space-2);
+}
 @media (max-width: 767px) {
   .channel-header-actions {
     gap: var(--admin-space-1);

@@ -1,5 +1,13 @@
 # Retrospective
 
+## 2026-10-18 - Validate refined schemas and staged warnings
+
+Prompt-slot integration initially called Zod `omit` on the refined category mutation schema. TypeScript accepted the call, but constructing OpenAPI threw at runtime and affected method-error responses too. Build the metadata-only schema from the existing field shapes and retain its nonempty-mutation validation; test actual OpenAPI generation rather than only static types.
+
+The first foundation commit attempt staged a Biome optional-chain warning after formatting. The normal index hook correctly blocked it; fix the warning explicitly and restage only the owned paths before retrying. Formatting success is not warning-free lint success.
+
+A parser worker again used zsh's special `path` variable as a loop name and temporarily replaced PATH. No file changed; use `filePath` or `entry` instead. Reading a working Herdr agent's alternate-screen history also failed; use the visible surface for active inspection and wait for settled state before full transcript reads.
+
 ## 2026-10-18 - Compare artwork bytes without blocking binding I/O
 
 Main CI run 39084092857 failed twice in the next test's `beforeEach` R2
