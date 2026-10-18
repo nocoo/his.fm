@@ -6,7 +6,12 @@ All notable changes to his.fm are documented here. The format follows [Keep a Ch
 
 ### Changed
 
-- Polish the admin voice preview page with one shared header for the fixed script and comparison style, fully expanded Gemini and ElevenLabs catalogs (no accordions), theme-aware provider marks, consistent missing-sample copy, and mobile-first layout. Add catalog and render unit tests; the site still does not host voice generation.
+- Drive the admin voice preview page from committed manifest data (30 Gemini and 19 ElevenLabs MP3 entries under `reference/voices/`), with a unified header, fully expanded row-by-row comparison, single active player, theme-aware provider marks, and mobile-first layout. Embed the full fixed sample script verbatim; the site still does not host voice generation.
+
+### Fixed
+
+- Allow validated `audio/mpeg` uploads through `POST /admin/api/storage`.
+- Keep voice preview objects under `reference/voices/` out of unreferenced 24-hour storage cleanup.
 
 ## 2.8.3 - 2026-10-18
 
