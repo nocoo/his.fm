@@ -5,8 +5,8 @@ import { fileURLToPath } from 'node:url';
 import { collectOptionalPlatformSpecs, detectHost, isPackageInstalled } from './native-platform-deps.mjs';
 
 const repoRoot = join(fileURLToPath(new URL('.', import.meta.url)), '..');
-const installAttempts = 4;
-const installBackoffMs = [0, 4_000, 12_000, 24_000];
+const installAttempts = 5;
+const installBackoffMs = [0, 4_000, 12_000, 24_000, 40_000];
 
 function loadLockfile() {
   return JSON.parse(readFileSync(join(repoRoot, 'package-lock.json'), 'utf8'));
