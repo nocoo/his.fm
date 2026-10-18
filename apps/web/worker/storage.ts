@@ -1,3 +1,4 @@
+import { isMp3Container, parseMp3 } from '@his-fm/contracts';
 import type { Actor } from '../src/shared/production';
 import {
   type StorageCleanupResult,
@@ -7,6 +8,7 @@ import {
   storageKind,
 } from '../src/shared/storage';
 import { collectReferenceKeys } from '../src/shared/storage-references';
+import { voicePreviewStoragePrefix } from '../src/shared/voice-preview-prefix';
 import { parseWav } from './audio';
 import { requireScope } from './authorization';
 import { currentArtPrefixes } from './episode-art-cache';
@@ -91,6 +93,9 @@ function describe(object: R2Object, refs: References): StorageObject {
   } else if (refs.artPrefixes.some((prefix) => object.key.startsWith(prefix))) {
     state = 'referenced';
     reasons = ['当前节目合成图片'];
+  } else if (object.key.startsWith(voicePreviewStoragePrefix)) {
+    state = 'protected';
+    reasons = ['音色预览参考样片'];
   } else if (object.key.startsWith('images/') || object.key.startsWith('reference/')) {
     state = 'protected';
     reasons = ['品牌图片与音色参考'];
@@ -163,8 +168,11 @@ async function preview(request: Request, env: Env) {
 async function upload(request: Request, env: Env) {
   if ([...new URL(request.url).searchParams].length) throw new HttpError(400, '上传路径由服务器生成');
   const contentType = request.headers.get('Content-Type')?.split(';')[0]?.trim().toLowerCase();
-  if (!contentType || !['image/png', 'image/jpeg', 'image/webp', 'audio/wav'].includes(contentType))
-    throw new HttpError(415, '请上传 PNG、JPEG、WebP 或 PCM WAV');
+  if (
+    !contentType ||
+    !['image/png', 'image/jpeg', 'image/webp', 'audio/wav', 'audio/mpeg'].includes(contentType)
+  )
+    throw new HttpError(415, '请上传 PNG、JPEG、WebP、PCM WAV 或 MP3');
   const bytes = await readBytes(request, 25 * 1024 * 1024);
   let type: { mime: string; extension: string };
   if (contentType === 'audio/wav') {
@@ -175,6 +183,14 @@ async function upload(request: Request, env: Env) {
       throw new HttpError(415, '请上传完整的 24 kHz 单声道 16-bit PCM WAV');
     }
     type = { mime: 'audio/wav', extension: 'wav' };
+  } else if (contentType === 'audio/mpeg') {
+    try {
+      if (!isMp3Container(bytes)) throw new Error('Invalid MP3');
+      parseMp3(bytes);
+    } catch {
+      throw new HttpError(415, '请上传完整的 MP3');
+    }
+    type = { mime: 'audio/mpeg', extension: 'mp3' };
   } else {
     type = rasterType(bytes);
   }
