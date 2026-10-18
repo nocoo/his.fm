@@ -2,6 +2,21 @@
 
 All notable changes to his.fm are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions use the owner’s patch-only deployment policy in `AGENTS.md`, with the authoritative version in `package.json`.
 
+## 2.7.0 - 2026-10-18
+
+The owner explicitly approved this minor release, overriding the patch-only deployment policy.
+
+### Added
+
+- Preview episode and homepage social cards in the studio across eight platforms, using actual public SEO metadata and honest saved-image availability without publishing or saving edits.
+- Cache generated square podcast art and landscape share images in R2 with input-versioned URLs, immutable responses, HEAD, ETag and Last-Modified. Pregenerate after studio or Agent API cover uploads, metadata and action edits, publication/correction, category changes and square-art theme changes; retain lazy generation on cache misses and protect current generated objects during storage cleanup.
+
+### Changed
+
+- Top-align episode artwork and playback with the episode content, and improve the compact mobile episode-page layout.
+- Anchor the landscape `share.jpg` crop at the original artwork's horizontal center and 40% vertical focus, with bounded image intermediates and unchanged clean originals.
+- Remove the redundant top-level studio sidebar creation entry while preserving new-programme creation from the programme library.
+
 ## 2.6.0 - 2026-10-18
 
 The owner explicitly approved this minor release, overriding the patch-only deployment policy.
