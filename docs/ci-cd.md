@@ -6,10 +6,10 @@ Shared workflows come from [nocoo/base-ci](https://github.com/nocoo/base-ci), pi
 
 Runs on every push to `main`, pull requests against `main`, and manual dispatch. Two reusable gates:
 
-- `quality.yml` — typecheck (`npm run typecheck`, `cf workers types` followed by strict `tsc --noEmit`), lint (`npm run lint`, Biome recommended preset, warnings rejected), unit tests with the four 95% coverage floors (`npm run test:coverage`), Gitleaks secret scan plus OSV dependency scan on `package-lock.json`, and a build (`npm run build`, Vite plus the Cloudflare Workers build). The aggregate emits `tested-sha` only when every enabled job succeeded on the same commit.
+- `quality-hisfm.yml` — vendored from base-ci `quality.yml` with `setup-js-hisfm` (retries frozen `npm ci` on transient `ECONNRESET`) and `prepare-command: npm run ci:ensure-native-binaries`. Otherwise the same L1 stack: typecheck, lint, unit coverage, security, and build. Security and optional test-job paths still call pinned base-ci reusable workflows.
 - `workflow-lint.yml` — actionlint syntax validation of both workflow files and enforcement of full-SHA base-ci references.
 
-Runtime is pinned to Node `26.9.0` and npm `11.19.1` (`packageManager` in root `package.json`) with frozen `npm ci`. `install-policy: project` keeps the project lifecycle (Husky `prepare`) because the Vite/Workers toolchain requires native postinstall binaries (workerd, Biome, TypeScript, Rolldown, Lightning CSS, Sharp, and similar). Root `allowScripts` approves pinned `workerd` postinstalls; `.npmrc` enables optional dependencies and raises npm `fetch-retries` for transient `ECONNRESET` during `npm ci`. After install, `prepare-command` runs `npm run ci:ensure-native-binaries`, which reads `package-lock.json`, installs any missing platform optional packages for the runner OS, rebuilds `workerd`, and smoke-checks Biome, workerd, TypeScript and Vite before typecheck/lint/build.
+Runtime is pinned to Node `26.9.0` and npm `11.19.1` (`packageManager` in root `package.json`) with frozen `npm ci` (`install-policy: project`). CI applies `env-json` npm retry settings before install; `.npmrc` mirrors them for local installs. After install, `ci:ensure-native-binaries` installs any missing lockfile platform optional packages, rebuilds `workerd`, and smoke-checks Biome, workerd, TypeScript, and Vite. Root `allowScripts` approves pinned `workerd` postinstalls.
 
 ## Release (`.github/workflows/release.yml`)
 
