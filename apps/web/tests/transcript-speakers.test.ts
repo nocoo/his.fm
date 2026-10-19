@@ -91,6 +91,12 @@ describe('parseTranscriptSpeakers', () => {
     ]);
   });
 
+  it('returns markdown when the document only contains reference definitions', () => {
+    expect(parseTranscriptSpeakers('[ref]: https://example.com/path')).toEqual([
+      { kind: 'markdown', text: '[ref]: https://example.com/path' },
+    ]);
+  });
+
   it('keeps multiline speaker paragraphs in the correct turn', () => {
     expect(parseTranscriptSpeakers('**主播：** 问题。\n\n**预言家：** 回答。\n续行。')).toEqual([
       { kind: 'speaker', speaker: '主播', text: ' 问题。' },
