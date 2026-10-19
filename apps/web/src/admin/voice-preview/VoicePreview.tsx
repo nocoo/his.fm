@@ -11,6 +11,7 @@ import {
 } from '../../shared/voice-samples';
 import { ProviderMark } from './ProviderMark';
 import { useReferenceSample } from './useReferenceSample';
+import { VoicePreviewBadges } from './VoicePreviewBadges';
 
 function sampleFileName(objectKey: string) {
   return objectKey.split('/').pop() ?? objectKey;
@@ -18,35 +19,27 @@ function sampleFileName(objectKey: string) {
 
 function MissingSample({ objectKey }: { objectKey: string }) {
   return (
-    <LayerCard className="appearance-voice-placeholder" padding="md">
+    <LayerCard className="appearance-voice-placeholder" padding="sm">
       <p className="admin-muted">尚未上传样片（{sampleFileName(objectKey)}）</p>
     </LayerCard>
   );
 }
 
-function VoiceSampleCard({
-  provider,
-  entry,
-  model,
-}: {
-  provider: VoiceProvider;
-  entry: VoicePreviewEntry;
-  model: string;
-}) {
+function VoiceSampleCard({ provider, entry }: { provider: VoiceProvider; entry: VoicePreviewEntry }) {
   const sampleUrl = voicePreviewMediaUrl(entry.objectKey);
   const probe = useReferenceSample(sampleUrl);
   const title = provider === 'gemini' ? `Gemini · ${entry.voiceName}` : `ElevenLabs · ${entry.voiceName}`;
 
   return (
-    <LayerCard className="appearance-voice-card" data-provider={provider} padding="md">
+    <LayerCard className="appearance-voice-card" data-provider={provider} padding="sm">
       <div className="appearance-voice-heading">
         <strong>
           <ProviderMark provider={provider} />
           {title}
         </strong>
-        <span className="admin-muted">{entry.style}</span>
       </div>
-      <p className="admin-muted">{model}</p>
+      <VoicePreviewBadges entry={entry} />
+      <p className="admin-muted appearance-voice-model">{entry.model}</p>
       <p className="admin-muted appearance-voice-id">{entry.voiceId}</p>
       {!probe.ready ? (
         <p className="admin-muted">正在检查参考样片…</p>
@@ -65,19 +58,11 @@ function VoiceSampleCard({
   );
 }
 
-function ComparisonSlot({
-  provider,
-  entry,
-  model,
-}: {
-  provider: VoiceProvider;
-  entry?: VoicePreviewEntry;
-  model: string;
-}) {
+function ComparisonSlot({ provider, entry }: { provider: VoiceProvider; entry?: VoicePreviewEntry }) {
   if (!entry) {
     return <div className="appearance-voice-slot-empty" aria-hidden="true" />;
   }
-  return <VoiceSampleCard provider={provider} entry={entry} model={model} />;
+  return <VoiceSampleCard provider={provider} entry={entry} />;
 }
 
 export function VoicePreviewContent() {
@@ -117,8 +102,8 @@ export function VoicePreviewContent() {
             className="appearance-voice-grid appearance-voice-compare-row"
             key={`${row.gemini?.objectKey ?? 'gemini-empty'}-${row.elevenlabs?.objectKey ?? 'elevenlabs-empty'}`}
           >
-            <ComparisonSlot provider="gemini" entry={row.gemini} model="gemini-2.5-flash-preview-tts" />
-            <ComparisonSlot provider="elevenlabs" entry={row.elevenlabs} model="eleven_v3" />
+            <ComparisonSlot provider="gemini" entry={row.gemini} />
+            <ComparisonSlot provider="elevenlabs" entry={row.elevenlabs} />
           </div>
         ))}
       </div>

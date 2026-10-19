@@ -37,16 +37,26 @@
 .appearance-voice-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
+  gap: 12px;
 }
 .appearance-voice-pair .appearance-voice-grid {
   grid-template-rows: 1fr;
 }
 .appearance-voice-card {
   display: grid;
-  gap: 12px;
+  gap: 8px;
   align-content: start;
   background: linear-gradient(165deg, hsl(var(--basalt-accent-1) / 0.12), hsl(var(--basalt-secondary)));
+}
+.appearance-voice-badges {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 6px;
+}
+.appearance-voice-model {
+  margin: 0;
+  font-size: 11px;
 }
 .appearance-voice-card[data-provider="elevenlabs"] {
   background: linear-gradient(165deg, hsl(var(--basalt-accent-7) / 0.12), hsl(var(--basalt-secondary)));
@@ -55,15 +65,14 @@
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  justify-content: space-between;
-  gap: 8px 12px;
+  gap: 4px 8px;
 }
 .appearance-voice-heading strong {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  font-weight: 500;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
 }
 .appearance-provider-mark {
   display: inline-flex;
@@ -110,7 +119,7 @@
 }
 .voice-preview-page .appearance-voice-compare-rows {
   display: grid;
-  gap: 16px;
+  gap: 12px;
 }
 .voice-preview-page .appearance-voice-slot-empty {
   min-height: 1px;
