@@ -3,7 +3,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 /** @typedef {{ os: 'darwin' | 'linux' | 'win32' | string, arch: string, libc?: 'gnu' | 'musl' }} HostPlatform */
-/** @typedef {{ installDir: string, name: string, version: string }} PlatformInstallTarget */
+/** @typedef {{ installDir: string, name: string, version: string, resolved: string, integrity: string, lockPath: string }} PlatformInstallTarget */
 
 export function isMuslLinux() {
   try {
@@ -87,6 +87,68 @@ export function installDirForLockPath(lockPath) {
 }
 
 /**
+ * @param {Record<string, { version?: string, resolved?: string, integrity?: string, optionalDependencies?: Record<string, string> }>} packages
+ * @param {string} parentLockPath
+ * @param {string} optionalName
+ * @returns {{ lockPath: string, version: string, resolved: string, integrity: string }}
+ */
+function lockPathMatchesOptionalName(lockPath, optionalName) {
+  return lockPath === `node_modules/${optionalName}` || lockPath.endsWith(`/node_modules/${optionalName}`);
+}
+
+export function resolveOptionalLockEntry(packages, parentLockPath, optionalName) {
+  const direct = `${parentLockPath}/node_modules/${optionalName}`;
+  const directMeta = packages[direct];
+  if (directMeta?.integrity && directMeta.resolved && directMeta.version) {
+    return {
+      lockPath: direct,
+      version: directMeta.version,
+      resolved: directMeta.resolved,
+      integrity: directMeta.integrity,
+    };
+  }
+
+  const installDir = installDirForLockPath(parentLockPath);
+  const candidates = Object.entries(packages).filter(
+    ([lockPath, meta]) =>
+      lockPathMatchesOptionalName(lockPath, optionalName) &&
+      installDirForLockPath(lockPath) === installDir &&
+      meta.integrity &&
+      meta.resolved &&
+      meta.version,
+  );
+
+  if (candidates.length === 0) {
+    throw new Error(
+      `No resolved lockfile entry with integrity for optional ${optionalName} (parent ${parentLockPath})`,
+    );
+  }
+
+  if (candidates.length === 1) {
+    const [lockPath, meta] = candidates[0];
+    return {
+      lockPath,
+      version: meta.version,
+      resolved: meta.resolved,
+      integrity: meta.integrity,
+    };
+  }
+
+  const underParent = candidates.find(([lockPath]) => lockPath.startsWith(`${parentLockPath}/`));
+  if (underParent) {
+    const [lockPath, meta] = underParent;
+    return {
+      lockPath,
+      version: meta.version,
+      resolved: meta.resolved,
+      integrity: meta.integrity,
+    };
+  }
+
+  throw new Error(`Ambiguous lockfile entries for optional ${optionalName} under ${parentLockPath}`);
+}
+
+/**
  * @param {Record<string, { optionalDependencies?: Record<string, string> }>} packages
  * @param {HostPlatform} host
  * @returns {PlatformInstallTarget[]}
@@ -99,12 +161,20 @@ export function collectPlatformInstallTargets(packages, host) {
     const optional = meta.optionalDependencies;
     if (!optional) continue;
     const installDir = installDirForLockPath(pkgPath);
-    for (const [name, version] of Object.entries(optional)) {
+    for (const [name] of Object.entries(optional)) {
       if (!optionalPackageMatchesHost(name, host)) continue;
-      const key = `${installDir}\0${name}\0${version}`;
+      const resolved = resolveOptionalLockEntry(packages, pkgPath, name);
+      const key = `${installDir}\0${name}\0${resolved.version}`;
       if (seen.has(key)) continue;
       seen.add(key);
-      targets.push({ installDir, name, version });
+      targets.push({
+        installDir,
+        name,
+        version: resolved.version,
+        resolved: resolved.resolved,
+        integrity: resolved.integrity,
+        lockPath: resolved.lockPath,
+      });
     }
   }
   return targets;
@@ -126,4 +196,18 @@ export function isPackageInstalledAt(installDir, packageName, repoRoot, expected
   } catch {
     return false;
   }
+}
+
+/**
+ * @param {string} repoRoot
+ * @param {string} installDir
+ * @param {string} packageName
+ * @param {string} binRelative path inside the package (e.g. bin/biome)
+ */
+export function resolvePackageBin(repoRoot, installDir, packageName, binRelative) {
+  const binPath = join(repoRoot, installDir, 'node_modules', ...packageName.split('/'), binRelative);
+  if (!existsSync(binPath)) {
+    throw new Error(`Missing local binary at ${binPath}`);
+  }
+  return binPath;
 }

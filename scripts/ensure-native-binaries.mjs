@@ -1,9 +1,14 @@
-import { execFileSync, execSync, spawnSync } from 'node:child_process';
-import { mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { execSync, spawnSync } from 'node:child_process';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { collectPlatformInstallTargets, detectHost, isPackageInstalledAt } from './native-platform-deps.mjs';
+import { extractTarballIntoPackageDir, fetchLockedTarball } from './lockfile-tarball.mjs';
+import {
+  collectPlatformInstallTargets,
+  detectHost,
+  isPackageInstalledAt,
+  resolvePackageBin,
+} from './native-platform-deps.mjs';
 
 const repoRoot = join(fileURLToPath(new URL('.', import.meta.url)), '..');
 const installAttempts = 5;
@@ -20,64 +25,21 @@ function missingInstallTargets(host) {
   );
 }
 
-function npmInstallArgs(installDir, name, version) {
-  const spec = `${name}@${version}`;
-  if (installDir === '.') return ['install', '--no-save', '--include=optional', spec];
-  if (installDir === 'apps/web')
-    return ['install', '--no-save', '--include=optional', '-w', '@his-fm/web', spec];
-  if (installDir === 'packages/contracts') {
-    return ['install', '--no-save', '--include=optional', '-w', '@his-fm/contracts', spec];
-  }
-  return ['install', '--no-save', '--include=optional', '--prefix', join(repoRoot, installDir), spec];
+function packageDir(installDir, name) {
+  return join(repoRoot, installDir, 'node_modules', ...name.split('/'));
 }
 
-function installOneViaPack(installDir, name, version) {
-  const target = join(repoRoot, installDir, 'node_modules', ...name.split('/'));
-  let lastError;
-  for (let attempt = 0; attempt < installAttempts; attempt++) {
-    if (installBackoffMs[attempt]) {
-      execSync(`sleep ${Math.ceil(installBackoffMs[attempt] / 1000)}`, { stdio: 'inherit' });
-    }
-    const staging = mkdtempSync(join(tmpdir(), 'hisfm-native-'));
-    try {
-      execFileSync('npm', ['pack', `${name}@${version}`, '--pack-destination', staging], {
-        cwd: repoRoot,
-        stdio: 'inherit',
-      });
-      const tarball = readdirSync(staging).find((file) => file.endsWith('.tgz'));
-      if (!tarball) throw new Error(`npm pack produced no tarball for ${name}@${version}`);
-      rmSync(target, { recursive: true, force: true });
-      execFileSync('mkdir', ['-p', target]);
-      execFileSync('tar', ['-xzf', join(staging, tarball), '-C', target, '--strip-components=1'], {
-        stdio: 'inherit',
-      });
-      return;
-    } catch (error) {
-      lastError = error;
-    } finally {
-      rmSync(staging, { recursive: true, force: true });
-    }
-  }
-  throw lastError;
-}
-
-function installOne(installDir, name, version) {
-  if (installDir.startsWith('node_modules/')) {
-    installOneViaPack(installDir, name, version);
-    return;
-  }
-  const args = npmInstallArgs(installDir, name, version);
+async function installOneFromLock(target) {
+  const { installDir, name, resolved, integrity } = target;
+  const targetDir = packageDir(installDir, name);
   let lastError;
   for (let attempt = 0; attempt < installAttempts; attempt++) {
     if (installBackoffMs[attempt]) {
       execSync(`sleep ${Math.ceil(installBackoffMs[attempt] / 1000)}`, { stdio: 'inherit' });
     }
     try {
-      execFileSync('npm', args, {
-        cwd: repoRoot,
-        stdio: 'inherit',
-        env: { ...process.env, npm_config_include: 'optional' },
-      });
+      const tarball = await fetchLockedTarball(resolved, integrity);
+      extractTarballIntoPackageDir(tarball, targetDir);
       return;
     } catch (error) {
       lastError = error;
@@ -86,13 +48,7 @@ function installOne(installDir, name, version) {
   throw lastError;
 }
 
-function installInDirectory(installDir, packages) {
-  for (const { name, version } of packages) {
-    installOne(installDir, name, version);
-  }
-}
-
-function installTargets(targets) {
+async function installTargets(targets) {
   const byDir = new Map();
   for (const target of targets) {
     const list = byDir.get(target.installDir) ?? [];
@@ -102,7 +58,9 @@ function installTargets(targets) {
   for (const [installDir, list] of byDir) {
     const label = installDir === '.' ? 'root' : installDir;
     console.log(`Installing ${list.length} platform package(s) in ${label}`);
-    installInDirectory(installDir, list);
+    for (const target of list) {
+      await installOneFromLock(target);
+    }
   }
 }
 
@@ -118,18 +76,37 @@ function runStep(label, command, args, options = {}) {
   }
 }
 
+function firstInstallDirWithBin(installDirs, packageName, binRelative) {
+  for (const installDir of installDirs) {
+    const candidate = join(repoRoot, installDir, 'node_modules', ...packageName.split('/'), binRelative);
+    if (existsSync(candidate)) {
+      return installDir;
+    }
+  }
+  throw new Error(`Missing local ${packageName}/${binRelative} under ${installDirs.join(', ')}`);
+}
+
 function verifyNativeBinariesLoad() {
-  runStep('biome', 'npm', ['exec', '--', 'biome', '--version']);
-  runStep('workerd', 'npm', ['exec', '-w', '@his-fm/web', '--', 'workerd', '--version']);
-  runStep('typescript', 'npm', ['exec', '-w', '@his-fm/contracts', '--', 'tsc', '--version']);
-  runStep('vite', 'npm', ['exec', '-w', '@his-fm/web', '--', 'vite', '--version']);
+  const biomeBin = resolvePackageBin(repoRoot, '.', '@biomejs/biome', 'bin/biome');
+  runStep('biome', process.execPath, [biomeBin, '--version']);
+
+  const workerdBin = resolvePackageBin(repoRoot, 'apps/web', 'workerd', 'bin/workerd');
+  runStep('workerd', workerdBin, ['--version'], { cwd: join(repoRoot, 'apps/web') });
+
+  const typescriptDir = firstInstallDirWithBin(['packages/contracts', '.'], 'typescript', 'bin/tsc');
+  const tscBin = resolvePackageBin(repoRoot, typescriptDir, 'typescript', 'bin/tsc');
+  runStep('typescript', process.execPath, [tscBin, '--version']);
+
+  const viteDir = firstInstallDirWithBin(['apps/web', '.'], 'vite', 'bin/vite.js');
+  const viteBin = resolvePackageBin(repoRoot, viteDir, 'vite', 'bin/vite.js');
+  runStep('vite', process.execPath, [viteBin, '--version'], { cwd: join(repoRoot, 'apps/web') });
 }
 
 function rebuildWorkerd() {
   execSync('npm rebuild workerd --workspaces --if-present', { cwd: repoRoot, stdio: 'inherit' });
 }
 
-function main() {
+async function main() {
   const host = detectHost();
   console.log(`ensure-native-binaries: host=${host.os}/${host.arch}${host.libc ? `/${host.libc}` : ''}`);
 
@@ -138,7 +115,7 @@ function main() {
     console.log(
       `Missing ${missing.length} platform package(s): ${missing.map((t) => `${t.name}@${t.version} (${t.installDir})`).join(', ')}`,
     );
-    installTargets(missing);
+    await installTargets(missing);
     missing = missingInstallTargets(host);
     if (missing.length) {
       throw new Error(
@@ -154,4 +131,7 @@ function main() {
   console.log('Native binary smoke checks passed.');
 }
 
-main();
+main().catch((error) => {
+  console.error(error);
+  process.exit(1);
+});

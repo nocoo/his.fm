@@ -3,7 +3,14 @@ import {
   collectPlatformInstallTargets,
   installDirForLockPath,
   optionalPackageMatchesHost,
+  resolveOptionalLockEntry,
 } from '../../../../scripts/native-platform-deps.mjs';
+
+const lockMeta = {
+  resolved: 'https://registry.example.invalid/pkg-1.0.0.tgz',
+  integrity:
+    'sha512-xE4iEW/3LqlYj9GFgGrFsFSH51dEEpUbYWBfeOv0q87WkUDxK2o/HhreSb7qMJqck70RVM6Lg96hgedcAYcOkA==',
+};
 
 describe('native platform optional dependencies', () => {
   it('matches linux x64 gnu toolchain packages', () => {
@@ -41,18 +48,36 @@ describe('native platform optional dependencies', () => {
     expect(installDirForLockPath('node_modules/cf/node_modules/workerd')).toBe('node_modules/cf');
   });
 
-  it('collects per-workspace platform specs with every required version', () => {
-    const packages = {
+  it('collects targets from resolved lock entries, not optional version ranges', () => {
+    const packages: Record<
+      string,
+      {
+        version?: string;
+        resolved?: string;
+        integrity?: string;
+        optionalDependencies?: Record<string, string>;
+      }
+    > = {
       'node_modules/workerd': {
         optionalDependencies: {
-          '@cloudflare/workerd-linux-64': '1.0.0',
+          '@cloudflare/workerd-linux-64': 'latest',
           '@cloudflare/workerd-darwin-arm64': '1.0.0',
         },
+      },
+      'node_modules/@cloudflare/workerd-linux-64': {
+        version: '1.0.0',
+        ...lockMeta,
       },
       'apps/web/node_modules/workerd': {
         optionalDependencies: {
           '@cloudflare/workerd-linux-64': '2.0.0',
         },
+      },
+      'apps/web/node_modules/@cloudflare/workerd-linux-64': {
+        version: '2.0.0',
+        resolved: 'https://registry.example.invalid/pkg-2.0.0.tgz',
+        integrity:
+          'sha512-IlxUcyxilVGPsE008x13pWdkTbU3nQpP2i9b5UrbOYj6goBkKsRX1XB7yJLcV+O1H9LBchIIm4adOaVLZBX0ZQ==',
       },
       'node_modules/@biomejs/biome': {
         optionalDependencies: {
@@ -60,23 +85,83 @@ describe('native platform optional dependencies', () => {
           '@biomejs/cli-darwin-arm64': '2.5.15',
         },
       },
+      'node_modules/@biomejs/cli-linux-x64': {
+        version: '2.5.15',
+        resolved: 'https://registry.example.invalid/biome-cli.tgz',
+        integrity:
+          'sha512-xE4iEW/3LqlYj9GFgGrFsFSH51dEEpUbYWBfeOv0q87WkUDxK2o/HhreSb7qMJqck70RVM6Lg96hgedcAYcOkA==',
+      },
     };
     const linux = collectPlatformInstallTargets(packages, { os: 'linux', arch: 'x64', libc: 'gnu' });
     expect(linux).toContainEqual({
       installDir: '.',
       name: '@cloudflare/workerd-linux-64',
       version: '1.0.0',
+      resolved: lockMeta.resolved,
+      integrity: lockMeta.integrity,
+      lockPath: 'node_modules/@cloudflare/workerd-linux-64',
     });
     expect(linux).toContainEqual({
       installDir: 'apps/web',
       name: '@cloudflare/workerd-linux-64',
       version: '2.0.0',
-    });
-    expect(linux).toContainEqual({
-      installDir: '.',
-      name: '@biomejs/cli-linux-x64',
-      version: '2.5.15',
+      resolved: 'https://registry.example.invalid/pkg-2.0.0.tgz',
+      integrity:
+        'sha512-IlxUcyxilVGPsE008x13pWdkTbU3nQpP2i9b5UrbOYj6goBkKsRX1XB7yJLcV+O1H9LBchIIm4adOaVLZBX0ZQ==',
+      lockPath: 'apps/web/node_modules/@cloudflare/workerd-linux-64',
     });
     expect(linux.some((target) => target.name.includes('darwin'))).toBe(false);
+  });
+
+  it('throws when optional platform package has no resolved lock entry', () => {
+    const packages: Record<
+      string,
+      {
+        version?: string;
+        resolved?: string;
+        integrity?: string;
+        optionalDependencies?: Record<string, string>;
+      }
+    > = {
+      'node_modules/workerd': {
+        optionalDependencies: {
+          '@cloudflare/workerd-linux-64': '1.0.0',
+        },
+      },
+    };
+    expect(() => collectPlatformInstallTargets(packages, { os: 'linux', arch: 'x64', libc: 'gnu' })).toThrow(
+      /No resolved lockfile entry/,
+    );
+  });
+
+  it('resolves hoisted optional packages under the parent install directory', () => {
+    const packages: Record<
+      string,
+      {
+        version?: string;
+        resolved?: string;
+        integrity?: string;
+        optionalDependencies?: Record<string, string>;
+      }
+    > = {
+      'node_modules/@biomejs/biome': {
+        optionalDependencies: {
+          '@biomejs/cli-linux-x64': '2.5.15',
+        },
+      },
+      'node_modules/@biomejs/cli-linux-x64': {
+        version: '2.5.15',
+        resolved: 'https://registry.example.invalid/biome-cli.tgz',
+        integrity: lockMeta.integrity,
+      },
+    };
+    expect(
+      resolveOptionalLockEntry(packages, 'node_modules/@biomejs/biome', '@biomejs/cli-linux-x64'),
+    ).toEqual({
+      lockPath: 'node_modules/@biomejs/cli-linux-x64',
+      version: '2.5.15',
+      resolved: 'https://registry.example.invalid/biome-cli.tgz',
+      integrity: lockMeta.integrity,
+    });
   });
 });
