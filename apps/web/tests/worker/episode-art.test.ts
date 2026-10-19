@@ -117,7 +117,9 @@ beforeEach(async () => {
   await env.DB.prepare("UPDATE categories SET name = '生活'").run();
   await putR2Fixture(mf, key, source);
 });
-afterAll(() => mf.dispose());
+afterAll(async () => {
+  await mf.dispose();
+});
 afterEach(() => {
   vi.restoreAllMocks();
   vi.unstubAllGlobals();

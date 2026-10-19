@@ -1,5 +1,6 @@
 import { Lexer, Marked, type Token, type Tokens } from 'marked';
 import type { Production } from './production';
+import { parseTranscriptSpeakers, type TranscriptSpeaker } from './transcript-speakers';
 
 type PublicationContent = Pick<
   Production,
@@ -7,6 +8,7 @@ type PublicationContent = Pick<
 >;
 const ink = '#183d2e';
 const muted = '#687469';
+const speakerTint = { 主播: '#eef4f0', 预言家: '#f3f0ea' } satisfies Record<TranscriptSpeaker, string>;
 
 function escapeHtml(value: string) {
   return value
@@ -58,9 +60,8 @@ export function formatXiaoyuzhou(production: PublicationContent): string {
   return cleanText(production.description);
 }
 
-export function formatWechat(production: PublicationContent): { html: string; text: string } {
-  const references: string[] = [];
-  const parser = new Marked({
+function createWechatParser(references: string[]) {
+  return new Marked({
     gfm: true,
     breaks: true,
     renderer: {
@@ -92,7 +93,35 @@ export function formatWechat(production: PublicationContent): { html: string; te
       },
     },
   });
-  const content = parser.parse(production.transcript, { async: false });
+}
+
+function parseWechatMarkdown(parser: Marked, markdown: string) {
+  return markdown ? parser.parse(markdown, { async: false }) : '';
+}
+
+function renderWechatSpeakerBlock(speaker: TranscriptSpeaker, bodyHtml: string) {
+  const background = speakerTint[speaker];
+  return `<section data-speaker="${escapeHtml(speaker)}" style="margin:0 0 22px;padding:16px 18px;border-radius:12px;background:${background};"><p style="margin:0 0 12px;font-size:14px;font-weight:600;letter-spacing:0.04em;color:${ink};">${escapeHtml(speaker)}</p><div>${bodyHtml}</div></section>`;
+}
+
+function formatWechatTranscript(transcript: string, references: string[]) {
+  const parser = createWechatParser(references);
+  const segments = parseTranscriptSpeakers(transcript);
+  if (!segments.some((segment) => segment.kind === 'speaker')) {
+    return parseWechatMarkdown(parser, transcript);
+  }
+  return segments
+    .map((segment) => {
+      if (segment.kind === 'markdown') return parseWechatMarkdown(parser, segment.text);
+      const body = parseWechatMarkdown(parser, segment.text);
+      return renderWechatSpeakerBlock(segment.speaker, body);
+    })
+    .join('');
+}
+
+export function formatWechat(production: PublicationContent): { html: string; text: string } {
+  const references: string[] = [];
+  const content = formatWechatTranscript(production.transcript, references);
   for (const source of production.sources) {
     const url = source.type === 'text' ? '' : secureUrl(source.content);
     if (url && !references.includes(url)) references.push(url);
@@ -109,7 +138,7 @@ export function formatWechat(production: PublicationContent): { html: string; te
   return { html, text };
 }
 
-export function formatReading(markdown: string): string {
+function createReadingParser() {
   return new Marked({
     gfm: true,
     breaks: true,
@@ -128,5 +157,27 @@ export function formatReading(markdown: string): string {
           : label;
       },
     },
-  }).parse(markdown, { async: false });
+  });
+}
+
+function parseReadingMarkdown(markdown: string) {
+  return markdown ? createReadingParser().parse(markdown, { async: false }) : '';
+}
+
+function renderReadingSpeakerBlock(speaker: TranscriptSpeaker, bodyHtml: string) {
+  return `<div class="studio-transcript-block" data-speaker="${escapeHtml(speaker)}"><div class="studio-transcript-block-label" aria-hidden="true">${escapeHtml(speaker)}</div><div class="studio-transcript-block-body">${bodyHtml}</div></div>`;
+}
+
+export function formatReading(markdown: string): string {
+  const segments = parseTranscriptSpeakers(markdown);
+  if (!segments.some((segment) => segment.kind === 'speaker')) {
+    return parseReadingMarkdown(markdown);
+  }
+  return segments
+    .map((segment) => {
+      if (segment.kind === 'markdown') return parseReadingMarkdown(segment.text);
+      const body = parseReadingMarkdown(segment.text);
+      return renderReadingSpeakerBlock(segment.speaker, body);
+    })
+    .join('\n');
 }
