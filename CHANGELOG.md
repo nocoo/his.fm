@@ -2,6 +2,14 @@
 
 All notable changes to his.fm are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions use the owner’s patch-only deployment policy in `AGENTS.md`, with the authoritative version in `package.json`.
 
+## 2.9.1 - 2026-10-19
+
+### Changed
+
+- Expand the studio theme chooser into a responsive design catalogue with larger hero artwork, reduced-motion-aware hover zoom, named palettes and original design descriptions from the archived studies.
+- Compare all eight themes using one selected production's saved cover and metadata through the existing versioned PNG endpoint. Serialize renders, support explicit refresh and full-size viewing, and show empty/error states without substituting mock artwork or changing saved appearance.
+- Preserve the canonical `his.fm ()` identity and theme-specific favicons while keeping Local and Prod preview data separate.
+
 ## 2.9.0 - 2026-10-19
 
 The owner explicitly requested this minor release (Y+1). The comparison baseline is the deployed release v2.8.7.
