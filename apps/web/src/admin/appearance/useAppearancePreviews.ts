@@ -1,16 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
-import { useSearchParams } from 'react-router';
 import { errorMessage } from '../model';
 import { appearanceService, type CoverPreviewSource } from './service';
 
 export function useAppearancePreviews() {
   const [sources, setSources] = useState<CoverPreviewSource[]>([]);
-  const [params, setParams] = useSearchParams();
-  const requested = params.get('production');
-  const selected = requested ?? sources[0]?.id ?? '';
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const source = sources.find((item) => item.id === selected);
 
   const load = useCallback(async (signal?: AbortSignal) => {
     setLoading(true);
@@ -33,20 +28,5 @@ export function useAppearancePreviews() {
     return () => controller.abort();
   }, [load]);
 
-  return {
-    sources,
-    source,
-    selected,
-    setSelected: (id: string) =>
-      setParams((current) => {
-        const next = new URLSearchParams(current);
-        next.set('production', id);
-        return next;
-      }),
-    loading,
-    error:
-      error ||
-      (!loading && requested && !source ? '所选制作项目不存在，或尚未保存封面原图，请选择其他节目。' : ''),
-    load,
-  };
+  return { sources, loading, error, load };
 }

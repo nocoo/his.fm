@@ -1,4 +1,5 @@
 import { scopePresets } from '@his-fm/contracts';
+import type { Episode } from '../../src/shared/episode';
 import type { Actor, Production } from '../../src/shared/production';
 
 export const human: Actor = { kind: 'human', name: 'editor@his.fm' };
@@ -71,4 +72,30 @@ export function readyFixture(changes: Partial<Production> = {}): Production {
     },
     ...changes,
   });
+}
+
+export function episodeFixture(changes: Partial<Episode> = {}): Episode {
+  return {
+    id: 'episode-test',
+    version: 1,
+    title: brief.title,
+    slug: brief.slug,
+    episodeNumber: brief.episodeNumber,
+    category: brief.category,
+    tags: [],
+    mentions: [],
+    seo: {},
+    summary: 'A saved library episode.',
+    transcript: '',
+    showNotes: '',
+    coverUrl: 'https://f.no.mt/cover.png',
+    audioUrl: null,
+    durationSeconds: 0,
+    featured: false,
+    status: 'published',
+    publishedAt: '2026-09-25T00:00:00Z',
+    createdAt: '2026-09-25T00:00:00Z',
+    updatedAt: '2026-09-25T00:00:00Z',
+    ...changes,
+  };
 }

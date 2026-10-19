@@ -6,7 +6,7 @@ import { BrandLockup } from '../../brand/BrandLockup';
 import { themeCoverFrameSrc, themeMedia, themeStyle, themes } from '../../brand/themes';
 import { themeIdSchema, themeIds } from '../../shared/appearance';
 import { getEnvironment } from '../environment';
-import { Choice, Failure } from '../production/controls';
+import { Failure } from '../production/controls';
 import { ThemeCoverPreview } from './ThemeCoverPreview';
 import { useAppearancePreviews } from './useAppearancePreviews';
 import { useAppearanceSettings } from './useAppearanceSettings';
@@ -78,34 +78,15 @@ export default function AppearancePage() {
           </div>
           <LayerCard className="appearance-preview-controls" padding="md">
             <div>
-              <strong>封面预览节目</strong>
-              <p className="admin-muted">
-                八种风格使用同一真实制作项目；读取已保存内容，不修改原图或发布状态。
-              </p>
+              <strong>近期节目 · 主题预览</strong>
+              <p className="admin-muted">自动展示节目库最近 4 期封面，横向滑动对比每种主题的叠加效果。</p>
             </div>
-            {covers.sources.length > 0 && (
-              <Choice
-                label="封面预览节目"
-                value={covers.selected}
-                onChange={covers.setSelected}
-                options={covers.sources.map((source) => ({
-                  value: source.id,
-                  label: `${String(source.episodeNumber).padStart(3, '0')} · ${source.title}`,
-                }))}
-                disabled={covers.loading}
-              />
-            )}
             <Button variant="outline" size="sm" loading={covers.loading} onClick={() => void covers.load()}>
               <RefreshCw size={14} /> 刷新预览
             </Button>
             {covers.error && (
               <p className="admin-error" role="alert">
                 {covers.error}
-              </p>
-            )}
-            {!covers.loading && !covers.error && !covers.source && (
-              <p className="admin-muted appearance-preview-notice">
-                当前环境没有已保存封面原图的制作项目，不使用演示数据替代。
               </p>
             )}
           </LayerCard>
@@ -189,10 +170,9 @@ export default function AppearancePage() {
                       </p>
                     </div>
                     <ThemeCoverPreview
-                      key={`${covers.source?.id}:${covers.source?.version}:${covers.source?.coverUrl}`}
                       name={theme.name}
                       themeId={id}
-                      source={covers.source}
+                      sources={covers.sources}
                       loading={covers.loading}
                       sourceError={covers.error}
                     />

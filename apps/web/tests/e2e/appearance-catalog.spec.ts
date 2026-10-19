@@ -1,7 +1,9 @@
 import { expect, type Page, test } from '@playwright/test';
 import { themeCoverFrameSrc, themeMedia, themes } from '../../src/brand/themes';
 import { themeIds } from '../../src/shared/appearance';
-import { readyFixture } from '../worker/production-fixture';
+import { episodeFixture, fixture } from '../worker/production-fixture';
+
+const recentTitles = [5, 4, 3, 2].map((number) => `Library programme ${number}`);
 
 async function catalogue(page: Page, options: { empty?: boolean; fail?: boolean } = {}) {
   const exports: URL[] = [];
@@ -9,10 +11,14 @@ async function catalogue(page: Page, options: { empty?: boolean; fail?: boolean 
   let failList = options.fail;
   let failImage = false;
   let failCategories = false;
-  const productions = [
-    readyFixture({ id: 'current', title: 'Current saved programme', version: 7 }),
-    readyFixture({ id: 'second', title: 'Second saved programme', version: 9 }),
-  ];
+  const episodes = [1, 2, 3, 4, 5].map((number) =>
+    episodeFixture({
+      id: `episode-${number}`,
+      title: `Library programme ${number}`,
+      episodeNumber: number,
+      updatedAt: `2026-10-0${number}T00:00:00Z`,
+    }),
+  );
   await page.route('https://f.no.mt/cover.png', (route) =>
     failImage
       ? route.fulfill({ status: 503, body: '' })
@@ -33,8 +39,10 @@ async function catalogue(page: Page, options: { empty?: boolean; fail?: boolean 
       });
     if (url.pathname.endsWith('/productions')) {
       if (failList) return route.fulfill({ status: 503, json: { error: 'Programme read failed' } });
-      return route.fulfill({ json: { productions: options.empty ? [] : productions } });
+      return route.fulfill({ json: { productions: [fixture()] } });
     }
+    if (url.pathname.endsWith('/episodes'))
+      return route.fulfill({ json: { episodes: options.empty ? [] : episodes } });
     if (url.pathname.endsWith('/categories')) {
       if (failCategories) return route.fulfill({ status: 503, json: { error: 'Category read failed' } });
       return route.fulfill({ json: { categories: [{ id: 'life', name: '生活留白' }] } });
@@ -57,29 +65,41 @@ async function catalogue(page: Page, options: { empty?: boolean; fail?: boolean 
   };
 }
 
-async function expectCovers(page: Page, title: string) {
-  await expect(page.locator('.appearance-cover-preview .framed-cover')).toHaveCount(8);
-  await expect(page.locator('.appearance-cover-caption strong')).toHaveText(Array(8).fill(title));
+async function expectCovers(page: Page) {
+  await expect(page.locator('.appearance-cover-preview .framed-cover')).toHaveCount(32);
   for (const id of themeIds) {
+    const strip = page.getByRole('region', { name: `${themes[id].name}近期节目封面`, exact: true });
+    await expect(strip.locator('.appearance-cover-caption strong')).toHaveText(recentTitles);
     const cover = page.locator(`.appearance-cover-preview [data-cover-theme="${id}"]`);
-    await expect(cover.locator('.framed-cover-image')).toHaveAttribute('src', 'https://f.no.mt/cover.png');
-    await expect(cover.locator('.framed-cover-overlay')).toHaveAttribute('src', themeCoverFrameSrc(id));
-    await expect(cover.locator('.framed-cover-copy')).toContainText('生活留白');
-    expect(
-      await cover
-        .locator('.framed-cover-image')
-        .evaluate((image: HTMLImageElement) => image.complete && image.naturalWidth > 0),
-    ).toBe(true);
+    for (const item of await cover.all()) {
+      await expect(item.locator('.framed-cover-image')).toHaveAttribute('src', 'https://f.no.mt/cover.png');
+      await expect(item.locator('.framed-cover-overlay')).toHaveAttribute('src', themeCoverFrameSrc(id));
+      await expect(item.locator('.framed-cover-copy')).toContainText('生活留白');
+      await expect(item.locator('.framed-cover-image')).toHaveJSProperty('complete', true);
+      expect(
+        await item.locator('.framed-cover-image').evaluate((image: HTMLImageElement) => image.naturalWidth),
+      ).toBeGreaterThan(0);
+    }
   }
 }
 
-test('theme catalogue composes real cover data immediately and preserves selections in URL history', async ({
+test('theme catalogue composes the latest four library episodes even when productions have no covers', async ({
   page,
 }) => {
   const state = await catalogue(page);
   page.on('dialog', (dialog) => dialog.accept());
-  await page.goto('/admin/appearance');
-  await expectCovers(page, 'Current saved programme');
+  await page.goto('/admin');
+  await expect(
+    page
+      .locator('.library-card')
+      .filter({ has: page.locator('.framed-cover') })
+      .locator('h2'),
+  ).toHaveText([...recentTitles, 'Library programme 1']);
+  await page.locator('[data-basalt-sidebar]').getByRole('button', { name: '品牌外观', exact: true }).click();
+  await expectCovers(page);
+  await expect(page.getByRole('combobox', { name: '封面预览节目' })).toHaveCount(0);
+  await expect(page.getByText('真实节目封面', { exact: true })).toHaveCount(0);
+  await expect(page.getByText('请先在节目制作中保存封面原图。', { exact: false })).toHaveCount(0);
   for (const id of themeIds) {
     const card = page.locator('.appearance-option').filter({ has: page.locator(`[data-theme="${id}"]`) });
     await expect(card.locator('.appearance-description')).toHaveText(themes[id].description);
@@ -92,21 +112,14 @@ test('theme catalogue composes real cover data immediately and preserves selecti
   await page.getByRole('radio', { name: '02 · 间隙', exact: true }).click();
   await expect(page).toHaveURL(/\/admin\/appearance\?theme=interval$/);
   await expect(page.locator('link[rel="icon"]')).toHaveAttribute('href', '/brand/favicons/stillwood.svg');
-  await page.getByRole('combobox', { name: '封面预览节目' }).click();
-  await page.getByRole('option', { name: /Second saved programme/ }).click();
-  await expect(page).toHaveURL(/theme=interval&production=second$/);
-  await expectCovers(page, 'Second saved programme');
-  await page.goBack();
-  await expectCovers(page, 'Current saved programme');
   await page.goBack();
   await expect(page.getByRole('radio', { name: '05 · 雾林来信', exact: true })).toBeChecked();
   await page.goForward();
-  await page.goForward();
   await page.reload();
   await expect(page.getByRole('radio', { name: '02 · 间隙', exact: true })).toBeChecked();
-  await expectCovers(page, 'Second saved programme');
+  await expectCovers(page);
 
-  const trigger = page.getByRole('button', { name: '查看间隙封面大图', exact: true });
+  const trigger = page.getByRole('button', { name: '查看间隙封面：Library programme 5', exact: true });
   await trigger.click();
   const dialog = page.getByRole('dialog', { name: '间隙 · 封面预览', exact: true });
   await expect(dialog.locator('[data-cover-theme="interval"]')).toBeVisible();
@@ -128,18 +141,12 @@ test('theme catalogue composes real cover data immediately and preserves selecti
   expect(state.writes).toEqual([]);
 });
 
-test('empty projects and unavailable deep links never substitute archived samples or other projects', async ({
-  page,
-}) => {
+test('an empty library stays empty without an upload prerequisite or design samples', async ({ page }) => {
   const state = await catalogue(page, { empty: true });
   await page.goto('/admin/appearance');
-  await expect(page.locator('.appearance-preview-notice')).toContainText('不使用演示数据替代');
-  await expect(page.locator('.appearance-cover-placeholder')).toHaveCount(8);
+  await expect(page.locator('.appearance-cover-notice')).toHaveText(Array(8).fill('节目库暂无可预览的封面'));
   await expect(page.locator('.appearance-cover-preview .framed-cover')).toHaveCount(0);
   await expect(page.getByRole('combobox', { name: '封面预览节目' })).toHaveCount(0);
-  await page.goto('/admin/appearance?production=missing');
-  await expect(page.getByRole('alert')).toContainText('所选制作项目不存在');
-  await expect(page.locator('.appearance-cover-preview .framed-cover')).toHaveCount(0);
   expect(state.exports).toEqual([]);
   expect(state.writes).toEqual([]);
 });
@@ -150,8 +157,8 @@ test('catalogue, category and original-image failures recover with an explicit r
   const state = await catalogue(page, { fail: true });
   await page.goto('/admin/appearance');
   await expect(page.getByRole('alert')).toHaveText('Programme read failed');
-  await expect(page.locator('.appearance-cover-placeholder')).toHaveText(
-    Array(8).fill('节目读取失败，请刷新预览'),
+  await expect(page.locator('.appearance-cover-notice')).toHaveText(
+    Array(8).fill('节目库读取失败，请刷新预览'),
   );
   state.recoverList();
   state.failCategories(true);
@@ -161,11 +168,56 @@ test('catalogue, category and original-image failures recover with an explicit r
   state.failImage(true);
   await page.getByRole('button', { name: '刷新预览' }).click();
   await expect(page.locator('.appearance-cover-placeholder')).toHaveText(
-    Array(8).fill('图片读取失败，请刷新预览'),
+    Array(32).fill('图片读取失败，请刷新预览'),
   );
   state.failImage(false);
   await page.getByRole('button', { name: '刷新预览' }).click();
-  await expectCovers(page, 'Current saved programme');
+  await expectCovers(page);
+  expect(state.exports).toEqual([]);
+  expect(state.writes).toEqual([]);
+});
+
+test('recent covers scroll horizontally without changing the theme or overflowing the page', async ({
+  page,
+}) => {
+  const state = await catalogue(page);
+  await page.goto('/admin/appearance');
+  await expectCovers(page);
+  const strip = page.getByRole('region', { name: '间隙近期节目封面', exact: true });
+  for (const width of [1440, 1024, 393]) {
+    await page.setViewportSize({ width, height: 900 });
+    await strip.scrollIntoViewIfNeeded();
+    await strip.evaluate((element) => {
+      element.scrollLeft = 0;
+    });
+    await strip.focus();
+    const scrolled = strip.evaluate(
+      (element) =>
+        new Promise<void>((resolve) => {
+          element.addEventListener('scrollend', () => resolve(), { once: true });
+        }),
+    );
+    await page.keyboard.press('ArrowRight');
+    await scrolled;
+    await expect.poll(() => strip.evaluate((element) => element.scrollLeft)).toBeGreaterThan(0);
+    await expect(page.getByRole('radio', { name: '05 · 雾林来信', exact: true })).toBeChecked();
+    for (const button of await strip.getByRole('button').all()) {
+      await page.keyboard.press('Tab');
+      await expect(button).toBeFocused();
+      await expect(button).toBeInViewport({ ratio: 1 });
+    }
+    const last = strip.getByRole('button').last();
+    await last.click();
+    const dialog = page.getByRole('dialog', { name: '间隙 · 封面预览', exact: true });
+    await expect(dialog.locator('.framed-cover-copy')).toContainText(/Library\s*programme 2/);
+    await dialog.getByRole('button', { name: '关闭封面预览' }).click();
+    await expect(last).toBeFocused();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    expect(await page.locator('.admin-shell').evaluate((element) => element.scrollTop)).toBe(0);
+  }
+  await page.emulateMedia({ colorScheme: 'dark' });
+  await expect(page.locator('html')).toHaveClass(/dark/);
+  await expect(strip).toBeVisible();
   expect(state.exports).toEqual([]);
   expect(state.writes).toEqual([]);
 });

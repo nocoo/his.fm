@@ -60,7 +60,7 @@ Public and studio top-left headers, the appearance specimen and all eight theme 
 
 Each theme has a standard favicon: its dark primary background and the canonical white parentheses, centered with identical proportions and padding. Public previews use the preview theme; normal browsing and the studio use the saved theme. Selecting a card alone does not change the saved identity. Archived design studies, decorative hero marks, cover frames, sharing artwork and installed-app icons are outside this normalization.
 
-The studio theme catalogue pairs each study's hero, named palette and original design rationale with a live cover preview from one selected, saved production. All eight compositions reuse the programme library's `FramedCover` to layer real artwork and metadata immediately, without waiting for PNG exports or substituting mock artwork. Theme and production selections follow the URL and browser history; selecting or refreshing does not save or publish anything. See [appearance](docs/appearance.md#theme-catalogue).
+The studio theme catalogue pairs each study's hero, named palette and original design rationale with a horizontally scrollable strip of the latest four covered programmes. It uses the same unified library as the programme page, including standalone episodes, and shares its ordering and relation-based deduplication. All eight themes reuse `FramedCover` to layer existing artwork and metadata immediately, without PNG exports, a production-upload prerequisite or design samples. Theme selection follows the URL and browser history; selecting or refreshing does not save or publish anything. See [appearance](docs/appearance.md#theme-catalogue).
 
 ### API prompt slots
 

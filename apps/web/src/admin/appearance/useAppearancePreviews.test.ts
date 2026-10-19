@@ -1,30 +1,24 @@
 // @vitest-environment happy-dom
 import { act, createElement } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
-import { MemoryRouter, useLocation, useNavigate } from 'react-router';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { appearanceService, type CoverPreviewSource } from './service';
 import { useAppearancePreviews } from './useAppearancePreviews';
 
 let vm: ReturnType<typeof useAppearancePreviews>;
-let navigate: ReturnType<typeof useNavigate>;
-let search: string;
 let root: Root;
 let container: HTMLDivElement;
 const first: CoverPreviewSource = {
   id: 'first',
   title: 'Saved programme',
-  version: 7,
   episodeNumber: 2,
   coverUrl: '/media/first.webp',
   categoryName: '生活留白',
 };
-const second: CoverPreviewSource = { ...first, id: 'second', title: 'Another programme', version: 9 };
+const second: CoverPreviewSource = { ...first, id: 'second', title: 'Another programme' };
 
 function Host() {
   vm = useAppearancePreviews();
-  search = useLocation().search;
-  navigate = useNavigate();
   return null;
 }
 
@@ -42,52 +36,36 @@ afterEach(async () => {
   vi.unstubAllGlobals();
 });
 
-async function mount(path = '/admin/appearance') {
-  await act(async () =>
-    root.render(createElement(MemoryRouter, { initialEntries: [path] }, createElement(Host))),
-  );
+async function mount() {
+  await act(async () => root.render(createElement(Host)));
 }
 
-it('selects saved cover data immediately and follows URL history without fetching rendered images', async () => {
-  await mount('/admin/appearance?theme=interval');
-  expect(vm.source).toEqual(first);
+it('loads the recent library covers together without a selected production or rendered image requests', async () => {
+  await mount();
+  expect(vm.sources).toEqual([first, second]);
   expect(vm.loading).toBe(false);
-  await act(async () => vm.setSelected(second.id));
-  expect(search).toBe('?theme=interval&production=second');
-  expect(vm.source).toEqual(second);
-  await act(async () => navigate(-1));
-  expect(vm.source).toEqual(first);
-  await act(async () => navigate(1));
-  expect(vm.source).toEqual(second);
   expect(appearanceService.coverSources).toHaveBeenCalledOnce();
 });
 
-it('restores a deep link and refreshes saved metadata without losing the requested programme', async () => {
-  await mount('/admin/appearance?production=second');
-  expect(vm.source).toEqual(second);
-  vi.mocked(appearanceService.coverSources).mockResolvedValue([first, { ...second, version: 10 }]);
+it('refreshes library membership and saved metadata', async () => {
+  await mount();
+  vi.mocked(appearanceService.coverSources).mockResolvedValue([{ ...second, title: 'Updated title' }]);
   await act(async () => vm.load());
-  expect(vm.source?.version).toBe(10);
-  expect(search).toBe('?production=second');
+  expect(vm.sources).toEqual([{ ...second, title: 'Updated title' }]);
 });
 
-it('keeps failed reads, empty libraries and unavailable deep links distinct', async () => {
+it('distinguishes failed reads from empty libraries and recovers with refresh', async () => {
   vi.mocked(appearanceService.coverSources).mockRejectedValueOnce(new Error('Offline'));
   await mount();
   expect(vm.error).toBe('Offline');
-  expect(vm.source).toBeUndefined();
+  expect(vm.sources).toEqual([]);
   vi.mocked(appearanceService.coverSources).mockResolvedValue([]);
   await act(async () => vm.load());
   expect(vm.error).toBe('');
-  expect(vm.selected).toBe('');
+  expect(vm.sources).toEqual([]);
   vi.mocked(appearanceService.coverSources).mockResolvedValue([first]);
   await act(async () => vm.load());
-  await act(async () => vm.setSelected('removed'));
-  expect(vm.source).toBeUndefined();
-  expect(vm.error).toContain('所选制作项目不存在');
-  await act(async () => vm.load());
-  expect(vm.source).toBeUndefined();
-  await act(async () => vm.setSelected(first.id));
+  expect(vm.sources).toEqual([first]);
   expect(vm.error).toBe('');
 });
 

@@ -1003,3 +1003,13 @@ could click its links, but headed macOS Chrome's overlay scrollbar intercepted
 the same clicks. Keep enough token-based vertical padding inside the existing
 header and verify real pointer and keyboard navigation in headed Chrome; do not
 force clicks to make a clipped hit target pass.
+
+## 2026-10-19 — Reuse library data, not only its renderer
+
+The theme preview reused `FramedCover` but read only production assets. The real
+local library had six standalone episodes with covers and five coverless
+productions, so the new page incorrectly showed no covers. Tests reinforced the
+mistaken production-only contract instead of representing the existing library.
+Reuse `programLibrary` for both record types, ordering and linked-snapshot
+deduplication. Show recent covers automatically and verify against the actual
+read-only local library, not just an idealized populated production fixture.

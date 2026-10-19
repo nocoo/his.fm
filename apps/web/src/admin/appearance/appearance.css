@@ -155,20 +155,40 @@ html.dark .identity-specimen {
   font-size: 12px;
   line-height: 1.7;
 }
-.appearance-preview-controls > [role="combobox"] {
-  flex: 1 1 240px;
-  max-width: 420px;
-  min-width: 0;
-}
-.appearance-preview-notice,
 .appearance-preview-controls > .admin-error {
   flex-basis: 100%;
 }
 .appearance-cover-preview {
   display: grid;
-  grid-template-columns: min(40%, 200px) minmax(0, 1fr);
+  min-width: 0;
+  gap: var(--admin-space-2);
+}
+.appearance-cover-heading {
+  display: flex;
+  justify-content: space-between;
   align-items: center;
-  gap: var(--admin-space-4);
+  gap: var(--admin-space-2);
+  font-size: 11px;
+}
+.appearance-cover-strip {
+  container-type: inline-size;
+}
+.appearance-cover-list {
+  display: flex;
+  gap: var(--admin-space-3);
+  padding: var(--admin-space-1) var(--admin-space-1) var(--admin-space-4);
+  margin: 0;
+  list-style: none;
+}
+.appearance-cover-item {
+  flex: none;
+  width: clamp(144px, 30cqw, 180px);
+  display: grid;
+  align-content: start;
+  gap: var(--admin-space-2);
+}
+.appearance-cover-notice {
+  font-size: 12px;
 }
 .appearance-cover-open {
   position: relative;
@@ -180,19 +200,6 @@ html.dark .identity-specimen {
 .appearance-cover-open > .framed-cover {
   width: 100%;
   border-radius: var(--basalt-radius);
-}
-.appearance-cover-open > span {
-  position: absolute;
-  right: var(--admin-space-2);
-  bottom: var(--admin-space-2);
-  display: flex;
-  align-items: center;
-  gap: var(--admin-space-1);
-  padding: var(--admin-space-1) var(--admin-space-2);
-  border-radius: var(--basalt-radius);
-  color: hsl(var(--basalt-foreground));
-  background: hsl(var(--basalt-card));
-  font-size: 11px;
 }
 .appearance-cover-dialog {
   width: min(680px, calc(100vw - var(--admin-space-8)));
@@ -226,13 +233,16 @@ html.dark .identity-specimen {
 }
 .appearance-cover-caption {
   display: grid;
-  gap: var(--admin-space-2);
+  gap: var(--admin-space-1);
   min-width: 0;
   font-size: 12px;
   line-height: 1.7;
 }
 .appearance-cover-caption strong {
-  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
   font-weight: 500;
 }
 

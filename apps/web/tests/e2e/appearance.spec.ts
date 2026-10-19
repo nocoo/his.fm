@@ -268,6 +268,8 @@ test('failed saves preserve selection and conflicts require an explicit reload',
   let saved: Appearance = { theme: 'interval', version: 1, updatedAt: '', updatedBy: 'owner' };
   let failure = 503;
   await page.route('**/admin/api/productions', (route) => route.fulfill({ json: { productions: [] } }));
+  await page.route('**/admin/api/episodes', (route) => route.fulfill({ json: { episodes: [] } }));
+  await page.route('**/admin/api/categories', (route) => route.fulfill({ json: { categories: [] } }));
   await page.route('**/admin/api/session', (route) =>
     route.fulfill({ json: { mode: 'local', user: { email: 'editor@his.fm' } } }),
   );
@@ -316,6 +318,10 @@ test('theme choices align padded content and retain selection and keyboard focus
       return route.fulfill({ json: { mode: 'local', user: { email: 'editor@his.fm' } } });
     if (new URL(request.url()).pathname === '/admin/api/productions')
       return route.fulfill({ json: { productions: [] } });
+    if (new URL(request.url()).pathname === '/admin/api/episodes')
+      return route.fulfill({ json: { episodes: [] } });
+    if (new URL(request.url()).pathname === '/admin/api/categories')
+      return route.fulfill({ json: { categories: [] } });
     if (new URL(request.url()).pathname === '/admin/api/appearance')
       return route.fulfill({
         json: { appearance: { theme: 'interval', version: 1, updatedAt: '', updatedBy: 'owner' } },

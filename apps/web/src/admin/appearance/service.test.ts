@@ -1,13 +1,20 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { fixture, readyFixture } from '../../../tests/worker/production-fixture';
+import { episodeFixture, fixture, readyFixture } from '../../../tests/worker/production-fixture';
 import { appearanceService } from './service';
 
 afterEach(() => vi.unstubAllGlobals());
 
 describe('appearance service', () => {
-  it('lists only saved production covers, newest first, without using seeded episode samples', async () => {
-    const older = readyFixture({ id: 'older', version: 7 });
-    const newer = readyFixture({ id: 'newer', version: 11, updatedAt: '2026-10-01T00:00:00Z' });
+  it('uses the unified library order and relation-based deduplication for the latest four covers', async () => {
+    const production = readyFixture({ updatedAt: '2026-10-03T00:00:00Z' });
+    const episodes = [1, 2, 4, 5].map((number) =>
+      episodeFixture({
+        id: String(number),
+        episodeNumber: number,
+        updatedAt: `2026-10-0${number}T00:00:00Z`,
+      }),
+    );
+    const snapshot = episodeFixture({ sourceProductionId: production.id, updatedAt: '2026-10-06T00:00:00Z' });
     const request = vi
       .fn()
       .mockImplementation((path: string) =>
@@ -15,41 +22,67 @@ describe('appearance service', () => {
           Response.json(
             path.endsWith('/categories')
               ? { categories: [{ id: 'life', name: '生活留白' }] }
-              : { productions: [older, fixture(), newer] },
+              : path.endsWith('/episodes')
+                ? { episodes: [...episodes, snapshot] }
+                : { productions: [production, fixture({ id: 'coverless' })] },
           ),
         ),
       );
     vi.stubGlobal('fetch', request);
     const signal = new AbortController().signal;
     await expect(appearanceService.coverSources(signal)).resolves.toEqual(
-      [newer, older].map(({ id, title, version, episodeNumber }) => ({
-        id,
-        title,
-        version,
-        episodeNumber,
+      [episodes[3], episodes[2], production, episodes[1]].map((row) => ({
+        id: `${row === production ? 'production' : 'episode'}:${row.id}`,
+        title: row.title,
+        episodeNumber: row.episodeNumber,
         coverUrl: 'https://f.no.mt/cover.png',
         categoryName: '生活留白',
       })),
     );
-    expect(request).toHaveBeenCalledTimes(2);
+    expect(request).toHaveBeenCalledTimes(3);
     expect(request).toHaveBeenCalledWith('/admin/api/productions', expect.objectContaining({ signal }));
+    expect(request).toHaveBeenCalledWith('/admin/api/episodes', expect.objectContaining({ signal }));
     expect(request).toHaveBeenCalledWith('/admin/api/categories', expect.objectContaining({ signal }));
     request.mockClear();
-    request.mockResolvedValue(Response.json({ productions: [] }));
+    request.mockImplementation(() =>
+      Promise.resolve(Response.json({ productions: [], episodes: [], categories: [] })),
+    );
     await expect(appearanceService.coverSources()).resolves.toEqual([]);
-    expect(request).toHaveBeenCalledOnce();
+    expect(request).toHaveBeenCalledTimes(3);
   });
 
-  it('does not substitute a category ID or hide category read failures', async () => {
-    const request = vi
-      .fn()
-      .mockResolvedValueOnce(Response.json({ productions: [readyFixture()] }))
-      .mockResolvedValueOnce(Response.json({ categories: [] }))
-      .mockResolvedValueOnce(Response.json({ productions: [readyFixture()] }))
-      .mockResolvedValueOnce(Response.json({ error: 'Category read failed' }, { status: 503 }));
+  it('includes standalone episodes even when productions have no covers and uses library category labels', async () => {
+    const request = vi.fn().mockImplementation(() =>
+      Promise.resolve(
+        Response.json({
+          productions: [fixture()],
+          episodes: [episodeFixture()],
+          categories: [],
+        }),
+      ),
+    );
     vi.stubGlobal('fetch', request);
-    expect((await appearanceService.coverSources())[0].categoryName).toBe('');
-    await expect(appearanceService.coverSources()).rejects.toThrow('Category read failed');
+    await expect(appearanceService.coverSources()).resolves.toMatchObject([
+      { id: 'episode:episode-test', categoryName: 'life', coverUrl: 'https://f.no.mt/cover.png' },
+    ]);
+  });
+
+  it('keeps episode and category read failures visible instead of returning an incomplete library', async () => {
+    for (const failed of ['episodes', 'categories']) {
+      vi.stubGlobal(
+        'fetch',
+        vi
+          .fn()
+          .mockImplementation((path: string) =>
+            Promise.resolve(
+              path.endsWith(`/${failed}`)
+                ? Response.json({ error: `${failed} read failed` }, { status: 503 })
+                : Response.json({ productions: [readyFixture()], episodes: [], categories: [] }),
+            ),
+          ),
+      );
+      await expect(appearanceService.coverSources()).rejects.toThrow(`${failed} read failed`);
+    }
   });
 
   it('reads with cancellation and saves the exact expected version', async () => {

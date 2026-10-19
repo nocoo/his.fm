@@ -7,9 +7,10 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  ScrollArea,
 } from '@nocoo/basalt';
-import { ArrowUpRight, ImageOff, X } from 'lucide-react';
-import { useState } from 'react';
+import { ImageOff, X } from 'lucide-react';
+import { useRef, useState } from 'react';
 import { FramedCover } from '../../components/FramedCover';
 import type { ThemeId } from '../../shared/appearance';
 import type { CoverPreviewSource } from './service';
@@ -17,18 +18,79 @@ import type { CoverPreviewSource } from './service';
 export function ThemeCoverPreview({
   name,
   themeId,
-  source,
+  sources,
   loading,
   sourceError,
 }: {
   name: string;
   themeId: ThemeId;
-  source?: CoverPreviewSource;
+  sources: CoverPreviewSource[];
   loading: boolean;
   sourceError: string;
 }) {
+  const strip = useRef<HTMLDivElement>(null);
+  return (
+    <div className="appearance-cover-preview">
+      <div className="appearance-cover-heading">
+        <span className="appearance-detail-label">近期节目</span>
+        {sources.length > 0 && <span className="admin-muted">横向滑动 · 点击放大</span>}
+      </div>
+      {sources.length > 0 ? (
+        <ScrollArea
+          ref={strip}
+          orientation="horizontal"
+          type="auto"
+          className="appearance-cover-strip"
+          aria-label={`${name}近期节目封面`}
+        >
+          <ul
+            className="appearance-cover-list"
+            onFocus={(event) => {
+              const viewport = strip.current;
+              const item = event.target.closest('li');
+              if (!viewport || !item) return;
+              const bounds = viewport.getBoundingClientRect();
+              const cover = item.getBoundingClientRect();
+              const inset = Number.parseFloat(getComputedStyle(event.currentTarget).paddingLeft);
+              if (cover.left < bounds.left + inset) viewport.scrollLeft += cover.left - bounds.left - inset;
+              else if (cover.right > bounds.right - inset)
+                viewport.scrollLeft += cover.right - bounds.right + inset;
+            }}
+          >
+            {sources.map((source) => (
+              <CoverPreview
+                key={`${source.id}:${source.coverUrl}`}
+                name={name}
+                themeId={themeId}
+                source={source}
+              />
+            ))}
+          </ul>
+        </ScrollArea>
+      ) : (
+        <p className="admin-muted appearance-cover-notice">
+          {loading
+            ? '正在读取节目库…'
+            : sourceError
+              ? '节目库读取失败，请刷新预览'
+              : '节目库暂无可预览的封面'}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function CoverPreview({
+  name,
+  themeId,
+  source,
+}: {
+  name: string;
+  themeId: ThemeId;
+  source: CoverPreviewSource;
+}) {
   const [failed, setFailed] = useState(false);
-  const cover = source && {
+  const cover = {
     src: source.coverUrl,
     title: source.title,
     episodeNumber: source.episodeNumber,
@@ -38,15 +100,16 @@ export function ThemeCoverPreview({
     onCoverError: () => setFailed(true),
   };
   return (
-    <div className="appearance-cover-preview">
-      {cover && !failed ? (
+    <li className="appearance-cover-item">
+      {!failed ? (
         <Dialog>
           <DialogTrigger asChild>
-            <Button variant="ghost" className="appearance-cover-open" aria-label={`查看${name}封面大图`}>
+            <Button
+              variant="ghost"
+              className="appearance-cover-open"
+              aria-label={`查看${name}封面：${source.title}`}
+            >
               <FramedCover {...cover} />
-              <span>
-                查看大图 <ArrowUpRight size={14} />
-              </span>
             </Button>
           </DialogTrigger>
           <DialogContent className="appearance-cover-dialog">
@@ -59,7 +122,7 @@ export function ThemeCoverPreview({
                   </Button>
                 </DialogClose>
               </div>
-              <DialogDescription>{source?.title} · 已保存内容的实时叠加预览</DialogDescription>
+              <DialogDescription>{source.title} · 节目库实时叠加预览</DialogDescription>
             </DialogHeader>
             <FramedCover {...cover} />
           </DialogContent>
@@ -67,35 +130,13 @@ export function ThemeCoverPreview({
       ) : (
         <div className="appearance-cover-placeholder">
           <ImageOff size={24} strokeWidth={1.5} aria-hidden="true" />
-          <span>
-            {failed
-              ? '图片读取失败，请刷新预览'
-              : loading
-                ? '正在读取真实节目'
-                : sourceError
-                  ? '节目读取失败，请刷新预览'
-                  : '暂无真实封面'}
-          </span>
+          <span>图片读取失败，请刷新预览</span>
         </div>
       )}
       <div className="appearance-cover-caption">
-        <span className="appearance-detail-label">真实节目封面</span>
-        {source ? (
-          <>
-            <strong>{source.title}</strong>
-            <span className="admin-muted">
-              第 {String(source.episodeNumber).padStart(3, '0')} 期 · 已保存 v{source.version}
-            </span>
-            <p className="admin-muted">同一原图、标题、期号与栏目，直接叠加本主题构图。点击查看大图。</p>
-          </>
-        ) : loading ? (
-          <p className="admin-muted">正在读取当前环境已保存封面原图的制作项目。</p>
-        ) : sourceError ? (
-          <p className="admin-muted">未能读取当前环境的制作项目。请检查连接后刷新预览。</p>
-        ) : (
-          <p className="admin-muted">请先在节目制作中保存封面原图。这里不使用设计稿样张或演示节目补位。</p>
-        )}
+        <strong title={source.title}>{source.title}</strong>
+        <span className="admin-muted">第 {String(source.episodeNumber).padStart(3, '0')} 期</span>
       </div>
-    </div>
+    </li>
   );
 }
