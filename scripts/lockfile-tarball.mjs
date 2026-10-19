@@ -1,8 +1,11 @@
 import { execFileSync } from 'node:child_process';
 import { createHash, timingSafeEqual } from 'node:crypto';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+
+const fetchAttempts = 5;
+const fetchBackoffMs = [0, 4_000, 12_000, 24_000, 40_000];
 
 /**
  * @param {string} integrity npm lockfile integrity (e.g. sha512-Base64...)
@@ -37,13 +40,47 @@ export async function fetchLockedTarball(resolved, integrity) {
   if (!resolved) {
     throw new Error('Lockfile entry is missing resolved tarball URL');
   }
-  const response = await fetch(resolved);
-  if (!response.ok) {
-    throw new Error(`Failed to fetch ${resolved}: HTTP ${response.status}`);
+  let lastError;
+  const staging = mkdtempSync(join(tmpdir(), 'hisfm-fetch-'));
+  const archive = join(staging, 'package.tgz');
+  try {
+    for (let attempt = 0; attempt < fetchAttempts; attempt++) {
+      if (fetchBackoffMs[attempt]) {
+        execFileSync('sleep', [String(Math.ceil(fetchBackoffMs[attempt] / 1000))], { stdio: 'inherit' });
+      }
+      try {
+        execFileSync(
+          'curl',
+          [
+            '--fail',
+            '--silent',
+            '--show-error',
+            '--location',
+            '--retry',
+            '3',
+            '--retry-delay',
+            '5',
+            '--connect-timeout',
+            '60',
+            '--max-time',
+            '600',
+            '-o',
+            archive,
+            resolved,
+          ],
+          { stdio: 'inherit' },
+        );
+        const body = readFileSync(archive);
+        assertTarballIntegrity(body, integrity);
+        return body;
+      } catch (error) {
+        lastError = error;
+      }
+    }
+    throw lastError ?? new Error(`Failed to fetch ${resolved}`);
+  } finally {
+    rmSync(staging, { recursive: true, force: true });
   }
-  const body = Buffer.from(await response.arrayBuffer());
-  assertTarballIntegrity(body, integrity);
-  return body;
 }
 
 /**
