@@ -27,6 +27,17 @@ function secureUrl(value: string) {
   }
 }
 
+function referenceDefinitionsSuffix(markdown: string) {
+  const defs = Lexer.lex(markdown).filter((token) => token.type === 'def');
+  if (!defs.length) return '';
+  return `\n\n${defs.map((token) => token.raw).join('\n')}`;
+}
+
+function withReferenceDefinitions(segment: string, definitions: string) {
+  if (!definitions || !segment.trim()) return segment;
+  return `${segment}${definitions}`;
+}
+
 function plain(tokens: Token[]): string {
   return tokens
     .map((token) => {
@@ -95,8 +106,9 @@ function createWechatParser(references: string[]) {
   });
 }
 
-function parseWechatMarkdown(parser: Marked, markdown: string) {
-  return markdown ? parser.parse(markdown, { async: false }) : '';
+function parseWechatMarkdown(parser: Marked, markdown: string, definitions: string) {
+  const source = withReferenceDefinitions(markdown, definitions);
+  return source.trim() ? parser.parse(source, { async: false }) : '';
 }
 
 function renderWechatSpeakerBlock(speaker: TranscriptSpeaker, bodyHtml: string) {
@@ -105,15 +117,16 @@ function renderWechatSpeakerBlock(speaker: TranscriptSpeaker, bodyHtml: string) 
 }
 
 function formatWechatTranscript(transcript: string, references: string[]) {
+  const definitions = referenceDefinitionsSuffix(transcript);
   const parser = createWechatParser(references);
   const segments = parseTranscriptSpeakers(transcript);
   if (!segments.some((segment) => segment.kind === 'speaker')) {
-    return parseWechatMarkdown(parser, transcript);
+    return parseWechatMarkdown(parser, transcript, definitions);
   }
   return segments
     .map((segment) => {
-      if (segment.kind === 'markdown') return parseWechatMarkdown(parser, segment.text);
-      const body = parseWechatMarkdown(parser, segment.text);
+      if (segment.kind === 'markdown') return parseWechatMarkdown(parser, segment.text, definitions);
+      const body = parseWechatMarkdown(parser, segment.text, definitions);
       return renderWechatSpeakerBlock(segment.speaker, body);
     })
     .join('');
@@ -160,8 +173,9 @@ function createReadingParser() {
   });
 }
 
-function parseReadingMarkdown(markdown: string) {
-  return markdown ? createReadingParser().parse(markdown, { async: false }) : '';
+function parseReadingMarkdown(markdown: string, definitions: string) {
+  const source = withReferenceDefinitions(markdown, definitions);
+  return source.trim() ? createReadingParser().parse(source, { async: false }) : '';
 }
 
 function renderReadingSpeakerBlock(speaker: TranscriptSpeaker, bodyHtml: string) {
@@ -169,14 +183,15 @@ function renderReadingSpeakerBlock(speaker: TranscriptSpeaker, bodyHtml: string)
 }
 
 export function formatReading(markdown: string): string {
+  const definitions = referenceDefinitionsSuffix(markdown);
   const segments = parseTranscriptSpeakers(markdown);
   if (!segments.some((segment) => segment.kind === 'speaker')) {
-    return parseReadingMarkdown(markdown);
+    return parseReadingMarkdown(markdown, definitions);
   }
   return segments
     .map((segment) => {
-      if (segment.kind === 'markdown') return parseReadingMarkdown(segment.text);
-      const body = parseReadingMarkdown(segment.text);
+      if (segment.kind === 'markdown') return parseReadingMarkdown(segment.text, definitions);
+      const body = parseReadingMarkdown(segment.text, definitions);
       return renderReadingSpeakerBlock(segment.speaker, body);
     })
     .join('\n');

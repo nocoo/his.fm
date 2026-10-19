@@ -78,4 +78,22 @@ describe('transcript speaker rendering', () => {
     expect(html).not.toContain('<strong>主播：</strong>');
     expect(html).toContain('<strong>旁白：</strong>');
   });
+
+  it('resolves reference links defined in a later speaker turn for reading and WeChat', () => {
+    const linked = '**主播：** 请看[来源][ref]。\n\n**预言家：** 收尾。\n\n[ref]: https://example.com/path';
+    const reading = formatReading(linked);
+    expect(reading).toContain('href="https://example.com/path"');
+    expect(reading).not.toContain('[ref]');
+    const { html } = formatWechat({
+      title: '测试',
+      summary: '',
+      description: '',
+      transcript: linked,
+      assets: { cover: null, audio: null },
+      sources: [],
+    });
+    expect(html).toContain('https://example.com/path');
+    expect(html).toContain('[1]');
+    expect(html).toContain('参考资料');
+  });
 });
