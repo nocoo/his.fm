@@ -145,6 +145,26 @@ describe('transcript speaker rendering', () => {
     expect(sanitizeReadingIdPrefix('')).toBe(DEFAULT_READING_LABEL_PREFIX);
   });
 
+  it('renders glued speaker labels without duplicating the label in the body', () => {
+    const markdown = '**主播：**问题。';
+    const reading = formatReading(markdown);
+    expect(reading).toContain('data-speaker="主播"');
+    expect(reading).not.toContain('<strong>主播：</strong>');
+    expect(reading).not.toContain('**主播：**');
+    expect(reading).toContain('问题。');
+    const { html } = formatWechat({
+      title: '测试',
+      summary: '',
+      description: '',
+      transcript: markdown,
+      assets: { cover: null, audio: null },
+      sources: [],
+    });
+    expect(html).toContain('data-speaker="主播"');
+    expect(html).not.toContain('<strong>主播：</strong>');
+    expect(html).toContain('问题。');
+  });
+
   it('renders WeChat HTML with speaker sections for copy and preview', () => {
     const { html } = formatWechat({
       title: '测试',

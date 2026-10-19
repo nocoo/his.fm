@@ -12,15 +12,27 @@ export type TranscriptDocument = {
   hasSpeakerTurns: boolean;
 };
 
-const SPEAKER_PARAGRAPH = /^\*\*(主播|预言家)：\*\*([\s\S]*)$/;
+export const SPEAKER_LABEL_PREFIX = /^\*\*(主播|预言家)：\*\*/;
 
-function peelSpeakerParagraph(token: Tokens.Paragraph) {
-  const match = SPEAKER_PARAGRAPH.exec(token.text);
+export function parseSpeakerLabelPrefix(text: string) {
+  const match = SPEAKER_LABEL_PREFIX.exec(text);
   if (!match) return null;
   const speaker = match[1] as TranscriptSpeaker;
-  const body = match[2];
-  const inline = token.tokens ? [...token.tokens] : [];
-  if (inline[0]?.type === 'strong' && inline[0].text === `${speaker}：`) inline.shift();
+  const prefix = match[0];
+  return { speaker, prefix, body: text.slice(prefix.length) };
+}
+
+function peelSpeakerParagraph(token: Tokens.Paragraph) {
+  const parsed = parseSpeakerLabelPrefix(token.text);
+  if (!parsed) return null;
+  const { speaker, prefix, body } = parsed;
+  const labelText = `${speaker}：`;
+  let inline = token.tokens ? [...token.tokens] : [];
+  if (inline[0]?.type === 'strong' && inline[0].text === labelText) {
+    inline = inline.slice(1);
+  } else if (token.text.startsWith(prefix)) {
+    inline = Lexer.lexInline(body, { gfm: true, breaks: true });
+  }
   const paragraph: Tokens.Paragraph = { ...token, text: body, raw: body, tokens: inline };
   return { speaker, paragraph };
 }
