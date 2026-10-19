@@ -87,6 +87,7 @@ export async function fetchLockedTarball(
             '--fail',
             '--silent',
             '--show-error',
+            '--http1.1',
             '--max-redirs',
             '0',
             '--retry',
