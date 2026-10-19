@@ -1,6 +1,49 @@
+import { Marked } from 'marked';
 import { describe, expect, it } from 'vitest';
 import { formatReading, formatWechat } from '../src/shared/publication-format';
 import { parseTranscriptSpeakers, transcriptHasSpeakerBlocks } from '../src/shared/transcript-speakers';
+
+function secureUrl(value: string) {
+  try {
+    const url = new URL(value);
+    return url.protocol === 'https:' && !url.username && !url.password ? url.href : '';
+  } catch {
+    return '';
+  }
+}
+
+function escapeHtml(value: string) {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function formatReadingBaseline(markdown: string) {
+  return markdown
+    ? new Marked({
+        gfm: true,
+        breaks: true,
+        renderer: {
+          html() {
+            return '';
+          },
+          image() {
+            return '';
+          },
+          link({ href, tokens }) {
+            const label = this.parser.parseInline(tokens);
+            const url = secureUrl(href);
+            return url
+              ? `<a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">${label}</a>`
+              : label;
+          },
+        },
+      }).parse(markdown, { async: false })
+    : '';
+}
 
 describe('parseTranscriptSpeakers', () => {
   it('splits the two approved speaker labels into blocks', () => {
@@ -47,6 +90,13 @@ describe('parseTranscriptSpeakers', () => {
       { kind: 'speaker', speaker: '主播', text: ' 真正的新段落' },
     ]);
   });
+
+  it('keeps multiline speaker paragraphs in the correct turn', () => {
+    expect(parseTranscriptSpeakers('**主播：** 问题。\n\n**预言家：** 回答。\n续行。')).toEqual([
+      { kind: 'speaker', speaker: '主播', text: ' 问题。' },
+      { kind: 'speaker', speaker: '预言家', text: ' 回答。\n续行。' },
+    ]);
+  });
 });
 
 describe('transcript speaker rendering', () => {
@@ -63,8 +113,18 @@ describe('transcript speaker rendering', () => {
     expect(html).toContain('<strong>旁白：</strong>');
     expect(html).not.toContain('aria-hidden');
     expect(html).toContain('role="group"');
-    expect(html).toContain('aria-labelledby="studio-transcript-label-0"');
-    expect(html).toContain('id="studio-transcript-label-0"');
+    expect(html).toMatch(/aria-labelledby="studio-transcript-label-[a-f0-9]+-0"/);
+    expect(html).toMatch(/id="studio-transcript-label-[a-f0-9]+-0"/);
+  });
+
+  it('uses distinct label prefixes across separate formatReading calls', () => {
+    const first = formatReading('**主播：** 一');
+    const second = formatReading('**主播：** 二');
+    const firstId = first.match(/id="(studio-transcript-label-[^"]+)"/)?.[1];
+    const secondId = second.match(/id="(studio-transcript-label-[^"]+)"/)?.[1];
+    expect(firstId).toBeTruthy();
+    expect(secondId).toBeTruthy();
+    expect(firstId).not.toBe(secondId);
   });
 
   it('renders WeChat HTML with speaker sections for copy and preview', () => {
@@ -99,5 +159,28 @@ describe('transcript speaker rendering', () => {
     expect(html).toContain('https://example.com/path');
     expect(html).toContain('[1]');
     expect(html).toContain('参考资料');
+  });
+
+  it('resolves reference definitions nested in blockquotes', () => {
+    const markdown = '**主播：** 见[来源][nested]\n\n> [nested]: https://blockquote.example/path';
+    const html = formatReading(markdown);
+    expect(html).toContain('href="https://blockquote.example/path"');
+  });
+
+  it('resolves trailing reference definitions without appending raw definition lines to segments', () => {
+    const markdown = '**主播：** 见[来源][ref]。\n\n**预言家：** 收尾。\n\n[ref]: https://example.com/path';
+    const html = formatReading(markdown);
+    expect(html).toContain('href="https://example.com/path"');
+    expect(html).not.toMatch(/<p>\[ref\]:/);
+  });
+
+  it('matches main reading output when no speaker labels are present', () => {
+    for (const markdown of [
+      '# 下班之后\n\n一段 **温和** 的话，读一读 [链接](https://example.com)。',
+      '```ts\nconst x = 1;\n```\n\n[ref]: https://example.com',
+      'See [x][ref2]\n\n> [ref2]: https://nested.example/path',
+    ]) {
+      expect(formatReading(markdown)).toBe(formatReadingBaseline(markdown));
+    }
   });
 });

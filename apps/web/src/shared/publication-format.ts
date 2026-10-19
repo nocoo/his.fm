@@ -1,6 +1,7 @@
+import { randomBytes } from 'node:crypto';
 import { Lexer, Marked, type Token, type Tokens } from 'marked';
 import type { Production } from './production';
-import { parseTranscriptSpeakers, type TranscriptSpeaker } from './transcript-speakers';
+import { lexTranscriptDocument, type TranscriptSpeaker } from './transcript-document';
 
 type PublicationContent = Pick<
   Production,
@@ -25,17 +26,6 @@ function secureUrl(value: string) {
   } catch {
     return '';
   }
-}
-
-function referenceDefinitionsSuffix(markdown: string) {
-  const defs = Lexer.lex(markdown).filter((token) => token.type === 'def');
-  if (!defs.length) return '';
-  return `\n\n${defs.map((token) => token.raw).join('\n')}`;
-}
-
-function withReferenceDefinitions(segment: string, definitions: string) {
-  if (!definitions || !segment.trim()) return segment;
-  return `${segment}${definitions}`;
 }
 
 function plain(tokens: Token[]): string {
@@ -71,7 +61,7 @@ export function formatXiaoyuzhou(production: PublicationContent): string {
   return cleanText(production.description);
 }
 
-function createWechatParser(references: string[]) {
+function createWechatMarked(references: string[]) {
   return new Marked({
     gfm: true,
     breaks: true,
@@ -106,9 +96,9 @@ function createWechatParser(references: string[]) {
   });
 }
 
-function parseWechatMarkdown(parser: Marked, markdown: string, definitions: string) {
-  const source = withReferenceDefinitions(markdown, definitions);
-  return source.trim() ? parser.parse(source, { async: false }) : '';
+function parseWechatTokens(marked: Marked, tokens: Token[]) {
+  if (!tokens.length) return '';
+  return marked.parser(tokens);
 }
 
 function renderWechatSpeakerBlock(speaker: TranscriptSpeaker, bodyHtml: string) {
@@ -117,17 +107,16 @@ function renderWechatSpeakerBlock(speaker: TranscriptSpeaker, bodyHtml: string) 
 }
 
 function formatWechatTranscript(transcript: string, references: string[]) {
-  const definitions = referenceDefinitionsSuffix(transcript);
-  const parser = createWechatParser(references);
-  const segments = parseTranscriptSpeakers(transcript);
-  if (!segments.some((segment) => segment.kind === 'speaker')) {
-    return parseWechatMarkdown(parser, transcript, definitions);
+  const document = lexTranscriptDocument(transcript);
+  const marked = createWechatMarked(references);
+  if (!document.hasSpeakerTurns) {
+    return transcript ? marked.parse(transcript, { async: false }) : '';
   }
-  return segments
-    .map((segment) => {
-      if (segment.kind === 'markdown') return parseWechatMarkdown(parser, segment.text, definitions);
-      const body = parseWechatMarkdown(parser, segment.text, definitions);
-      return renderWechatSpeakerBlock(segment.speaker, body);
+  return document.groups
+    .map((group) => {
+      if (group.kind === 'markdown') return parseWechatTokens(marked, group.tokens);
+      const body = parseWechatTokens(marked, group.tokens);
+      return renderWechatSpeakerBlock(group.speaker, body);
     })
     .join('');
 }
@@ -151,7 +140,7 @@ export function formatWechat(production: PublicationContent): { html: string; te
   return { html, text };
 }
 
-function createReadingParser() {
+function createReadingMarked() {
   return new Marked({
     gfm: true,
     breaks: true,
@@ -173,30 +162,34 @@ function createReadingParser() {
   });
 }
 
-function parseReadingMarkdown(markdown: string, definitions: string) {
-  const source = withReferenceDefinitions(markdown, definitions);
-  return source.trim() ? createReadingParser().parse(source, { async: false }) : '';
+function parseReadingTokens(marked: Marked, tokens: Token[]) {
+  if (!tokens.length) return '';
+  return marked.parser(tokens);
 }
 
-let readingSpeakerBlockId = 0;
-
-function renderReadingSpeakerBlock(speaker: TranscriptSpeaker, bodyHtml: string) {
-  const id = `studio-transcript-label-${readingSpeakerBlockId++}`;
+function renderReadingSpeakerBlock(
+  speaker: TranscriptSpeaker,
+  bodyHtml: string,
+  labelPrefix: string,
+  index: number,
+) {
+  const id = `${labelPrefix}-${index}`;
   return `<div class="studio-transcript-block" data-speaker="${escapeHtml(speaker)}" role="group" aria-labelledby="${id}"><div class="studio-transcript-block-label" id="${id}">${escapeHtml(speaker)}</div><div class="studio-transcript-block-body">${bodyHtml}</div></div>`;
 }
 
 export function formatReading(markdown: string): string {
-  readingSpeakerBlockId = 0;
-  const definitions = referenceDefinitionsSuffix(markdown);
-  const segments = parseTranscriptSpeakers(markdown);
-  if (!segments.some((segment) => segment.kind === 'speaker')) {
-    return parseReadingMarkdown(markdown, definitions);
+  const document = lexTranscriptDocument(markdown);
+  if (!document.hasSpeakerTurns) {
+    return markdown ? createReadingMarked().parse(markdown, { async: false }) : '';
   }
-  return segments
-    .map((segment) => {
-      if (segment.kind === 'markdown') return parseReadingMarkdown(segment.text, definitions);
-      const body = parseReadingMarkdown(segment.text, definitions);
-      return renderReadingSpeakerBlock(segment.speaker, body);
+  const marked = createReadingMarked();
+  const labelPrefix = `studio-transcript-label-${randomBytes(6).toString('hex')}`;
+  let speakerIndex = 0;
+  return document.groups
+    .map((group) => {
+      if (group.kind === 'markdown') return parseReadingTokens(marked, group.tokens);
+      const body = parseReadingTokens(marked, group.tokens);
+      return renderReadingSpeakerBlock(group.speaker, body, labelPrefix, speakerIndex++);
     })
     .join('\n');
 }
