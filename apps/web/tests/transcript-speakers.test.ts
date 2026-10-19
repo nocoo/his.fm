@@ -8,7 +8,7 @@ describe('parseTranscriptSpeakers', () => {
       '# 开场\n\n**主播：** 欢迎来到 his.fm。\n\n**预言家：** 这一季我们会慢慢展开。\n',
     );
     expect(segments).toEqual([
-      { kind: 'markdown', text: '# 开场\n' },
+      { kind: 'markdown', text: '# 开场\n\n' },
       { kind: 'speaker', speaker: '主播', text: ' 欢迎来到 his.fm。' },
       { kind: 'speaker', speaker: '预言家', text: ' 这一季我们会慢慢展开。' },
     ]);
@@ -20,9 +20,31 @@ describe('parseTranscriptSpeakers', () => {
     const markdown =
       '**嘉宾：** 不应拆成块。\n\n**主播：** 第一段。\n\n第二段还在主播这里。\n\n**预言家：** 收尾。';
     expect(parseTranscriptSpeakers(markdown)).toEqual([
-      { kind: 'markdown', text: '**嘉宾：** 不应拆成块。\n' },
+      { kind: 'markdown', text: '**嘉宾：** 不应拆成块。\n\n' },
       { kind: 'speaker', speaker: '主播', text: ' 第一段。\n\n第二段还在主播这里。' },
       { kind: 'speaker', speaker: '预言家', text: ' 收尾。' },
+    ]);
+  });
+
+  it('ignores speaker-shaped lines inside fenced or indented code and mid-paragraph soft breaks', () => {
+    const markdown = [
+      '前文',
+      '**主播：** 仍属同一段',
+      '',
+      '```',
+      '**主播：** 代码示例',
+      '```',
+      '',
+      '    **主播：** 缩进代码',
+      '',
+      '**主播：** 真正的新段落',
+    ].join('\n');
+    expect(parseTranscriptSpeakers(markdown)).toEqual([
+      {
+        kind: 'markdown',
+        text: '前文\n**主播：** 仍属同一段\n\n```\n**主播：** 代码示例\n```\n\n    **主播：** 缩进代码\n\n',
+      },
+      { kind: 'speaker', speaker: '主播', text: ' 真正的新段落' },
     ]);
   });
 });

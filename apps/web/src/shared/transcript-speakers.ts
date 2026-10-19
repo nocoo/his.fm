@@ -1,45 +1,59 @@
+import { Lexer } from 'marked';
+
 export type TranscriptSpeaker = '主播' | '预言家';
 
 export type TranscriptSegment =
   | { kind: 'markdown'; text: string }
   | { kind: 'speaker'; speaker: TranscriptSpeaker; text: string };
 
-const SPEAKER_LINE = /^\s*\*\*(主播|预言家)：\*\*(.*)$/;
+const SPEAKER_PARAGRAPH = /^\*\*(主播|预言家)：\*\*(.*)$/;
 
 export function parseTranscriptSpeakers(markdown: string): TranscriptSegment[] {
   const normalized = markdown.replace(/\r\n?/g, '\n');
   if (!normalized.trim()) return [{ kind: 'markdown', text: normalized }];
 
+  const tokens = Lexer.lex(normalized);
   const segments: TranscriptSegment[] = [];
-  let markdownBuffer: string[] = [];
+  let markdownParts: string[] = [];
   let speaker: TranscriptSpeaker | null = null;
-  let speakerLines: string[] = [];
+  let speakerParagraphs: string[] = [];
 
   const flushMarkdown = () => {
-    if (!markdownBuffer.length) return;
-    segments.push({ kind: 'markdown', text: markdownBuffer.join('\n') });
-    markdownBuffer = [];
+    if (!markdownParts.length) return;
+    segments.push({ kind: 'markdown', text: markdownParts.join('') });
+    markdownParts = [];
   };
 
   const flushSpeaker = () => {
     if (!speaker) return;
-    segments.push({ kind: 'speaker', speaker, text: speakerLines.join('\n').trimEnd() });
+    segments.push({ kind: 'speaker', speaker, text: speakerParagraphs.join('\n\n').trimEnd() });
     speaker = null;
-    speakerLines = [];
+    speakerParagraphs = [];
   };
 
-  for (const line of normalized.split('\n')) {
-    const match = SPEAKER_LINE.exec(line);
-    if (match) {
-      flushMarkdown();
-      flushSpeaker();
-      speaker = match[1] as TranscriptSpeaker;
-      const rest = match[2] ?? '';
-      speakerLines = rest ? [rest] : [];
+  for (const token of tokens) {
+    if (token.type === 'space') {
+      if (!speaker) markdownParts.push(token.raw);
       continue;
     }
-    if (speaker) speakerLines.push(line);
-    else markdownBuffer.push(line);
+
+    if (token.type === 'paragraph') {
+      const match = SPEAKER_PARAGRAPH.exec(token.text);
+      if (match) {
+        flushMarkdown();
+        flushSpeaker();
+        speaker = match[1] as TranscriptSpeaker;
+        const rest = match[2] ?? '';
+        speakerParagraphs = rest ? [rest] : [];
+        continue;
+      }
+      if (speaker) speakerParagraphs.push(token.text);
+      else markdownParts.push(token.raw);
+      continue;
+    }
+
+    flushSpeaker();
+    markdownParts.push(token.raw);
   }
 
   flushMarkdown();
