@@ -1,66 +1,24 @@
-import { Lexer } from 'marked';
+import { lexTranscriptDocument, type TranscriptSpeaker, tokensToMarkdown } from './transcript-document';
 
-export type TranscriptSpeaker = '主播' | '预言家';
+export type { TranscriptSpeaker };
 
 export type TranscriptSegment =
   | { kind: 'markdown'; text: string }
   | { kind: 'speaker'; speaker: TranscriptSpeaker; text: string };
 
-const SPEAKER_PARAGRAPH = /^\*\*(主播|预言家)：\*\*(.*)$/;
-
 export function parseTranscriptSpeakers(markdown: string): TranscriptSegment[] {
-  const normalized = markdown.replace(/\r\n?/g, '\n');
-  if (!normalized.trim()) return [{ kind: 'markdown', text: normalized }];
-
-  const tokens = Lexer.lex(normalized);
-  const segments: TranscriptSegment[] = [];
-  let markdownParts: string[] = [];
-  let speaker: TranscriptSpeaker | null = null;
-  let speakerParagraphs: string[] = [];
-
-  const flushMarkdown = () => {
-    if (!markdownParts.length) return;
-    segments.push({ kind: 'markdown', text: markdownParts.join('') });
-    markdownParts = [];
-  };
-
-  const flushSpeaker = () => {
-    if (!speaker) return;
-    segments.push({ kind: 'speaker', speaker, text: speakerParagraphs.join('\n\n').trimEnd() });
-    speaker = null;
-    speakerParagraphs = [];
-  };
-
-  for (const token of tokens) {
-    if (token.type === 'space') {
-      if (!speaker) markdownParts.push(token.raw);
-      continue;
-    }
-
-    if (token.type === 'paragraph') {
-      const match = SPEAKER_PARAGRAPH.exec(token.text);
-      if (match) {
-        flushMarkdown();
-        flushSpeaker();
-        speaker = match[1] as TranscriptSpeaker;
-        const rest = match[2] ?? '';
-        speakerParagraphs = rest ? [rest] : [];
-        continue;
-      }
-      if (speaker) speakerParagraphs.push(token.text);
-      else markdownParts.push(token.raw);
-      continue;
-    }
-
-    flushSpeaker();
-    markdownParts.push(token.raw);
+  const { groups } = lexTranscriptDocument(markdown);
+  if (!groups.length) {
+    const normalized = markdown.replace(/\r\n?/g, '\n');
+    return [{ kind: 'markdown', text: normalized }];
   }
-
-  flushMarkdown();
-  flushSpeaker();
-  return segments.length ? segments : [{ kind: 'markdown', text: normalized }];
+  return groups.map((group) =>
+    group.kind === 'markdown'
+      ? { kind: 'markdown', text: tokensToMarkdown(group.tokens) }
+      : { kind: 'speaker', speaker: group.speaker, text: tokensToMarkdown(group.tokens).trimEnd() },
+  );
 }
 
 export function transcriptHasSpeakerBlocks(markdown: string): boolean {
-  return parseTranscriptSpeakers(markdown).some((segment) => segment.kind === 'speaker');
+  return lexTranscriptDocument(markdown).hasSpeakerTurns;
 }
