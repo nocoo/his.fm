@@ -1,6 +1,6 @@
 {
   "name": "his-fm",
-  "version": "2.8.6",
+  "version": "2.8.7",
   "private": true,
   "type": "module",
   "packageManager": "npm@11.19.1",
@@ -23,6 +23,7 @@
     "deploy": "npm run deploy --workspace @his-fm/web",
     "check:cover-frames": "python3 scripts/export-theme-cover-frames.py --check",
     "ci:ensure-native-binaries": "node scripts/ensure-native-binaries.mjs",
+    "ci:build": "npm run ci:ensure-native-binaries && npm run build",
     "lint": "biome check . --error-on-warnings",
     "format": "biome check . --write",
     "prepare": "husky"

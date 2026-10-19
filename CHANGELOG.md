@@ -2,6 +2,13 @@
 
 All notable changes to his.fm are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions use the owner’s patch-only deployment policy in `AGENTS.md`, with the authoritative version in `package.json`.
 
+## 2.8.7 - 2026-10-19
+
+### Fixed
+
+- Run `ci:ensure-native-binaries` before production `cf build` in the Release deploy workflow so Linux optional platform packages (workerd and related toolchain binaries) are present after frozen `npm ci`, matching CI quality gates.
+- Point Linux `workerd` and Biome CLI lockfile tarballs used by deploy installs at `registry.npmjs.org` sha512 metadata for reliable downloads on GitHub-hosted runners.
+
 ## 2.8.6 - 2026-10-19
 
 ### Fixed

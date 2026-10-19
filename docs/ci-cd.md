@@ -24,7 +24,7 @@ The deploy job uses base-ci `deploy-worker.yml`, which proves the release source
 
 1. resolves the tag to its exact commit and requires a successful CI run (`.github/workflows/ci.yml`, name `CI`, branch `main`) on that same SHA — `workflow_dispatch`-triggered CI runs also count as evidence;
 2. requires the tag `vX.Y.Z` to equal `package.json` version at that commit (`package-version-match`);
-3. installs and rebuilds from the proven repository root with the single workspace lockfile, then invokes `scripts/deploy.mjs` through `deploy-script`; the script verifies the exact local cf version from `apps/web/package.json` and runs the web workspace deploy command (versioned D1 migrations by production UUID, then `cf deploy --prebuilt --mode production`; seeding never runs in CI/CD);
+3. installs from the proven repository root with the single workspace lockfile, runs `npm run ci:build` (`ci:ensure-native-binaries` then `npm run build` / `cf build`) so Linux platform optional packages match CI, then invokes `scripts/deploy.mjs` through `deploy-script`; the script verifies the exact local cf version from `apps/web/package.json` and runs the web workspace deploy command (versioned D1 migrations by production UUID, then `cf deploy --prebuilt --mode production`; seeding never runs in CI/CD);
 4. verifies production through `node scripts/ci-verify-live.mjs`, which compares `/api/live` `status`, `service`, `version` and `revision` against `package.json` and the proven commit (`__BUILD_REVISION__` is injected at build time).
 
 Production deploys hold a non-cancelling lock (`deploy-worker-production`) on the `production` GitHub environment.
