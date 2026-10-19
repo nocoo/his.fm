@@ -1,55 +1,72 @@
+import {
+  Button,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@nocoo/basalt';
 import { ArrowUpRight, ImageOff } from 'lucide-react';
 import { useState } from 'react';
+import { FramedCover } from '../../components/FramedCover';
+import type { ThemeId } from '../../shared/appearance';
 import type { CoverPreviewSource } from './service';
-import type { CoverPreview } from './useAppearancePreviews';
 
 export function ThemeCoverPreview({
   name,
+  themeId,
   source,
-  preview,
   loading,
   sourceError,
 }: {
   name: string;
+  themeId: ThemeId;
   source?: CoverPreviewSource;
-  preview?: CoverPreview;
   loading: boolean;
   sourceError: string;
 }) {
   const [failed, setFailed] = useState(false);
-  const ready = preview?.status === 'ready' && !failed;
+  const cover = source && {
+    src: source.coverUrl,
+    title: source.title,
+    episodeNumber: source.episodeNumber,
+    categoryName: source.categoryName,
+    themeId,
+    alt: `${source.title} · ${name}封面预览`,
+    onCoverError: () => setFailed(true),
+  };
   return (
     <div className="appearance-cover-preview">
-      {ready ? (
-        <a href={preview.url} target="_blank" rel="noopener noreferrer" aria-label={`查看${name}封面大图`}>
-          <img
-            src={preview.url}
-            alt={`${source?.title} · ${name}封面预览`}
-            width={1600}
-            height={1600}
-            onError={() => setFailed(true)}
-          />
-          <span>
-            查看大图 <ArrowUpRight size={14} />
-          </span>
-        </a>
+      {cover && !failed ? (
+        <Dialog>
+          <DialogTrigger asChild>
+            <Button variant="ghost" className="appearance-cover-open" aria-label={`查看${name}封面大图`}>
+              <FramedCover {...cover} />
+              <span>
+                查看大图 <ArrowUpRight size={14} />
+              </span>
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="appearance-cover-dialog">
+            <DialogHeader>
+              <DialogTitle>{name} · 封面预览</DialogTitle>
+              <DialogDescription>{source?.title} · 已保存内容的实时叠加预览</DialogDescription>
+            </DialogHeader>
+            <FramedCover {...cover} />
+          </DialogContent>
+        </Dialog>
       ) : (
         <div className="appearance-cover-placeholder">
           <ImageOff size={24} strokeWidth={1.5} aria-hidden="true" />
           <span>
             {failed
               ? '图片读取失败，请刷新预览'
-              : preview?.status === 'error'
-                ? preview.message
-                : loading
-                  ? '正在读取真实节目'
-                  : sourceError
-                    ? '节目读取失败，请刷新预览'
-                    : !source
-                      ? '暂无真实封面'
-                      : preview?.status === 'loading'
-                        ? '正在生成封面'
-                        : '等待生成'}
+              : loading
+                ? '正在读取真实节目'
+                : sourceError
+                  ? '节目读取失败，请刷新预览'
+                  : '暂无真实封面'}
           </span>
         </div>
       )}
@@ -61,7 +78,7 @@ export function ThemeCoverPreview({
             <span className="admin-muted">
               第 {String(source.episodeNumber).padStart(3, '0')} 期 · 已保存 v{source.version}
             </span>
-            <p className="admin-muted">同一原图、标题与期号，按本主题实时合成。点击成品可查看完整细节。</p>
+            <p className="admin-muted">同一原图、标题、期号与栏目，直接叠加本主题构图。点击查看大图。</p>
           </>
         ) : loading ? (
           <p className="admin-muted">正在读取当前环境已保存封面原图的制作项目。</p>

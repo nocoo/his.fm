@@ -1,24 +1,15 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { type ThemeId, themeIds } from '../../shared/appearance';
+import { useCallback, useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router';
 import { errorMessage } from '../model';
-import { downloadCover } from '../service';
 import { appearanceService, type CoverPreviewSource } from './service';
-
-export type CoverPreview =
-  | { status: 'loading' }
-  | { status: 'ready'; url: string }
-  | { status: 'error'; message: string };
 
 export function useAppearancePreviews() {
   const [sources, setSources] = useState<CoverPreviewSource[]>([]);
-  const [selected, setSelected] = useState('');
+  const [params, setParams] = useSearchParams();
+  const requested = params.get('production');
+  const selected = requested ?? sources[0]?.id ?? '';
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [generation, setGeneration] = useState<{
-    source: CoverPreviewSource;
-    covers: Partial<Record<ThemeId, CoverPreview>>;
-  } | null>(null);
-  const queue = useRef(Promise.resolve());
   const source = sources.find((item) => item.id === selected);
 
   const load = useCallback(async (signal?: AbortSignal) => {
@@ -29,7 +20,6 @@ export function useAppearancePreviews() {
       const items = await appearanceService.coverSources(signal);
       if (signal?.aborted) return;
       setSources(items);
-      setSelected((current) => (items.some((item) => item.id === current) ? current : (items[0]?.id ?? '')));
     } catch (cause) {
       if (!signal?.aborted) setError(errorMessage(cause));
     } finally {
@@ -43,47 +33,20 @@ export function useAppearancePreviews() {
     return () => controller.abort();
   }, [load]);
 
-  useEffect(() => {
-    if (!source) return;
-    let active = true;
-    const urls: string[] = [];
-    const update = (theme: ThemeId, preview: CoverPreview) => {
-      setGeneration((current) => ({
-        source,
-        covers: { ...(current?.source === source ? current.covers : {}), [theme]: preview },
-      }));
-    };
-    // The renderer accepts one job per isolate, even when the user switches programmes.
-    queue.current = queue.current.then(async () => {
-      for (const theme of themeIds) {
-        if (!active) return;
-        update(theme, { status: 'loading' });
-        try {
-          const image = await downloadCover('productions', source.id, source.version, theme);
-          if (!active) return;
-          const url = URL.createObjectURL(image);
-          urls.push(url);
-          update(theme, { status: 'ready', url });
-        } catch (cause) {
-          if (!active) return;
-          update(theme, { status: 'error', message: errorMessage(cause) });
-        }
-      }
-    });
-    return () => {
-      active = false;
-      for (const url of urls) URL.revokeObjectURL(url);
-    };
-  }, [source]);
-
   return {
     sources,
     source,
     selected,
-    setSelected,
-    previews: generation?.source === source ? generation?.covers : undefined,
+    setSelected: (id: string) =>
+      setParams((current) => {
+        const next = new URLSearchParams(current);
+        next.set('production', id);
+        return next;
+      }),
     loading,
-    error,
+    error:
+      error ||
+      (!loading && requested && !source ? '所选制作项目不存在，或尚未保存封面原图，请选择其他节目。' : ''),
     load,
   };
 }

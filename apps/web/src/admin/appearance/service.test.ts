@@ -8,16 +8,48 @@ describe('appearance service', () => {
   it('lists only saved production covers, newest first, without using seeded episode samples', async () => {
     const older = readyFixture({ id: 'older', version: 7 });
     const newer = readyFixture({ id: 'newer', version: 11, updatedAt: '2026-10-01T00:00:00Z' });
-    const request = vi.fn().mockResolvedValue(Response.json({ productions: [older, fixture(), newer] }));
+    const request = vi
+      .fn()
+      .mockImplementation((path: string) =>
+        Promise.resolve(
+          Response.json(
+            path.endsWith('/categories')
+              ? { categories: [{ id: 'life', name: '生活留白' }] }
+              : { productions: [older, fixture(), newer] },
+          ),
+        ),
+      );
     vi.stubGlobal('fetch', request);
     const signal = new AbortController().signal;
     await expect(appearanceService.coverSources(signal)).resolves.toEqual(
-      [newer, older].map(({ id, title, version, episodeNumber }) => ({ id, title, version, episodeNumber })),
+      [newer, older].map(({ id, title, version, episodeNumber }) => ({
+        id,
+        title,
+        version,
+        episodeNumber,
+        coverUrl: 'https://f.no.mt/cover.png',
+        categoryName: '生活留白',
+      })),
     );
-    expect(request).toHaveBeenCalledOnce();
+    expect(request).toHaveBeenCalledTimes(2);
     expect(request).toHaveBeenCalledWith('/admin/api/productions', expect.objectContaining({ signal }));
+    expect(request).toHaveBeenCalledWith('/admin/api/categories', expect.objectContaining({ signal }));
+    request.mockClear();
     request.mockResolvedValue(Response.json({ productions: [] }));
     await expect(appearanceService.coverSources()).resolves.toEqual([]);
+    expect(request).toHaveBeenCalledOnce();
+  });
+
+  it('does not substitute a category ID or hide category read failures', async () => {
+    const request = vi
+      .fn()
+      .mockResolvedValueOnce(Response.json({ productions: [readyFixture()] }))
+      .mockResolvedValueOnce(Response.json({ categories: [] }))
+      .mockResolvedValueOnce(Response.json({ productions: [readyFixture()] }))
+      .mockResolvedValueOnce(Response.json({ error: 'Category read failed' }, { status: 503 }));
+    vi.stubGlobal('fetch', request);
+    expect((await appearanceService.coverSources())[0].categoryName).toBe('');
+    await expect(appearanceService.coverSources()).rejects.toThrow('Category read failed');
   });
 
   it('reads with cancellation and saves the exact expected version', async () => {

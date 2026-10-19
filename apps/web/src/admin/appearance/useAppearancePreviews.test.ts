@@ -1,21 +1,30 @@
 // @vitest-environment happy-dom
 import { act, createElement } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
+import { MemoryRouter, useLocation, useNavigate } from 'react-router';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import { themeIds } from '../../shared/appearance';
-import * as transport from '../service';
 import { appearanceService, type CoverPreviewSource } from './service';
 import { useAppearancePreviews } from './useAppearancePreviews';
 
 let vm: ReturnType<typeof useAppearancePreviews>;
+let navigate: ReturnType<typeof useNavigate>;
+let search: string;
 let root: Root;
 let container: HTMLDivElement;
-const first: CoverPreviewSource = { id: 'first', title: 'Saved programme', version: 7, episodeNumber: 2 };
+const first: CoverPreviewSource = {
+  id: 'first',
+  title: 'Saved programme',
+  version: 7,
+  episodeNumber: 2,
+  coverUrl: '/media/first.webp',
+  categoryName: '生活留白',
+};
 const second: CoverPreviewSource = { ...first, id: 'second', title: 'Another programme', version: 9 };
-const image = new Blob(['png'], { type: 'image/png' });
 
 function Host() {
   vm = useAppearancePreviews();
+  search = useLocation().search;
+  navigate = useNavigate();
   return null;
 }
 
@@ -25,10 +34,6 @@ beforeEach(() => {
   document.body.appendChild(container);
   root = createRoot(container);
   vi.spyOn(appearanceService, 'coverSources').mockResolvedValue([first, second]);
-  vi.spyOn(transport, 'downloadCover').mockResolvedValue(image);
-  let next = 0;
-  vi.spyOn(URL, 'createObjectURL').mockImplementation(() => `blob:preview-${++next}`);
-  vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
 });
 afterEach(async () => {
   await act(async () => root.unmount());
@@ -37,80 +42,56 @@ afterEach(async () => {
   vi.unstubAllGlobals();
 });
 
-async function mount() {
-  await act(async () => root.render(createElement(Host)));
+async function mount(path = '/admin/appearance') {
+  await act(async () =>
+    root.render(createElement(MemoryRouter, { initialEntries: [path] }, createElement(Host))),
+  );
 }
 
-it('renders all themes from the same saved production without persisting an appearance change', async () => {
-  await mount();
+it('selects saved cover data immediately and follows URL history without fetching rendered images', async () => {
+  await mount('/admin/appearance?theme=interval');
   expect(vm.source).toEqual(first);
   expect(vm.loading).toBe(false);
-  expect(transport.downloadCover).toHaveBeenCalledTimes(8);
-  expect(vi.mocked(transport.downloadCover).mock.calls).toEqual(
-    themeIds.map((theme) => ['productions', first.id, first.version, theme]),
-  );
-  expect(Object.values(vm.previews ?? {}).every((preview) => preview.status === 'ready')).toBe(true);
   await act(async () => vm.setSelected(second.id));
-  expect(URL.revokeObjectURL).toHaveBeenCalledTimes(8);
+  expect(search).toBe('?theme=interval&production=second');
   expect(vm.source).toEqual(second);
-  expect(transport.downloadCover).toHaveBeenLastCalledWith('productions', second.id, 9, 'alpine-bloom');
-  await act(async () => root.unmount());
-  expect(URL.revokeObjectURL).toHaveBeenCalledTimes(16);
+  await act(async () => navigate(-1));
+  expect(vm.source).toEqual(first);
+  await act(async () => navigate(1));
+  expect(vm.source).toEqual(second);
+  expect(appearanceService.coverSources).toHaveBeenCalledOnce();
 });
 
-it('serializes renders across rapid selection changes and discards abandoned results', async () => {
-  let release: (blob: Blob) => void = () => {};
-  vi.mocked(transport.downloadCover).mockImplementationOnce(
-    () =>
-      new Promise<Blob>((resolve) => {
-        release = resolve;
-      }),
-  );
-  await mount();
-  expect(transport.downloadCover).toHaveBeenCalledOnce();
-  await act(async () => vm.setSelected(second.id));
-  expect(vm.previews).toBeUndefined();
-  expect(transport.downloadCover).toHaveBeenCalledOnce();
-  await act(async () => release(image));
-  expect(transport.downloadCover).toHaveBeenCalledTimes(9);
-  expect(URL.createObjectURL).toHaveBeenCalledTimes(8);
+it('restores a deep link and refreshes saved metadata without losing the requested programme', async () => {
+  await mount('/admin/appearance?production=second');
   expect(vm.source).toEqual(second);
-  expect(Object.values(vm.previews ?? {}).every((preview) => preview.status === 'ready')).toBe(true);
-});
-
-it('shows generation failures and refreshes saved versions while preserving the selected programme', async () => {
-  vi.mocked(transport.downloadCover).mockRejectedValueOnce(new transport.ApiError('Render busy', 503));
-  await mount();
-  expect(vm.previews?.grove).toEqual({ status: 'error', message: 'Render busy' });
-  expect(vm.previews?.interval?.status).toBe('ready');
-  await act(async () => vm.setSelected(second.id));
   vi.mocked(appearanceService.coverSources).mockResolvedValue([first, { ...second, version: 10 }]);
   await act(async () => vm.load());
-  expect(vm.selected).toBe(second.id);
-  expect(transport.downloadCover).toHaveBeenLastCalledWith('productions', second.id, 10, 'alpine-bloom');
-  expect(Object.values(vm.previews ?? {}).every((preview) => preview.status === 'ready')).toBe(true);
+  expect(vm.source?.version).toBe(10);
+  expect(search).toBe('?production=second');
 });
 
-it('does not invent covers for an empty library, missing selection or failed catalogue read', async () => {
+it('keeps failed reads, empty libraries and unavailable deep links distinct', async () => {
   vi.mocked(appearanceService.coverSources).mockRejectedValueOnce(new Error('Offline'));
   await mount();
   expect(vm.error).toBe('Offline');
   expect(vm.source).toBeUndefined();
-  expect(transport.downloadCover).not.toHaveBeenCalled();
   vi.mocked(appearanceService.coverSources).mockResolvedValue([]);
   await act(async () => vm.load());
   expect(vm.error).toBe('');
   expect(vm.selected).toBe('');
-  expect(transport.downloadCover).not.toHaveBeenCalled();
   vi.mocked(appearanceService.coverSources).mockResolvedValue([first]);
   await act(async () => vm.load());
   await act(async () => vm.setSelected('removed'));
-  expect(vm.previews).toBeUndefined();
+  expect(vm.source).toBeUndefined();
+  expect(vm.error).toContain('所选制作项目不存在');
   await act(async () => vm.load());
-  expect(vm.selected).toBe(first.id);
+  expect(vm.source).toBeUndefined();
+  await act(async () => vm.setSelected(first.id));
+  expect(vm.error).toBe('');
 });
 
-it('ignores catalogue reads and render responses after unmount', async () => {
+it('ignores catalogue reads after unmount', async () => {
   let releaseSources: (sources: CoverPreviewSource[]) => void = () => {};
   vi.mocked(appearanceService.coverSources).mockImplementationOnce(
     () =>
@@ -123,18 +104,5 @@ it('ignores catalogue reads and render responses after unmount', async () => {
   await act(async () => root.unmount());
   expect(signal?.aborted).toBe(true);
   await act(async () => releaseSources([first]));
-  expect(transport.downloadCover).not.toHaveBeenCalled();
-  root = createRoot(container);
-  let fail: (cause: Error) => void = () => {};
-  vi.mocked(transport.downloadCover).mockImplementationOnce(
-    () =>
-      new Promise<Blob>((_, reject) => {
-        fail = reject;
-      }),
-  );
-  await mount();
-  await act(async () => root.unmount());
-  await act(async () => fail(new Error('Closed')));
-  expect(URL.createObjectURL).not.toHaveBeenCalled();
-  expect(transport.downloadCover).toHaveBeenCalledOnce();
+  expect(vm.sources).toEqual([]);
 });

@@ -170,16 +170,18 @@ html.dark .identity-specimen {
   align-items: center;
   gap: var(--admin-space-4);
 }
-.appearance-cover-preview > a {
+.appearance-cover-open {
   position: relative;
-}
-.appearance-cover-preview img {
   display: block;
-  width: 100%;
   height: auto;
+  padding: 0;
+  overflow: hidden;
+}
+.appearance-cover-open > .framed-cover {
+  width: 100%;
   border-radius: var(--basalt-radius);
 }
-.appearance-cover-preview > a > span {
+.appearance-cover-open > span {
   position: absolute;
   right: var(--admin-space-2);
   bottom: var(--admin-space-2);
@@ -191,6 +193,15 @@ html.dark .identity-specimen {
   color: hsl(var(--basalt-foreground));
   background: hsl(var(--basalt-card));
   font-size: 11px;
+}
+.appearance-cover-dialog {
+  width: min(680px, calc(100vw - var(--admin-space-8)));
+  max-height: calc(100dvh - var(--admin-space-8));
+  overflow-y: auto;
+}
+.appearance-cover-dialog > .framed-cover {
+  width: min(100%, 65dvh);
+  justify-self: center;
 }
 .appearance-cover-placeholder {
   display: flex;

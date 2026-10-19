@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router';
 import { publishAdminAppearanceTheme } from '../../shared/adminAppearanceTheme';
-import type { Appearance, ThemeId } from '../../shared/appearance';
+import { type Appearance, type ThemeId, themeIdSchema } from '../../shared/appearance';
 import { errorMessage } from '../model';
 import { useUnsavedChanges } from '../production/useUnsavedChanges';
 import { ApiError } from '../service';
@@ -8,7 +9,9 @@ import { appearanceService } from './service';
 
 export function useAppearanceSettings() {
   const [saved, setSaved] = useState<Appearance | null>(null);
-  const [selected, setSelected] = useState<ThemeId | null>(null);
+  const [params, setParams] = useSearchParams();
+  const requested = themeIdSchema.safeParse(params.get('theme'));
+  const selected = requested.success ? requested.data : (saved?.theme ?? null);
   const [error, setError] = useState('');
   const [pending, setPending] = useState(false);
   const [conflict, setConflict] = useState(false);
@@ -23,14 +26,30 @@ export function useAppearanceSettings() {
       if (signal?.aborted) return;
       setSaved(result.appearance);
       publishAdminAppearanceTheme(result.appearance.theme);
-      setSelected(result.appearance.theme);
       setConflict(false);
+      return result.appearance;
     } catch (cause) {
       if (!signal?.aborted) setError(errorMessage(cause));
     } finally {
       if (!signal?.aborted) setPending(false);
     }
   }, []);
+
+  function setSelected(theme: ThemeId, replace = false) {
+    setParams(
+      (current) => {
+        const next = new URLSearchParams(current);
+        next.set('theme', theme);
+        return next;
+      },
+      { replace },
+    );
+  }
+
+  async function reload() {
+    const appearance = await load();
+    if (appearance) setSelected(appearance.theme, true);
+  }
 
   useEffect(() => {
     const controller = new AbortController();
@@ -54,5 +73,5 @@ export function useAppearanceSettings() {
     }
   }
 
-  return { saved, selected, setSelected, error, pending, conflict, dirty, load, save };
+  return { saved, selected, setSelected, error, pending, conflict, dirty, load, reload, save };
 }

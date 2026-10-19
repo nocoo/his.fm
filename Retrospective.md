@@ -984,3 +984,11 @@ target block before editing. Palette labels initially used an invalid generic
 ARIA label/group; a semantic named list expresses the same structure without
 invented roles. Keep catalogue read failures distinct from an empty library, and
 do not substitute seeded covers when real saved projects have no originals.
+
+## 2026-10-19 — Reuse the live composition for previews
+
+The first catalogue reused the PNG download endpoint even though the programme
+library already composed real covers with `FramedCover`. Serial export protected
+Worker memory but unnecessarily made eight display previews wait. Reuse the
+shared browser composition and reserve server PNG rendering for explicit exports.
+Read existing visual consumers before choosing a download transport for display.

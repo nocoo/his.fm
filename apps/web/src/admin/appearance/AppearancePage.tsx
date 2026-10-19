@@ -112,7 +112,7 @@ export default function AppearancePage() {
           {vm.conflict && (
             <LayerCard className="appearance-conflict">
               <p>已有新的外观设置。你的选择仍保留，请读取最新设置后重新选择。</p>
-              <Button variant="outline" loading={vm.pending} onClick={() => void vm.load()}>
+              <Button variant="outline" loading={vm.pending} onClick={() => void vm.reload()}>
                 读取最新设置
               </Button>
             </LayerCard>
@@ -126,7 +126,6 @@ export default function AppearancePage() {
           >
             {themeIds.map((id) => {
               const theme = themes[id];
-              const preview = covers.previews?.[id];
               return (
                 <LayerCard
                   padding="none"
@@ -190,10 +189,10 @@ export default function AppearancePage() {
                       </p>
                     </div>
                     <ThemeCoverPreview
-                      key={preview?.status === 'ready' ? preview.url : covers.selected}
+                      key={`${covers.source?.id}:${covers.source?.version}:${covers.source?.coverUrl}`}
                       name={theme.name}
+                      themeId={id}
                       source={covers.source}
-                      preview={preview}
                       loading={covers.loading}
                       sourceError={covers.error}
                     />
