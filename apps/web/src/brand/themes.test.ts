@@ -3,6 +3,16 @@ import { describe, expect, it } from 'vitest';
 import { themeIds } from '../shared/appearance';
 import { themeCoverFrameSrc, themeFaviconSrc, themes } from './themes';
 
+it('keeps theme names, design copy and palette labels from the archived design index', () => {
+  const index = readFileSync(new URL('../../../../docs/design/index.html', import.meta.url), 'utf8');
+  for (const theme of Object.values(themes)) {
+    for (const text of [theme.name, theme.english, theme.designStyle, theme.designSlogan, theme.description])
+      expect(index).toContain(text);
+    for (const [position, color] of theme.palette.entries())
+      expect(index).toContain(`${theme.paletteNames[position]} ${color}`);
+  }
+});
+
 describe('theme cover frames', () => {
   it('maps every theme to its design-system overlay SVG', () => {
     for (const id of themeIds) {

@@ -975,3 +975,12 @@ backup row. Backups store that snapshot inside the JSON `data` column. Read the
 existing backup assertions before adding coverage, and decode the stored snapshot
 when checking that migration preserves source text. The corrected regression
 also verifies dry-run leaves both category rows and backups unchanged.
+
+## 2026-10-19 — Inspect catalogue semantics before patching
+
+During the theme catalogue update, guessed paths and a patch based on concatenated
+CSS output failed harmlessly. Resolve actual files with `fd` and read the exact
+target block before editing. Palette labels initially used an invalid generic
+ARIA label/group; a semantic named list expresses the same structure without
+invented roles. Keep catalogue read failures distinct from an empty library, and
+do not substitute seeded covers when real saved projects have no originals.

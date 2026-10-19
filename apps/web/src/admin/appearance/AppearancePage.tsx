@@ -1,17 +1,20 @@
 import { Badge, Button, LayerCard } from '@nocoo/basalt';
 import { PageHeader } from '@nocoo/basalt/components/page-header';
 import { Radio, RadioGroup } from '@nocoo/basalt/components/radio';
-import { ArrowUpRight, Check, Eye } from 'lucide-react';
+import { ArrowUpRight, Check, Eye, RefreshCw } from 'lucide-react';
 import { BrandLockup } from '../../brand/BrandLockup';
 import { themeCoverFrameSrc, themeMedia, themeStyle, themes } from '../../brand/themes';
 import { themeIdSchema, themeIds } from '../../shared/appearance';
 import { getEnvironment } from '../environment';
-import { Failure } from '../production/controls';
+import { Choice, Failure } from '../production/controls';
+import { ThemeCoverPreview } from './ThemeCoverPreview';
+import { useAppearancePreviews } from './useAppearancePreviews';
 import { useAppearanceSettings } from './useAppearanceSettings';
 import './appearance.css';
 
 export default function AppearancePage() {
   const vm = useAppearanceSettings();
+  const covers = useAppearancePreviews();
   const website = import.meta.env.DEV && getEnvironment() === 'production' ? 'https://his.fm' : '';
   return (
     <div className="admin-page appearance-page">
@@ -73,6 +76,39 @@ export default function AppearancePage() {
               {vm.dirty ? '所选风格尚未应用' : '已保存 · 公开网站使用此风格'}
             </span>
           </div>
+          <LayerCard className="appearance-preview-controls" padding="md">
+            <div>
+              <strong>封面预览节目</strong>
+              <p className="admin-muted">
+                八种风格使用同一真实制作项目；读取已保存内容，不修改原图或发布状态。
+              </p>
+            </div>
+            {covers.sources.length > 0 && (
+              <Choice
+                label="封面预览节目"
+                value={covers.selected}
+                onChange={covers.setSelected}
+                options={covers.sources.map((source) => ({
+                  value: source.id,
+                  label: `${String(source.episodeNumber).padStart(3, '0')} · ${source.title}`,
+                }))}
+                disabled={covers.loading}
+              />
+            )}
+            <Button variant="outline" size="sm" loading={covers.loading} onClick={() => void covers.load()}>
+              <RefreshCw size={14} /> 刷新预览
+            </Button>
+            {covers.error && (
+              <p className="admin-error" role="alert">
+                {covers.error}
+              </p>
+            )}
+            {!covers.loading && !covers.error && !covers.source && (
+              <p className="admin-muted appearance-preview-notice">
+                当前环境没有已保存封面原图的制作项目，不使用演示数据替代。
+              </p>
+            )}
+          </LayerCard>
           {vm.conflict && (
             <LayerCard className="appearance-conflict">
               <p>已有新的外观设置。你的选择仍保留，请读取最新设置后重新选择。</p>
@@ -90,6 +126,7 @@ export default function AppearancePage() {
           >
             {themeIds.map((id) => {
               const theme = themes[id];
+              const preview = covers.previews?.[id];
               return (
                 <LayerCard
                   padding="none"
@@ -97,20 +134,24 @@ export default function AppearancePage() {
                   key={id}
                   data-selected={vm.selected === id}
                 >
-                  <label htmlFor={`appearance-${id}`}>
+                  <label className="appearance-theme-label" htmlFor={`appearance-${id}`}>
                     <div
                       className="appearance-mini"
                       data-theme={id}
                       style={themeStyle(id)}
                       aria-hidden="true"
                     >
-                      <img src={themeMedia[id].thumbnail} alt="" width={480} height={320} loading="lazy" />
+                      <img
+                        src={themeMedia[id].hero}
+                        srcSet={themeMedia[id].srcSet}
+                        sizes="(max-width: 760px) calc(100vw - 72px), (max-width: 1199px) calc((100vw - 96px) / 2), calc((100vw - 380px) / 2)"
+                        alt={theme.imageAlt}
+                        width={themeMedia[id].width}
+                        height={themeMedia[id].height}
+                        loading="lazy"
+                      />
                       <BrandLockup />
-                      <span className="mini-heading">
-                        {theme.heading.map((line) => (
-                          <span key={line}>{line}</span>
-                        ))}
-                      </span>
+                      <span className="mini-heading">{theme.designSlogan}</span>
                     </div>
                     <LayerCard.Body className="appearance-choice">
                       <Radio
@@ -127,23 +168,48 @@ export default function AppearancePage() {
                           使用中
                         </Badge>
                       )}
-                      <span className="appearance-english">{theme.english}</span>
+                      <span className="appearance-english">
+                        {theme.english} · {theme.designStyle}
+                      </span>
+                    </LayerCard.Body>
+                  </label>
+                  <LayerCard.Body className="appearance-design-details">
+                    <ul className="appearance-palette" aria-label={`${theme.name}配色`}>
+                      {theme.palette.map((color, index) => (
+                        <li key={color} title={`${theme.paletteNames[index]} ${color}`}>
+                          <span style={{ background: color }} aria-hidden="true" />
+                          <span>{theme.paletteNames[index]}</span>
+                          <code>{color}</code>
+                        </li>
+                      ))}
+                    </ul>
+                    <div>
+                      <span className="appearance-detail-label">设计思路</span>
                       <p id={`appearance-description-${id}`} className="appearance-description">
                         {theme.description}
                       </p>
-                    </LayerCard.Body>
-                    <div className="appearance-swatches" aria-hidden="true">
-                      {theme.palette.map((color) => (
-                        <span key={color} style={{ background: color }} />
-                      ))}
                     </div>
-                  </label>
+                    <ThemeCoverPreview
+                      key={preview?.status === 'ready' ? preview.url : covers.selected}
+                      name={theme.name}
+                      source={covers.source}
+                      preview={preview}
+                      loading={covers.loading}
+                      sourceError={covers.error}
+                    />
+                    <Button variant="outline" size="sm" asChild>
+                      <a href={`${website}/?theme=${id}`} target="_blank" rel="noopener noreferrer">
+                        <Eye size={14} /> 预览此主题网站 <ArrowUpRight size={14} />
+                      </a>
+                    </Button>
+                  </LayerCard.Body>
                 </LayerCard>
               );
             })}
           </RadioGroup>
           <p className="admin-muted appearance-note">
-            选择后可先预览，应用后所有访客使用同一风格。节目内容与已发布的封面原图保持完整。
+            设计说明与配色来自 docs/design/index.html，本站 ID
+            采用当前统一规范。选择与预览均不保存；只有“应用到公开网站”会更改主题。
           </p>
         </>
       )}

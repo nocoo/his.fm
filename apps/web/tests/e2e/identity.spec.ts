@@ -2,6 +2,10 @@ import { expect, type Locator, test } from '@playwright/test';
 import { themeFaviconSrc, themes } from '../../src/brand/themes';
 import { type Appearance, themeIds } from '../../src/shared/appearance';
 
+test.beforeEach(async ({ page }) => {
+  await page.route('**/admin/api/productions', (route) => route.fulfill({ json: { productions: [] } }));
+});
+
 function rgb(hex: string) {
   return `rgb(${hex
     .slice(1)
@@ -44,6 +48,7 @@ test('all theme cards and studio headers share the canonical ID in light and dar
     if (request.method() !== 'GET') writes.push(request.url());
     if (request.url().endsWith('/session'))
       return route.fulfill({ json: { mode: 'local', user: { email: 'editor@his.fm' } } });
+    if (request.url().endsWith('/productions')) return route.fulfill({ json: { productions: [] } });
     if (request.url().endsWith('/appearance'))
       return route.fulfill({
         json: { appearance: { theme: 'interval', version: 1, updatedAt: '', updatedBy: 'owner' } },

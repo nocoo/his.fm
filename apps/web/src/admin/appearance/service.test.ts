@@ -1,9 +1,25 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { fixture, readyFixture } from '../../../tests/worker/production-fixture';
 import { appearanceService } from './service';
 
 afterEach(() => vi.unstubAllGlobals());
 
 describe('appearance service', () => {
+  it('lists only saved production covers, newest first, without using seeded episode samples', async () => {
+    const older = readyFixture({ id: 'older', version: 7 });
+    const newer = readyFixture({ id: 'newer', version: 11, updatedAt: '2026-10-01T00:00:00Z' });
+    const request = vi.fn().mockResolvedValue(Response.json({ productions: [older, fixture(), newer] }));
+    vi.stubGlobal('fetch', request);
+    const signal = new AbortController().signal;
+    await expect(appearanceService.coverSources(signal)).resolves.toEqual(
+      [newer, older].map(({ id, title, version, episodeNumber }) => ({ id, title, version, episodeNumber })),
+    );
+    expect(request).toHaveBeenCalledOnce();
+    expect(request).toHaveBeenCalledWith('/admin/api/productions', expect.objectContaining({ signal }));
+    request.mockResolvedValue(Response.json({ productions: [] }));
+    await expect(appearanceService.coverSources()).resolves.toEqual([]);
+  });
+
   it('reads with cancellation and saves the exact expected version', async () => {
     const appearance = {
       theme: 'stillwood',

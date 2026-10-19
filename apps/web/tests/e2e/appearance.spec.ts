@@ -267,6 +267,7 @@ test('the owner can preview and apply a theme without changing production or con
 test('failed saves preserve selection and conflicts require an explicit reload', async ({ page }) => {
   let saved: Appearance = { theme: 'interval', version: 1, updatedAt: '', updatedBy: 'owner' };
   let failure = 503;
+  await page.route('**/admin/api/productions', (route) => route.fulfill({ json: { productions: [] } }));
   await page.route('**/admin/api/session', (route) =>
     route.fulfill({ json: { mode: 'local', user: { email: 'editor@his.fm' } } }),
   );
@@ -313,6 +314,8 @@ test('theme choices align padded content and retain selection and keyboard focus
     if (request.method() !== 'GET') writes.push(request.url());
     if (new URL(request.url()).pathname === '/admin/api/session')
       return route.fulfill({ json: { mode: 'local', user: { email: 'editor@his.fm' } } });
+    if (new URL(request.url()).pathname === '/admin/api/productions')
+      return route.fulfill({ json: { productions: [] } });
     if (new URL(request.url()).pathname === '/admin/api/appearance')
       return route.fulfill({
         json: { appearance: { theme: 'interval', version: 1, updatedAt: '', updatedBy: 'owner' } },
@@ -360,29 +363,22 @@ test('theme choices align padded content and retain selection and keyboard focus
         const current = element.querySelector('.appearance-current')?.getBoundingClientRect();
         return {
           left: radio.left - body.left,
-          textOffset: description.left - title.left,
+          textOffset: description.left - body.left,
           englishOffset: english.left - title.left,
           right: body.right - description.right,
-          descriptionGap:
-            description.top +
-            parseFloat(
-              getComputedStyle(element.querySelector('.appearance-description') as Element).paddingTop,
-            ) -
-            english.bottom,
           radioAlignment: (radio.top + radio.bottom - title.top - title.bottom) / 2,
           badgeGap: current ? current.left - title.right : null,
-          stripBottom: element.getBoundingClientRect().bottom - rect('.appearance-swatches').bottom,
+          paletteLeft: rect('.appearance-palette').left - body.left,
           headingBottom: mini.bottom - heading.bottom,
           headingRight: mini.right - heading.right,
         };
       });
       expect(spacing.left).toBeCloseTo(16, 1);
       expect(spacing.right).toBeCloseTo(16, 1);
-      expect(spacing.textOffset).toBeCloseTo(0, 1);
+      expect(spacing.textOffset).toBeCloseTo(16, 1);
       expect(spacing.englishOffset).toBeCloseTo(0, 1);
       expect(spacing.radioAlignment).toBeCloseTo(0, 1);
-      expect(spacing.descriptionGap).toBeCloseTo(12, 1);
-      expect(spacing.stripBottom).toBeCloseTo(0, 1);
+      expect(spacing.paletteLeft).toBeCloseTo(16, 1);
       expect(spacing.headingBottom).toBeGreaterThan(8);
       expect(spacing.headingRight).toBeGreaterThan(8);
       if (spacing.badgeGap !== null) expect(spacing.badgeGap).toBeGreaterThanOrEqual(12);
