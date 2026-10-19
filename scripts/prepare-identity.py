@@ -4,7 +4,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 source = (ROOT / 'apps/web/src/brand/identity.svg').read_text()
-palette = json.loads((ROOT / 'apps/web/src/brand/cover-frame-layouts.json').read_text())['themes']['interval']
+palettes = json.loads((ROOT / 'apps/web/src/brand/cover-frame-layouts.json').read_text())['themes']
+palette = palettes['interval']
 
 
 def symbol(name):
@@ -14,9 +15,9 @@ def symbol(name):
     return match[1], match[2]
 
 
-def svg(viewbox, body):
+def svg(viewbox, body, color=palette['ink'].lower()):
     _, _, width, height = viewbox.split()
-    return f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="{viewbox}" color="{palette["ink"].lower()}" role="img" aria-label="his.fm">{body}</svg>\n'
+    return f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="{viewbox}" color="{color}" role="img" aria-label="his.fm">{body}</svg>\n'
 
 
 wordmark = symbol('wordmark')
@@ -33,5 +34,8 @@ destination = ROOT / 'apps/web/public/brand'
 destination.mkdir(parents=True, exist_ok=True)
 (destination / 'logo.svg').write_text(svg(*wordmark))
 (destination / 'symbol.svg').write_text(svg(*mark))
-(ROOT / 'apps/web/public/favicon.svg').write_text(svg('0 0 128 128', f'<rect width="128" height="128" rx="20" fill="{palette["accent"].lower()}"/>{mark[1]}'))
-print('已生成统一字标、符号和站点图标。')
+favicons = destination / 'favicons'
+favicons.mkdir(parents=True, exist_ok=True)
+for theme, colors in palettes.items():
+    (favicons / f'{theme}.svg').write_text(svg('0 0 128 128', f'<rect width="128" height="128" rx="20" fill="{colors["ink"].lower()}"/><g transform="translate(16 16) scale(0.75)">{mark[1]}</g>', '#ffffff'))
+print('已生成统一字标、符号和八套主题图标。')

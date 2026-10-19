@@ -15,7 +15,6 @@ html:has(.admin-app) {
   --admin-space-5: 20px;
   --admin-space-6: 24px;
   --admin-space-8: 32px;
-  --admin-mark-size: 44px;
 }
 .admin-app {
   color: hsl(var(--basalt-foreground));
@@ -73,35 +72,33 @@ html:has(.admin-app) {
   gap: var(--admin-space-4);
 }
 .admin-rail-header {
-  gap: var(--admin-space-1);
-  padding-inline: calc((var(--basalt-size-rail) - var(--admin-mark-size)) / 2);
-}
-.admin-brand-meta {
-  display: flex;
-  flex: 1;
   flex-wrap: wrap;
-  align-items: center;
   gap: var(--admin-space-1);
-  min-width: 0;
-}
-.admin-brand {
-  flex: 1 1 88px;
-  min-width: 0;
+  height: auto;
+  min-height: var(--basalt-space-14);
+  padding-block: var(--admin-space-2);
 }
 [data-basalt-sidebar][data-collapsed] .admin-rail-header {
   justify-content: center;
   padding-inline: 0;
 }
 .admin-app a.admin-rail-mark {
-  width: var(--admin-mark-size);
-  height: var(--admin-mark-size);
-  display: grid;
-  place-items: center;
-  flex: 0 0 var(--admin-mark-size);
-  color: hsl(var(--basalt-primary));
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  color: var(--ink, hsl(var(--basalt-foreground)));
+}
+html.dark .admin-app a.admin-rail-mark {
+  color: #fff;
+}
+.admin-rail-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--admin-space-1);
+  margin-left: auto;
+  flex-shrink: 0;
 }
 .admin-version {
-  margin-left: auto;
   flex-shrink: 0;
   font-size: 11px;
   padding: 2px 5px;
@@ -502,11 +499,7 @@ html:has(.admin-app) {
   }
 }
 
-.admin-brand .brand-wordmark {
-  width: 100%;
-  max-width: 88px;
-}
-.admin-rail-mark .brand-symbol {
+.admin-rail-mark > .brand-symbol {
   width: 24px;
   height: 24px;
 }

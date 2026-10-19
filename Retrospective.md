@@ -1,5 +1,21 @@
 # Retrospective
 
+## 2026-10-19 - Verify identity geometry and saved-theme reloads
+
+The first identity pass checked the default sidebar but missed its existing
+180px resize minimum. The wider canonical lockup clipped the collapse button.
+Keep the ID geometry fixed and allow the version/control group to wrap, then
+exercise every resize step and keyboard collapse/expand. Reading fresh
+appearance settings also needs to publish the saved theme to the shared admin
+store; otherwise conflict reload updates the cards but leaves the header and
+favicon stale. Verify that path separately from successful saves.
+
+An expression-bodied React effect cleanup returned a DOM mutator's value under
+the combined Worker/DOM declarations. Use a void block cleanup and run strict
+typecheck as well as runtime tests. The Herdr split ratio mistake recorded on
+October 18 also recurred and was corrected before delegation. Check the owned
+space and layout explicitly instead of trusting inherited pane variables.
+
 ## 2026-10-18 - Update served onboarding when migration behavior changes
 
 The prompt-skills cleanup initially updated `docs/prompts.md` but missed the

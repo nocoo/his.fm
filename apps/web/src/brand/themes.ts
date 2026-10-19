@@ -18,6 +18,10 @@ export function themeCoverFrameSrc(id: ThemeId): string {
   return `/brand/frames/${id}.svg`;
 }
 
+export function themeFaviconSrc(id: ThemeId): string {
+  return `/brand/favicons/${id}.svg`;
+}
+
 export const themes: Record<ThemeId, Theme> = {
   grove: {
     number: '01',

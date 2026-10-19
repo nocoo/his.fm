@@ -41,13 +41,18 @@ import {
 import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
 import { version } from '../../../../package.json';
-import { BrandSymbol, Wordmark } from '../brand/Brand';
+import { BrandSymbol } from '../brand/Brand';
+import { BrandLockup } from '../brand/BrandLockup';
+import { ThemeFavicon } from '../brand/ThemeFavicon';
+import { themeStyle } from '../brand/themes';
 import { GithubIcon } from '../components/GithubIcon';
+import { useResolvedThemeId } from '../shared/useResolvedThemeId';
 import { errorMessage, sessionDisplayName, sessionInitials } from './model';
 import { EnvironmentSwitch } from './production/EnvironmentSwitch';
 import { adminService, type Session } from './service';
 
 export function AdminShell({ session, children }: { session: Session; children: ReactNode }) {
+  const { themeId, resolved } = useResolvedThemeId();
   const navigate = useNavigate();
   const location = useLocation();
   const [compact, setCompact] = useState(() => window.matchMedia('(max-width: 1199px)').matches);
@@ -188,6 +193,7 @@ export function AdminShell({ session, children }: { session: Session; children: 
   return (
     <SidebarProvider collapsed={collapsed} onCollapsedChange={setCollapsed} overlay={compact}>
       <AppShell className="admin-shell">
+        {resolved && <ThemeFavicon theme={themeId} />}
         <AppSkipLink>跳至主要内容</AppSkipLink>
         <Sidebar>
           {compact && (
@@ -199,17 +205,17 @@ export function AdminShell({ session, children }: { session: Session; children: 
             </>
           )}
           <SidebarHeader className="admin-rail-header">
-            <Link className="admin-rail-mark" to="/" aria-label="his.fm 首页">
-              <BrandSymbol />
+            <Link
+              className="admin-rail-mark"
+              style={resolved ? themeStyle(themeId) : undefined}
+              to="/"
+              aria-label="his.fm 首页"
+            >
+              {iconOnly ? <BrandSymbol /> : <BrandLockup />}
             </Link>
             {!iconOnly && (
-              <>
-                <div className="admin-brand-meta">
-                  <span className="admin-brand" role="img" aria-label="his.fm">
-                    <Wordmark />
-                  </span>
-                  <span className="admin-version">v{version}</span>
-                </div>
+              <div className="admin-rail-meta">
+                <span className="admin-version">v{version}</span>
                 {!compact && (
                   <Button
                     ref={focusNavigationToggle}
@@ -222,7 +228,7 @@ export function AdminShell({ session, children }: { session: Session; children: 
                     <PanelLeft size={16} strokeWidth={1.5} aria-hidden="true" />
                   </Button>
                 )}
-              </>
+              </div>
             )}
           </SidebarHeader>
           {iconOnly && (

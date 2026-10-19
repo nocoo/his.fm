@@ -362,6 +362,10 @@
   color: var(--paper);
   border-color: color-mix(in srgb, var(--paper) 22%, var(--ink));
 }
+.public-site[data-theme="stillwood"][data-home="true"] .site-header .brand-lockup,
+.public-site[data-theme="window-seat"][data-home="true"] .site-header .brand-lockup {
+  color: #fff;
+}
 .public-site[data-theme="stillwood"] .home-hero,
 .public-site[data-theme="tidal-hours"] .home-hero,
 .public-site[data-theme="alpine-bloom"] .home-hero {

@@ -22,6 +22,7 @@ export function useAppearanceSettings() {
       const result = await appearanceService.read(signal);
       if (signal?.aborted) return;
       setSaved(result.appearance);
+      publishAdminAppearanceTheme(result.appearance.theme);
       setSelected(result.appearance.theme);
       setConflict(false);
     } catch (cause) {

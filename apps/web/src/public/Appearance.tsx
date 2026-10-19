@@ -1,6 +1,7 @@
 import { createContext, type ReactNode, useContext, useEffect, useLayoutEffect, useState } from 'react';
 import { Link, type LinkProps, NavLink, type NavLinkProps, useLocation } from 'react-router';
 import { BrandSymbol } from '../brand/Brand';
+import { ThemeFavicon } from '../brand/ThemeFavicon';
 import { themeStyle, themes } from '../brand/themes';
 import { type PublicAppearance, type ThemeId, themeIdSchema } from '../shared/appearance';
 import { appearanceHref, getAppearance } from './model';
@@ -89,6 +90,7 @@ export function SiteAppearance({ children }: { children: ReactNode }) {
   const exitPath = `${location.pathname}${exit.size ? `?${exit}` : ''}${location.hash}`;
   return (
     <AppearanceContext.Provider value={{ id, preview }}>
+      <ThemeFavicon theme={id} />
       <div
         className="public-site"
         id="top"

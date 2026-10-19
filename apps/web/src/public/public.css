@@ -29,6 +29,23 @@ html:has(.public-site) body {
   height: 28px;
   flex: none;
 }
+.brand-lockup {
+  --brand-wordmark-width: 116px;
+  --brand-symbol-size: calc(var(--brand-wordmark-width) * 17 / 60);
+  --brand-gap: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--brand-gap);
+  flex: none;
+  color: inherit;
+}
+.brand-lockup > .brand-wordmark {
+  width: var(--brand-wordmark-width);
+}
+.brand-lockup > .brand-symbol {
+  width: var(--brand-symbol-size);
+  height: var(--brand-symbol-size);
+}
 .appearance-gate {
   display: grid;
   place-content: center;
@@ -169,11 +186,8 @@ html:has(.public-site) body {
 .public-site .wordmark {
   display: flex;
   align-items: center;
-  gap: 22px;
+  gap: 16px;
   flex: none;
-}
-.public-site .wordmark .brand-wordmark {
-  width: 129px;
 }
 .public-site .brand-caption {
   padding-left: 18px;
@@ -1107,9 +1121,6 @@ html:has(.public-site) body {
     min-height: 74px;
     padding-block: 15px;
     gap: 20px;
-  }
-  .public-site .wordmark .brand-wordmark {
-    width: 113px;
   }
   .public-site .header-listen {
     display: none;

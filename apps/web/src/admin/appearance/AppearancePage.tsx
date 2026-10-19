@@ -2,7 +2,7 @@ import { Badge, Button, LayerCard } from '@nocoo/basalt';
 import { PageHeader } from '@nocoo/basalt/components/page-header';
 import { Radio, RadioGroup } from '@nocoo/basalt/components/radio';
 import { ArrowUpRight, Check, Eye } from 'lucide-react';
-import { BrandSymbol, Wordmark } from '../../brand/Brand';
+import { BrandLockup } from '../../brand/BrandLockup';
 import { themeCoverFrameSrc, themeMedia, themeStyle, themes } from '../../brand/themes';
 import { themeIdSchema, themeIds } from '../../shared/appearance';
 import { getEnvironment } from '../environment';
@@ -39,14 +39,18 @@ export default function AppearancePage() {
       {vm.saved && (
         <>
           <LayerCard className="appearance-identity" padding="md">
-            <div className="identity-specimen" role="img" aria-label="his.fm 统一字标与开口括号符号">
-              <Wordmark />
-              <BrandSymbol />
+            <div
+              className="identity-specimen"
+              style={themeStyle(vm.saved.theme)}
+              role="img"
+              aria-label="his.fm 后接括号，暗喻函数调用"
+            >
+              <BrandLockup />
             </div>
             <div>
               <strong>一套 ID，八种风景。</strong>
               <p className="admin-muted">
-                统一采用「间隙」字标、括号符号与 Space Grotesk / Noto Sans SC。主题决定配色、主视觉和构图。
+                his.fm 后接一对括号，暗喻程序中的 func()。字形与间距统一，主题决定配色、主视觉和构图。
               </p>
             </div>
             <div className="identity-downloads">
@@ -101,13 +105,12 @@ export default function AppearancePage() {
                       aria-hidden="true"
                     >
                       <img src={themeMedia[id].thumbnail} alt="" width={480} height={320} loading="lazy" />
-                      <Wordmark />
+                      <BrandLockup />
                       <span className="mini-heading">
                         {theme.heading.map((line) => (
                           <span key={line}>{line}</span>
                         ))}
                       </span>
-                      <BrandSymbol />
                     </div>
                     <LayerCard.Body className="appearance-choice">
                       <Radio

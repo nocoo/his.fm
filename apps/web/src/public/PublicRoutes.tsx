@@ -14,6 +14,7 @@ import {
 import { createContext, type ReactNode, useContext, useEffect, useState } from 'react';
 import { Outlet, Route, Routes, useLocation, useParams, useSearchParams } from 'react-router';
 import { BrandSymbol, Wordmark } from '../brand/Brand';
+import { BrandLockup } from '../brand/BrandLockup';
 import { themeMedia } from '../brand/themes';
 import { AudioPlayer } from '../components/AudioPlayer';
 import { coverArtwork, coverDesignSize } from '../shared/cover-composition';
@@ -61,7 +62,7 @@ function Header() {
   return (
     <header className="site-header">
       <Link to="/" className="wordmark" aria-label="his.fm 首页">
-        <Wordmark />
+        <BrandLockup />
         <span className="brand-caption">中文播客</span>
       </Link>
       <nav className={`main-nav ${open ? 'is-open' : ''}`} aria-label="主导航">

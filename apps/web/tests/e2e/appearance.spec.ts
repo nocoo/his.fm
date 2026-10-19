@@ -1,6 +1,6 @@
 import { mkdir } from 'node:fs/promises';
 import { expect, test } from '@playwright/test';
-import { themes } from '../../src/brand/themes';
+import { themeFaviconSrc, themes } from '../../src/brand/themes';
 import { type Appearance, themeIds } from '../../src/shared/appearance';
 import { coverArtwork, coverDesignSize } from '../../src/shared/cover-composition';
 
@@ -276,6 +276,7 @@ test('failed saves preserve selection and conflicts require an explicit reload',
       : route.fulfill({ json: { appearance: saved } }),
   );
   await page.goto('/admin/appearance');
+  await expect(page.locator('link[rel="icon"]')).toHaveAttribute('href', themeFaviconSrc('interval'));
   await page.getByRole('radio', { name: '01 · 林间电台', exact: true }).click();
   await page.getByRole('button', { name: '应用到公开网站' }).click();
   await expect(page.getByRole('alert')).toContainText('连接暂时中断');
@@ -287,6 +288,10 @@ test('failed saves preserve selection and conflicts require an explicit reload',
   await page.getByRole('button', { name: '读取最新设置' }).click();
   const current = page.getByRole('radio', { name: '05 · 雾林来信', exact: true });
   await expect(current).toBeChecked();
+  await expect(page.locator('link[rel="icon"]')).toHaveAttribute('href', themeFaviconSrc('stillwood'));
+  expect(
+    await page.locator('.admin-rail-mark').evaluate((element) => element.style.getPropertyValue('--ink')),
+  ).toBe(themes.stillwood.palette[1]);
   await current.focus();
   await page.keyboard.down('ArrowDown');
   await expect(page.getByRole('radio', { name: '06 · 岛屿时间', exact: true })).toBeChecked();

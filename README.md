@@ -52,6 +52,14 @@ Husky checks the staged Git snapshot with coverage, strict lint and typecheck. A
 
 See [production workflow](docs/production.md), [external API](docs/agent-api.md), [audio uploads](docs/audio.md), [architecture](docs/architecture.md), [operations](docs/operations.md), [CI/CD](docs/ci-cd.md) and [artwork provenance](artwork/README.md).
 
+### Brand identity
+
+The canonical ID is `his.fm ()`: the wordmark comes first, followed by a pair of open parentheses. The symbol alludes to a programmer's function call, `func()`, connecting the podcast to its developer audience. Keep the accepted outlined shapes in `apps/web/src/brand/identity.svg`; neither the wordmark nor the parentheses may be replaced with typed text or a theme-specific font.
+
+Public and studio top-left headers, the appearance specimen and all eight theme cards share the same lockup: a 116px-wide wordmark, an equally tall square symbol (about 33px) and an 8px gap, vertically centered. The parentheses have the same typographic scale as the wordmark, like `func()`, not a small accompanying icon. Wordmark and symbol always share one color: the theme's dark primary (`ink`) on light backgrounds, or white on dark backgrounds. Theme-card slogans share one responsive size; card titles share one size across directions.
+
+Each theme has a standard favicon: its dark primary background and the canonical white parentheses, centered with identical proportions and padding. Public previews use the preview theme; normal browsing and the studio use the saved theme. Selecting a card alone does not change the saved identity. Archived design studies, decorative hero marks, cover frames, sharing artwork and installed-app icons are outside this normalization.
+
 ### API prompt slots
 
 Prompt slots use GET/PUT/POST /channel/prompt-slots and /categories/{id}/prompt-slots, plus PATCH/DELETE /{slotId}. Reads require prompts:read; all writes require prompts:write, independently of category metadata grants. Mutations use the collection version; write-only responses contain only version. Category append adds after the same channel ID; override replaces it. Disabled category slots do not mask channel. Enabled results sort by order then ID. GET /migration/dry-run below either table is read-only; POST /migration/apply with version and legacyVersion explicitly initializes slots with an atomic original-value backup. Nothing auto-applies on deploy; reapply is a no-op. Old channel.content, channel.prompts.* and category.prompt are read-only: stored values until apply, then enabled local slots concatenated as Markdown. New clients must use slots; compatibility removal requires a separately announced, verified consumer cutover.

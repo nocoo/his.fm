@@ -4,6 +4,7 @@ import { exportJWK, generateKeyPair, SignJWT } from 'jose';
 import { Miniflare, Response as MiniflareResponse } from 'miniflare';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { version } from '../../../../package.json';
+import { themeFaviconSrc } from '../../src/brand/themes';
 import { type Appearance, appearanceSchema, themeIds } from '../../src/shared/appearance';
 import { channelProfileSchema } from '../../src/shared/channel';
 import type { Episode, EpisodeInput, projectPublicEpisode } from '../../src/shared/episode';
@@ -759,6 +760,13 @@ describe('website appearance', () => {
       current = next;
       expect(await saved()).toEqual(current);
       expect(await (await call('/api/appearance')).json()).toEqual({ appearance: { theme } });
+      for (const method of ['GET', 'HEAD']) {
+        const favicon = await call('/favicon.svg', { method, headers: { Cookie: '' } });
+        expect(favicon.status).toBe(302);
+        expect(favicon.headers.get('Location')).toBe(`${origin}${themeFaviconSrc(theme)}`);
+        expect(favicon.headers.get('Cache-Control')).toBe('no-store');
+        expect(await favicon.text()).toBe('');
+      }
     }
     const responses = await Promise.all(
       ['grove', 'interval'].map((theme) =>
@@ -784,6 +792,33 @@ describe('website appearance', () => {
       expect((await call('/admin/api/appearance', { method: 'PUT', ...body(invalid) })).status).toBe(400);
     }
     expect((await call('/admin/api/appearance', { method: 'DELETE' })).status).toBe(405);
+    expect(await saved()).toEqual(current);
+  });
+
+  it('renders one theme-specific favicon for saved and preview HTML without changing appearance', async () => {
+    const current = await saved();
+    const bindings = {
+      ...env,
+      ASSETS: {
+        fetch: async () =>
+          new Response(
+            '<html><head><link rel="icon" href="/favicon.svg" /></head><body><div id="root"></div></body></html>',
+          ),
+      },
+    } as unknown as Env;
+    for (const theme of themeIds) {
+      const response = await call(`/about?theme=${theme}`, {}, bindings);
+      expect(response.status).toBe(200);
+      const html = await response.text();
+      expect(html.match(/rel="icon"/g)).toHaveLength(1);
+      expect(html).toContain(`href="${themeFaviconSrc(theme)}"`);
+      expect(html).not.toContain('href="/favicon.svg"');
+    }
+    for (const path of ['/', '/episodes', '/about?theme=unknown', '/not-found']) {
+      const html = await (await call(path, {}, bindings)).text();
+      expect(html).toContain(`href="${themeFaviconSrc(current.theme)}"`);
+    }
+    expect((await call('/favicon.svg', { method: 'POST' })).status).toBe(405);
     expect(await saved()).toEqual(current);
   });
 
@@ -818,6 +853,7 @@ describe('website appearance', () => {
     try {
       expect((await call('/api/appearance')).status).toBe(503);
       expect((await call('/admin/api/appearance')).status).toBe(503);
+      expect((await call('/favicon.svg')).status).toBe(503);
     } finally {
       await env.DB.prepare('INSERT INTO site_appearance VALUES (1, ?, ?, ?, ?)')
         .bind(current.version, current.theme, current.updatedAt, current.updatedBy)

@@ -1,3 +1,4 @@
+import { themeFaviconSrc } from '../src/brand/themes';
 import { themeIdSchema } from '../src/shared/appearance';
 import { projectPublicEpisode } from '../src/shared/episode';
 import { withShareArtwork } from '../src/shared/episode-art';
@@ -112,6 +113,8 @@ export async function maybeServePublicHtml(request: Request, env: Env): Promise<
   }
 
   const data = { origin, site, appearance: { theme: appearance.theme }, episodes, categories };
+  const preview = themeIdSchema.safeParse(url.searchParams.get('theme'));
+  const theme = preview.success ? preview.data : appearance.theme;
   const rendered = renderPublicPage(`${path}${url.search}`, data);
   const bootstrap = JSON.stringify(data).replace(/</g, '\\u003c');
   let html = injectSeoIntoHtml(shell, seo, jsonLd).replace(
@@ -119,12 +122,11 @@ export async function maybeServePublicHtml(request: Request, env: Env): Promise<
     () =>
       `<div id="root">${rendered}</div><script id="public-data" type="application/json">${bootstrap}</script>`,
   );
+  html = html
+    .replace(/<link rel="icon"[^>]*>\s*/g, '')
+    .replace('</head>', `<link rel="icon" type="image/svg+xml" href="${themeFaviconSrc(theme)}" /></head>`);
   if (path === '/') {
-    const preview = themeIdSchema.safeParse(url.searchParams.get('theme'));
-    html = html.replace(
-      '</head>',
-      `${renderHeroPreloads(preview.success ? preview.data : appearance.theme)}</head>`,
-    );
+    html = html.replace('</head>', `${renderHeroPreloads(theme)}</head>`);
   }
   const response = new Response(html, {
     status,

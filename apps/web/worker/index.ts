@@ -1,4 +1,5 @@
 import { version } from '../../../package.json';
+import { themeFaviconSrc } from '../src/brand/themes';
 import { discoveryLinks, routeAgent, routeDiscovery } from './agent-api';
 import { getAppearance } from './appearance';
 import { accessLogin, authenticate, isLocal, localLogin, logout } from './auth';
@@ -64,6 +65,14 @@ async function route(request: Request, env: Env, ctx?: ExecutionContext): Promis
     url.protocol = 'https:';
     url.hostname = 'his.fm';
     return Response.redirect(url.href, 308);
+  }
+  if (path === '/favicon.svg') {
+    if (request.method !== 'GET' && request.method !== 'HEAD') throw new HttpError(405, '不支持这个请求方式');
+    const { theme } = await getAppearance(env.DB);
+    return new Response(null, {
+      status: 302,
+      headers: { Location: new URL(themeFaviconSrc(theme), origin).href, 'Cache-Control': 'no-store' },
+    });
   }
   if (
     (request.method === 'GET' || request.method === 'HEAD') &&

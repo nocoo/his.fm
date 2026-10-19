@@ -963,7 +963,18 @@ test('sidebar separates content, brand and settings with a highlighted website s
   await expect(sidebar.getByRole('button', { name: '展开导航', exact: true })).toBeFocused();
   await expectGroups();
   await expect(website).toHaveText('');
-  await expect.poll(() => logo.evaluate((element) => element.getBoundingClientRect().x)).toBe(original.x);
+  await expect(logo.locator('.brand-wordmark')).toHaveCount(0);
+  await expect(logo.locator('.brand-symbol')).toBeVisible();
+  await expect
+    .poll(() =>
+      logo.evaluate((element) => {
+        const mark = element.getBoundingClientRect();
+        const rail = element.closest('[data-basalt-sidebar]')?.getBoundingClientRect();
+        if (!rail) throw new Error('Missing sidebar');
+        return Math.abs(mark.x + mark.width / 2 - rail.x - rail.width / 2);
+      }),
+    )
+    .toBeLessThan(1);
   await website.focus();
   await expect(page.getByRole('tooltip', { name: '访问网站', exact: true })).toBeVisible();
   await page.keyboard.press('Escape');
@@ -1020,7 +1031,18 @@ test('sidebar collapse remains reachable at the minimum resized width', async ({
   await page.goto('/admin');
   const sidebar = page.locator('[data-basalt-sidebar]');
   const resize = sidebar.getByRole('separator', { name: 'Resize sidebar' });
-  for (let step = 0; step < 10; step++) await resize.press('ArrowLeft');
+  const header = sidebar.locator('.admin-rail-header');
+  for (let step = 0; step < 10; step++) {
+    await resize.press('ArrowLeft');
+    await expect(resize).toHaveAttribute('aria-valuenow', String(260 - (step + 1) * 8));
+    expect(
+      await header.evaluate(
+        (element) =>
+          element.scrollWidth <= element.clientWidth && element.scrollHeight <= element.clientHeight,
+      ),
+    ).toBe(true);
+    await expect(header.locator('.brand-wordmark')).toHaveCSS('width', '116px');
+  }
   await expect(resize).toHaveAttribute('aria-valuenow', '180');
   const collapse = sidebar.getByRole('button', { name: '收起导航', exact: true });
   const railRight = await sidebar.evaluate((element) => element.getBoundingClientRect().right);
