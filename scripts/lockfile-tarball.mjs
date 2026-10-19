@@ -4,7 +4,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, posix, normalize as posixNormalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { assertAllowedRegistryTarballUrl, loadAllowedRegistryHosts } from './registry-allowlist.mjs';
+import { loadAllowedRegistryHosts, normalizeAllowedRegistryTarballUrl } from './registry-allowlist.mjs';
 
 const repoRoot = join(fileURLToPath(new URL('.', import.meta.url)), '..');
 const fetchAttempts = 5;
@@ -61,6 +61,36 @@ export function assertTarballArchiveSafe(archivePath) {
 }
 
 /**
+ * @param {string} canonicalUrl
+ * @param {string} outputPath
+ */
+export function downloadTarballToFile(canonicalUrl, outputPath) {
+  execFileSync(
+    'curl',
+    [
+      '--fail',
+      '--silent',
+      '--show-error',
+      '--http1.1',
+      '--max-redirs',
+      '0',
+      '--retry',
+      '3',
+      '--retry-delay',
+      '5',
+      '--connect-timeout',
+      '60',
+      '--max-time',
+      '600',
+      '-o',
+      outputPath,
+      canonicalUrl,
+    ],
+    { stdio: 'inherit' },
+  );
+}
+
+/**
  * @param {string} resolved
  * @param {string} integrity
  * @param {Set<string>} [allowedHosts]
@@ -71,7 +101,7 @@ export async function fetchLockedTarball(
   integrity,
   allowedHosts = loadAllowedRegistryHosts(repoRoot),
 ) {
-  assertAllowedRegistryTarballUrl(resolved, allowedHosts);
+  const canonicalUrl = normalizeAllowedRegistryTarballUrl(resolved, allowedHosts);
   let lastError;
   const staging = mkdtempSync(join(tmpdir(), 'hisfm-fetch-'));
   const archive = join(staging, 'package.tgz');
@@ -81,29 +111,7 @@ export async function fetchLockedTarball(
         execFileSync('sleep', [String(Math.ceil(fetchBackoffMs[attempt] / 1000))], { stdio: 'inherit' });
       }
       try {
-        execFileSync(
-          'curl',
-          [
-            '--fail',
-            '--silent',
-            '--show-error',
-            '--http1.1',
-            '--max-redirs',
-            '0',
-            '--retry',
-            '3',
-            '--retry-delay',
-            '5',
-            '--connect-timeout',
-            '60',
-            '--max-time',
-            '600',
-            '-o',
-            archive,
-            resolved,
-          ],
-          { stdio: 'inherit' },
-        );
+        downloadTarballToFile(canonicalUrl, archive);
         assertTarballArchiveSafe(archive);
         const body = readFileSync(archive);
         assertTarballIntegrity(body, integrity);
