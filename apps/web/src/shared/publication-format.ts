@@ -178,11 +178,15 @@ function parseReadingMarkdown(markdown: string, definitions: string) {
   return source.trim() ? createReadingParser().parse(source, { async: false }) : '';
 }
 
+let readingSpeakerBlockId = 0;
+
 function renderReadingSpeakerBlock(speaker: TranscriptSpeaker, bodyHtml: string) {
-  return `<div class="studio-transcript-block" data-speaker="${escapeHtml(speaker)}"><div class="studio-transcript-block-label" aria-hidden="true">${escapeHtml(speaker)}</div><div class="studio-transcript-block-body">${bodyHtml}</div></div>`;
+  const id = `studio-transcript-label-${readingSpeakerBlockId++}`;
+  return `<div class="studio-transcript-block" data-speaker="${escapeHtml(speaker)}" role="group" aria-labelledby="${id}"><div class="studio-transcript-block-label" id="${id}">${escapeHtml(speaker)}</div><div class="studio-transcript-block-body">${bodyHtml}</div></div>`;
 }
 
 export function formatReading(markdown: string): string {
+  readingSpeakerBlockId = 0;
   const definitions = referenceDefinitionsSuffix(markdown);
   const segments = parseTranscriptSpeakers(markdown);
   if (!segments.some((segment) => segment.kind === 'speaker')) {

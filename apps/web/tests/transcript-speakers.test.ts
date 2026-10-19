@@ -61,6 +61,10 @@ describe('transcript speaker rendering', () => {
     expect(html).toContain('接着同一段的第二句。');
     expect(html).not.toContain('<strong>主播：</strong>');
     expect(html).toContain('<strong>旁白：</strong>');
+    expect(html).not.toContain('aria-hidden');
+    expect(html).toContain('role="group"');
+    expect(html).toContain('aria-labelledby="studio-transcript-label-0"');
+    expect(html).toContain('id="studio-transcript-label-0"');
   });
 
   it('renders WeChat HTML with speaker sections for copy and preview', () => {
