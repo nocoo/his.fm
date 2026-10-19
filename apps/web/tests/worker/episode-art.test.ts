@@ -157,55 +157,61 @@ describe('versioned artwork edge cache', () => {
     async (kind) => {
       const url = await pregenerated(kind);
       const render = vi.spyOn(raster, 'renderCoverJpeg');
-      const first = await routeEpisodeArt(new Request(url), env, 'one', kind);
-      expect(first.headers.get('X-Hisfm-Art')).toBe('r2-hit');
-      expect(new Uint8Array(await first.arrayBuffer())).toEqual(bytes);
-      const head = vi.fn(env.MEDIA.head.bind(env.MEDIA));
-      const get = vi.fn(env.MEDIA.get.bind(env.MEDIA));
-      const bindings = { ...env, MEDIA: { ...env.MEDIA, head, get } };
-      for (const method of ['GET', 'HEAD']) {
-        const response = await routeEpisodeArt(new Request(url, { method }), bindings, 'one', kind);
-        expect(response.status).toBe(200);
-        expect(response.headers.get('X-Hisfm-Art')).toBe('edge-hit');
-        expect(response.headers.has('X-Hisfm-Art-Length')).toBe(false);
-        for (const name of ['ETag', 'Last-Modified', 'Content-Type', 'Content-Length', 'Cache-Control'])
-          expect(response.headers.get(name)).toBe(first.headers.get(name));
-        expect(new Uint8Array(await response.arrayBuffer())).toEqual(
-          method === 'HEAD' ? new Uint8Array() : bytes,
-        );
-      }
-      for (const method of ['GET', 'HEAD']) {
-        for (const headers of [
-          { 'If-None-Match': first.headers.get('ETag') ?? '' },
-          { 'If-None-Match': `"other", W/${first.headers.get('ETag')}` },
-          { 'If-None-Match': '*' },
-          { 'If-Modified-Since': first.headers.get('Last-Modified') ?? '' },
-        ] as HeadersInit[]) {
-          const response = await routeEpisodeArt(
-            new Request(url, { method, headers }),
-            bindings,
-            'one',
-            kind,
-          );
-          expect(response.status).toBe(304);
+      try {
+        const first = await routeEpisodeArt(new Request(url), env, 'one', kind);
+        expect(first.headers.get('X-Hisfm-Art')).toBe('r2-hit');
+        expect(new Uint8Array(await first.arrayBuffer())).toEqual(bytes);
+        const head = vi.fn(env.MEDIA.head.bind(env.MEDIA));
+        const get = vi.fn(env.MEDIA.get.bind(env.MEDIA));
+        const bindings = { ...env, MEDIA: { ...env.MEDIA, head, get } };
+        for (const method of ['GET', 'HEAD']) {
+          const response = await routeEpisodeArt(new Request(url, { method }), bindings, 'one', kind);
+          expect(response.status).toBe(200);
           expect(response.headers.get('X-Hisfm-Art')).toBe('edge-hit');
-          expect(response.headers.get('ETag')).toBe(first.headers.get('ETag'));
-          expect(response.headers.has('Content-Length')).toBe(false);
-          expect(await response.text()).toBe('');
+          expect(response.headers.has('X-Hisfm-Art-Length')).toBe(false);
+          for (const name of ['ETag', 'Last-Modified', 'Content-Type', 'Content-Length', 'Cache-Control'])
+            expect(response.headers.get(name)).toBe(first.headers.get(name));
+          expect(new Uint8Array(await response.arrayBuffer())).toEqual(
+            method === 'HEAD' ? new Uint8Array() : bytes,
+          );
         }
+        for (const method of ['GET', 'HEAD']) {
+          for (const headers of [
+            { 'If-None-Match': first.headers.get('ETag') ?? '' },
+            { 'If-None-Match': `"other", W/${first.headers.get('ETag')}` },
+            { 'If-None-Match': '*' },
+            { 'If-Modified-Since': first.headers.get('Last-Modified') ?? '' },
+          ] as HeadersInit[]) {
+            const response = await routeEpisodeArt(
+              new Request(url, { method, headers }),
+              bindings,
+              'one',
+              kind,
+            );
+            expect(response.status).toBe(304);
+            expect(response.headers.get('X-Hisfm-Art')).toBe('edge-hit');
+            expect(response.headers.get('ETag')).toBe(first.headers.get('ETag'));
+            expect(response.headers.has('Content-Length')).toBe(false);
+            expect(await response.text()).toBe('');
+          }
+        }
+        for (const headers of [
+          { 'If-None-Match': '"other"', 'If-Modified-Since': 'Fri, 01 Jan 2100 00:00:00 GMT' },
+          { 'If-Modified-Since': 'Wed, 01 Jan 2020 00:00:00 GMT' },
+          { 'If-Modified-Since': 'invalid' },
+        ] as HeadersInit[]) {
+          const response = await routeEpisodeArt(new Request(url, { headers }), bindings, 'one', kind);
+          expect(response.status).toBe(200);
+          expect(new Uint8Array(await response.arrayBuffer())).toEqual(bytes);
+        }
+        expect(head).not.toHaveBeenCalled();
+        expect(get).not.toHaveBeenCalled();
+        expect(render).not.toHaveBeenCalled();
+      } finally {
+        render.mockRestore();
+        vi.unstubAllGlobals();
+        await mf.purgeCache();
       }
-      for (const headers of [
-        { 'If-None-Match': '"other"', 'If-Modified-Since': 'Fri, 01 Jan 2100 00:00:00 GMT' },
-        { 'If-Modified-Since': 'Wed, 01 Jan 2020 00:00:00 GMT' },
-        { 'If-Modified-Since': 'invalid' },
-      ] as HeadersInit[]) {
-        const response = await routeEpisodeArt(new Request(url, { headers }), bindings, 'one', kind);
-        expect(response.status).toBe(200);
-        expect(new Uint8Array(await response.arrayBuffer())).toEqual(bytes);
-      }
-      expect(head).not.toHaveBeenCalled();
-      expect(get).not.toHaveBeenCalled();
-      expect(render).not.toHaveBeenCalled();
     },
   );
 
