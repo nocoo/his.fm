@@ -11,7 +11,6 @@ export default defineConfig({
     environment: 'node',
     maxWorkers: l1SnapshotGate ? 1 : 4,
     fileParallelism: !l1SnapshotGate,
-    dangerouslyIgnoreUnhandledErrors: l1SnapshotGate,
     include: ['tests/**/*.test.ts', 'tests/**/*.test.tsx', 'src/**/*.test.ts'],
     allowOnly: false,
     passWithNoTests: false,

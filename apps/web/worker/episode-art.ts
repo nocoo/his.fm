@@ -124,24 +124,27 @@ export async function routeEpisodeArt(
             .some((tag) => tag.trim().replace(/^W\//, '') === headers.get('ETag') || tag.trim() === '*')
         : modifiedSince && Date.parse(modifiedSince) >= Date.parse(headers.get('Last-Modified') ?? '')
     ) {
-      await cached?.body?.cancel();
+      void cached?.body?.cancel().catch(() => undefined);
       headers.delete('Content-Length');
       return new Response(null, { status: 304, headers });
     }
     if (request.method === 'HEAD') {
-      await cached?.body?.cancel();
+      void cached?.body?.cancel().catch(() => undefined);
       return new Response(null, { headers });
     }
     if (cached) return new Response(cached.body, { headers });
     const object = await env.MEDIA.get(location.key);
     if (!object) throw new HttpError(503, '封面缓存暂时不可用，请稍后重试');
-    const response = new Response(object.body, { headers });
+    const body = await object.arrayBuffer();
+    const response = new Response(body, { headers });
     if (cache) {
-      const entry = response.clone();
-      entry.headers.set('X-Hisfm-Art-Length', String(object.size));
-      const write = cache.put(cacheKey, entry).catch((error: unknown) => {
-        console.error(JSON.stringify({ event: 'episode_art_edge_write_failed', message: String(error) }));
-      });
+      const entryHeaders = new Headers(headers);
+      entryHeaders.set('X-Hisfm-Art-Length', String(body.byteLength));
+      const write = cache
+        .put(cacheKey, new Response(body, { headers: entryHeaders }))
+        .catch((error: unknown) => {
+          console.error(JSON.stringify({ event: 'episode_art_edge_write_failed', message: String(error) }));
+        });
       if (ctx) ctx.waitUntil(write);
       else await write;
     }

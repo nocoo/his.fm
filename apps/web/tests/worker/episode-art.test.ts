@@ -125,13 +125,44 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+function edgeCacheKey(request: RequestInfo | URL) {
+  if (typeof request === 'string') return new Request(request).url;
+  if (request instanceof URL) return new Request(request).url;
+  return request.url;
+}
+
+function createBufferedEdgeCache(): Cache {
+  const store = new Map<string, Response>();
+  return {
+    async match(request) {
+      const hit = store.get(edgeCacheKey(request));
+      return hit ? hit.clone() : undefined;
+    },
+    async put(request, response) {
+      const body = await response.arrayBuffer();
+      store.set(edgeCacheKey(request), new Response(body, { headers: response.headers }));
+    },
+    async delete(request) {
+      store.delete(edgeCacheKey(request));
+      return true;
+    },
+    async add() {},
+    async addAll() {},
+    async keys() {
+      return [];
+    },
+    async matchAll() {
+      return [];
+    },
+  };
+}
+
 describe('versioned artwork edge cache', () => {
   const bytes = new Uint8Array([0xff, 0xd8, 0xff, 0xd9]);
   let edge: Cache;
 
-  beforeEach(async () => {
-    await mf.purgeCache();
-    edge = Reflect.get(await mf.getCaches(), 'default');
+  beforeEach(() => {
+    edge = createBufferedEdgeCache();
     vi.stubGlobal('caches', { default: edge });
   });
 
@@ -209,8 +240,6 @@ describe('versioned artwork edge cache', () => {
         expect(render).not.toHaveBeenCalled();
       } finally {
         render.mockRestore();
-        vi.unstubAllGlobals();
-        await mf.purgeCache();
       }
     },
   );
