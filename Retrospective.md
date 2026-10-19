@@ -1,5 +1,12 @@
 # Retrospective
 
+## 2026-10-19 - Discover Herdr list flags before querying a workspace
+
+I passed an unsupported `--space` flag to `herdr pane list`. The read-only
+command failed without changes. Its installed help specifies `--workspace`;
+use the documented flag and verify the returned workspace ID instead of
+guessing terminology from the UI.
+
 ## 2026-10-19 - Validate browser favicon diagnostic parameters
 
 The first Chrome favicon-cache probe used snake_case query keys, which Chromium

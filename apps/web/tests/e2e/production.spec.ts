@@ -1041,7 +1041,7 @@ test('sidebar collapse remains reachable at the minimum resized width', async ({
           element.scrollWidth <= element.clientWidth && element.scrollHeight <= element.clientHeight,
       ),
     ).toBe(true);
-    await expect(header.locator('.brand-wordmark')).toHaveCSS('width', '116px');
+    await expect(header.locator('.brand-wordmark')).toHaveCSS('width', '92px');
   }
   await expect(resize).toHaveAttribute('aria-valuenow', '180');
   const collapse = sidebar.getByRole('button', { name: '收起导航', exact: true });

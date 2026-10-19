@@ -10,7 +10,7 @@ function rgb(hex: string) {
     .join(', ')})`;
 }
 
-async function expectLockup(lockup: Locator, color: string) {
+async function expectLockup(lockup: Locator, color: string, wordWidth = 116) {
   await expect(lockup.locator('> svg').nth(0)).toHaveClass(/brand-wordmark/);
   await expect(lockup.locator('> svg').nth(1)).toHaveClass(/brand-symbol/);
   await expect(lockup.locator('.brand-wordmark')).toHaveCSS('color', color);
@@ -28,10 +28,10 @@ async function expectLockup(lockup: Locator, color: string) {
       center: Math.abs(mark.top + mark.height / 2 - word.top - word.height / 2),
     };
   });
-  expect(geometry.word).toBeCloseTo(116, 1);
+  expect(geometry.word).toBeCloseTo(wordWidth, 1);
   expect(geometry.mark).toBeCloseTo(geometry.wordHeight, 1);
   expect(geometry.height).toBeCloseTo(geometry.wordHeight, 1);
-  expect(geometry.gap).toBeCloseTo(8, 1);
+  expect(geometry.gap).toBeCloseTo((wordWidth * 8) / 116, 1);
   expect(geometry.center).toBeLessThan(1);
 }
 
@@ -57,7 +57,7 @@ test('all theme cards and studio headers share the canonical ID in light and dar
     }, mode);
     await page.reload();
     await expect(page.locator('html')).toHaveClass(new RegExp(mode));
-    for (const width of [1440, 1024, 393]) {
+    for (const width of [1440, 1301, 1024, 393]) {
       await page.setViewportSize({ width, height: 1000 });
       await expect(page.locator('.appearance-option')).toHaveCount(8);
       await expectLockup(
@@ -68,6 +68,7 @@ test('all theme cards and studio headers share the canonical ID in light and dar
         await expectLockup(
           page.locator('.admin-rail-mark .brand-lockup'),
           mode === 'dark' ? 'rgb(255, 255, 255)' : rgb(themes.interval.palette[1]),
+          92,
         );
         const header = page.locator('.admin-rail-header');
         expect(await header.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
@@ -77,8 +78,24 @@ test('all theme cards and studio headers share the canonical ID in light and dar
         await expectLockup(
           page.locator(`.appearance-mini[data-theme="${id}"] .brand-lockup`),
           dark ? 'rgb(255, 255, 255)' : rgb(themes[id].palette[1]),
+          140,
         );
       }
+      const previewsFit = await page.locator('.appearance-mini').evaluateAll((cards) =>
+        cards.every((card) => {
+          const bounds = card.getBoundingClientRect();
+          const logo = card.querySelector('.brand-lockup')?.getBoundingClientRect();
+          const heading = card.querySelector('.mini-heading')?.getBoundingClientRect();
+          return (
+            logo &&
+            heading &&
+            logo.right <= bounds.right &&
+            logo.bottom <= heading.top &&
+            heading.bottom <= bounds.bottom
+          );
+        }),
+      );
+      expect(previewsFit).toBe(true);
       const sizes = await page.locator('.appearance-option').evaluateAll((cards) =>
         cards.map((card) => {
           const size = (selector: string) =>
@@ -160,11 +177,11 @@ test('studio favicon changes only after a successful apply, independently of the
   await expect(page.locator('link[rel="icon"]')).toHaveAttribute('href', themeFaviconSrc('interval'));
   await page.getByRole('button', { name: '应用到公开网站' }).click();
   await expect(page.locator('link[rel="icon"]')).toHaveAttribute('href', themeFaviconSrc('stillwood'));
-  await expectLockup(page.locator('.admin-rail-mark .brand-lockup'), rgb(themes.stillwood.palette[1]));
+  await expectLockup(page.locator('.admin-rail-mark .brand-lockup'), rgb(themes.stillwood.palette[1]), 92);
   await page.getByRole('button', { name: '切换主题', exact: true }).click();
   await page.getByRole('button', { name: '切换主题', exact: true }).click();
   await expect(page.locator('html')).toHaveClass(/dark/);
-  await expectLockup(page.locator('.admin-rail-mark .brand-lockup'), 'rgb(255, 255, 255)');
+  await expectLockup(page.locator('.admin-rail-mark .brand-lockup'), 'rgb(255, 255, 255)', 92);
   await expect(page.locator('link[rel="icon"]')).toHaveAttribute('href', themeFaviconSrc('stillwood'));
 });
 

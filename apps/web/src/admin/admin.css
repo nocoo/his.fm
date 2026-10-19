@@ -504,6 +504,9 @@ html.dark .admin-app a.admin-rail-mark {
   }
 }
 
+.admin-rail-mark > .brand-lockup {
+  --brand-wordmark-width: 92px;
+}
 .admin-rail-mark > .brand-symbol {
   width: 24px;
   height: 24px;

@@ -32,7 +32,7 @@ html:has(.public-site) body {
 .brand-lockup {
   --brand-wordmark-width: 116px;
   --brand-symbol-size: calc(var(--brand-wordmark-width) * 17 / 60);
-  --brand-gap: 8px;
+  --brand-gap: calc(var(--brand-wordmark-width) * 8 / 116);
   display: inline-flex;
   align-items: center;
   gap: var(--brand-gap);

@@ -113,6 +113,7 @@ html.dark .identity-specimen {
 }
 
 .appearance-mini {
+  --appearance-id-width: min(140px, 65cqw);
   flex: none;
   container-type: inline-size;
   position: relative;
@@ -120,6 +121,7 @@ html.dark .identity-specimen {
   background: var(--paper);
   color: var(--ink);
   aspect-ratio: 1.6;
+  min-height: 144px;
   overflow: hidden;
   font-family: "Space Grotesk", "Noto Sans SC", sans-serif;
 }
@@ -134,6 +136,7 @@ html.dark .identity-specimen {
   z-index: -1;
 }
 .appearance-mini > .brand-lockup {
+  --brand-wordmark-width: var(--appearance-id-width);
   position: absolute;
   left: 7%;
   top: 9%;
@@ -145,7 +148,7 @@ html.dark .identity-specimen {
   letter-spacing: -0.06em;
   position: absolute;
   left: 7%;
-  top: 34%;
+  top: max(34%, calc(9% + var(--appearance-id-width) * 17 / 60 + var(--admin-space-1)));
 }
 .appearance-mini:is([data-theme="soft-landing"], [data-theme="stillwood"], [data-theme="alpine-bloom"])
   .mini-heading {
