@@ -1,5 +1,6 @@
 import { Lexer, Marked, type Token, type Tokens } from 'marked';
 import type { Production } from './production';
+import { lexTranscriptDocument, type TranscriptSpeaker } from './transcript-document';
 
 type PublicationContent = Pick<
   Production,
@@ -7,6 +8,23 @@ type PublicationContent = Pick<
 >;
 const ink = '#183d2e';
 const muted = '#687469';
+const speakerTint = { 主播: '#eef4f0', 预言家: '#f3f0ea' } satisfies Record<TranscriptSpeaker, string>;
+export const DEFAULT_READING_LABEL_PREFIX = 'studio-transcript-label';
+
+export function sanitizeReadingIdPrefix(value: string) {
+  if (!value) return DEFAULT_READING_LABEL_PREFIX;
+  let encoded = '';
+  for (const char of value) {
+    if (/[A-Za-z0-9]/.test(char)) {
+      encoded += char;
+      continue;
+    }
+    const codePoint = char.codePointAt(0);
+    if (codePoint === undefined) continue;
+    encoded += char === '_' ? '_5f_' : `_${codePoint.toString(16)}_`;
+  }
+  return encoded || DEFAULT_READING_LABEL_PREFIX;
+}
 
 function escapeHtml(value: string) {
   return value
@@ -58,9 +76,8 @@ export function formatXiaoyuzhou(production: PublicationContent): string {
   return cleanText(production.description);
 }
 
-export function formatWechat(production: PublicationContent): { html: string; text: string } {
-  const references: string[] = [];
-  const parser = new Marked({
+function createWechatMarked(references: string[]) {
+  return new Marked({
     gfm: true,
     breaks: true,
     renderer: {
@@ -92,7 +109,36 @@ export function formatWechat(production: PublicationContent): { html: string; te
       },
     },
   });
-  const content = parser.parse(production.transcript, { async: false });
+}
+
+function parseWechatTokens(marked: Marked, tokens: Token[]) {
+  if (!tokens.length) return '';
+  return marked.parser(tokens);
+}
+
+function renderWechatSpeakerBlock(speaker: TranscriptSpeaker, bodyHtml: string) {
+  const background = speakerTint[speaker];
+  return `<section data-speaker="${escapeHtml(speaker)}" style="margin:0 0 22px;padding:16px 18px;border-radius:12px;background:${background};"><p style="margin:0 0 12px;font-size:14px;font-weight:600;letter-spacing:0.04em;color:${ink};">${escapeHtml(speaker)}</p><div>${bodyHtml}</div></section>`;
+}
+
+function formatWechatTranscript(transcript: string, references: string[]) {
+  const document = lexTranscriptDocument(transcript);
+  const marked = createWechatMarked(references);
+  if (!document.hasSpeakerTurns) {
+    return transcript ? marked.parse(transcript, { async: false }) : '';
+  }
+  return document.groups
+    .map((group) => {
+      if (group.kind === 'markdown') return parseWechatTokens(marked, group.tokens);
+      const body = parseWechatTokens(marked, group.tokens);
+      return renderWechatSpeakerBlock(group.speaker, body);
+    })
+    .join('');
+}
+
+export function formatWechat(production: PublicationContent): { html: string; text: string } {
+  const references: string[] = [];
+  const content = formatWechatTranscript(production.transcript, references);
   for (const source of production.sources) {
     const url = source.type === 'text' ? '' : secureUrl(source.content);
     if (url && !references.includes(url)) references.push(url);
@@ -109,7 +155,7 @@ export function formatWechat(production: PublicationContent): { html: string; te
   return { html, text };
 }
 
-export function formatReading(markdown: string): string {
+function createReadingMarked() {
   return new Marked({
     gfm: true,
     breaks: true,
@@ -128,5 +174,37 @@ export function formatReading(markdown: string): string {
           : label;
       },
     },
-  }).parse(markdown, { async: false });
+  });
+}
+
+function parseReadingTokens(marked: Marked, tokens: Token[]) {
+  if (!tokens.length) return '';
+  return marked.parser(tokens);
+}
+
+function renderReadingSpeakerBlock(
+  speaker: TranscriptSpeaker,
+  bodyHtml: string,
+  labelPrefix: string,
+  index: number,
+) {
+  const id = `${labelPrefix}-${index}`;
+  return `<div class="studio-transcript-block" data-speaker="${escapeHtml(speaker)}" role="group" aria-labelledby="${id}"><div class="studio-transcript-block-label" id="${id}">${escapeHtml(speaker)}</div><div class="studio-transcript-block-body">${bodyHtml}</div></div>`;
+}
+
+export function formatReading(markdown: string, options: { idPrefix?: string } = {}): string {
+  const document = lexTranscriptDocument(markdown);
+  if (!document.hasSpeakerTurns) {
+    return markdown ? createReadingMarked().parse(markdown, { async: false }) : '';
+  }
+  const marked = createReadingMarked();
+  const labelPrefix = sanitizeReadingIdPrefix(options.idPrefix ?? DEFAULT_READING_LABEL_PREFIX);
+  let speakerIndex = 0;
+  return document.groups
+    .map((group) => {
+      if (group.kind === 'markdown') return parseReadingTokens(marked, group.tokens);
+      const body = parseReadingTokens(marked, group.tokens);
+      return renderReadingSpeakerBlock(group.speaker, body, labelPrefix, speakerIndex++);
+    })
+    .join('\n');
 }

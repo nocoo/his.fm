@@ -265,6 +265,35 @@
   padding: 0.4em 0.7em;
   text-align: left;
 }
+.admin-app .studio-transcript .studio-transcript-block {
+  margin-block: 1.25em;
+  padding: var(--admin-space-4) var(--admin-space-5);
+  border-radius: var(--basalt-radius);
+  border: 1px solid hsl(var(--basalt-border));
+  background: hsl(var(--basalt-secondary) / 0.55);
+}
+.admin-app .studio-transcript .studio-transcript-block[data-speaker="预言家"] {
+  background: hsl(var(--basalt-muted) / 0.12);
+}
+.admin-app .studio-transcript .studio-transcript-block-label {
+  margin: 0 0 0.65em;
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: hsl(var(--basalt-primary));
+}
+.admin-app .studio-transcript .studio-transcript-block-body > :first-child {
+  margin-top: 0;
+}
+.admin-app .studio-transcript .studio-transcript-block-body > :last-child {
+  margin-bottom: 0;
+}
+@media (max-width: 767px) {
+  .admin-app .studio-transcript .studio-transcript-block {
+    padding: var(--admin-space-3) var(--admin-space-4);
+  }
+}
 .admin-app .studio-autosize {
   field-sizing: content;
   min-height: 160px;
