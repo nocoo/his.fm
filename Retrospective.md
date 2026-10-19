@@ -1,5 +1,14 @@
 # Retrospective
 
+## 2026-10-19 - Validate browser favicon diagnostic parameters
+
+The first Chrome favicon-cache probe used snake_case query keys, which Chromium
+ignored and replaced with its default globe. That was a diagnostic error, not
+evidence of a site failure. Verify internal URL parameters against Chromium's
+parser and use `scaleFactor` and `pageUrl`. The corrected probe returned the
+canonical theme icon for both public and admin pages in a fresh Chrome profile;
+this does not establish why an existing user tab failed to display it.
+
 ## 2026-10-19 - Supply the site mark to full-screen loading gates
 
 The loading gates omitted Basalt's `mark` prop and therefore displayed the
