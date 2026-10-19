@@ -167,3 +167,47 @@ test('studio favicon changes only after a successful apply, independently of the
   await expectLockup(page.locator('.admin-rail-mark .brand-lockup'), 'rgb(255, 255, 255)');
   await expect(page.locator('link[rel="icon"]')).toHaveAttribute('href', themeFaviconSrc('stillwood'));
 });
+
+for (const mode of ['light', 'dark']) {
+  test(`studio loading uses the canonical parentheses in ${mode} mode`, async ({ page }, testInfo) => {
+    let releaseSession = () => {};
+    const sessionReady = new Promise<void>((resolve) => {
+      releaseSession = resolve;
+    });
+    await page.addInitScript((theme) => localStorage.setItem('hisfm-theme', theme), mode);
+    await page.route('**/admin/api/session', async (route) => {
+      await sessionReady;
+      await route.fulfill({ json: { mode: 'local', user: { email: 'editor@his.fm' } } });
+    });
+    await page.route('**/admin/api/appearance', (route) =>
+      route.fulfill({
+        json: { appearance: { theme: 'interval', version: 1, updatedAt: '', updatedBy: 'owner' } },
+      }),
+    );
+    try {
+      await page.goto('/admin/appearance');
+      const loading = page.getByRole('status', { name: '正在打开工作室', exact: true });
+      const mark = loading.locator('svg');
+      await expect(loading).toBeVisible();
+      await expect(page.locator('html')).toHaveClass(new RegExp(mode));
+      await expect(mark).toHaveCount(1);
+      await expect(mark).toHaveClass(/brand-symbol/);
+      await expect(mark).toHaveAttribute('viewBox', '0 0 128 128');
+      await expect(mark).toHaveCSS('width', '32px');
+      await expect(mark).toHaveCSS('height', '32px');
+      await expect(mark).toHaveCSS(
+        'color',
+        await page.locator('.admin-app').evaluate((element) => getComputedStyle(element).color),
+      );
+      await expect(loading.locator('.animate-basalt-shimmer')).toBeVisible();
+      await expect(loading.locator('.animate-basalt-shimmer')).toHaveCSS('animation-name', 'none');
+      await page.screenshot({ path: testInfo.outputPath(`loading-${mode}.png`), animations: 'disabled' });
+      releaseSession();
+      await expect(loading).toBeHidden();
+      await expect(page.getByRole('radiogroup', { name: '网站视觉主题' })).toBeVisible();
+      await expect(mark).toHaveCount(0);
+    } finally {
+      releaseSession();
+    }
+  });
+}

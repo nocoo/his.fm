@@ -1,5 +1,13 @@
 # Retrospective
 
+## 2026-10-19 - Supply the site mark to full-screen loading gates
+
+The loading gates omitted Basalt's `mark` prop and therefore displayed the
+library logo. Header and favicon checks did not expose the transient state.
+Keep one branded loading composition for session and lazy-route gates, using
+the canonical `BrandSymbol` through the supported slot. Hold the session
+response in browser tests to inspect both color modes and verify completion.
+
 ## 2026-10-19 - Verify identity geometry and saved-theme reloads
 
 The first identity pass checked the default sidebar but missed its existing

@@ -4,6 +4,7 @@ import { AccentProvider } from '@nocoo/basalt/providers/accent';
 import type { ReactNode } from 'react';
 import { lazy, Suspense, useEffect, useLayoutEffect, useState } from 'react';
 import { Link, Navigate, Route, Routes } from 'react-router';
+import { BrandSymbol } from '../brand/Brand';
 import { clearClientJsonLd } from '../shared/seo-client';
 import { AdminShell } from './AdminShell';
 import { EpisodeEditor } from './EpisodeEditor';
@@ -24,6 +25,10 @@ const StoragePage = lazy(() => import('./storage/StoragePage'));
 const AppearancePage = lazy(() => import('./appearance/AppearancePage'));
 const SeoPage = lazy(() => import('./seo/SeoPage'));
 const VoicePreviewPage = lazy(() => import('./voice-preview/VoicePreviewPage'));
+
+function StudioLoading({ label }: { label: string }) {
+  return <LoadingScreen label={label} mark={<BrandSymbol className="admin-loading-mark" />} />;
+}
 
 function RouterLink({
   href,
@@ -120,7 +125,7 @@ function SessionGate() {
         <Link to="/">返回 his.fm</Link>
       </main>
     );
-  if (!session) return <LoadingScreen label="正在打开工作室" />;
+  if (!session) return <StudioLoading label="正在打开工作室" />;
   return (
     <AdminShell session={session}>
       <Routes>
@@ -130,7 +135,7 @@ function SessionGate() {
         <Route
           path="categories/:id?"
           element={
-            <Suspense fallback={<LoadingScreen label="正在打开栏目管理" />}>
+            <Suspense fallback={<StudioLoading label="正在打开栏目管理" />}>
               <CategoryPage />
             </Suspense>
           }
@@ -140,7 +145,7 @@ function SessionGate() {
         <Route
           path="channel"
           element={
-            <Suspense fallback={<LoadingScreen label="正在打开提示词" />}>
+            <Suspense fallback={<StudioLoading label="正在打开提示词" />}>
               <ChannelPage />
             </Suspense>
           }
@@ -148,7 +153,7 @@ function SessionGate() {
         <Route
           path="appearance"
           element={
-            <Suspense fallback={<LoadingScreen label="正在打开品牌外观" />}>
+            <Suspense fallback={<StudioLoading label="正在打开品牌外观" />}>
               <AppearancePage />
             </Suspense>
           }
@@ -156,7 +161,7 @@ function SessionGate() {
         <Route
           path="seo"
           element={
-            <Suspense fallback={<LoadingScreen label="正在打开搜索与分享" />}>
+            <Suspense fallback={<StudioLoading label="正在打开搜索与分享" />}>
               <SeoPage />
             </Suspense>
           }
@@ -164,7 +169,7 @@ function SessionGate() {
         <Route
           path="voice-preview"
           element={
-            <Suspense fallback={<LoadingScreen label="正在打开音色预览" />}>
+            <Suspense fallback={<StudioLoading label="正在打开音色预览" />}>
               <VoicePreviewPage />
             </Suspense>
           }
@@ -172,7 +177,7 @@ function SessionGate() {
         <Route
           path="storage"
           element={
-            <Suspense fallback={<LoadingScreen label="正在打开资源管理" />}>
+            <Suspense fallback={<StudioLoading label="正在打开资源管理" />}>
               <StoragePage />
             </Suspense>
           }

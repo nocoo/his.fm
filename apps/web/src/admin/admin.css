@@ -62,6 +62,11 @@ html:has(.admin-app) {
 .admin-content-island {
   position: relative;
 }
+.admin-loading-mark {
+  width: var(--basalt-space-8);
+  height: var(--basalt-space-8);
+  color: hsl(var(--basalt-foreground));
+}
 .admin-shell nav[aria-label="Breadcrumb"] {
   white-space: nowrap;
   flex-shrink: 0;
