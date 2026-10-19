@@ -1,27 +1,27 @@
 import { Badge } from '@nocoo/basalt';
-import type { ComponentProps } from 'react';
 import {
   type VoicePreviewEntry,
   voicePreviewDescriptorBadges,
   voicePreviewUsageLabel,
 } from '../../shared/voice-samples';
+import { type VoicePreviewBadgeTone, voicePreviewBadgeStyleTones } from './voice-preview-badge-colors';
 
-type BadgeVariant = NonNullable<ComponentProps<typeof Badge>['variant']>;
-
-const GENDER_VARIANT: Record<VoicePreviewEntry['gender'], BadgeVariant> = {
-  男声: 'blue',
-  女声: 'purple',
+const GENDER_TONE: Record<VoicePreviewEntry['gender'], VoicePreviewBadgeTone> = {
+  男声: 'gender-male',
+  女声: 'gender-female',
 };
 
-const USAGE_VARIANT: Record<string, BadgeVariant> = {
-  learning: 'teal',
-  'manager-notes': 'orange',
+const USAGE_TONE: Record<string, VoicePreviewBadgeTone> = {
+  learning: 'usage-learning',
+  'manager-notes': 'usage-manager-notes',
 };
 
-const STYLE_VARIANTS: BadgeVariant[] = ['teal', 'orange', 'red', 'blue', 'purple', 'default'];
+function styleTone(index: number): VoicePreviewBadgeTone {
+  return voicePreviewBadgeStyleTones[index % voicePreviewBadgeStyleTones.length] ?? 'style-slate';
+}
 
-function styleVariant(index: number): BadgeVariant {
-  return STYLE_VARIANTS[index % STYLE_VARIANTS.length] ?? 'default';
+function badgeClass(tone: VoicePreviewBadgeTone) {
+  return `appearance-voice-badge appearance-voice-badge--${tone}`;
 }
 
 export function VoicePreviewBadges({ entry }: { entry: VoicePreviewEntry }) {
@@ -30,12 +30,12 @@ export function VoicePreviewBadges({ entry }: { entry: VoicePreviewEntry }) {
 
   return (
     <div className="appearance-voice-badges">
-      <Badge variant={GENDER_VARIANT[entry.gender]}>{entry.gender}</Badge>
+      <Badge className={badgeClass(GENDER_TONE[entry.gender])}>{entry.gender}</Badge>
       {usageLabel && entry.usageCategoryId ? (
-        <Badge variant={USAGE_VARIANT[entry.usageCategoryId] ?? 'default'}>{usageLabel}</Badge>
+        <Badge className={badgeClass(USAGE_TONE[entry.usageCategoryId] ?? 'style-slate')}>{usageLabel}</Badge>
       ) : null}
       {descriptors.map((label, index) => (
-        <Badge key={label} variant={styleVariant(index)}>
+        <Badge key={label} className={badgeClass(styleTone(index))}>
           {label}
         </Badge>
       ))}

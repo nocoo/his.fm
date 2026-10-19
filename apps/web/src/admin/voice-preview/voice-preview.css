@@ -54,6 +54,39 @@
   align-items: center;
   gap: 4px 6px;
 }
+.voice-preview-page .appearance-voice-badges .appearance-voice-badge {
+  border-color: transparent;
+  border-width: 0;
+  color: #fff;
+  font-weight: 600;
+  background-image: none;
+}
+.voice-preview-page .appearance-voice-badge--gender-male {
+  background-color: #1d4ed8;
+}
+.voice-preview-page .appearance-voice-badge--gender-female {
+  background-color: #6d28d9;
+}
+.voice-preview-page .appearance-voice-badge--usage-learning,
+.voice-preview-page .appearance-voice-badge--style-teal {
+  background-color: #0f766e;
+}
+.voice-preview-page .appearance-voice-badge--usage-manager-notes,
+.voice-preview-page .appearance-voice-badge--style-orange {
+  background-color: #c2410c;
+}
+.voice-preview-page .appearance-voice-badge--style-red {
+  background-color: #b91c1c;
+}
+.voice-preview-page .appearance-voice-badge--style-blue {
+  background-color: #1d4ed8;
+}
+.voice-preview-page .appearance-voice-badge--style-purple {
+  background-color: #6d28d9;
+}
+.voice-preview-page .appearance-voice-badge--style-slate {
+  background-color: #475569;
+}
 .appearance-voice-model {
   margin: 0;
   font-size: 11px;
