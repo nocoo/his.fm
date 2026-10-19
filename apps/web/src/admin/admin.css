@@ -67,8 +67,17 @@ html:has(.admin-app) {
   height: var(--basalt-space-8);
   color: hsl(var(--basalt-foreground));
 }
-.admin-shell nav[aria-label="Breadcrumb"] {
+.admin-header > div:first-child {
+  flex: 1;
+}
+.admin-header nav[aria-label="Breadcrumb"] {
   white-space: nowrap;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  /* Keep macOS overlay scrollbars clear of breadcrumb hit targets. */
+  padding-block: var(--admin-space-3);
+}
+:where(.admin-header nav[aria-label="Breadcrumb"]) > span {
   flex-shrink: 0;
 }
 .admin-page {

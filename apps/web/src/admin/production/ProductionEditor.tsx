@@ -7,6 +7,7 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 import type { Episode } from '../../shared/episode';
 import { type ProductionAction, stageLabels } from '../../shared/production';
 import { useCategories } from '../categories/useCategories';
+import { productionSections as sections } from '../navigation.model';
 import { adminService } from '../service';
 import { Assets, FinalReview } from './Assets';
 import { BriefForm } from './BriefForm';
@@ -18,12 +19,6 @@ import { productionService } from './service';
 import { useProduction } from './useProduction';
 import { useUnsavedChanges } from './useUnsavedChanges';
 
-const sections = [
-  { id: 'metadata', label: '资料与素材' },
-  { id: 'manuscript', label: '逐字稿' },
-  { id: 'assets', label: '封面与音频' },
-  { id: 'publication', label: '发布' },
-] as const;
 type Section = (typeof sections)[number]['id'];
 type Changes = Parameters<typeof productionService.update>[2];
 const reopenActions = {

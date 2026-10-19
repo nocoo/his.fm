@@ -992,3 +992,11 @@ library already composed real covers with `FramedCover`. Serial export protected
 Worker memory but unnecessarily made eight display previews wait. Reuse the
 shared browser composition and reserve server PNG rendering for explicit exports.
 Read existing visual consumers before choosing a download transport for display.
+
+## 2026-10-19 — Reserve room for overlay scrollbars
+
+The first narrow breadcrumb strip used 4px vertical padding. Headless Chrome
+could click its links, but headed macOS Chrome's overlay scrollbar intercepted
+the same clicks. Keep enough token-based vertical padding inside the existing
+header and verify real pointer and keyboard navigation in headed Chrome; do not
+force clicks to make a clipped hit target pass.

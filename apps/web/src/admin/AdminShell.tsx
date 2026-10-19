@@ -38,7 +38,7 @@ import {
   Search,
   Tags,
 } from 'lucide-react';
-import { type ReactNode, useEffect, useRef, useState } from 'react';
+import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
 import { version } from '../../../../package.json';
 import { BrandSymbol } from '../brand/Brand';
@@ -48,6 +48,7 @@ import { themeStyle } from '../brand/themes';
 import { GithubIcon } from '../components/GithubIcon';
 import { useResolvedThemeId } from '../shared/useResolvedThemeId';
 import { errorMessage, sessionDisplayName, sessionInitials } from './model';
+import { adminBreadcrumbs } from './navigation.model';
 import { EnvironmentSwitch } from './production/EnvironmentSwitch';
 import { adminService, type Session } from './service';
 
@@ -59,6 +60,13 @@ export function AdminShell({ session, children }: { session: Session; children: 
   const [collapsed, setCollapsed] = useState(compact);
   const [loggingOut, setLoggingOut] = useState(false);
   const restoreNavigationFocus = useRef(false);
+  const currentBreadcrumb = useRef<HTMLSpanElement>(null);
+  const breadcrumbs = adminBreadcrumbs(location.pathname, location.search);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: Scroll only the breadcrumb strip after route changes.
+  useLayoutEffect(() => {
+    const trail = currentBreadcrumb.current?.closest('nav');
+    if (trail) trail.scrollLeft = trail.scrollWidth;
+  }, [location.pathname, location.search, compact]);
   useEffect(() => {
     const media = window.matchMedia('(max-width: 1199px)');
     const update = () => {
@@ -71,48 +79,12 @@ export function AdminShell({ session, children }: { session: Session; children: 
   const iconOnly = collapsed && !compact;
   const isList = location.pathname === '/admin' || location.pathname === '/admin/';
   const catalog = location.pathname.startsWith('/admin/episodes/');
-  const settingsTitle: Record<string, string> = {
-    '/admin/connections': '连接管理',
-    '/admin/bumpers': '贴片库',
-  };
   const categories = location.pathname.startsWith('/admin/categories');
-  const settings = Boolean(settingsTitle[location.pathname]) || categories;
   const channel = location.pathname === '/admin/channel';
   const appearance = location.pathname === '/admin/appearance';
   const seo = location.pathname === '/admin/seo';
   const voicePreview = location.pathname === '/admin/voice-preview';
   const storage = location.pathname === '/admin/storage';
-  const creating = location.pathname === '/admin/productions/new';
-  const query = new URLSearchParams(location.search);
-  const sourceOpen =
-    location.pathname.startsWith('/admin/productions/') &&
-    query.has('source') &&
-    (!query.get('section') || query.get('section') === 'metadata');
-  const title = seo
-    ? '搜索与分享'
-    : appearance
-      ? '品牌外观'
-      : voicePreview
-        ? '音色预览'
-        : sourceOpen
-          ? '素材详情'
-          : storage
-            ? '资源管理'
-            : channel
-              ? '提示词'
-              : isList
-                ? '节目库'
-                : settings
-                  ? categories
-                    ? '栏目管理'
-                    : (settingsTitle[location.pathname] ?? '工作室')
-                  : catalog
-                    ? location.pathname.endsWith('/new')
-                      ? '新建节目'
-                      : '编辑节目'
-                    : creating
-                      ? '新建节目'
-                      : '节目详情';
   function go(path: string) {
     navigate(path);
     if (compact) setCollapsed(true);
@@ -339,22 +311,16 @@ export function AdminShell({ session, children }: { session: Session; children: 
         </Sidebar>
         <AppMain tabIndex={-1}>
           <AppHeader
-            title={title}
-            breadcrumbs={
-              sourceOpen
-                ? [
-                    ...(!compact ? [{ label: '节目库', href: '/admin' }] : []),
-                    { label: '资料与素材', href: `${location.pathname}?section=metadata` },
-                  ]
-                : isList || settings || channel || appearance || voicePreview || storage
-                  ? []
-                  : [
-                      {
-                        label: '节目库',
-                        href: '/admin',
-                      },
-                    ]
-            }
+            className="admin-header"
+            breadcrumbs={breadcrumbs.map((item, index) => ({
+              ...item,
+              label:
+                index === breadcrumbs.length - 1 ? (
+                  <span ref={currentBreadcrumb}>{item.label}</span>
+                ) : (
+                  item.label
+                ),
+            }))}
             leading={
               compact ? (
                 <Button
