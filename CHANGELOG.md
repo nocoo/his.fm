@@ -2,6 +2,15 @@
 
 All notable changes to his.fm are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions use the owner’s patch-only deployment policy in `AGENTS.md`, with the authoritative version in `package.json`.
 
+## 2.9.2 - 2026-10-19
+
+### Changed
+
+- Complete studio breadcrumbs and address-bar paths so detail navigation, reloads and browser history preserve the current page and editor drafts.
+- Compose theme previews immediately with the same artwork, metadata and renderer as the programme library, without waiting for serialized PNG exports or changing saved appearance.
+- Show the latest four covered library entries in every theme, including standalone episodes and deduplicating linked snapshots. Remove the single-production selector and production-upload prerequisite without substituting design samples.
+- Support responsive horizontal cover strips, touch and keyboard navigation, and full-size dialogs with explicit close controls and restored focus. Keep empty, read-failure and image-failure states distinct and refreshable.
+
 ## 2.9.1 - 2026-10-19
 
 ### Changed
