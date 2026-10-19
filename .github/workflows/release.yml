@@ -32,7 +32,7 @@ jobs:
       runtime-version: '11.19.1'
       node-version: '26.9.0'
       install-policy: project
-      build-command: npm run build
+      build-command: npm run ci:build
       deploy-cli: cf
       deploy-script: node scripts/deploy.mjs
       environment: production

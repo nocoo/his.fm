@@ -2,6 +2,28 @@
 
 All notable changes to his.fm are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions use the owner’s patch-only deployment policy in `AGENTS.md`, with the authoritative version in `package.json`.
 
+## 2.9.0 - 2026-10-19
+
+The owner explicitly requested this minor release (Y+1). The comparison baseline is the deployed release v2.8.7.
+
+### Changed
+
+- Standardize the canonical `his.fm ()` identity across public and studio headers, the appearance specimen and all eight theme previews. Preserve the accepted outlined shapes, equal wordmark/parentheses height, proportional spacing and theme colors.
+- Use a compact studio rail identity and larger theme-card identities, keeping slogans and titles consistent and avoiding overlap in narrow previews.
+- Provide eight theme-specific favicons with a dark primary background and centered white parentheses; synchronize public previews and saved studio appearance without changing the saved theme on card selection.
+
+### Fixed
+
+- Replace Basalt's default full-screen loading mark with the canonical his.fm parentheses in both studio color modes.
+- Keep sidebar collapse reachable at its minimum width and synchronize the saved brand identity after appearance conflict reloads.
+
+## 2.8.7 - 2026-10-19
+
+### Fixed
+
+- Run `ci:ensure-native-binaries` before production `cf build` in the Release deploy workflow so Linux optional platform packages (workerd and related toolchain binaries) are present after frozen `npm ci`, matching CI quality gates.
+- Point Linux `workerd` and Biome CLI lockfile tarballs used by deploy installs at `registry.npmjs.org` sha512 metadata for reliable downloads on GitHub-hosted runners.
+
 ## 2.8.6 - 2026-10-19
 
 ### Fixed
