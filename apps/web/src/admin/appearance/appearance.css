@@ -201,7 +201,13 @@ html.dark .identity-specimen {
 }
 .appearance-cover-dialog > .framed-cover {
   width: min(100%, 65dvh);
-  justify-self: center;
+  margin: var(--admin-space-4) auto 0;
+}
+.appearance-cover-dialog-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--admin-space-4);
 }
 .appearance-cover-placeholder {
   display: flex;

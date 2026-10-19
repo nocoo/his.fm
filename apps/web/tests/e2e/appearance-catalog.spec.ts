@@ -110,6 +110,11 @@ test('theme catalogue composes real cover data immediately and preserves selecti
   await trigger.click();
   const dialog = page.getByRole('dialog', { name: '间隙 · 封面预览', exact: true });
   await expect(dialog.locator('[data-cover-theme="interval"]')).toBeVisible();
+  await expect(dialog.getByRole('button', { name: '关闭封面预览' })).toBeFocused();
+  await dialog.getByRole('button', { name: '关闭封面预览' }).click();
+  await expect(dialog).toBeHidden();
+  await expect(trigger).toBeFocused();
+  await trigger.click();
   await page.keyboard.press('Escape');
   await expect(dialog).toBeHidden();
   await expect(trigger).toBeFocused();

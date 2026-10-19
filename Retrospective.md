@@ -992,6 +992,9 @@ library already composed real covers with `FramedCover`. Serial export protected
 Worker memory but unnecessarily made eight display previews wait. Reuse the
 shared browser composition and reserve server PNG rendering for explicit exports.
 Read existing visual consumers before choosing a download transport for display.
+Visual inspection also caught the new large preview without a close button.
+Provide a touch-accessible close control and check focus restoration as well as
+Escape dismissal; passing a keyboard-only dialog check is not full acceptance.
 
 ## 2026-10-19 — Reserve room for overlay scrollbars
 

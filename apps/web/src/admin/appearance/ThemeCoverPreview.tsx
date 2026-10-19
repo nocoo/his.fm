@@ -1,13 +1,14 @@
 import {
   Button,
   Dialog,
+  DialogClose,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from '@nocoo/basalt';
-import { ArrowUpRight, ImageOff } from 'lucide-react';
+import { ArrowUpRight, ImageOff, X } from 'lucide-react';
 import { useState } from 'react';
 import { FramedCover } from '../../components/FramedCover';
 import type { ThemeId } from '../../shared/appearance';
@@ -50,7 +51,14 @@ export function ThemeCoverPreview({
           </DialogTrigger>
           <DialogContent className="appearance-cover-dialog">
             <DialogHeader>
-              <DialogTitle>{name} · 封面预览</DialogTitle>
+              <div className="appearance-cover-dialog-heading">
+                <DialogTitle>{name} · 封面预览</DialogTitle>
+                <DialogClose asChild>
+                  <Button variant="ghost" size="icon" aria-label="关闭封面预览">
+                    <X size={16} strokeWidth={1.5} aria-hidden="true" />
+                  </Button>
+                </DialogClose>
+              </div>
               <DialogDescription>{source?.title} · 已保存内容的实时叠加预览</DialogDescription>
             </DialogHeader>
             <FramedCover {...cover} />
