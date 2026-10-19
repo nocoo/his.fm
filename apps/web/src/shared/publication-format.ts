@@ -12,11 +12,18 @@ const speakerTint = { 主播: '#eef4f0', 预言家: '#f3f0ea' } satisfies Record
 export const DEFAULT_READING_LABEL_PREFIX = 'studio-transcript-label';
 
 export function sanitizeReadingIdPrefix(value: string) {
-  const sanitized = value
-    .replace(/[^A-Za-z0-9_-]/g, '-')
-    .replace(/-+/g, '-')
-    .replace(/^-+|-+$/g, '');
-  return sanitized || DEFAULT_READING_LABEL_PREFIX;
+  if (!value) return DEFAULT_READING_LABEL_PREFIX;
+  let encoded = '';
+  for (const char of value) {
+    if (/[A-Za-z0-9]/.test(char)) {
+      encoded += char;
+      continue;
+    }
+    const codePoint = char.codePointAt(0);
+    if (codePoint === undefined) continue;
+    encoded += char === '_' ? '_5f_' : `_${codePoint.toString(16)}_`;
+  }
+  return encoded || DEFAULT_READING_LABEL_PREFIX;
 }
 
 function escapeHtml(value: string) {

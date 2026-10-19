@@ -124,20 +124,25 @@ describe('transcript speaker rendering', () => {
     expect(html).toContain('<strong>旁白：</strong>');
     expect(html).not.toContain('aria-hidden');
     expect(html).toContain('role="group"');
-    expect(html).toContain(`aria-labelledby="${DEFAULT_READING_LABEL_PREFIX}-0"`);
-    expect(html).toContain(`id="${DEFAULT_READING_LABEL_PREFIX}-0"`);
+    const defaultPrefix = sanitizeReadingIdPrefix(DEFAULT_READING_LABEL_PREFIX);
+    expect(html).toContain(`aria-labelledby="${defaultPrefix}-0"`);
+    expect(html).toContain(`id="${defaultPrefix}-0"`);
   });
 
   it('uses distinct label prefixes when reading views pass different idPrefix values', () => {
     const first = formatReading('**主播：** 一', { idPrefix: 'reading-view-a' });
     const second = formatReading('**主播：** 二', { idPrefix: 'reading-view-b' });
-    expect(first).toContain('id="reading-view-a-0"');
-    expect(second).toContain('id="reading-view-b-0"');
+    expect(first).toContain(`id="${sanitizeReadingIdPrefix('reading-view-a')}-0"`);
+    expect(second).toContain(`id="${sanitizeReadingIdPrefix('reading-view-b')}-0"`);
   });
 
-  it('sanitizes idPrefix to stable alphanumeric tokens', () => {
-    expect(sanitizeReadingIdPrefix(':r1:')).toBe('r1');
-    expect(sanitizeReadingIdPrefix('---')).toBe(DEFAULT_READING_LABEL_PREFIX);
+  it('sanitizes idPrefix with injective encoding so distinct React ids never collide', () => {
+    const colonId = sanitizeReadingIdPrefix(':r1:');
+    const guillemetId = sanitizeReadingIdPrefix('«r1»');
+    expect(colonId).not.toBe(guillemetId);
+    expect(colonId).toBe('_3a_r1_3a_');
+    expect(guillemetId).toBe('_ab_r1_bb_');
+    expect(sanitizeReadingIdPrefix('')).toBe(DEFAULT_READING_LABEL_PREFIX);
   });
 
   it('renders WeChat HTML with speaker sections for copy and preview', () => {

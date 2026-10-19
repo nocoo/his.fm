@@ -38,9 +38,9 @@ describe('client-shared modules', () => {
   });
 
   it('renders speaker-labelled reading HTML without Node crypto', async () => {
-    const { formatReading } = await import('../../src/shared/publication-format');
+    const { formatReading, sanitizeReadingIdPrefix } = await import('../../src/shared/publication-format');
     const html = formatReading('**主播：** 问题。', { idPrefix: 'client-smoke' });
     expect(html).toContain('data-speaker="主播"');
-    expect(html).toContain('id="client-smoke-0"');
+    expect(html).toContain(`id="${sanitizeReadingIdPrefix('client-smoke')}-0"`);
   });
 });
