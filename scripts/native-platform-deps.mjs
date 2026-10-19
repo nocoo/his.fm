@@ -96,16 +96,25 @@ function lockPathMatchesOptionalName(lockPath, optionalName) {
   return lockPath === `node_modules/${optionalName}` || lockPath.endsWith(`/node_modules/${optionalName}`);
 }
 
+function entryFromLockMeta(lockPath, meta) {
+  if (!meta?.integrity || !meta.resolved || !meta.version) {
+    throw new Error(`Lockfile entry ${lockPath} is missing version, resolved URL, or integrity`);
+  }
+  if (!meta.integrity.startsWith('sha512-')) {
+    throw new Error(`Lockfile entry ${lockPath} must use sha512 integrity`);
+  }
+  return {
+    lockPath,
+    version: meta.version,
+    resolved: meta.resolved,
+    integrity: meta.integrity,
+  };
+}
+
 export function resolveOptionalLockEntry(packages, parentLockPath, optionalName) {
   const direct = `${parentLockPath}/node_modules/${optionalName}`;
-  const directMeta = packages[direct];
-  if (directMeta?.integrity && directMeta.resolved && directMeta.version) {
-    return {
-      lockPath: direct,
-      version: directMeta.version,
-      resolved: directMeta.resolved,
-      integrity: directMeta.integrity,
-    };
+  if (Object.hasOwn(packages, direct)) {
+    return entryFromLockMeta(direct, packages[direct]);
   }
 
   const installDir = installDirForLockPath(parentLockPath);
@@ -113,7 +122,7 @@ export function resolveOptionalLockEntry(packages, parentLockPath, optionalName)
     ([lockPath, meta]) =>
       lockPathMatchesOptionalName(lockPath, optionalName) &&
       installDirForLockPath(lockPath) === installDir &&
-      meta.integrity &&
+      meta.integrity?.startsWith('sha512-') &&
       meta.resolved &&
       meta.version,
   );
@@ -126,23 +135,13 @@ export function resolveOptionalLockEntry(packages, parentLockPath, optionalName)
 
   if (candidates.length === 1) {
     const [lockPath, meta] = candidates[0];
-    return {
-      lockPath,
-      version: meta.version,
-      resolved: meta.resolved,
-      integrity: meta.integrity,
-    };
+    return entryFromLockMeta(lockPath, meta);
   }
 
   const underParent = candidates.find(([lockPath]) => lockPath.startsWith(`${parentLockPath}/`));
   if (underParent) {
     const [lockPath, meta] = underParent;
-    return {
-      lockPath,
-      version: meta.version,
-      resolved: meta.resolved,
-      integrity: meta.integrity,
-    };
+    return entryFromLockMeta(lockPath, meta);
   }
 
   throw new Error(`Ambiguous lockfile entries for optional ${optionalName} under ${parentLockPath}`);

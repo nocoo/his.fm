@@ -7,7 +7,7 @@ import {
 } from '../../../../scripts/native-platform-deps.mjs';
 
 const lockMeta = {
-  resolved: 'https://registry.example.invalid/pkg-1.0.0.tgz',
+  resolved: 'https://registry.npmjs.org/@cloudflare/workerd-linux-64/-/workerd-linux-64-1.0.0.tgz',
   integrity:
     'sha512-xE4iEW/3LqlYj9GFgGrFsFSH51dEEpUbYWBfeOv0q87WkUDxK2o/HhreSb7qMJqck70RVM6Lg96hgedcAYcOkA==',
 };
@@ -75,7 +75,7 @@ describe('native platform optional dependencies', () => {
       },
       'apps/web/node_modules/@cloudflare/workerd-linux-64': {
         version: '2.0.0',
-        resolved: 'https://registry.example.invalid/pkg-2.0.0.tgz',
+        resolved: 'https://registry.npmjs.org/@cloudflare/workerd-linux-64/-/workerd-linux-64-2.0.0.tgz',
         integrity:
           'sha512-IlxUcyxilVGPsE008x13pWdkTbU3nQpP2i9b5UrbOYj6goBkKsRX1XB7yJLcV+O1H9LBchIIm4adOaVLZBX0ZQ==',
       },
@@ -87,7 +87,7 @@ describe('native platform optional dependencies', () => {
       },
       'node_modules/@biomejs/cli-linux-x64': {
         version: '2.5.15',
-        resolved: 'https://registry.example.invalid/biome-cli.tgz',
+        resolved: 'https://registry.npmjs.org/@biomejs/cli-linux-x64/-/cli-linux-x64-2.5.15.tgz',
         integrity:
           'sha512-xE4iEW/3LqlYj9GFgGrFsFSH51dEEpUbYWBfeOv0q87WkUDxK2o/HhreSb7qMJqck70RVM6Lg96hgedcAYcOkA==',
       },
@@ -105,7 +105,7 @@ describe('native platform optional dependencies', () => {
       installDir: 'apps/web',
       name: '@cloudflare/workerd-linux-64',
       version: '2.0.0',
-      resolved: 'https://registry.example.invalid/pkg-2.0.0.tgz',
+      resolved: 'https://registry.npmjs.org/@cloudflare/workerd-linux-64/-/workerd-linux-64-2.0.0.tgz',
       integrity:
         'sha512-IlxUcyxilVGPsE008x13pWdkTbU3nQpP2i9b5UrbOYj6goBkKsRX1XB7yJLcV+O1H9LBchIIm4adOaVLZBX0ZQ==',
       lockPath: 'apps/web/node_modules/@cloudflare/workerd-linux-64',
@@ -134,6 +134,36 @@ describe('native platform optional dependencies', () => {
     );
   });
 
+  it('fails closed when a direct lock entry exists without sha512 metadata', () => {
+    const packages: Record<
+      string,
+      {
+        version?: string;
+        resolved?: string;
+        integrity?: string;
+        optionalDependencies?: Record<string, string>;
+      }
+    > = {
+      'node_modules/workerd': {
+        optionalDependencies: {
+          '@cloudflare/workerd-linux-64': '1.0.0',
+        },
+      },
+      'node_modules/workerd/node_modules/@cloudflare/workerd-linux-64': {
+        version: '1.0.0',
+      },
+      'node_modules/@cloudflare/workerd-linux-64': {
+        version: '9.9.9',
+        resolved: 'https://registry.npmjs.org/@cloudflare/workerd-linux-64/-/workerd-linux-64-9.9.9.tgz',
+        integrity:
+          'sha512-xE4iEW/3LqlYj9GFgGrFsFSH51dEEpUbYWBfeOv0q87WkUDxK2o/HhreSb7qMJqck70RVM6Lg96hgedcAYcOkA==',
+      },
+    };
+    expect(() =>
+      resolveOptionalLockEntry(packages, 'node_modules/workerd', '@cloudflare/workerd-linux-64'),
+    ).toThrow(/missing version, resolved URL, or integrity/i);
+  });
+
   it('resolves hoisted optional packages under the parent install directory', () => {
     const packages: Record<
       string,
@@ -151,7 +181,7 @@ describe('native platform optional dependencies', () => {
       },
       'node_modules/@biomejs/cli-linux-x64': {
         version: '2.5.15',
-        resolved: 'https://registry.example.invalid/biome-cli.tgz',
+        resolved: 'https://registry.npmjs.org/@biomejs/cli-linux-x64/-/cli-linux-x64-2.5.15.tgz',
         integrity: lockMeta.integrity,
       },
     };
@@ -160,7 +190,7 @@ describe('native platform optional dependencies', () => {
     ).toEqual({
       lockPath: 'node_modules/@biomejs/cli-linux-x64',
       version: '2.5.15',
-      resolved: 'https://registry.example.invalid/biome-cli.tgz',
+      resolved: 'https://registry.npmjs.org/@biomejs/cli-linux-x64/-/cli-linux-x64-2.5.15.tgz',
       integrity: lockMeta.integrity,
     });
   });
