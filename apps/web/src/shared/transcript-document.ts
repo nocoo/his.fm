@@ -22,7 +22,32 @@ export function parseSpeakerLabelPrefix(text: string) {
   return { speaker, prefix, body: text.slice(prefix.length) };
 }
 
-function peelSpeakerParagraph(token: Tokens.Paragraph) {
+function stripSpeakerLabelFromInlines(inline: Token[], prefix: string): Token[] | null {
+  let remaining = prefix.length;
+  const stripped: Token[] = [];
+  for (const token of inline) {
+    if (remaining <= 0) {
+      stripped.push(token);
+      continue;
+    }
+    if (token.type !== 'text' || !('text' in token)) return null;
+    const text = String(token.text);
+    const raw = 'raw' in token ? String(token.raw) : text;
+    if (text.length < remaining) {
+      remaining -= text.length;
+      continue;
+    }
+    const nextText = text.slice(remaining);
+    const nextRaw = raw.slice(remaining);
+    remaining = 0;
+    if (nextText.length > 0) {
+      stripped.push({ ...token, text: nextText, raw: nextRaw });
+    }
+  }
+  return remaining > 0 ? null : stripped;
+}
+
+function peelSpeakerParagraph(token: Tokens.Paragraph, lexer: Lexer) {
   const parsed = parseSpeakerLabelPrefix(token.text);
   if (!parsed) return null;
   const { speaker, prefix, body } = parsed;
@@ -31,7 +56,8 @@ function peelSpeakerParagraph(token: Tokens.Paragraph) {
   if (inline[0]?.type === 'strong' && inline[0].text === labelText) {
     inline = inline.slice(1);
   } else if (token.text.startsWith(prefix)) {
-    inline = Lexer.lexInline(body, { gfm: true, breaks: true });
+    const withoutLabel = stripSpeakerLabelFromInlines(inline, prefix);
+    inline = withoutLabel ?? lexer.inlineTokens(body);
   }
   const paragraph: Tokens.Paragraph = { ...token, text: body, raw: body, tokens: inline };
   return { speaker, paragraph };
@@ -63,7 +89,7 @@ export function lexTranscriptDocument(markdown: string): TranscriptDocument {
     if (token.type === 'def') continue;
 
     if (token.type === 'paragraph') {
-      const peeled = peelSpeakerParagraph(token as Tokens.Paragraph);
+      const peeled = peelSpeakerParagraph(token as Tokens.Paragraph, lexer);
       if (peeled) {
         flushMarkdown();
         flushSpeaker();

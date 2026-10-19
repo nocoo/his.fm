@@ -145,6 +145,36 @@ describe('transcript speaker rendering', () => {
     expect(sanitizeReadingIdPrefix('')).toBe(DEFAULT_READING_LABEL_PREFIX);
   });
 
+  it('resolves reference links on glued speaker labels for reading and WeChat', () => {
+    const trailingDef = '**主播：**请看[来源][ref]。\n\n[ref]: https://example.com/path';
+    const readingTrailing = formatReading(trailingDef);
+    expect(readingTrailing).toContain('href="https://example.com/path"');
+    expect(readingTrailing).not.toContain('[ref]');
+    const { html: wechatTrailing } = formatWechat({
+      title: '测试',
+      summary: '',
+      description: '',
+      transcript: trailingDef,
+      assets: { cover: null, audio: null },
+      sources: [],
+    });
+    expect(wechatTrailing).toContain('https://example.com/path');
+    expect(wechatTrailing).toContain('[1]');
+
+    const laterTurn = '**主播：**请看[来源][ref]。\n\n**预言家：** 收尾。\n\n[ref]: https://example.com/path';
+    const readingLater = formatReading(laterTurn);
+    expect(readingLater).toContain('href="https://example.com/path"');
+    const { html: wechatLater } = formatWechat({
+      title: '测试',
+      summary: '',
+      description: '',
+      transcript: laterTurn,
+      assets: { cover: null, audio: null },
+      sources: [],
+    });
+    expect(wechatLater).toContain('https://example.com/path');
+  });
+
   it('renders glued speaker labels without duplicating the label in the body', () => {
     const markdown = '**主播：**问题。';
     const reading = formatReading(markdown);
