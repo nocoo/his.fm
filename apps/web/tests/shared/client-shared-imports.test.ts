@@ -2,6 +2,7 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
+import { sourceImportsNodeBuiltin } from './node-builtin-imports';
 
 const webRoot = fileURLToPath(new URL('../..', import.meta.url));
 const clientRoots = ['src/shared', 'src/components', 'src/public', 'src/brand'];
@@ -22,7 +23,19 @@ function listSourceFiles(directory: string): string[] {
   return files;
 }
 
-const nodeImportPattern = /\bfrom\s+['"]node:[^'"]+['"]/;
+describe('node builtin import detection', () => {
+  it.each([
+    ["import { randomBytes } from 'node:crypto'", true],
+    ['import "node:fs"', true],
+    ["export { readFileSync } from 'node:fs'", true],
+    ["const fs = await import('node:fs')", true],
+    ['require("node:path")', true],
+    ["import { formatReading } from '../publication-format'", false],
+    ['const hint = "node:fs is documented but not imported"', false],
+  ])('detects node built-ins in %s', (snippet, expected) => {
+    expect(sourceImportsNodeBuiltin(snippet)).toBe(expected);
+  });
+});
 
 describe('client-shared modules', () => {
   it('does not import node: built-ins under browser bundles', () => {
@@ -31,7 +44,7 @@ describe('client-shared modules', () => {
       const absoluteRoot = join(webRoot, root);
       for (const file of listSourceFiles(absoluteRoot)) {
         const source = readFileSync(file, 'utf8');
-        if (nodeImportPattern.test(source)) offenders.push(file.replace(`${webRoot}/`, ''));
+        if (sourceImportsNodeBuiltin(source)) offenders.push(file.replace(`${webRoot}/`, ''));
       }
     }
     expect(offenders).toEqual([]);
