@@ -2,6 +2,12 @@
 
 All notable changes to his.fm are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions use the owner’s patch-only deployment policy in `AGENTS.md`, with the authoritative version in `package.json`.
 
+## 2.9.3 - 2026-10-19
+
+### Changed
+
+- Render admin transcript previews and WeChat copy HTML as labeled speaker blocks for `**主播：**` and `**预言家：**` lines while keeping stored Markdown unchanged.
+
 ## 2.9.2 - 2026-10-19
 
 ### Changed
