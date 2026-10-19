@@ -1,4 +1,3 @@
-import { randomBytes } from 'node:crypto';
 import { Lexer, Marked, type Token, type Tokens } from 'marked';
 import type { Production } from './production';
 import { lexTranscriptDocument, type TranscriptSpeaker } from './transcript-document';
@@ -10,6 +9,15 @@ type PublicationContent = Pick<
 const ink = '#183d2e';
 const muted = '#687469';
 const speakerTint = { 主播: '#eef4f0', 预言家: '#f3f0ea' } satisfies Record<TranscriptSpeaker, string>;
+export const DEFAULT_READING_LABEL_PREFIX = 'studio-transcript-label';
+
+export function sanitizeReadingIdPrefix(value: string) {
+  const sanitized = value
+    .replace(/[^A-Za-z0-9_-]/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-+|-+$/g, '');
+  return sanitized || DEFAULT_READING_LABEL_PREFIX;
+}
 
 function escapeHtml(value: string) {
   return value
@@ -177,13 +185,13 @@ function renderReadingSpeakerBlock(
   return `<div class="studio-transcript-block" data-speaker="${escapeHtml(speaker)}" role="group" aria-labelledby="${id}"><div class="studio-transcript-block-label" id="${id}">${escapeHtml(speaker)}</div><div class="studio-transcript-block-body">${bodyHtml}</div></div>`;
 }
 
-export function formatReading(markdown: string): string {
+export function formatReading(markdown: string, options: { idPrefix?: string } = {}): string {
   const document = lexTranscriptDocument(markdown);
   if (!document.hasSpeakerTurns) {
     return markdown ? createReadingMarked().parse(markdown, { async: false }) : '';
   }
   const marked = createReadingMarked();
-  const labelPrefix = `studio-transcript-label-${randomBytes(6).toString('hex')}`;
+  const labelPrefix = sanitizeReadingIdPrefix(options.idPrefix ?? DEFAULT_READING_LABEL_PREFIX);
   let speakerIndex = 0;
   return document.groups
     .map((group) => {

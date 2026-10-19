@@ -1,6 +1,11 @@
 import { Marked } from 'marked';
 import { describe, expect, it } from 'vitest';
-import { formatReading, formatWechat } from '../src/shared/publication-format';
+import {
+  DEFAULT_READING_LABEL_PREFIX,
+  formatReading,
+  formatWechat,
+  sanitizeReadingIdPrefix,
+} from '../src/shared/publication-format';
 import { parseTranscriptSpeakers, transcriptHasSpeakerBlocks } from '../src/shared/transcript-speakers';
 
 function secureUrl(value: string) {
@@ -119,18 +124,20 @@ describe('transcript speaker rendering', () => {
     expect(html).toContain('<strong>旁白：</strong>');
     expect(html).not.toContain('aria-hidden');
     expect(html).toContain('role="group"');
-    expect(html).toMatch(/aria-labelledby="studio-transcript-label-[a-f0-9]+-0"/);
-    expect(html).toMatch(/id="studio-transcript-label-[a-f0-9]+-0"/);
+    expect(html).toContain(`aria-labelledby="${DEFAULT_READING_LABEL_PREFIX}-0"`);
+    expect(html).toContain(`id="${DEFAULT_READING_LABEL_PREFIX}-0"`);
   });
 
-  it('uses distinct label prefixes across separate formatReading calls', () => {
-    const first = formatReading('**主播：** 一');
-    const second = formatReading('**主播：** 二');
-    const firstId = first.match(/id="(studio-transcript-label-[^"]+)"/)?.[1];
-    const secondId = second.match(/id="(studio-transcript-label-[^"]+)"/)?.[1];
-    expect(firstId).toBeTruthy();
-    expect(secondId).toBeTruthy();
-    expect(firstId).not.toBe(secondId);
+  it('uses distinct label prefixes when reading views pass different idPrefix values', () => {
+    const first = formatReading('**主播：** 一', { idPrefix: 'reading-view-a' });
+    const second = formatReading('**主播：** 二', { idPrefix: 'reading-view-b' });
+    expect(first).toContain('id="reading-view-a-0"');
+    expect(second).toContain('id="reading-view-b-0"');
+  });
+
+  it('sanitizes idPrefix to stable alphanumeric tokens', () => {
+    expect(sanitizeReadingIdPrefix(':r1:')).toBe('r1');
+    expect(sanitizeReadingIdPrefix('---')).toBe(DEFAULT_READING_LABEL_PREFIX);
   });
 
   it('renders WeChat HTML with speaker sections for copy and preview', () => {
