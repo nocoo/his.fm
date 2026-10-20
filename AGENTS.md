@@ -81,7 +81,7 @@ Install through an allowed registry; never retry blocked `registry.npmjs.org`. `
 
 - Production domain: `his.fm`; Worker, D1 and R2 names: `his-fm`.
 - Bind `www.his.fm` to the same Worker and redirect HTTP/www to HTTPS apex before routing. Enable native Workers Cache only on `PublicContent`, not the gateway; successful content/SEO/appearance writes purge its cache. Miniflare cannot establish edge HIT/purge behavior.
-- R2 CDN: `https://f.no.mt`. Voice references use `reference/voices/*.wav`; generated media stays ignored.
+- R2 CDN: `https://f.no.mt`. Voice references use `reference/voices/*.mp3`; the manifest and fixed transcript live in `apps/web/src/shared/data/`. Preview generation remains external; MAI references use only `MAI-Voice-2.1`, never Flash. Generated media stays ignored.
 - R2 resource management lives at `/admin/storage`, `/admin/api/storage` and scope-gated `/api/agent/storage`. Scan through every cursor; failed/partial scans cannot enable cleanup. Revalidate D1 references and R2 versions before deleting, preserve `images/`, `reference/`, archived media provenance and all uploads younger than 24 hours. Never use production media as destructive test fixtures. Cleanup does not purge CDN caches or compress media.
 - D1 ID: `66f7e201-22a8-450d-838d-ecbc382afbc6`.
 - The existing Access application protects `his.fm/admin`; descendant paths inherit its policy unless a more specific application overrides them.

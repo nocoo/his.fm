@@ -1,127 +1,275 @@
-import { LayerCard } from '@nocoo/basalt';
+import { Badge, Button, Input, LayerCard, Switch } from '@nocoo/basalt';
+import { Collapsible, CollapsibleContent } from '@nocoo/basalt/components/collapsible';
+import { PageHeader } from '@nocoo/basalt/components/page-header';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@nocoo/basalt/components/select';
+import { ToggleGroup, ToggleGroupItem } from '@nocoo/basalt/components/toggle-group';
+import { BookOpen, ChevronDown, ChevronUp, LoaderCircle, RotateCcw, Search } from 'lucide-react';
+import { useState } from 'react';
 import { AudioPlayer } from '../../components/AudioPlayer';
 import {
-  type VoicePreviewEntry,
+  type VoiceGender,
+  type VoicePreviewFilters,
+  type VoicePreviewVoice,
   type VoiceProvider,
+  voiceGenderLabels,
   voicePreviewCatalog,
-  voicePreviewComparisonRows,
   voicePreviewMediaUrl,
+  voicePreviewResults,
   voicePreviewSampleScript,
-  voicePreviewStoragePrefix,
+  voiceProviderInfo,
+  voiceProviders,
 } from '../../shared/voice-samples';
 import { ProviderMark } from './ProviderMark';
 import { useReferenceSample } from './useReferenceSample';
 
-function sampleFileName(objectKey: string) {
-  return objectKey.split('/').pop() ?? objectKey;
-}
+const catalog = voicePreviewCatalog();
 
-function MissingSample({ objectKey }: { objectKey: string }) {
+function VoiceSampleCard({ entry, technical }: { entry: VoicePreviewVoice; technical: boolean }) {
+  const info = voiceProviderInfo[entry.provider];
+  const sample = useReferenceSample(voicePreviewMediaUrl(entry.objectKey));
   return (
-    <LayerCard className="appearance-voice-placeholder" padding="md">
-      <p className="admin-muted">尚未上传样片（{sampleFileName(objectKey)}）</p>
-    </LayerCard>
-  );
-}
-
-function VoiceSampleCard({
-  provider,
-  entry,
-  model,
-}: {
-  provider: VoiceProvider;
-  entry: VoicePreviewEntry;
-  model: string;
-}) {
-  const sampleUrl = voicePreviewMediaUrl(entry.objectKey);
-  const probe = useReferenceSample(sampleUrl);
-  const title = provider === 'gemini' ? `Gemini · ${entry.voiceName}` : `ElevenLabs · ${entry.voiceName}`;
-
-  return (
-    <LayerCard className="appearance-voice-card" data-provider={provider} padding="md">
-      <div className="appearance-voice-heading">
-        <strong>
-          <ProviderMark provider={provider} />
-          {title}
-        </strong>
-        <span className="admin-muted">{entry.style}</span>
+    <LayerCard
+      className="appearance-voice-card"
+      data-provider={entry.provider}
+      data-gender={entry.gender}
+      data-voice={entry.voiceName}
+      padding="none"
+    >
+      <div className="voice-sample-heading">
+        <h2 className="voice-sample-name">{entry.voiceName}</h2>
+        <div className="voice-sample-provider">
+          <span className="voice-provider-label">
+            <ProviderMark provider={entry.provider} />
+            {info.name}
+          </span>
+          <span className="voice-model-label">{info.model}</span>
+        </div>
       </div>
-      <p className="admin-muted">{model}</p>
-      <p className="admin-muted appearance-voice-id">{entry.voiceId}</p>
-      {!probe.ready ? (
-        <p className="admin-muted">正在检查参考样片…</p>
-      ) : probe.available ? (
-        <AudioPlayer
-          src={probe.playbackUrl}
-          title={title}
-          subtitle={`${entry.durationSeconds.toFixed(1)} 秒 · 固定对比文稿`}
-          compact
-          preload="none"
-        />
+      <div className="voice-sample-meta">
+        <div className="voice-sample-tags">
+          <Badge variant={null} className="voice-tag voice-gender-tag">
+            {voiceGenderLabels[entry.gender]}
+          </Badge>
+          {entry.traits.map((trait, index) => (
+            <Badge
+              key={trait}
+              variant={null}
+              className={`voice-tag ${entry.provider !== 'gemini' && index === 0 ? 'voice-locale-tag' : 'voice-style-tag'}`}
+            >
+              {trait}
+            </Badge>
+          ))}
+        </div>
+        <span className="voice-sample-duration">{entry.durationSeconds.toFixed(1)} 秒</span>
+      </div>
+      {sample.status === 'available' ? (
+        <AudioPlayer src={sample.playbackUrl} title={entry.voiceName} compact hideIdleStatus preload="none" />
       ) : (
-        <MissingSample objectKey={entry.objectKey} />
+        <div className="voice-reference-state">
+          {sample.status === 'loading' ? (
+            <span role="status">
+              <LoaderCircle size={14} aria-hidden="true" />
+              正在检查参考样片…
+            </span>
+          ) : (
+            <>
+              <span role="alert">
+                {sample.status === 'missing' ? '尚未上传样片' : '参考样片检查失败，请重试。'}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={sample.retry}
+                aria-label={`重试检查 ${entry.voiceName} 样片`}
+              >
+                <RotateCcw size={14} aria-hidden="true" />
+                重试
+              </Button>
+            </>
+          )}
+        </div>
+      )}
+      {technical && (
+        <div className="voice-technical">
+          <code>{entry.voiceId}</code>
+          <code>{entry.objectKey}</code>
+        </div>
       )}
     </LayerCard>
   );
 }
 
-function ComparisonSlot({
-  provider,
-  entry,
-  model,
-}: {
-  provider: VoiceProvider;
-  entry?: VoicePreviewEntry;
-  model: string;
-}) {
-  if (!entry) {
-    return <div className="appearance-voice-slot-empty" aria-hidden="true" />;
-  }
-  return <VoiceSampleCard provider={provider} entry={entry} model={model} />;
-}
-
 export function VoicePreviewContent() {
-  const rows = voicePreviewComparisonRows();
-  const geminiCount = voicePreviewCatalog('gemini').length;
-  const elevenlabsCount = voicePreviewCatalog('elevenlabs').length;
+  const [filters, setFilters] = useState<VoicePreviewFilters>({ provider: 'all', gender: 'all', query: '' });
+  const [scriptOpen, setScriptOpen] = useState(false);
+  const [technical, setTechnical] = useState(false);
+  const { filtered, matchingCount, providerCounts, genderOptions } = voicePreviewResults(catalog, filters);
+
+  function selectProvider(provider: string) {
+    if (provider) setFilters((current) => ({ ...current, provider: provider as VoiceProvider | 'all' }));
+  }
+
+  function selectGender(gender: string) {
+    if (gender) setFilters((current) => ({ ...current, gender: gender as VoiceGender | 'all' }));
+  }
 
   return (
-    <section className="appearance-voices" aria-label="全部音色预览">
-      <header className="appearance-voice-intro">
-        <h2>全部音色预览（Gemini + ElevenLabs）</h2>
-        <p className="admin-muted">
-          下方按行对比 Gemini（{geminiCount} 个音色）与 ElevenLabs（{elevenlabsCount}{' '}
-          个音色）；每个音色使用同一段固定中文文稿录制，便于横向试听。本站不托管语音生成；预览样片在站外生成后以
-          MP3（
-          <code>audio/mpeg</code>）上传到 R2 <code>{voicePreviewStoragePrefix}</code>
-          ，本页仅播放已上传文件。同一时间只能播放一个样片。
-        </p>
-        <p className="appearance-voice-intro-label">固定文稿</p>
-        <div className="appearance-voice-script studio-prose">{voicePreviewSampleScript}</div>
-      </header>
-
-      <div className="appearance-voice-compare-legend" aria-hidden="true">
-        <span>
-          <ProviderMark provider="gemini" />
-          Gemini
-        </span>
-        <span>
-          <ProviderMark provider="elevenlabs" />
-          ElevenLabs
-        </span>
-      </div>
-
-      <div className="appearance-voice-compare-rows">
-        {rows.map((row) => (
-          <div
-            className="appearance-voice-grid appearance-voice-compare-row"
-            key={`${row.gemini?.objectKey ?? 'gemini-empty'}-${row.elevenlabs?.objectKey ?? 'elevenlabs-empty'}`}
+    <section className="admin-page voice-preview-page voice-preview-catalog" aria-label="全部音色预览">
+      <PageHeader
+        title="音色预览"
+        description="同一段文稿，听出不同表达。"
+        actions={
+          <Button
+            variant="outline"
+            size="sm"
+            aria-expanded={scriptOpen}
+            aria-controls="voice-fixed-script"
+            onClick={() => setScriptOpen(!scriptOpen)}
           >
-            <ComparisonSlot provider="gemini" entry={row.gemini} model="gemini-2.5-flash-preview-tts" />
-            <ComparisonSlot provider="elevenlabs" entry={row.elevenlabs} model="eleven_v3" />
-          </div>
-        ))}
+            <BookOpen size={15} aria-hidden="true" />
+            固定文稿
+            {scriptOpen ? (
+              <ChevronUp size={14} aria-hidden="true" />
+            ) : (
+              <ChevronDown size={14} aria-hidden="true" />
+            )}
+          </Button>
+        }
+      />
+      <Collapsible open={scriptOpen} onOpenChange={setScriptOpen}>
+        <CollapsibleContent unstyled id="voice-fixed-script">
+          <LayerCard className="voice-script-card">
+            <strong>所有样片共用的固定文稿</strong>
+            <div className="voice-script-body">{voicePreviewSampleScript}</div>
+            <p className="voice-script-note">
+              这是音色对比测试文稿，不代表实时新闻。所有样片均在站外生成，本站仅供试听。
+            </p>
+          </LayerCard>
+        </CollapsibleContent>
+      </Collapsible>
+      <div className="voice-catalog-toolbar">
+        <div className="voice-catalog-pills">
+          <ToggleGroup
+            type="single"
+            value={filters.provider}
+            onValueChange={selectProvider}
+            aria-label="按厂商筛选"
+          >
+            <ToggleGroupItem value="all">
+              全部 <span className="voice-filter-count">{catalog.length}</span>
+            </ToggleGroupItem>
+            {voiceProviders.map((provider) => (
+              <ToggleGroupItem key={provider} value={provider}>
+                <ProviderMark provider={provider} />
+                {voiceProviderInfo[provider].name}
+                <span className="voice-filter-count">{providerCounts[provider]}</span>
+              </ToggleGroupItem>
+            ))}
+          </ToggleGroup>
+          <ToggleGroup
+            type="single"
+            value={filters.gender}
+            onValueChange={selectGender}
+            aria-label="按性别筛选"
+          >
+            <ToggleGroupItem value="all">
+              全部声线 <span className="voice-filter-count">{matchingCount}</span>
+            </ToggleGroupItem>
+            {genderOptions.map(({ gender, count }) => (
+              <ToggleGroupItem key={gender} value={gender} data-gender={gender}>
+                <span className="voice-gender-dot" aria-hidden="true" />
+                {voiceGenderLabels[gender]}
+                <span className="voice-filter-count">{count}</span>
+              </ToggleGroupItem>
+            ))}
+          </ToggleGroup>
+        </div>
+        <div className="voice-catalog-selects">
+          <Select value={filters.provider} onValueChange={selectProvider}>
+            <SelectTrigger aria-label="按厂商筛选">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent className="voice-preview-options">
+              <SelectItem value="all">全部厂商 · {catalog.length}</SelectItem>
+              {voiceProviders.map((provider) => (
+                <SelectItem key={provider} value={provider}>
+                  <span className="voice-filter-option">
+                    <ProviderMark provider={provider} />
+                    {voiceProviderInfo[provider].name}
+                    <span className="voice-filter-count">{providerCounts[provider]}</span>
+                  </span>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={filters.gender} onValueChange={selectGender}>
+            <SelectTrigger aria-label="按性别筛选">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent className="voice-preview-options">
+              <SelectItem value="all">全部声线 · {matchingCount}</SelectItem>
+              {genderOptions.map(({ gender, count }) => (
+                <SelectItem key={gender} value={gender}>
+                  <span className="voice-filter-option" data-gender={gender}>
+                    <span className="voice-gender-dot" aria-hidden="true" />
+                    {voiceGenderLabels[gender]}
+                    <span className="voice-filter-count">{count}</span>
+                  </span>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="voice-search-field">
+          <Search size={15} aria-hidden="true" />
+          <Input
+            aria-label="搜索音色"
+            placeholder="搜索音色、风格…"
+            value={filters.query}
+            onChange={(event) => setFilters((current) => ({ ...current, query: event.target.value }))}
+          />
+        </div>
       </div>
+      <div className="voice-catalog-context">
+        <p className="voice-sample-results" aria-live="polite">
+          {filtered.length} 个音色
+        </p>
+        <label className="voice-technical-toggle" htmlFor="voice-technical-information">
+          <Switch
+            id="voice-technical-information"
+            checked={technical}
+            onCheckedChange={setTechnical}
+            aria-label="显示技术信息"
+          />
+          <span>技术信息</span>
+        </label>
+      </div>
+      {filtered.length === 0 ? (
+        <LayerCard className="voice-empty-results">
+          <Search size={24} aria-hidden="true" />
+          <strong>没有匹配的音色</strong>
+          <p>换个名称、风格或声线试试。</p>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setFilters({ provider: 'all', gender: 'all', query: '' })}
+          >
+            清除筛选
+          </Button>
+        </LayerCard>
+      ) : (
+        <div className="voice-unified-grid">
+          {filtered.map((entry) => (
+            <VoiceSampleCard key={entry.objectKey} entry={entry} technical={technical} />
+          ))}
+        </div>
+      )}
     </section>
   );
 }

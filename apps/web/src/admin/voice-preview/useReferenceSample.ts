@@ -1,42 +1,35 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useReducer, useState } from 'react';
 
-function etagToken(etag: string | null) {
-  if (!etag) return null;
-  const token = etag.replace(/^"|"$/g, '').trim();
-  return token || null;
-}
+type ReferenceSample = {
+  status: 'loading' | 'available' | 'missing' | 'error';
+  playbackUrl: string;
+};
 
 export function useReferenceSample(url: string) {
-  const [ready, setReady] = useState(false);
-  const [available, setAvailable] = useState(false);
-  const [cacheVersion, setCacheVersion] = useState<string | null>(null);
+  const [attempt, retry] = useReducer((value: number) => value + 1, 0);
+  const [sample, setSample] = useState<ReferenceSample>({ status: 'loading', playbackUrl: url });
+  // biome-ignore lint/correctness/useExhaustiveDependencies: Retrying must recheck the same URL.
   useEffect(() => {
     let cancelled = false;
-    setReady(false);
-    setAvailable(false);
-    setCacheVersion(null);
+    setSample({ status: 'loading', playbackUrl: url });
     void fetch(url, { method: 'HEAD', mode: 'cors' })
       .then((response) => {
-        if (!cancelled) {
-          setAvailable(response.ok);
-          setCacheVersion(etagToken(response.headers.get('ETag')));
-          setReady(true);
-        }
+        if (cancelled) return;
+        const token = response.headers.get('ETag')?.replace(/^"|"$/g, '').trim();
+        setSample({
+          status: response.ok ? 'available' : response.status === 404 ? 'missing' : 'error',
+          playbackUrl:
+            response.ok && token
+              ? `${url}${url.includes('?') ? '&' : '?'}v=${encodeURIComponent(token)}`
+              : url,
+        });
       })
       .catch(() => {
-        if (!cancelled) {
-          setAvailable(false);
-          setCacheVersion(null);
-          setReady(true);
-        }
+        if (!cancelled) setSample({ status: 'error', playbackUrl: url });
       });
     return () => {
       cancelled = true;
     };
-  }, [url]);
-  const playbackUrl =
-    cacheVersion && available
-      ? `${url}${url.includes('?') ? '&' : '?'}v=${encodeURIComponent(cacheVersion)}`
-      : url;
-  return { ready, available, playbackUrl };
+  }, [url, attempt]);
+  return { ...sample, retry };
 }

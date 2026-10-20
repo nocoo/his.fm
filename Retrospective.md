@@ -1013,3 +1013,25 @@ mistaken production-only contract instead of representing the existing library.
 Reuse `programLibrary` for both record types, ordering and linked-snapshot
 deduplication. Show recent covers automatically and verify against the actual
 read-only local library, not just an idealized populated production fixture.
+
+## 2026-10-20 — Verify uploaded bytes before retrying a failed CDN probe
+
+The first MAI upload succeeded, but a subsequent Python urllib CDN request
+returned 403. A curl probe returned 200 and the R2 readback matched the original
+hash. Treat upload and delivery verification as separate checkpoints: preserve
+the upload receipt, verify existing bytes and resume without overwriting or
+repeating paid synthesis. CORS checks must accept the explicitly allowed request
+origin as well as `*`; do not weaken bucket policy to satisfy a test assumption.
+
+The Herdr split initially gave the controller 67% rather than 33%. Inspect the
+returned layout immediately and correct it before continuing delegated work;
+the ratio describes the retained pane, not the new worker's width.
+
+The root npm wrapper consumed a targeted Playwright `--grep` argument. Run
+targeted suites directly with `npm run test:e2e --workspace @his-fm/web -- <file>`;
+use the documented root command for the complete suite.
+
+Prototype tag colors relied on a different raw accent palette. In the real
+studio, the initial white style labels measured only 4.35:1 contrast. Darken the
+shared tag token and test computed colors in both themes; the final minima are
+5.14:1 (light) and 4.92:1 (dark). Test the actual consumer, not just its prototype.

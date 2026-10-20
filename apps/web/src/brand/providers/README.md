@@ -16,6 +16,9 @@ Identity references: [Gemini](https://gemini.google.com/) and
 [ElevenLabs brand resources](https://elevenlabs.io/brand).
 
 The studio renders these local SVGs as CSS masks beside visible provider names.
-Gemini uses a blue mark; ElevenLabs retains a monochrome mark in both themes.
-Ice-blue and warm-sand card tints are application-owned identification colors
-derived from Basalt accent tokens, not claims about official provider palettes.
+Gemini uses a Google-color gradient. ElevenLabs uses a white mark on a muted
+orange application-owned tile; the tile is not an official brand-palette claim.
+Microsoft is identified by four CSS squares in its red, green, blue and yellow
+brand colors, following the [Microsoft logo](https://www.microsoft.com/).
+No new raster or downloaded logo asset is required. Subtle sage, rose and teal
+card tints identify voice genders, not providers, and always accompany text labels.

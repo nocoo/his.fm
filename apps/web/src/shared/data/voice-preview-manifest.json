@@ -398,5 +398,45 @@
     "style": "Casual",
     "durationSeconds": 85.12,
     "objectKey": "reference/voices/gemini-Zubenelgenubi.mp3"
+  },
+  {
+    "provider": "mai",
+    "voiceName": "Bo",
+    "voiceId": "zh-CN-Bo:MAI-Voice-2.1",
+    "style": "male",
+    "durationSeconds": 97.248,
+    "objectKey": "reference/voices/mai-2.1-zh-CN-Bo.mp3"
+  },
+  {
+    "provider": "mai",
+    "voiceName": "Grant",
+    "voiceId": "zh-CN-Grant:MAI-Voice-2.1",
+    "style": "male",
+    "durationSeconds": 100.296,
+    "objectKey": "reference/voices/mai-2.1-zh-CN-Grant.mp3"
+  },
+  {
+    "provider": "mai",
+    "voiceName": "Harper",
+    "voiceId": "zh-CN-Harper:MAI-Voice-2.1",
+    "style": "female",
+    "durationSeconds": 99.144,
+    "objectKey": "reference/voices/mai-2.1-zh-CN-Harper.mp3"
+  },
+  {
+    "provider": "mai",
+    "voiceName": "Lan",
+    "voiceId": "zh-CN-Lan:MAI-Voice-2.1",
+    "style": "female",
+    "durationSeconds": 122.448,
+    "objectKey": "reference/voices/mai-2.1-zh-CN-Lan.mp3"
+  },
+  {
+    "provider": "mai",
+    "voiceName": "Mei",
+    "voiceId": "zh-CN-Mei:MAI-Voice-2.1",
+    "style": "female",
+    "durationSeconds": 98.568,
+    "objectKey": "reference/voices/mai-2.1-zh-CN-Mei.mp3"
   }
 ]

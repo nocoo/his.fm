@@ -27,9 +27,29 @@ Content generation and audio composition happen outside his.fm. The site stores 
 
 ## Voice reference previews
 
-Gemini comparison samples are served from immutable R2 keys `reference/voices/<Voice>.wav` on `https://f.no.mt` (for example `Charon.wav`, `Kore.wav`). The studio **品牌外观 → 音色预览** section plays these files in-admin with the shared `AudioPlayer`; it does not call providers or enqueue generation.
+The studio `/admin/voice-preview` catalogue compares 55 recordings: 30 Gemini **3.8 Flash TTS**, 20 ElevenLabs **Eleven v3**, and five Microsoft **MAI-Voice-2.1** high-fidelity voices. Gemini's display label follows the owner's identification of the existing recordings; it is not a new API deployment identifier. Existing Gemini and ElevenLabs files are unchanged.
 
-ElevenLabs pairs use the same fixed transcript and style prompt as historical comparisons. The appearance UI probes each expected CDN key with `HEAD` (for example `reference/voices/elevenlabs-George.wav`) and shows the shared player only when the object exists; otherwise it keeps a placeholder until owners upload the WAV and reload the page. Storage cleanup treats the entire `reference/` prefix as protected brand material.
+`apps/web/src/shared/data/voice-preview-manifest.json` owns voice IDs, durations and MP3 object keys; `voice-preview-sample.md` beside it owns the fixed comparison transcript. Samples use the `his-fm` R2 bucket and `https://f.no.mt/reference/voices/` CDN, with `gemini-<Voice>.mp3`, `elevenlabs-<Voice>.mp3`, and `mai-2.1-zh-CN-<Voice>.mp3` filenames. Keep new object keys immutable and check for collisions before uploading. Storage cleanup protects the entire `reference/` prefix.
+
+The unified grid has provider/gender filters, search, an expandable transcript and optional technical IDs/keys. Gender labels remain visible alongside subtle card tints; River retains ElevenLabs' non-binary classification. Gemini genders follow [Google's voice options](https://docs.cloud.google.com/text-to-speech/docs/gemini-tts#voice_options); ElevenLabs uses the exact first metadata token, and MAI uses the regional voice-list response. Each card probes the CDN with `HEAD`, uses its ETag for playback cache busting and retains missing/loading/error feedback. The condensed shared player retains seeking, mute, speed, retry and single-instance playback without duplicate titles, an idle slogan or a volume slider.
+
+### MAI reference generation
+
+On 2026-10-20, the owner authorized external synthesis and R2 uploads, not a website deployment. Azure Speech's `eastus2` voice-list endpoint exposed `zh-CN-Bo`, `zh-CN-Grant`, `zh-CN-Harper`, `zh-CN-Lan` and `zh-CN-Mei`, each with the `:MAI-Voice-2.1` suffix. Bo/Grant are male; Harper/Lan/Mei are female. No Flash samples, cloned voices, model switch or generation endpoints are included.
+
+The [MAI REST contract](https://learn.microsoft.com/en-us/azure/ai-services/speech-service/mai-voices?pivots=programming-language-restkey&tabs=mai-voice-2-1) uses `POST https://eastus2.tts.speech.microsoft.com/cognitiveservices/v1`, a Speech resource key in `Ocp-Apim-Subscription-Key`, `Content-Type: application/ssml+xml`, and `X-Microsoft-OutputFormat: audio-24khz-160kbitrate-mono-mp3`. The XML-escaped canonical transcript (trailing whitespace removed, 680 characters) is the entire text of one `voice` element under `speak xml:lang="zh-CN"`; no style, prosody or text rewriting is applied. Keys remain outside this repository and the website.
+
+All five files were checked with `ffprobe` for mono 24 kHz MP3 and measured duration, then uploaded with the pinned local `cf r2 objects put` command using `--bucket-name his-fm --content-type audio/mpeg --file <path>`. CDN bytes must match local SHA-256, with successful CORS and byte-range playback checks. Raw MP3/SSML and local execution receipts stay outside Git.
+
+Transcript SHA-256 (UTF-8 after trimming trailing whitespace): `eb9085f45475e3680f0b44e936db7f1a63d5e442150674a42014409e5a609ce4`.
+
+| Voice | Seconds | Bytes | MP3 SHA-256 |
+| --- | ---: | ---: | --- |
+| Bo | 97.248 | 1944960 | `6119f8ed1226650b907bf3d851ad3248ebefbadb9874f573ef057bfe6e91e42b` |
+| Grant | 100.296 | 2005920 | `4e7747f654df81e3f665b1d79f1eb56eaeeeaa18ef4230a6fddd1b1117dce3ae` |
+| Harper | 99.144 | 1982880 | `94979acae5b7c1f1a7ede8a7245cf3b968ae987efbffe67c7e4cacc7c1a351cc` |
+| Lan | 122.448 | 2448960 | `e06960150955ffa8721fb0dd8a3ea7899e8c65d07ea80e853d2d559bffa2bdcd` |
+| Mei | 98.568 | 1971360 | `50e36d2f9cc3cdbc98f5043c22ddbe50d6cad246adb121280c7b5f3ebedf56d3` |
 
 ## Player
 

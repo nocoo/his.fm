@@ -16,6 +16,7 @@ export type AudioPlayerProps = {
   categoryName?: string;
   subtitle?: string;
   compact?: boolean;
+  hideIdleStatus?: boolean;
   className?: string;
   preload?: 'none' | 'metadata' | 'auto';
 };
@@ -37,6 +38,7 @@ function Player({
   categoryName,
   subtitle,
   compact = false,
+  hideIdleStatus = false,
   className = '',
   preload = 'metadata',
 }: AudioPlayerProps) {
@@ -243,7 +245,15 @@ function Player({
           </div>
           <span className="his-audio-status" role="status" aria-live="polite">
             {playNotice ||
-              (error ? '无法播放' : loading ? '正在加载音频…' : playing ? '正在播放' : '准备好，慢慢听')}
+              (error
+                ? '无法播放'
+                : loading
+                  ? '正在加载音频…'
+                  : playing
+                    ? '正在播放'
+                    : hideIdleStatus
+                      ? ''
+                      : '准备好，慢慢听')}
             {loading && !error && <LoaderCircle size={12} aria-hidden="true" />}
           </span>
           <Button
