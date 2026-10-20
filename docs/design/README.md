@@ -49,7 +49,7 @@ All studies use the same three comparison subjects. Episode 001 refers to the ex
 - Studies 02–08 use 28 original images generated with Azure OpenAI `gpt-image-2.5-sunburst`, high quality, through the requested Workflow repository helper. Landscape masters are 1536 × 1024; cover subjects are 1024 × 1024.
 - Original generated files, exact English prompts, request records, and hashes are archived in [`artwork/design-20260926/`](../../artwork/design-20260926/README.md). Originals are preserved separately from delivery derivatives.
 - Study 01 keeps the existing public-site imagery. Its static website is a frozen snapshot; the page generator deliberately does not recapture it. The extra branded cover frames are proposals and have not been applied to the live site.
-- The references in the owner's `Downloads/his.fm/a`, `b`, `c`, and `d` folders informed typographic scale, grid discipline, and identity presentation. No reference image or third-party logo was copied into the delivery.
+- Local reference folders (typography scale, grid discipline, identity presentation) informed the studies. No reference image or third-party logo was copied into the delivery.
 - Space Grotesk, Syne, Instrument Serif, Noto Sans SC, and Noto Serif SC are bundled under their SIL Open Font Licenses. See [`assets/fonts/sources.json`](assets/fonts/sources.json) and the accompanying OFL files. Chinese webfonts are subset to the design and manuscript corpus; their sources are cached locally for regeneration.
 
 ## Regeneration
@@ -57,7 +57,8 @@ All studies use the same three comparison subjects. Episode 001 refers to the ex
 Run from the repository root. Image generation is an explicit separate operation and uses the Workflow direnv credentials. Never put credentials in these files.
 
 ```sh
-direnv exec /Users/nocoo/workspace/personal/workflow \
+export HISFM_IMAGE_HELPER=/path/to/your/image-generation/scripts/generate.py
+direnv exec /path/to/your/workflow-env \
   python3 artwork/design-20260926/generate.py 05-hero 05-01 05-02 05-03
 
 python3 docs/design/build.py
