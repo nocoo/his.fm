@@ -12,8 +12,11 @@ Illustrations generated with Azure OpenAI `gpt-image-2.5-sunburst`, high quality
 
 For initial episode artwork, run from the repository root with the desired asset name. Credentials are loaded by direnv and are never stored here.
 
+Set `HISFM_IMAGE_HELPER` to the absolute path of your Workflow `generate.py` helper (see `artwork/_image_helper.py`). Credentials load via your own direnv or secret store; they are never stored in this repository.
+
 ```sh
-direnv exec ~/workspace/personal/workflow python3 artwork/generate_asset.py episode-01
+export HISFM_IMAGE_HELPER=/path/to/agi-image-generation/scripts/generate.py
+direnv exec /path/to/your/workflow-env python3 artwork/generate_asset.py episode-01
 ```
 
 To rebuild the delivery assets while preserving the native originals:
@@ -28,7 +31,7 @@ The hero must be regenerated through Workflow's image-edit route (`/images/edits
 
 The previous 1536×1024 image supplied less than 53% of the physical width needed on 14/16-inch MacBook Retina displays. The new native image covers 2928/3360-pixel display widths. Mobile derivatives retain full vertical resolution and place the person at the 61.8% golden line. HTML `sizes` follows the full image extent under `object-fit: cover`, not just the visible crop width, to avoid selecting undersized assets on tall screens.
 
-The helper requires the local Workflow installation at `~/workspace/personal/workflow/agents/skills/agi-image-generation/scripts/generate.py`. Regeneration incurs a new image-generation request and may produce a different image.
+Regeneration incurs a new image-generation request and may produce a different image.
 
 ## Art direction
 

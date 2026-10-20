@@ -2,7 +2,7 @@
   "model": "gpt-image-2.5-sunburst",
   "provider": "Azure OpenAI",
   "quality": "high",
-  "reference": "/Users/nocoo/Downloads/X_AltamashAyazz_2102933537284657595_2102809628996481024_thumbnail.png",
+  "reference": "External mood-board thumbnail (local path not archived; used only as early text-only generation direction)",
   "reference_usage": "Initial assets used this visual direction for text-only generation. The current hero uses its asset-level reference in an actual image edit.",
   "assets": {
     "hero": {

@@ -6,14 +6,14 @@ import {
   normalizeEmail,
 } from '../../worker/author-profile';
 
-const KNOWN_EMAIL = 'architie@gmail.com';
-const KNOWN_HASH = '7ba563171c26fb9b82e9f7750840c0455602eb35025192027230bcb40aae1217';
+const KNOWN_EMAIL = 'owner@example.com';
+const KNOWN_HASH = 'c8cd3c6427301eaf6665bccacd65ddb614527acc843a15463e3faba57124c351';
 
 describe('worker/author-profile', () => {
   it('normalizes and hashes email', async () => {
-    expect(normalizeEmail('  Architie@Gmail.com  ')).toBe(KNOWN_EMAIL);
+    expect(normalizeEmail('  Owner@Example.com  ')).toBe(KNOWN_EMAIL);
     expect(await hashEmail(KNOWN_EMAIL)).toBe(KNOWN_HASH);
-    expect(await hashEmail('  ARCHITIE@GMAIL.COM\n')).toBe(KNOWN_HASH);
+    expect(await hashEmail('  OWNER@EXAMPLE.COM\n')).toBe(KNOWN_HASH);
   });
 
   it('returns empty profile for blank email', async () => {

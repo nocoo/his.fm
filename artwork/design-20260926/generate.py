@@ -4,9 +4,11 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from _image_helper import resolve_image_helper
 
 ROOT = Path(__file__).resolve().parent
-HELPER = Path.home() / "workspace/personal/workflow/agents/skills/agi-image-generation/scripts/generate.py"
+HELPER = resolve_image_helper()
 spec = importlib.util.spec_from_file_location("workflow_image_generation", HELPER)
 workflow = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(workflow)

@@ -1,6 +1,7 @@
 {
   "name": "his-fm",
   "version": "2.9.3",
+  "license": "MIT",
   "private": true,
   "type": "module",
   "packageManager": "npm@11.19.1",
