@@ -76,6 +76,7 @@ html:has(.admin-app) {
   scrollbar-width: thin;
   /* Keep macOS overlay scrollbars clear of breadcrumb hit targets. */
   padding-block: var(--admin-space-3);
+  padding-inline-end: var(--admin-space-1);
 }
 :where(.admin-header nav[aria-label="Breadcrumb"]) > span {
   flex-shrink: 0;

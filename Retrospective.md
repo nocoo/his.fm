@@ -1041,3 +1041,11 @@ shared tag token and test computed colors in both themes; the final minima are
 The release build completed, but its logging wrapper assigned to zsh's read-only
 `status` variable and failed before reporting the exit code. Rerun the check with
 `exit_code`; never treat a wrapper failure as either build failure or success.
+
+## 2026-10-20 - Allow fractional breadcrumb geometry
+
+After the Basalt 3.2.0 upgrade, the narrow breadcrumb strip measured 123.65625px,
+but its integer scroll metrics left the current item clipped by 0.34375px.
+Scrolling to `scrollWidth` alone does not guarantee full visibility. Reserve
+token-based inline-end padding and retain the strict full-visibility browser
+assertion; do not weaken the assertion or scroll the surrounding shell.
