@@ -2,6 +2,25 @@
 
 All notable changes to his.fm are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions use the owner’s patch-only deployment policy in `AGENTS.md`, with the authoritative version in `package.json`.
 
+## 2.10.0 - 2026-10-20
+
+The owner explicitly requested this minor release (Y+1). The comparison baseline is the deployed release v2.9.3.
+
+### Added
+
+- Add five Chinese MAI-Voice-2.1 high-fidelity previews: Bo, Grant, Harper, Lan and Mei. Each uses the canonical transcript and verified MP3 audio uploaded to R2 and served through the existing CDN; generation and provider credentials remain outside the website.
+
+### Changed
+
+- Unify all 55 Gemini, ElevenLabs and MAI previews in a compact responsive grid with colored provider marks, model labels, voice tags, subtle gender backgrounds, provider/gender filters and search. Identify Gemini samples as 3.8 Flash TTS and ElevenLabs samples as Eleven v3.
+- Collapse the fixed transcript and technical details, and compact the preview player without changing playback elsewhere. Preserve availability checks, ETag cache-busting, retry states, seeking, mute, playback speed and single-instance playback.
+- Prepare the repository for open-source use with the MIT license, bilingual README, environment placeholders, an external image-helper configuration and a standalone editorial-policy document.
+
+### Verification
+
+- Feature validation passes 1,158 unit tests, both workspaces' four 95% coverage floors, lint, typecheck and production build. Focused voice-preview browser tests pass 7/7 and shared-player browser tests pass 12/12; all five MAI samples were decoded and played in Chrome.
+- The full browser suite reports 89 passed and 7 failed on unmodified appearance, navigation, public-artwork and social-preview surfaces. Those failures have not been reproduced on a separate baseline checkout; this release does not claim a fully passing browser suite.
+
 ## 2.9.3 - 2026-10-19
 
 ### Changed

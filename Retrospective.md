@@ -1035,3 +1035,9 @@ Prototype tag colors relied on a different raw accent palette. In the real
 studio, the initial white style labels measured only 4.35:1 contrast. Darken the
 shared tag token and test computed colors in both themes; the final minima are
 5.14:1 (light) and 4.92:1 (dark). Test the actual consumer, not just its prototype.
+
+## 2026-10-20 - Preserve command exit evidence in zsh
+
+The release build completed, but its logging wrapper assigned to zsh's read-only
+`status` variable and failed before reporting the exit code. Rerun the check with
+`exit_code`; never treat a wrapper failure as either build failure or success.
