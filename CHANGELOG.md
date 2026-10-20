@@ -2,6 +2,21 @@
 
 All notable changes to his.fm are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions use the owner’s patch-only deployment policy in `AGENTS.md`, with the authoritative version in `package.json`.
 
+## 2.10.1 - 2026-10-20
+
+### Changed
+
+- Upgrade the studio component library to `@nocoo/basalt` 3.2.0, preserving standalone CSS, granular shell imports and the public Open Interval identity.
+
+### Fixed
+
+- Keep the current breadcrumb fully visible on narrow screens by reserving token-based trailing space inside its scroll strip.
+
+### Verification
+
+- Pass 1,158 unit tests, both workspaces' four 95% coverage floors, lint, typecheck and production build. Desktop/mobile login and library checks in light/dark modes report no page errors or horizontal overflow.
+- The focused browser rerun reports 15/16 passed, with the responsive-layout test exceeding its unchanged 45-second deadline. Targeted navigation and layout retries pass 2/2; the layout retry takes 44.6 seconds. The full browser suite was not rerun, and this release does not claim a fully passing browser suite.
+
 ## 2.10.0 - 2026-10-20
 
 The owner explicitly requested this minor release (Y+1). The comparison baseline is the deployed release v2.9.3.
