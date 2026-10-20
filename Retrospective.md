@@ -1066,3 +1066,15 @@ and inspect the printed command and selected test count before waiting.
 Geometry assertions must compare computed pixel lengths, not `parseFloat` of a
 custom property's authored `rem` value. The first new assertion compared 8px
 with 0.5rem as if both were pixels; use the computed navigation padding instead.
+
+## 2026-10-20 - Separate carousel scroll completion events
+
+Adjacent browser regression runs exposed a stale `scrollend` race: the test
+reset the carousel, accepted that reset's completion as the ArrowRight gesture's
+completion, then pressed Tab while native scrolling was still active. Traces
+showed focus correction reaching zero before later movement clipped the cover.
+Await reset completion separately, install the gesture listener before sending
+the key, and accept completion only after movement. Keep full-visibility checks
+and test deadlines unchanged; do not patch application scrolling to hide a
+test's broken sequencing. Isolated baseline and current-code passes alone did
+not prove the batch failure was a historical application defect.

@@ -188,17 +188,26 @@ test('recent covers scroll horizontally without changing the theme or overflowin
     await page.setViewportSize({ width, height: 900 });
     await strip.scrollIntoViewIfNeeded();
     await strip.evaluate((element) => {
-      element.scrollLeft = 0;
+      if (element.scrollLeft === 0) return;
+      return new Promise<void>((resolve) => {
+        element.addEventListener('scrollend', () => resolve(), { once: true });
+        element.scrollTo({ left: 0, behavior: 'instant' });
+      });
     });
     await strip.focus();
-    const scrolled = strip.evaluate(
-      (element) =>
-        new Promise<void>((resolve) => {
-          element.addEventListener('scrollend', () => resolve(), { once: true });
-        }),
-    );
+    const scrolled = await strip.evaluateHandle((element) => ({
+      done: new Promise<void>((resolve) => {
+        const finish = () => {
+          if (element.scrollLeft <= 0) return;
+          element.removeEventListener('scrollend', finish);
+          resolve();
+        };
+        element.addEventListener('scrollend', finish);
+      }),
+    }));
     await page.keyboard.press('ArrowRight');
-    await scrolled;
+    await scrolled.evaluate(({ done }) => done);
+    await scrolled.dispose();
     await expect.poll(() => strip.evaluate((element) => element.scrollLeft)).toBeGreaterThan(0);
     await expect(page.getByRole('radio', { name: '05 · 雾林来信', exact: true })).toBeChecked();
     for (const button of await strip.getByRole('button').all()) {
