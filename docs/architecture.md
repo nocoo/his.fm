@@ -1,6 +1,6 @@
 # Architecture
 
-his.fm has one React application and one Cloudflare Worker. Public pages use the Open Interval identity; the separately loaded studio uses Basalt 3.1.0. Frontend models/services own view state and HTTP calls. Shared validators define editable business fields; Worker controllers own D1, R2 and authorization.
+his.fm has one React application and one Cloudflare Worker. Public pages use the Open Interval identity; the separately loaded studio uses Basalt 3.2.0. Frontend models/services own view state and HTTP calls. Shared validators define editable business fields; Worker controllers own D1, R2 and authorization.
 
 Public section reveals use IntersectionObserver and CSS transitions, not an animation dependency. Each mounted section reveals once; reduced-motion preferences and keyboard focus expose content without waiting for viewport entry. React ref cleanup disconnects observers and removes event listeners on unmount.
 
