@@ -1,69 +1,199 @@
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/readme/logo-light.svg">
+    <img src="apps/web/public/brand/logo.svg" alt="his.fm" width="320">
+  </picture>
+</p>
+
+<p align="center">
+  <a href="https://his.fm"><img src="https://img.shields.io/badge/网站-his.fm-1c211a?style=for-the-badge" alt="his.fm"></a>
+</p>
+
+<p align="center">
+  <img src="apps/web/public/brand/share.jpg" alt="" width="720">
+</p>
+
 # his.fm
 
-his.fm 是一档面向年轻程序员的中文播客，关注 AI 带来的企业转型、团队与岗位变化，以及工作生活加速之下的人。我们面向正在经历技术变化、职业不确定性和持续学习压力的开发者。技术和项目是理解生活的入口，人的处境与身心状态是关注的中心。
+**his.fm** 是一档由 AI 协作制作的中文播客，大陆普通话播讲。Zheng Li 担任主理人；一组各有分工的 AI 助手负责整条制作流水线：采集高质量社区信源（例如 Hacker News）、栏目编辑撰写逐字稿、声音生成（Gemini TTS 一次生成整期干声）、封面生成、以及制片人角色统筹拼装片头片尾、发布与归档。
 
-内部编辑原则见 [docs/editorial-policy.md](docs/editorial-policy.md)。
+这档节目的灵魂不在仓库里的前端与 Worker 代码，而在数据库里可版本化、可通过 Agent API 读写的 **提示词槽（prompt slots）**。本仓库公开的是 **舞台和接口**：听众站点与播放器、逐字稿展示、管理后台，以及外部 AI 客户端用来读取和 PATCH 各角色提示词的 REST 接口。节目正文与媒体在站外生成，再经授权令牌写回。
+
+## 栏目
+
+| Slug | 名称 | 定位 |
+| --- | --- | --- |
+| `learning` | 每日手冲 | 每天一杯：从 AI 圈里挑几件值得细品的新鲜事，慢慢聊透。 |
+| `manager-notes` | 主理人手札 | 从主理人写下的文字出发，聊工作和生活里的体会。 |
+
+## 制作流水线
+
+节目不在网站内嵌「一键生成」。各 AI 角色在站外读取当前提示词与素材，完成自己的环节后，通过 scoped token 写回文稿、媒体与发布状态。
+
+```mermaid
+flowchart LR
+  subgraph sources["信源"]
+    HN["社区与时事信源"]
+  end
+  subgraph roles["AI 角色（提示词槽驱动）"]
+    C["采集 collector"]
+    E["编辑 editor"]
+    V["声音 voice"]
+    CV["封面 cover"]
+    P["制作 producer"]
+  end
+  subgraph site["his.fm"]
+    API["Agent API"]
+    ST["站点 / 播放器 / 后台"]
+  end
+  HN --> C
+  C --> E
+  E --> V
+  E --> CV
+  V --> P
+  CV --> P
+  P --> API
+  API --> ST
+```
+
+编辑优先级（与运行时合并规则一致）：**频道提示词 → 栏目提示词 → 本期中心思想 → 素材资料**。内部选题边界见 [编辑原则](docs/editorial-policy.md)。
+
+## 提示词槽：节目的「剧本库」
+
+频道与每个栏目各有一张独立的槽位表，在后台 [`/admin/channel`](https://his.fm/admin/channel) 维护；外部客户端使用相同的契约，路径前缀为 `/api/agent`。
+
+### 结构
+
+每个槽位包含：
+
+| 字段 | 含义 |
+| --- | --- |
+| `id` | 稳定标识（小写 kebab-case，最长 80） |
+| `title` | 显示标题 |
+| `body` | Markdown 正文 |
+| `order` | 排序（升序，再按 `id`） |
+| `enabled` | 是否参与合成 |
+| `mode` | `append`（在频道正文后追加）或 `override`（栏目覆盖频道同 ID） |
+| `version` / `updatedAt` / `updatedBy` | 服务端审计（写入时递增） |
+
+整张表还有集合级 `version` 与 `initialized`。任意写入必须带上当前的表 `version`；过期则返回 **409**，不会部分保存。频道与栏目表版本彼此独立；栏目元数据修改不会改变其槽位表版本。
+
+初始角色 ID（可增删）与合约中的标题映射一致：`positioning`（定位）、`editor`（编辑）、`collector`（采集）、`voice`（声音）、`cover`（封面）、`producer`（制作）、`brand`（品牌）、`skills`（技能名称，每行一个技能名，不是指令正文）。上限：每表最多 64 个槽、标题 120 字、单槽正文 120 000 字、全表正文合计 400 000 字。
+
+栏目读取某角色时，会按 ID 合并已启用的频道槽与栏目槽：`append` 用双换行拼接正文；`override` 仅用栏目正文；栏目槽被禁用**不会**屏蔽仍启用的频道槽。
+
+### HTTP 契约（摘要）
+
+路径均相对于 `/api/agent`；读取需要 `prompts:read`，写入需要 `prompts:write`（与内容写权限分开授予）。
+
+| 路径 | 作用 |
+| --- | --- |
+| `GET/PUT/POST /channel/prompt-slots` | 频道整张表；`PUT` 一次替换 `{version, slots}` |
+| `GET/PUT/POST /categories/{id}/prompt-slots` | 栏目整张表 |
+| `PATCH/DELETE …/prompt-slots/{slotId}` | 单槽增量修改（仍带表 `version`） |
+| `GET …/prompt-slots?slot=editor,collector` | 合并后的 Markdown `body` 与版本信息 |
+| `GET …/migration/dry-run` · `POST …/migration/apply` | 从旧整段提示词显式迁移（只读预览 / 授权后写入） |
+
+仅具写权限、无读权限的客户端，成功写入后可能只收到 `{version}`。
+
+### 示例（占位正文，非生产提示词）
+
+```json
+{
+  "version": 3,
+  "initialized": true,
+  "slots": [
+    {
+      "id": "collector",
+      "title": "采集",
+      "body": "## 今日信源\n\n（示例）优先 Hacker News 讨论帖，记录链接与要点。",
+      "order": 20,
+      "enabled": true,
+      "mode": "override",
+      "version": 2,
+      "updatedAt": "2026-01-15T08:00:00.000Z",
+      "updatedBy": "agent:collector"
+    },
+    {
+      "id": "editor",
+      "title": "编辑",
+      "body": "（示例）将素材写成 8–10 分钟口语逐字稿，避免堆砌术语。",
+      "order": 30,
+      "enabled": true,
+      "mode": "append",
+      "version": 1,
+      "updatedAt": "2026-01-10T12:00:00.000Z",
+      "updatedBy": "human:owner"
+    }
+  ]
+}
+```
+
+合成阅读时，启用且有正文的槽按 `order` 拼成 Markdown：`## 标题`、空行、正文，槽之间以双换行分隔。细节见 [docs/prompts.md](docs/prompts.md) 与 [docs/api-onboarding.md](docs/api-onboarding.md)。
 
 ## 单集材料
 
-每期材料保存在独立的 `episodes/<episode-slug>/` 文件夹。逐字稿和发表摘要采用中文，来源记录保留项目版本、原始出处、事实核查结果及引申边界。十分钟节目的时长先按口播字数与语速估算，音频生成后再记录实测时长。
+部分期数的文稿与核查笔记保存在仓库 `episodes/<slug>/`（中文正文，技术说明为英文）。网站上的正式节目数据在 D1/R2 中管理。
 
 | 期数 | 题目 | 材料 |
 | --- | --- | --- |
 | 001 | 下班后，还要追多少个 AI？ | [逐字稿](episodes/001-how-to-live-better/transcript.md) · [发表摘要](episodes/001-how-to-live-better/summary.md) · [研究与核查](episodes/001-how-to-live-better/research.md) |
 
-## Website
+## 技术栈
 
-his.fm is a podcast content-management site built with React 19, Vite 8, TypeScript 7.0.2 and one Cloudflare Worker. The public listening room keeps the Open Interval identity; the private studio uses Basalt 3.1.0 and Cloudflare Access.
+- **运行时**：单个 [Cloudflare Worker](apps/web/worker/) 处理公开 SSR、管理端 API 与静态资源；无 SPA fallback。
+- **数据**：D1（内容与提示词）、R2（媒体与生成物）；公开媒体 CDN 域名为 `f.no.mt`。
+- **前端**：React 19、Vite 8、TypeScript 7；公开页 Open Interval 视觉，后台 [@nocoo/basalt](https://github.com/nocoo/basalt) 3.1。
+- **契约**：[`packages/contracts`](packages/contracts/) 共享 scope、提示词槽与 WAV 校验。
+- **鉴权**：Cloudflare Access 保护 `/admin`；外部客户端使用显式 scope 的 Bearer token（无通配符权限）。
 
-- Public pages: searchable episodes, summaries, transcripts and a custom accessible audio player. A written episode without a recording is never presented as playable.
-- Studio: one cover-first library at `/admin`, grid/list views, metadata and source editing, manuscripts, uploaded artwork/recordings, explicit reviews and publication records. Existing standalone episodes remain editable.
-- Content creation happens outside the website. External agents use explicit scoped REST tokens to read prompts, edit content, upload assets, approve/reopen and record publication when authorized. There is no embedded agent, generation queue or provider configuration.
-- Settings: categories, versioned channel/category prompt slots, brand appearance, bumpers, storage and token management. Revoked token records can be deleted. Prompt migration is an explicit preview/apply operation, never a deployment side effect.
-- Local preview: **https://hisfm.dev.hexly.ai**. `npm run dev` applies local migrations and seeds preview data once, preserving later edits. The Local/Production segment selects the data environment; Production performs real operations using the editor's Access identity.
-- Production: **https://his.fm**, with D1 and R2 named `his-fm` and media at **https://f.no.mt**. Published GitHub Releases deploy only after exact-revision CI verification.
+生产站点：**https://his.fm**。本地预览（Caddy 反代）：**https://hisfm.dev.hexly.ai**（仅 loopback）。
+
+## 仓库结构
+
+| 路径 | 说明 |
+| --- | --- |
+| `apps/web` | 网站、Worker、migrations、Vitest/Playwright（`@his-fm/web`） |
+| `packages/contracts` | 共享 Zod 契约与校验 |
+| `docs/` | 架构、API、运维、提示词与编辑政策 |
+| `artwork/`、`episodes/` | 视觉资产溯源与示例文稿 |
+| 根 `package.json` | 单一发布版本号与工作区脚本 |
+
+## 本地开发
+
+需要 Node ≥ 26（与 `packageManager` 对齐）。
 
 ```sh
-npm ci --registry https://packagefeedproxy.microsoft.io/npm/
+npm ci
 npm run dev
-npm run test:coverage
-npm run lint
+```
+
+`npm run dev` 会迁移并种子本地 D1 一次，然后在 `127.0.0.1:7056` 启动 Vite；通过 **https://hisfm.dev.hexly.ai** 访问。本地 Worker 密钥放在 `apps/web/.dev.vars`（见根目录 [`.env.example`](.env.example) 中的占位说明）。
+
+常用检查：
+
+```sh
 npm run typecheck
+npm run lint
+npm run test:coverage
 npm run test:e2e
 npm run build
 ```
 
-Husky checks the staged Git snapshot with coverage, strict lint and typecheck. All four unit coverage floors are 95%; browser tests verify rendered interactions. L1 evidence does not imply full 6DQ certification.
+Husky 对暂存区运行严格 lint、typecheck 与 95% 覆盖率门槛。更多细节见 [docs/operations.md](docs/operations.md)、[docs/architecture.md](docs/architecture.md)。
 
-See [production workflow](docs/production.md), [external API](docs/agent-api.md), [audio uploads](docs/audio.md), [architecture](docs/architecture.md), [operations](docs/operations.md), [CI/CD](docs/ci-cd.md) and [artwork provenance](artwork/README.md).
+## 部署概览
 
-### Brand identity
+生产发布由 **GitHub Release** 触发，经 [nocoo/base-ci](https://github.com/nocoo/base-ci) 可复用工作流：在 tag 对应 commit 上证明 CI 已通过、`package.json` 版本与 tag 一致，再构建 Worker 产物、执行 D1 迁移并 `cf deploy`。部署后校验 `/api/live` 的版本与修订号。不在此文档列出 Cloudflare 密钥；所需 secret 名称见 [docs/ci-cd.md](docs/ci-cd.md)。
 
-The canonical ID is `his.fm ()`: the wordmark comes first, followed by a pair of open parentheses. The symbol alludes to a programmer's function call, `func()`, connecting the podcast to its developer audience. Keep the accepted outlined shapes in `apps/web/src/brand/identity.svg`; neither the wordmark nor the parentheses may be replaced with typed text or a theme-specific font.
+## 延伸阅读
 
-Public and studio top-left headers, the appearance specimen and all eight theme cards share the same lockup proportions: an equally tall square symbol and an 8px gap per 116px of wordmark width, vertically centered. Public headers and the appearance specimen retain the 116px wordmark; the studio rail uses 92px, and theme cards use 140px, shrinking proportionally only when the card is narrow. The parentheses have the same typographic scale as the wordmark, like `func()`, not a small accompanying icon. Wordmark and symbol always share one color: the theme's dark primary (`ink`) on light backgrounds, or white on dark backgrounds. Theme-card slogans share one responsive size; card titles share one size across directions.
+- [制作工作流](docs/production.md) · [Agent API](docs/agent-api.md) · [Scoped API](docs/scoped-api.md)
+- [音频上传](docs/audio.md) · [外观与主题](docs/appearance.md)
+- [CI/CD](docs/ci-cd.md) · [视觉资产](artwork/README.md)
 
-Each theme has a standard favicon: its dark primary background and the canonical white parentheses, centered with identical proportions and padding. Public previews use the preview theme; normal browsing and the studio use the saved theme. Selecting a card alone does not change the saved identity. Archived design studies, decorative hero marks, cover frames, sharing artwork and installed-app icons are outside this normalization.
+---
 
-The studio theme catalogue pairs each study's hero, named palette and original design rationale with a horizontally scrollable strip of the latest four covered programmes. It uses the same unified library as the programme page, including standalone episodes, and shares its ordering and relation-based deduplication. All eight themes reuse `FramedCover` to layer existing artwork and metadata immediately, without PNG exports, a production-upload prerequisite or design samples. Theme selection follows the URL and browser history; selecting or refreshing does not save or publish anything. See [appearance](docs/appearance.md#theme-catalogue).
+## English summary
 
-### API prompt slots
-
-Prompt slots use GET/PUT/POST /channel/prompt-slots and /categories/{id}/prompt-slots, plus PATCH/DELETE /{slotId}. Reads require prompts:read; all writes require prompts:write, independently of category metadata grants. Mutations use the collection version; write-only responses contain only version. Category append adds after the same channel ID; override replaces it. Disabled category slots do not mask channel. Enabled results sort by order then ID. GET /migration/dry-run below either table is read-only; POST /migration/apply with version and legacyVersion explicitly initializes slots with an atomic original-value backup. Nothing auto-applies on deploy; reapply is a no-op. Old channel.content, channel.prompts.* and category.prompt are read-only: stored values until apply, then enabled local slots concatenated as Markdown. New clients must use slots; compatibility removal requires a separately announced, verified consumer cutover.
-
-Paths are relative to `/api/agent`. Read [onboarding](docs/api-onboarding.md#prompt-slot-transition) and [prompt slots](docs/prompts.md) before migration. The studio keeps local drafts and saves a level's complete slot table atomically; `skills` accepts names only. The founding Chinese editorial policy above remains unchanged.
-
-### API cover artwork
-
-Uploading a clean cover with `PUT /api/agent/productions/{id}/assets/cover?version=N` pregenerates square podcast art and landscape share images as immutable generated R2 objects before publication; publishing or republishing warms the linked episode's artwork keys. Use a **1400 x 1400 square original** (smaller originals are accepted), without text, logos, borders or overlays. Keep essential subjects near **x = 50%, y = 40%** for the share crop; on square originals its safe-area band spans **y = 13.75-66.25%**.
-
-Public published-only `/episodes/{id}/art.jpg` and `/episodes/{id}/share.jpg` resolve to versioned URLs (`art.jpg?v=<hash>`, optionally with `&size=N`, and `share.jpg?v=<hash>`). Square art follows the website theme, defaults to 1400 square and accepts sizes from 1400 through 3000; the 1200 x 630 landscape image is theme-independent. Only generated outputs are cached, never replacements for originals; storage cleanup protects current generated versions. See [API onboarding](docs/api-onboarding.md#cached-podcast-and-share-artwork) and [appearance](docs/appearance.md#public-rss-and-share-artwork).
-
-Successful versioned artwork responses and 304s include x-hisfm-art: edge-hit | r2-hit | rendered. After successful cover upload/publication warming, the first default 1400-square art or share GET should report r2-hit (pregenerated), not rendered (lazy fallback); an already warm edge may report edge-hit. Repeat GETs to the same full versioned URL at the same edge should become edge-hit after asynchronous cache fill, not globally guaranteed. Other sizes may render. HEAD reads cached GET metadata without a body and cannot warm the edge; cold HEAD/304 may use only R2 metadata without populating it. Conditional 304s honor the same ETag and Last-Modified validators.
-
-## Repository layout
-
-- `apps/web`: React website, Cloudflare Worker, migrations and tests (`@his-fm/web`).
-- `packages/contracts`: shared scope, prompt and WAV validation; no runtime or model execution.
-- Root `package.json` and `package-lock.json`: one release version and one workspace dependency graph.
-- `artwork`, `episodes`, `docs` and repository automation stay at root. Secrets, generated audio/video, screenshots and local state stay ignored.
+**his.fm** is a Mandarin podcast produced with a pipeline of external AI agents (research, scripting, Gemini TTS narration, cover art, producing). This repository is the **stage and API**: the public site, player, transcripts, admin studio, and versioned **prompt slots** in D1 that agents read and patch over `/api/agent`. Content generation is out-of-band; the Worker enforces scopes, optimistic concurrency, and publication rules. Stack: React 19 + Vite on one Cloudflare Worker with D1 and R2. Local dev: `npm ci` && `npm run dev` → https://hisfm.dev.hexly.ai . Production: https://his.fm , deployed from GitHub Releases after CI.
