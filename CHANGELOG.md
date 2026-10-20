@@ -2,6 +2,18 @@
 
 All notable changes to his.fm are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions use the owner’s patch-only deployment policy in `AGENTS.md`, with the authoritative version in `package.json`.
 
+## 2.10.2 - 2026-10-20
+
+### Fixed
+
+- Use native Basalt sidebar group disclosures instead of static partition labels. Remove duplicate navigation gutters and custom section spacing, align the website shortcut and footer with library defaults, and render centered destination icons in the collapsed rail.
+- Separate carousel reset and keyboard-scroll completion in browser tests, installing the listener before sending the key. Preserve strict full-visibility assertions and existing deadlines without changing application scrolling.
+
+### Verification
+
+- Pass 1,158 unit tests, both workspaces' four 95% coverage floors, lint, typecheck and production build.
+- Pass all 12 focused Chrome cases in one batch: sidebar geometry and pointer/keyboard disclosure on desktop/mobile in light/dark modes, narrow-rail controls, navigation and appearance catalogue behavior. The full browser suite was not rerun.
+
 ## 2.10.1 - 2026-10-20
 
 ### Changed
