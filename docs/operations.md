@@ -3,7 +3,7 @@
 ## Develop
 
 ```sh
-npm ci --registry https://packagefeedproxy.microsoft.io/npm/
+npm ci
 npm run dev
 ```
 
