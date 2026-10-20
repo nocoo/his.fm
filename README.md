@@ -192,6 +192,24 @@ Husky 对暂存区运行严格 lint、typecheck 与 95% 覆盖率门槛。更多
 - [音频上传](docs/audio.md) · [外观与主题](docs/appearance.md)
 - [CI/CD](docs/ci-cd.md) · [视觉资产](artwork/README.md)
 
+## Agent API 契约摘录（英文，与 OpenAPI 同步）
+
+以下段落与 `docs/agent-api.md`、`docs/api-onboarding.md` 及发布的 OpenAPI 描述保持一致，便于外部客户端对照实现。
+
+### API prompt slots
+
+Prompt slots use GET/PUT/POST /channel/prompt-slots and /categories/{id}/prompt-slots, plus PATCH/DELETE /{slotId}. Reads require prompts:read; all writes require prompts:write, independently of category metadata grants. Mutations use the collection version; write-only responses contain only version. Category append adds after the same channel ID; override replaces it. Disabled category slots do not mask channel. Enabled results sort by order then ID. GET /migration/dry-run below either table is read-only; POST /migration/apply with version and legacyVersion explicitly initializes slots with an atomic original-value backup. Nothing auto-applies on deploy; reapply is a no-op. Old channel.content, channel.prompts.* and category.prompt are read-only: stored values until apply, then enabled local slots concatenated as Markdown. New clients must use slots; compatibility removal requires a separately announced, verified consumer cutover.
+
+Paths are relative to `/api/agent`. Read [onboarding](docs/api-onboarding.md#prompt-slot-transition) and [prompt slots](docs/prompts.md) before migration. The studio keeps local drafts and saves a level's complete slot table atomically; `skills` accepts names only. The founding Chinese editorial policy lives in [docs/editorial-policy.md](docs/editorial-policy.md).
+
+### API cover artwork
+
+Uploading a clean cover with `PUT /api/agent/productions/{id}/assets/cover?version=N` pregenerates square podcast art and landscape share images as immutable generated R2 objects before publication; publishing or republishing warms the linked episode's artwork keys. Use a **1400 x 1400 square original** (smaller originals are accepted), without text, logos, borders or overlays. Keep essential subjects near **x = 50%, y = 40%** for the share crop; on square originals its safe-area band spans **y = 13.75-66.25%**.
+
+Public published-only `/episodes/{id}/art.jpg` and `/episodes/{id}/share.jpg` resolve to versioned URLs (`art.jpg?v=<hash>`, optionally with `&size=N`, and `share.jpg?v=<hash>`). Square art follows the website theme, defaults to 1400 square and accepts sizes from 1400 through 3000; the 1200 x 630 landscape image is theme-independent. Only generated outputs are cached, never replacements for originals; storage cleanup protects current generated versions. See [API onboarding](docs/api-onboarding.md#cached-podcast-and-share-artwork) and [appearance](docs/appearance.md#public-rss-and-share-artwork).
+
+Successful versioned artwork responses and 304s include x-hisfm-art: edge-hit | r2-hit | rendered. After successful cover upload/publication warming, the first default 1400-square art or share GET should report r2-hit (pregenerated), not rendered (lazy fallback); an already warm edge may report edge-hit. Repeat GETs to the same full versioned URL at the same edge should become edge-hit after asynchronous cache fill, not globally guaranteed. Other sizes may render. HEAD reads cached GET metadata without a body and cannot warm the edge; cold HEAD/304 may use only R2 metadata without populating it. Conditional 304s honor the same ETag and Last-Modified validators.
+
 ---
 
 ## English summary
