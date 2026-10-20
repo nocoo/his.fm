@@ -6,17 +6,17 @@
 </p>
 
 <p align="center">
+  <img src="apps/web/public/images/hero-retina-20260926-mobile-1168.webp" alt="his.fm 频道视觉：林间光影与绿意" width="720">
+</p>
+
+<p align="center">
   <a href="https://his.fm"><img src="https://img.shields.io/badge/网站-his.fm-1c211a?style=for-the-badge" alt="his.fm"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-1c211a?style=for-the-badge" alt="MIT License"></a>
 </p>
 
-<p align="center">
-  <img src="apps/web/public/brand/share.jpg" alt="" width="720">
-</p>
+<p align="center"><em>由 AI 协作制作的中文播客，大陆普通话播讲。</em></p>
 
-# his.fm
-
-**his.fm** 是一档由 AI 协作制作的中文播客，大陆普通话播讲。Zheng Li 担任主理人；一组各有分工的 AI 助手负责整条制作流水线：采集高质量社区信源（例如 Hacker News）、栏目编辑撰写逐字稿、声音生成（Gemini TTS 一次生成整期干声）、封面生成、以及制片人角色统筹拼装片头片尾、发布与归档。
+Zheng Li 担任主理人；一组各有分工的 AI 助手负责整条制作流水线：采集高质量社区信源（例如 Hacker News）、栏目编辑撰写逐字稿、声音生成（Gemini TTS 一次生成整期干声）、封面生成、以及制片人角色统筹拼装片头片尾、发布与归档。
 
 这档节目的灵魂不在仓库里的前端与 Worker 代码，而在数据库里可版本化、可通过 Agent API 读写的 **提示词槽（prompt slots）**。本仓库公开的是 **舞台和接口**：听众站点与播放器、逐字稿展示、管理后台，以及外部 AI 客户端用来读取和 PATCH 各角色提示词的 REST 接口。节目正文与媒体在站外生成，再经授权令牌写回。
 
