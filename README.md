@@ -162,7 +162,7 @@ flowchart LR
 
 ## 本地开发
 
-需要 Node ≥ 26（与 `packageManager` 对齐）。
+需要 Node ≥ 26（与根目录 `package.json` 的 `engines.node` 一致；npm 版本见 `packageManager`）。
 
 ```sh
 npm ci
