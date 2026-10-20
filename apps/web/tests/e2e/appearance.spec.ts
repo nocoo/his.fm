@@ -201,7 +201,7 @@ test('the owner can preview and apply a theme without changing production or con
   await page.goto('/login');
   await page.getByRole('button', { name: '进入本地工作室' }).click();
   await expect(page).toHaveURL(/\/admin\/?$/);
-  await page.getByRole('button', { name: '品牌外观', exact: true }).click();
+  await page.locator('[data-basalt-sidebar] [data-sidebar-row]').filter({ hasText: '品牌外观' }).click();
   await expect(page.getByRole('radiogroup', { name: '网站视觉主题' })).toBeVisible();
   const before = await page.evaluate(
     async () =>

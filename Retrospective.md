@@ -1049,3 +1049,20 @@ but its integer scroll metrics left the current item clipped by 0.34375px.
 Scrolling to `scrollWidth` alone does not guarantee full visibility. Reserve
 token-based inline-end padding and retain the strict full-visibility browser
 assertion; do not weaken the assertion or scroll the surrounding shell.
+
+## 2026-10-20 - Verify sidebar composition, not only package upgrades
+
+The Basalt 3.2.0 upgrade retained static `SidebarPartition` labels and a second
+12px item gutter. Existing sidebar checks validated those custom sections, so
+they passed while native group disclosure and alignment were missing. Use the
+released `SidebarGroup` composition, remove caller-owned spacing, and verify
+pointer/keyboard disclosure plus expanded and icon-rail geometry in both themes
+on desktop and mobile. Passing existing tests is not template compliance.
+
+The first targeted browser command repeated the root-wrapper argument mistake
+documented earlier. Stop the overbroad run, invoke the web workspace directly,
+and inspect the printed command and selected test count before waiting.
+
+Geometry assertions must compare computed pixel lengths, not `parseFloat` of a
+custom property's authored `rem` value. The first new assertion compared 8px
+with 0.5rem as if both were pixels; use the computed navigation padding instead.

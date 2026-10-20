@@ -908,13 +908,25 @@ test('sidebar separates content, brand and settings with a highlighted website s
     ['品牌外观', ['品牌外观', '搜索与分享', '音色预览']],
     ['全站设置', ['连接管理', '资源管理']],
   ] as const;
-  const expectGroups = async () => {
-    await expect(sidebar.locator('.admin-nav-group')).toHaveCount(3);
+  const expectGroups = async (iconOnly = false) => {
+    const sections = sidebar.locator('[data-slot="sidebar-group"]');
+    await expect(sections).toHaveCount(iconOnly ? 0 : 3);
     for (const [name, items] of groups) {
-      const region = sidebar.getByRole('region', { name, exact: true });
-      await expect(region.getByRole('button')).toHaveCount(items.length);
-      for (const item of items)
-        await expect(region.getByRole('button', { name: item, exact: true })).toBeVisible();
+      if (iconOnly) {
+        for (const item of items)
+          await expect(sidebar.getByRole('button', { name: item, exact: true })).toBeVisible();
+      } else {
+        const section = sections.filter({
+          has: page.locator('[data-slot="sidebar-group-label"]', { hasText: name }),
+        });
+        await expect(section.locator('[data-sidebar-row]')).toHaveCount(items.length);
+        await expect(section.locator('[data-slot="sidebar-group-label"]')).toHaveAttribute(
+          'aria-expanded',
+          'true',
+        );
+        for (const item of items)
+          await expect(section.locator('[data-sidebar-row]').filter({ hasText: item })).toBeVisible();
+      }
     }
     await expect(sidebar.getByRole('button', { name: '新建节目', exact: true })).toHaveCount(0);
     await expect(website).toBeInViewport();
@@ -923,7 +935,7 @@ test('sidebar separates content, brand and settings with a highlighted website s
     await expect(website.locator('svg.lucide-globe')).toHaveCount(1);
     expect(
       await website.evaluate((link) => {
-        const nav = document.querySelector('.admin-nav-group');
+        const nav = document.querySelector('[data-slot="sidebar-nav"]');
         return nav !== null && link.getBoundingClientRect().bottom <= nav.getBoundingClientRect().top;
       }),
     ).toBe(true);
@@ -961,7 +973,7 @@ test('sidebar separates content, brand and settings with a highlighted website s
   await collapse.click();
   await expect(sidebar).toHaveAttribute('data-collapsed', '');
   await expect(sidebar.getByRole('button', { name: '展开导航', exact: true })).toBeFocused();
-  await expectGroups();
+  await expectGroups(true);
   await expect(website).toHaveText('');
   await expect(logo.locator('.brand-wordmark')).toHaveCount(0);
   await expect(logo.locator('.brand-symbol')).toBeVisible();
@@ -1024,6 +1036,89 @@ test('sidebar separates content, brand and settings with a highlighted website s
   );
   expect(state.requests.every((request) => request.startsWith('GET '))).toBe(true);
 });
+
+for (const width of [1440, 393]) {
+  for (const theme of ['light', 'dark'] as const) {
+    test(`sidebar groups use native geometry and disclosure at ${width}px in ${theme}`, async ({
+      page,
+    }, testInfo) => {
+      const state = await studio(page);
+      await page.setViewportSize({ width, height: 844 });
+      await page.emulateMedia({ colorScheme: theme });
+      await page.goto('/admin');
+      const menu = page.getByRole('button', { name: '打开导航', exact: true });
+      if (width < 1200) await menu.click();
+      await expect(page.locator('html')).toHaveClass(new RegExp(theme));
+      const sidebar = page.locator('[data-basalt-sidebar]');
+      const groups = sidebar.locator('[data-slot="sidebar-group"]');
+      await expect(groups).toHaveCount(3);
+      for (const group of await groups.all()) {
+        const trigger = group.locator('[data-slot="sidebar-group-label"]');
+        const row = group.locator('[data-sidebar-row]').first();
+        await expect(trigger).toHaveAttribute('aria-expanded', 'true');
+        const geometry = await row.evaluate((element) => {
+          const nav = element.closest('nav');
+          const group = element.closest('[data-slot="sidebar-group"]');
+          const label = group?.querySelector('[data-slot="sidebar-group-label"]');
+          if (!nav || !group || !label) throw new Error('Missing native sidebar group');
+          const navBounds = nav.getBoundingClientRect();
+          const rowBounds = element.getBoundingClientRect();
+          const navStyle = getComputedStyle(nav);
+          return {
+            left: rowBounds.left - navBounds.left,
+            right: navBounds.right - rowBounds.right,
+            inset: Number.parseFloat(navStyle.paddingInlineStart),
+            labelLeft: label.getBoundingClientRect().left - rowBounds.left,
+            groupPadding: getComputedStyle(group).paddingInlineStart,
+          };
+        });
+        expect(geometry.left).toBeCloseTo(geometry.inset, 1);
+        expect(geometry.right).toBeCloseTo(geometry.inset, 1);
+        expect(geometry.labelLeft).toBeCloseTo(0, 1);
+        expect(geometry.groupPadding).toBe('0px');
+        await trigger.click();
+        await expect(trigger).toHaveAttribute('aria-expanded', 'false');
+        await expect(row).toBeHidden();
+        await trigger.press('Enter');
+        await expect(row).toBeVisible();
+        await trigger.press('Space');
+        await expect(row).toBeHidden();
+        await trigger.click();
+        await expect(row).toBeVisible();
+        await expect(page).toHaveURL(/\/admin\/?$/);
+      }
+      await page.screenshot({ path: testInfo.outputPath('sidebar-open.png'), animations: 'disabled' });
+      await groups.first().locator('[data-slot="sidebar-group-label"]').click();
+      await page.screenshot({
+        path: testInfo.outputPath('sidebar-group-closed.png'),
+        animations: 'disabled',
+      });
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      if (width < 1200) {
+        await sidebar.getByRole('button', { name: '连接管理', exact: true }).click();
+        await expect(page).toHaveURL(/\/admin\/connections$/);
+        await expect(sidebar).toBeHidden();
+        await expect(menu).toBeFocused();
+      } else {
+        await sidebar.getByRole('button', { name: '收起导航', exact: true }).click();
+        await expect(sidebar.locator('[data-sidebar-row]')).toHaveCount(9);
+        for (const row of await sidebar.locator('[data-sidebar-row]').all()) {
+          await expect(row).toBeVisible();
+          expect(
+            await row.evaluate((element) => {
+              const rail = element.closest('[data-basalt-sidebar]')?.getBoundingClientRect();
+              if (!rail) throw new Error('Missing sidebar');
+              const bounds = element.getBoundingClientRect();
+              return Math.abs(bounds.left + bounds.width / 2 - rail.left - rail.width / 2);
+            }),
+          ).toBeLessThan(1);
+        }
+        await page.screenshot({ path: testInfo.outputPath('sidebar-rail.png'), animations: 'disabled' });
+      }
+      expect(state.requests.every((request) => request.startsWith('GET '))).toBe(true);
+    });
+  }
+}
 
 test('sidebar collapse remains reachable at the minimum resized width', async ({ page }) => {
   await studio(page);

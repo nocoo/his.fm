@@ -28,7 +28,7 @@ test('studio breadcrumbs and address paths follow navigation, reload and browser
   await page.goto('/admin');
   const crumbs = page.getByRole('navigation', { name: 'Breadcrumb', exact: true });
   await expect(crumbs.locator('[aria-current="page"]')).toHaveText('节目库');
-  await page.locator('[data-basalt-sidebar]').getByRole('button', { name: '品牌外观', exact: true }).click();
+  await page.locator('[data-basalt-sidebar] [data-sidebar-row]').filter({ hasText: '品牌外观' }).click();
   await expect(page).toHaveURL(/\/admin\/appearance$/);
   await expect(crumbs.getByRole('link', { name: '工作室', exact: true })).toHaveAttribute('href', '/admin');
   await expect(crumbs.locator('[aria-current="page"]')).toHaveText('品牌外观');

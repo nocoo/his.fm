@@ -95,7 +95,7 @@ test('theme catalogue composes the latest four library episodes even when produc
       .filter({ has: page.locator('.framed-cover') })
       .locator('h2'),
   ).toHaveText([...recentTitles, 'Library programme 1']);
-  await page.locator('[data-basalt-sidebar]').getByRole('button', { name: '品牌外观', exact: true }).click();
+  await page.locator('[data-basalt-sidebar] [data-sidebar-row]').filter({ hasText: '品牌外观' }).click();
   await expectCovers(page);
   await expect(page.getByRole('combobox', { name: '封面预览节目' })).toHaveCount(0);
   await expect(page.getByText('真实节目封面', { exact: true })).toHaveCount(0);

@@ -8,11 +8,11 @@ import {
   DialogTitle,
   Sidebar,
   SidebarFooter,
+  SidebarGroup,
   SidebarHeader,
   SidebarIconItem,
   SidebarItem,
   SidebarNav,
-  SidebarPartition,
   SidebarProvider,
   SidebarUser,
   ThemeToggle,
@@ -233,32 +233,31 @@ export function AdminShell({ session, children }: { session: Session; children: 
             </Tooltip>
           </div>
           <SidebarNav aria-label="工作室导航">
-            {groups.map((group) => (
-              <section className="admin-nav-group" aria-label={group.label} key={group.label}>
-                {!iconOnly && <SidebarPartition>{group.label}</SidebarPartition>}
-                <div className={iconOnly ? 'admin-nav-icons' : 'admin-nav-items'}>
-                  {group.items.map(({ href, label, icon: Icon, active }) =>
-                    iconOnly ? (
-                      <Tooltip key={href}>
-                        <TooltipTrigger asChild>
-                          <SidebarIconItem active={active} aria-label={label} onClick={() => go(href)}>
-                            <Icon size={16} strokeWidth={1.5} />
-                          </SidebarIconItem>
-                        </TooltipTrigger>
-                        <TooltipContent side="right">{label}</TooltipContent>
-                      </Tooltip>
-                    ) : (
+            {iconOnly
+              ? groups.flatMap((group) =>
+                  group.items.map(({ href, label, icon: Icon, active }) => (
+                    <Tooltip key={href}>
+                      <TooltipTrigger asChild>
+                        <SidebarIconItem active={active} aria-label={label} onClick={() => go(href)}>
+                          <Icon size={16} strokeWidth={1.5} />
+                        </SidebarIconItem>
+                      </TooltipTrigger>
+                      <TooltipContent side="right">{label}</TooltipContent>
+                    </Tooltip>
+                  )),
+                )
+              : groups.map((group) => (
+                  <SidebarGroup label={group.label} key={group.label}>
+                    {group.items.map(({ href, label, icon: Icon, active }) => (
                       <SidebarItem key={href} active={active} onClick={() => go(href)}>
                         <Icon size={16} strokeWidth={1.5} />
                         <span>{label}</span>
                       </SidebarItem>
-                    ),
-                  )}
-                </div>
-              </section>
-            ))}
+                    ))}
+                  </SidebarGroup>
+                ))}
           </SidebarNav>
-          <SidebarFooter className="admin-sidebar-footer">
+          <SidebarFooter>
             {iconOnly ? (
               <div className="admin-sidebar-footer-compact">
                 <Tooltip>

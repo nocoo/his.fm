@@ -93,10 +93,6 @@ html:has(.admin-app) {
   min-height: var(--basalt-space-14);
   padding-block: var(--admin-space-2);
 }
-[data-basalt-sidebar][data-collapsed] .admin-rail-header {
-  justify-content: center;
-  padding-inline: 0;
-}
 .admin-app a.admin-rail-mark {
   display: inline-flex;
   align-items: center;
@@ -133,26 +129,11 @@ html.dark .admin-app a.admin-rail-mark {
   display: flex;
   justify-content: center;
   flex-shrink: 0;
-  padding: 0 var(--admin-space-3) var(--admin-space-2);
+  padding-inline: var(--basalt-space-nav-inset);
 }
 .admin-site-link {
   width: 100%;
   justify-content: flex-start;
-}
-.admin-nav-items {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 0 var(--admin-space-3);
-}
-.admin-nav-icons {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--admin-space-1);
-}
-.admin-nav-group + .admin-nav-group {
-  margin-top: var(--admin-space-4);
 }
 .admin-avatar {
   width: 30px;
@@ -164,9 +145,6 @@ html.dark .admin-app a.admin-rail-mark {
   place-items: center;
   font-weight: 700;
   font-size: 11px;
-}
-.admin-sidebar-footer {
-  padding: var(--admin-space-3) var(--admin-space-4) var(--admin-space-4);
 }
 .admin-sidebar-footer-compact {
   display: flex;
