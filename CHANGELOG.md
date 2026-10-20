@@ -2,6 +2,14 @@
 
 All notable changes to his.fm are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions use the owner’s patch-only deployment policy in `AGENTS.md`, with the authoritative version in `package.json`.
 
+## 2.9.4 - 2026-10-19
+
+### Changed
+
+- Extend the admin voice preview manifest with gender, model, and column metadata; render compact comparison cards with Basalt voice badges that stay white-on-solid in dark theme.
+- Assert voice preview badge contrast from `voice-preview.css` so WCAG AA regressions fail when stylesheet fills or label colors change.
+- Stop ignoring unhandled Vitest errors in the L1 snapshot gate; keep streaming episode-art edge cache writes in production and swallow benign edge-cache body cancel rejections during conditional responses.
+
 ## 2.9.3 - 2026-10-19
 
 ### Changed

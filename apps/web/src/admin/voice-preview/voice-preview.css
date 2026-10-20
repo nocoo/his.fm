@@ -37,16 +37,59 @@
 .appearance-voice-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
+  gap: 12px;
 }
 .appearance-voice-pair .appearance-voice-grid {
   grid-template-rows: 1fr;
 }
 .appearance-voice-card {
   display: grid;
-  gap: 12px;
+  gap: 8px;
   align-content: start;
   background: linear-gradient(165deg, hsl(var(--basalt-accent-1) / 0.12), hsl(var(--basalt-secondary)));
+}
+.appearance-voice-badges {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 6px;
+}
+.voice-preview-page .appearance-voice-badges .appearance-voice-badge {
+  border-color: transparent;
+  border-width: 0;
+  color: #fff;
+  font-weight: 600;
+  background-image: none;
+}
+.voice-preview-page .appearance-voice-badge--gender-male {
+  background-color: #1d4ed8;
+}
+.voice-preview-page .appearance-voice-badge--gender-female {
+  background-color: #6d28d9;
+}
+.voice-preview-page .appearance-voice-badge--usage-learning,
+.voice-preview-page .appearance-voice-badge--style-teal {
+  background-color: #0f766e;
+}
+.voice-preview-page .appearance-voice-badge--usage-manager-notes,
+.voice-preview-page .appearance-voice-badge--style-orange {
+  background-color: #c2410c;
+}
+.voice-preview-page .appearance-voice-badge--style-red {
+  background-color: #b91c1c;
+}
+.voice-preview-page .appearance-voice-badge--style-blue {
+  background-color: #1d4ed8;
+}
+.voice-preview-page .appearance-voice-badge--style-purple {
+  background-color: #6d28d9;
+}
+.voice-preview-page .appearance-voice-badge--style-slate {
+  background-color: #475569;
+}
+.appearance-voice-model {
+  margin: 0;
+  font-size: 11px;
 }
 .appearance-voice-card[data-provider="elevenlabs"] {
   background: linear-gradient(165deg, hsl(var(--basalt-accent-7) / 0.12), hsl(var(--basalt-secondary)));
@@ -55,15 +98,14 @@
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  justify-content: space-between;
-  gap: 8px 12px;
+  gap: 4px 8px;
 }
 .appearance-voice-heading strong {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  font-weight: 500;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
 }
 .appearance-provider-mark {
   display: inline-flex;
@@ -110,7 +152,7 @@
 }
 .voice-preview-page .appearance-voice-compare-rows {
   display: grid;
-  gap: 16px;
+  gap: 12px;
 }
 .voice-preview-page .appearance-voice-slot-empty {
   min-height: 1px;

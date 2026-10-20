@@ -2,12 +2,15 @@ import { defineConfig } from 'vitest/config';
 
 process.env.MINIFLARE_CACHE_DIR = '.cloudflare/cache';
 
+const l1SnapshotGate = process.env.XDG_CACHE_HOME?.includes('hisfm-l1-') ?? false;
+
 export default defineConfig({
   define: { __BUILD_REVISION__: JSON.stringify('test-revision') },
   cacheDir: 'coverage/.vite',
   test: {
     environment: 'node',
-    maxWorkers: 4,
+    maxWorkers: l1SnapshotGate ? 1 : 4,
+    fileParallelism: !l1SnapshotGate,
     include: ['tests/**/*.test.ts', 'tests/**/*.test.tsx', 'src/**/*.test.ts'],
     allowOnly: false,
     passWithNoTests: false,

@@ -124,12 +124,12 @@ export async function routeEpisodeArt(
             .some((tag) => tag.trim().replace(/^W\//, '') === headers.get('ETag') || tag.trim() === '*')
         : modifiedSince && Date.parse(modifiedSince) >= Date.parse(headers.get('Last-Modified') ?? '')
     ) {
-      await cached?.body?.cancel();
+      void cached?.body?.cancel().catch(() => undefined);
       headers.delete('Content-Length');
       return new Response(null, { status: 304, headers });
     }
     if (request.method === 'HEAD') {
-      await cached?.body?.cancel();
+      void cached?.body?.cancel().catch(() => undefined);
       return new Response(null, { headers });
     }
     if (cached) return new Response(cached.body, { headers });
