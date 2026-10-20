@@ -7,6 +7,7 @@
 
 <p align="center">
   <a href="https://his.fm"><img src="https://img.shields.io/badge/网站-his.fm-1c211a?style=for-the-badge" alt="his.fm"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-1c211a?style=for-the-badge" alt="MIT License"></a>
 </p>
 
 <p align="center">
@@ -209,6 +210,10 @@ Uploading a clean cover with `PUT /api/agent/productions/{id}/assets/cover?versi
 Public published-only `/episodes/{id}/art.jpg` and `/episodes/{id}/share.jpg` resolve to versioned URLs (`art.jpg?v=<hash>`, optionally with `&size=N`, and `share.jpg?v=<hash>`). Square art follows the website theme, defaults to 1400 square and accepts sizes from 1400 through 3000; the 1200 x 630 landscape image is theme-independent. Only generated outputs are cached, never replacements for originals; storage cleanup protects current generated versions. See [API onboarding](docs/api-onboarding.md#cached-podcast-and-share-artwork) and [appearance](docs/appearance.md#public-rss-and-share-artwork).
 
 Successful versioned artwork responses and 304s include x-hisfm-art: edge-hit | r2-hit | rendered. After successful cover upload/publication warming, the first default 1400-square art or share GET should report r2-hit (pregenerated), not rendered (lazy fallback); an already warm edge may report edge-hit. Repeat GETs to the same full versioned URL at the same edge should become edge-hit after asynchronous cache fill, not globally guaranteed. Other sizes may render. HEAD reads cached GET metadata without a body and cannot warm the edge; cold HEAD/304 may use only R2 metadata without populating it. Conditional 304s honor the same ETag and Last-Modified validators.
+
+## 许可证
+
+本仓库源代码以 [MIT License](LICENSE) 发布，版权归 Zheng Li（2026）所有。节目文稿、提示词正文与已发布媒体可能受单独版权约束；仓库内示例与占位文本仅作说明用途。
 
 ---
 
