@@ -61,7 +61,7 @@ flowchart LR
 
 ## 提示词槽：节目的「剧本库」
 
-频道与每个栏目各有一张独立的槽位表，在后台 [`/admin/channel`](https://his.fm/admin/channel) 维护；外部客户端使用相同的契约，路径前缀为 `/api/agent`。
+频道与每个栏目各有一张独立的槽位表，在后台 `/admin/channel` 维护；外部客户端使用相同的契约，路径前缀为 `/api/agent`。
 
 ### 结构
 
