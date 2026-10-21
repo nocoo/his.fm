@@ -27,8 +27,8 @@ describe('social preview metadata', () => {
       (await withShareArtwork(projectPublicEpisode(episode, origin, { site, categoryName: '生活' }), origin))
         .pageSeo,
     );
-    expect(result.seo.title).toBe(`生活 EP.08 · ${episode.title} · his.fm`);
-    expect(result.seo.description).toBe(`生活 EP.08 · ${episode.summary}`);
+    expect(result.seo.title).toBe(`${episode.title} · his.fm`);
+    expect(result.seo.description).toBe(episode.summary);
     expect(result.seo.canonical).toBe(`${origin}/episodes/life/dinner-before-the-prompt`);
     expect(result.seo.ogImageUrl).toMatch(
       /^https:\/\/his\.fm\/episodes\/production-test\/share\.jpg\?v=[a-f0-9]{64}$/,

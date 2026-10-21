@@ -105,8 +105,9 @@ truncate, omit descriptions or cache old data differently. WeChat may also need
 publisher-side JS-SDK configuration; this preview does not implement it.
 
 Episode metadata reuses `projectPublicEpisode` and its shared `seo-resolve` chain,
-including the category label, site and episode overrides, canonical category/slug
-URL and stable record-ID `share.jpg` URL. Homepage previews call
+defaulting to the episode title with the site suffix and summary-only description,
+with site and episode overrides, canonical category/slug URL and stable record-ID
+`share.jpg` URL. Homepage previews call
 `resolveSiteDefaults`. The expandable metadata section shows the exact resolved
 title, description, URL, image, Twitter card type and robots value. The configured
 site name is shown as a settings value, not a claim that `og:site_name` is emitted.
