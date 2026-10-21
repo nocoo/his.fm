@@ -163,9 +163,7 @@ describe('studio social previews', () => {
     expect(container.textContent).toContain('Categories unavailable');
     expect(container.querySelector('.social-card')).toBeNull();
     await act(async () => container.querySelector('button')?.click());
-    expect(container.querySelector('.social-card-title')?.textContent).toBe(
-      `生活 EP.08 · 保留的编辑${site.titleSuffix}`,
-    );
+    expect(container.querySelector('.social-card-title')?.textContent).toBe(`保留的编辑${site.titleSuffix}`);
     expect(categoryService.list).toHaveBeenCalledTimes(2);
   });
 
@@ -236,9 +234,7 @@ describe('studio social previews', () => {
     await act(async () => {
       root.render(<PublicationSocialPreview production={fixture({ title: '正在制作的修订' })} />);
     });
-    expect(container.querySelector('.social-card-title')?.textContent).toBe(
-      `学习 EP.08 · 已发布标题${site.titleSuffix}`,
-    );
+    expect(container.querySelector('.social-card-title')?.textContent).toBe(`已发布标题${site.titleSuffix}`);
     expect(container.textContent).toContain('预览当前节目发布快照，不是制作中的修订');
     expect(container.textContent).not.toContain('正在制作的修订');
     expect(container.querySelector('img')?.getAttribute('src')).toContain(

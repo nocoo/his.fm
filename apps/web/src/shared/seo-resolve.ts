@@ -83,13 +83,12 @@ export function resolveEpisodePageSeo(
   site: SiteSeo,
   origin: string,
   episode: PublicEpisode,
-  label: string,
   override?: SeoOverride,
 ): ResolvedPageSeo {
   const merged = mergeOverride({}, site.overrides, override);
   const canonical = episodeCanonicalUrl(origin, episode);
-  const title = merged.title ?? `${label} · ${episode.title}${site.titleSuffix}`;
-  const description = merged.description ?? `${label} · ${episode.summary}`;
+  const title = merged.title ?? `${episode.title}${site.titleSuffix}`;
+  const description = merged.description ?? episode.summary;
   const ogImage = override?.ogImageUrl ?? `/episodes/${encodeURIComponent(episode.id)}/share.jpg`;
   return {
     title,

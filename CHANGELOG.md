@@ -2,6 +2,16 @@
 
 All notable changes to his.fm are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions use the owner’s patch-only deployment policy in `AGENTS.md`, with the authoritative version in `package.json`.
 
+## 2.10.3 - 2026-10-21
+
+### Changed
+
+- Default episode share metadata uses only the episode title with the site suffix and the episode summary, dropping the category and episode-number label prefix from `og:title` and `og:description` where overrides do not apply.
+
+### Verification
+
+- Pass 1,159 unit tests (1,052 web, 107 contracts), both workspaces' four 95% coverage floors, lint and typecheck.
+
 ## 2.10.2 - 2026-10-20
 
 ### Fixed

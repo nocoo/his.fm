@@ -35,7 +35,7 @@ const episode: PublicEpisode = {
 describe('seo-resolve', () => {
   it('merges episode overrides into resolved page metadata', () => {
     const site = siteSeoSchema.parse({});
-    const resolved = resolveEpisodePageSeo(site, origin, episode, '主理人手札 EP.03', {
+    const resolved = resolveEpisodePageSeo(site, origin, episode, {
       title: '自定义标题',
       noindex: true,
     });
@@ -118,19 +118,26 @@ describe('seo-resolve', () => {
       defaultOgImageUrl: 'https://cdn.example.test/default.jpg',
       overrides: { title: 'Site title', ogImageUrl: 'https://cdn.example.test/site.jpg' },
     });
-    const resolved = resolveEpisodePageSeo(site, origin, { ...episode, id }, 'EP.03');
+    const resolved = resolveEpisodePageSeo(site, origin, { ...episode, id });
     expect(resolved.ogImageUrl).toBe(`${origin}/episodes/${encodeURIComponent(id)}/share.jpg`);
     expect(resolved.ogImageUrl).not.toContain(episode.coverUrl);
     expect(resolved.title).toBe('Site title');
   });
 
+  it('defaults episode share metadata to title suffix and summary only', () => {
+    const site = siteSeoSchema.parse({});
+    const resolved = resolveEpisodePageSeo(site, origin, episode);
+    expect(resolved.title).toBe(`测试节目${site.titleSuffix}`);
+    expect(resolved.description).toBe(episode.summary);
+  });
+
   it('lets only the episode-specific image override replace its share image', () => {
     const site = siteSeoSchema.parse({ overrides: { ogImageUrl: '/images/site.jpg' } });
-    const resolved = resolveEpisodePageSeo(site, origin, episode, 'EP.03', {
+    const resolved = resolveEpisodePageSeo(site, origin, episode, {
       ogImageUrl: 'https://cdn.example.test/episode.jpg',
     });
     expect(resolved.ogImageUrl).toBe('https://cdn.example.test/episode.jpg');
-    expect(resolveEpisodePageSeo(site, origin, episode, 'EP.03', {}).ogImageUrl).toBe(
+    expect(resolveEpisodePageSeo(site, origin, episode, {}).ogImageUrl).toBe(
       `${origin}/episodes/1/share.jpg`,
     );
   });

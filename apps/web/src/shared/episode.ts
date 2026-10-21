@@ -1,6 +1,5 @@
 import { z } from 'zod';
 import { categoryIdSchema } from './category';
-import { formatEpisodeLabel } from './episode-display';
 import { episodeCanonicalUrl } from './episode-url';
 import { mentionsSchema } from './mentions';
 import { type SeoOverride, type SiteSeo, seoOverrideSchema, siteSeoSchema } from './seo';
@@ -99,11 +98,9 @@ export function projectPublicEpisode(
   const canonical = episodeCanonicalUrl(origin, episode);
   const base = { ...publicEpisode, canonical };
   const site = context?.site ?? siteSeoSchema.parse({});
-  const categoryName = context?.categoryName ?? episode.category;
-  const label = formatEpisodeLabel(categoryName, episode.episodeNumber);
   const shell = { ...base, pageSeo: resolveSiteDefaults(site, origin) } as PublicEpisode;
   return {
     ...base,
-    pageSeo: resolveEpisodePageSeo(site, origin, shell, label, seo),
+    pageSeo: resolveEpisodePageSeo(site, origin, shell, seo),
   };
 }
