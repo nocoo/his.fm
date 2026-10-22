@@ -2,6 +2,25 @@
 
 All notable changes to his.fm are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions use the owner’s patch-only deployment policy in `AGENTS.md`, with the authoritative version in `package.json`.
 
+## 2.11.0 - 2026-10-22
+
+### Added
+
+- Adopt owner-approved Stillwood show and homepage social artwork through versioned SEO settings. Archive native Sunburst output, canonical VI composites, the 3000-square 495,570-byte JPEG and verified immutable R2 publication records.
+- Emit Podcasting 2.0 channel identities and unlocked import metadata, with explicit-content values on every RSS item. Keep transcripts private as explicitly requested by the owner.
+
+### Fixed
+
+- Preserve existing episode GUIDs with migration 0024 and use stable record-ID URNs for new episodes. Persist category feed identity independently of renamed category URLs.
+- Expand the show description, bound supported HTML descriptions, share the purgeable public cache for canonical feeds and support ETag/304 and HEAD responses.
+- Honor byte ranges for episode artwork, share identical cold renders and serialize a bounded queue rather than rejecting every concurrent render.
+
+### Verification
+
+- Pass 1,218 unit tests (1,111 web, 107 contracts), both workspaces' four 95% coverage floors, lint, typecheck, production build and 18 Chrome public/social-preview tests.
+- Resolve the independent read-only review finding on category rename identity. Preserve the optional transcript omission; AI narration provenance and actual Podcasts Connect acceptance remain unverified.
+- Minor release explicitly requested by the owner; preserve the normal patch-only default for subsequent deployments.
+
 ## 2.10.7 - 2026-10-22
 
 ### Fixed
