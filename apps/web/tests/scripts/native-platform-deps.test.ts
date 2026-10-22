@@ -81,13 +81,13 @@ describe('native platform optional dependencies', () => {
       },
       'node_modules/@biomejs/biome': {
         optionalDependencies: {
-          '@biomejs/cli-linux-x64': '2.5.15',
-          '@biomejs/cli-darwin-arm64': '2.5.15',
+          '@biomejs/cli-linux-x64': '2.6.2',
+          '@biomejs/cli-darwin-arm64': '2.6.2',
         },
       },
       'node_modules/@biomejs/cli-linux-x64': {
-        version: '2.5.15',
-        resolved: 'https://registry.npmjs.org/@biomejs/cli-linux-x64/-/cli-linux-x64-2.5.15.tgz',
+        version: '2.6.2',
+        resolved: 'https://registry.npmjs.org/@biomejs/cli-linux-x64/-/cli-linux-x64-2.6.2.tgz',
         integrity:
           'sha512-xE4iEW/3LqlYj9GFgGrFsFSH51dEEpUbYWBfeOv0q87WkUDxK2o/HhreSb7qMJqck70RVM6Lg96hgedcAYcOkA==',
       },
@@ -176,12 +176,12 @@ describe('native platform optional dependencies', () => {
     > = {
       'node_modules/@biomejs/biome': {
         optionalDependencies: {
-          '@biomejs/cli-linux-x64': '2.5.15',
+          '@biomejs/cli-linux-x64': '2.6.2',
         },
       },
       'node_modules/@biomejs/cli-linux-x64': {
-        version: '2.5.15',
-        resolved: 'https://registry.npmjs.org/@biomejs/cli-linux-x64/-/cli-linux-x64-2.5.15.tgz',
+        version: '2.6.2',
+        resolved: 'https://registry.npmjs.org/@biomejs/cli-linux-x64/-/cli-linux-x64-2.6.2.tgz',
         integrity: lockMeta.integrity,
       },
     };
@@ -189,8 +189,8 @@ describe('native platform optional dependencies', () => {
       resolveOptionalLockEntry(packages, 'node_modules/@biomejs/biome', '@biomejs/cli-linux-x64'),
     ).toEqual({
       lockPath: 'node_modules/@biomejs/cli-linux-x64',
-      version: '2.5.15',
-      resolved: 'https://registry.npmjs.org/@biomejs/cli-linux-x64/-/cli-linux-x64-2.5.15.tgz',
+      version: '2.6.2',
+      resolved: 'https://registry.npmjs.org/@biomejs/cli-linux-x64/-/cli-linux-x64-2.6.2.tgz',
       integrity: lockMeta.integrity,
     });
   });

@@ -21,18 +21,18 @@
     "@codemirror/language": "6.13.1",
     "@codemirror/search": "6.7.2",
     "@codemirror/state": "6.7.6",
-    "@codemirror/view": "6.43.14",
+    "@codemirror/view": "6.43.15",
     "@his-fm/contracts": "*",
     "@lezer/highlight": "1.2.5",
     "@nocoo/basalt": "3.2.1",
-    "@takumi-rs/wasm": "2.14.0",
+    "@takumi-rs/wasm": "2.17.1",
     "@uiw/react-codemirror": "4.25.12",
-    "jose": "6.2.12",
-    "lucide-react": "1.57.0",
+    "jose": "^6.2.13",
+    "lucide-react": "1.61.0",
     "marked": "18.1.1",
     "react": "19.3.1",
     "react-dom": "19.3.1",
-    "react-router": "8.4.0",
+    "react-router": "^8.5.0",
     "zod": "4.6.7"
   },
   "devDependencies": {
@@ -47,7 +47,7 @@
     "happy-dom": "^20.14.6",
     "miniflare": "5.20261006.1-alpha",
     "typescript": "7.0.2",
-    "vite": "8.3.4",
+    "vite": "^8.3.5",
     "vitest": "5.0.5"
   }
 }

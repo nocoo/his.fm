@@ -1,6 +1,6 @@
 # CI/CD
 
-Shared workflows come from [nocoo/base-ci](https://github.com/nocoo/base-ci), pinned to the immutable commit `0394178ebcff0418c442d84a84119220f31f8987` (`v2026.9`). Upgrade by updating the full SHA after a reviewed base-ci release.
+Shared workflows come from [nocoo/base-ci](https://github.com/nocoo/base-ci), pinned to the immutable commit `ac635753a869cb85fad1f52aae4ccbd6119f3cae` (`main 2026-10-22`). Upgrade by updating the full SHA after a reviewed base-ci release.
 
 ## CI (`.github/workflows/ci.yml`)
 
@@ -9,7 +9,7 @@ Runs on every push to `main`, pull requests against `main`, and manual dispatch.
 - `quality-hisfm.yml` — vendored from base-ci `quality.yml` with `setup-js-hisfm` (retries frozen `npm ci` on transient `ECONNRESET`) and `prepare-command: npm run ci:ensure-native-binaries`. Otherwise the same L1 stack: typecheck, lint, unit coverage, security, and build. Security and optional test-job paths still call pinned base-ci reusable workflows.
 - `workflow-lint.yml` — actionlint syntax validation of both workflow files and enforcement of full-SHA base-ci references.
 
-Runtime is pinned to Node `26.9.0` and npm `11.19.1` (`packageManager` in root `package.json`) with frozen `npm ci` (`install-policy: project`). CI applies `env-json` npm retry settings before install; `.npmrc` mirrors them for local installs. After install, `ci:ensure-native-binaries` installs any missing lockfile platform optional packages, rebuilds `workerd`, and smoke-checks Biome, workerd, TypeScript, and Vite. Root `allowScripts` approves pinned `workerd` postinstalls.
+Runtime is pinned to Node `26.12.1` and npm `11.19.1` (`packageManager` in root `package.json`) with frozen `npm ci` (`install-policy: project`). CI applies `env-json` npm retry settings before install; `.npmrc` mirrors them for local installs. After install, `ci:ensure-native-binaries` installs any missing lockfile platform optional packages, rebuilds `workerd`, and smoke-checks Biome, workerd, TypeScript, and Vite. Root `allowScripts` approves pinned `workerd` postinstalls.
 
 ## Release (`.github/workflows/release.yml`)
 

@@ -4,6 +4,11 @@ All notable changes to his.fm are documented here. The format follows [Keep a Ch
 
 ## 2.10.6 - 2026-10-22
 
+### Changed
+
+- Merge the main-branch dependency updates for Vite, React Router, CodeMirror, JOSE, Lucide, Takumi and Biome, including the associated test and lint configuration updates.
+- Retain the Node 26.12.1 CI security pin and updated immutable `nocoo/base-ci` workflow references.
+
 ### Fixed
 
 - Align Safari browser chrome, the document canvas and top safe-area background with the visible header: dark ink on Stillwood and Window Seat homepages, paper on ordinary pages, and ink for theme-preview banners.
