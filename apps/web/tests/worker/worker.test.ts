@@ -745,7 +745,7 @@ describe('public podcast catalog', () => {
     ).toBe(409);
   });
 
-  it('redirects legacy episode URLs to category paths', async () => {
+  it('redirects legacy episode slug URLs after SEO admin mutations', async () => {
     const episode = await create();
     const response = await call(`/episodes/${episode.slug}`);
     expect(response.status).toBe(301);
