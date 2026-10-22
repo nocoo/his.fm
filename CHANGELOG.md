@@ -4,6 +4,10 @@ All notable changes to his.fm are documented here. The format follows [Keep a Ch
 
 ## 2.10.5 - 2026-10-22
 
+### Changed
+
+- Include the main-branch update to `@nocoo/basalt` 3.2.1.
+
 ### Fixed
 
 - Supply native Media Session metadata during playback so supported lock screens and media controls receive the episode title, programme name and existing 1400-square JPEG cover instead of relying on a small website icon. Preserve browser-owned transport controls and existing brand icons.
@@ -12,7 +16,7 @@ All notable changes to his.fm are documented here. The format follows [Keep a Ch
 ### Verification
 
 - Pass 1,177 unit tests (1,070 web, 107 contracts), both workspaces' four 95% coverage floors, lint, typecheck and production build.
-- Pass all 13 focused Chrome player cases, including native metadata, pause/resume, episode navigation, pointer/keyboard/touch seeking and admin previews. Independent review reports no findings. The full browser suite was not rerun; actual iPhone lock-screen presentation and system controls still require device acceptance.
+- Before the Basalt-only merge, pass all 13 focused Chrome player cases, including native metadata, pause/resume, episode navigation, pointer/keyboard/touch seeking and admin previews. Independent review reports no findings. Per the owner's instruction, do not repeat manual verification after the merge; normal commit hooks and release CI remain enabled. The full browser suite was not rerun; actual iPhone lock-screen presentation and system controls still require device acceptance.
 
 ## 2.10.3 - 2026-10-21
 
