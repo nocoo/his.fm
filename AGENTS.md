@@ -27,7 +27,7 @@
 
 ## Authorization and content
 
-- Public API discovery stays at `/api/agent`, `/.well-known/api-catalog` and `/llms.txt`. Keep OpenAPI and `docs/api-onboarding.md` synchronized with validators/controllers. Discovery proves neither authentication nor authority.
+- Public API discovery stays at `/api/agent`, `/.well-known/api-catalog`, `/llms.txt` and read-only `/api/card` (protocol v1 in `docs/card-api.md`). Keep OpenAPI and `docs/api-onboarding.md` synchronized with validators/controllers. Discovery proves neither authentication nor authority.
 - Human and bearer routes share controllers. Finite explicit grants govern external clients; no wildcard, default authority or identity spoofing. Full-scope tokens can manage all site business modules, but not infrastructure/deployment or external-platform posting. See `docs/scoped-api.md`.
 - Read is independent of write. Project prompts/publications separately; write-only production/episode/bumper responses return minimal IDs/versions. Approval and reopening are distinct grants. Token delegation cannot exceed issuer scopes/expiry; revocation cascades; deletion requires prior revocation and preserves ancestry.
 - All existing-record content writes use optimistic versions. Linked episode snapshots are protected from standalone CRUD; only display `featured` has a separate versioned PATCH. Publication/correction/withdrawal atomically updates snapshots and audit; revisions preserve the last published content.

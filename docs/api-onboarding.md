@@ -5,7 +5,7 @@ his.fm is a podcast content-management site. External clients create text, artwo
 ## Connect
 
 - API base: `https://his.fm/api/agent`.
-- Public discovery: `/api/agent`, `/.well-known/api-catalog`, `/llms.txt`, `/llms-full.txt`, `/sitemap.xml`, `/robots.txt`, `/feed.xml`, `/feeds/{categoryId}.xml`.
+- Public discovery: `/api/agent`, `/.well-known/api-catalog`, `/llms.txt`, `/llms-full.txt`, `/sitemap.xml`, `/robots.txt`, `/feed.xml`, `/feeds/{categoryId}.xml`, `/api/card` (episode embed cards; see [card-api.md](card-api.md)).
 - OpenAPI 3.1: `/api/agent/openapi.json`. Read actual paths and `x-required-scopes`; do not guess endpoints.
 - Obtain a token from the owner at `/admin/connections`; send `Authorization: Bearer <token>` over HTTPS. Never put it in a URL, prompt, log, source file or browser bundle.
 - Verify with `GET /me`, then `GET /capabilities`. Discovery being reachable does not prove authentication.

@@ -189,7 +189,7 @@ Husky 对暂存区运行严格 lint、typecheck 与 95% 覆盖率门槛。更多
 
 ## 延伸阅读
 
-- [制作工作流](docs/production.md) · [Agent API](docs/agent-api.md) · [Scoped API](docs/scoped-api.md)
+- [制作工作流](docs/production.md) · [Agent API](docs/agent-api.md) · [Scoped API](docs/scoped-api.md) · [Episode card API](docs/card-api.md)
 - [音频上传](docs/audio.md) · [外观与主题](docs/appearance.md)
 - [CI/CD](docs/ci-cd.md) · [视觉资产](artwork/README.md)
 
