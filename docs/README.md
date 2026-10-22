@@ -18,5 +18,6 @@
 - [Scope model](scoped-api.md): explicit grants, delegation and response projections.
 - [Operations](operations.md): local setup, safe storage management and release boundaries.
 - [CI/CD](ci-cd.md): quality gates and exact-revision release deployment.
+- [Apple Podcasts RSS audit](apple-podcasts-rss-audit-2026-10-22.md): observed feed compatibility, pending fixes and artwork approval boundary.
 
 The website manages podcast content. Content generation happens externally; it has no embedded agent, task transport or provider execution service. Historical release and retrospective records describe their original revisions, not the current contract.
