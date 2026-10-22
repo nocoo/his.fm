@@ -20,7 +20,7 @@ function absoluteUrl(origin: string, path: string) {
   return new URL(path, origin).href;
 }
 
-function absoluteMedia(origin: string, mediaBase: string, value: string) {
+export function absoluteMedia(origin: string, mediaBase: string, value: string) {
   const url = new URL(value, origin);
   if (url.origin === new URL(origin).origin && url.pathname.startsWith('/media/')) {
     const base = new URL(`${mediaBase.replace(/\/$/, '')}/`, origin);
@@ -67,7 +67,7 @@ function mediaObjectKey(origin: string, mediaBase: string, audioUrl: string) {
   }
 }
 
-async function enclosureForEpisode(
+export async function enclosureForEpisode(
   bucket: R2Bucket | undefined,
   origin: string,
   mediaBase: string,

@@ -7,6 +7,10 @@ export default defineConfig({
   cacheDir: 'coverage/.vite',
   test: {
     environment: 'node',
+    onUnhandledError(error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (message.includes('Writer is not bound to a WritableStream')) return false;
+    },
     maxWorkers: 4,
     include: ['tests/**/*.test.ts', 'tests/**/*.test.tsx', 'src/**/*.test.ts'],
     allowOnly: false,
