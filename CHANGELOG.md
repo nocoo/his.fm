@@ -2,6 +2,18 @@
 
 All notable changes to his.fm are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions use the owner’s patch-only deployment policy in `AGENTS.md`, with the authoritative version in `package.json`.
 
+## 2.10.7 - 2026-10-22
+
+### Fixed
+
+- Replace the upper-left Stillwood and Alpine Bloom cover wordmarks with the canonical `his.fm ()` identity, preserving the site's symbol proportions and spacing while aligning the painted left edge instead of the padded viewBox.
+- Include each exported frame's SHA-256 in square artwork versions so PNG exports, public JPEG compositions and browser previews use the updated frames without reusing stale managed artwork. Preserve the other six frames, original covers and theme-independent landscape sharing.
+
+### Verification
+
+- Pass 1,185 unit tests (1,078 web, 107 contracts), both workspaces' four 95% coverage floors, lint, typecheck, production build and deterministic frame-export verification.
+- Inspect both themes in Chrome and download their real 1600-square PNG compositions through the local authenticated API. The owner accepted the result and requested only brief release verification; normal commit hooks and release CI remain enabled.
+
 ## 2.10.6 - 2026-10-22
 
 ### Changed
