@@ -1086,3 +1086,10 @@ switching, then failed because an exact "all episodes" link name matched the
 header, detail back control, related section and footer. Scope the interaction
 to the detail back control instead of assuming an accessible name is globally
 unique. Keep strict selectors and rerun the complete player regression batch.
+
+## 2026-10-22 - Order browser-canvas selectors by specificity
+
+The Safari canvas change placed a plain `body` rule after the scoped public
+body selector. The normal commit hook rejected the descending-specificity
+warning. Keep base element rules before contextual overrides rather than
+disabling the lint rule for an otherwise small stylesheet.

@@ -2,7 +2,7 @@ import { createContext, type ReactNode, useContext, useEffect, useLayoutEffect, 
 import { Link, type LinkProps, NavLink, type NavLinkProps, useLocation } from 'react-router';
 import { BrandSymbol } from '../brand/Brand';
 import { ThemeFavicon } from '../brand/ThemeFavicon';
-import { themeStyle, themes } from '../brand/themes';
+import { themeChromeColor, themeStyle, themes } from '../brand/themes';
 import { type PublicAppearance, type ThemeId, themeIdSchema } from '../shared/appearance';
 import { appearanceHref, getAppearance } from './model';
 import { usePublicData } from './PublicData';
@@ -65,12 +65,18 @@ export function SiteAppearance({ children }: { children: ReactNode }) {
     const root = document.documentElement;
     const meta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
     const paper = themes[id].palette[0];
+    const chrome = themeChromeColor(id, location.pathname, preview !== null);
+    root.dataset.publicTheme = id;
     root.style.setProperty('--public-paper', paper);
-    meta?.setAttribute('content', paper);
+    root.style.setProperty('--public-chrome', chrome);
+    meta?.setAttribute('content', chrome);
     return () => {
+      delete root.dataset.publicTheme;
       root.style.removeProperty('--public-paper');
+      root.style.removeProperty('--public-chrome');
+      meta?.setAttribute('content', getComputedStyle(root).backgroundColor);
     };
-  }, [id]);
+  }, [id, location.pathname, preview]);
 
   if (!id) {
     return (

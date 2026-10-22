@@ -4,7 +4,7 @@ import { exportJWK, generateKeyPair, SignJWT } from 'jose';
 import { Miniflare, Response as MiniflareResponse } from 'miniflare';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { version } from '../../../../package.json';
-import { themeFaviconSrc } from '../../src/brand/themes';
+import { themeChromeColor, themeFaviconSrc, themes } from '../../src/brand/themes';
 import { type Appearance, appearanceSchema, themeIds } from '../../src/shared/appearance';
 import { channelProfileSchema } from '../../src/shared/channel';
 import type { Episode, EpisodeInput, projectPublicEpisode } from '../../src/shared/episode';
@@ -841,14 +841,14 @@ describe('website appearance', () => {
     expect(await saved()).toEqual(current);
   });
 
-  it('renders one theme-specific favicon for saved and preview HTML without changing appearance', async () => {
+  it('renders resolved browser colors and one favicon before hydration without changing appearance', async () => {
     const current = await saved();
     const bindings = {
       ...env,
       ASSETS: {
         fetch: async () =>
           new Response(
-            '<html><head><link rel="icon" href="/favicon.svg" /></head><body><div id="root"></div></body></html>',
+            '<html><head><meta name="theme-color" content="#ffffff" /><link rel="icon" href="/favicon.svg" /></head><body><div id="root"></div></body></html>',
           ),
       },
     } as unknown as Env;
@@ -859,10 +859,18 @@ describe('website appearance', () => {
       expect(html.match(/rel="icon"/g)).toHaveLength(1);
       expect(html).toContain(`href="${themeFaviconSrc(theme)}"`);
       expect(html).not.toContain('href="/favicon.svg"');
+      expect(html.match(/name="theme-color"/g)).toHaveLength(1);
+      expect(html).toContain(`<meta name="theme-color" content="${themes[theme].palette[1]}"`);
+      expect(html).toContain(`<html data-public-theme="${theme}"`);
+      expect(html).toContain(`--public-chrome:${themes[theme].palette[1]}`);
+      expect(html).toContain(`--public-paper:${themes[theme].palette[0]}`);
     }
     for (const path of ['/', '/episodes', '/about?theme=unknown', '/not-found']) {
       const html = await (await call(path, {}, bindings)).text();
       expect(html).toContain(`href="${themeFaviconSrc(current.theme)}"`);
+      expect(html).toContain(
+        `<meta name="theme-color" content="${themeChromeColor(current.theme, path.split('?')[0])}"`,
+      );
     }
     expect((await call('/favicon.svg', { method: 'POST' })).status).toBe(405);
     expect(await saved()).toEqual(current);

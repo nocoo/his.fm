@@ -1,4 +1,4 @@
-import { themeFaviconSrc } from '../src/brand/themes';
+import { themeChromeColor, themeFaviconSrc, themes } from '../src/brand/themes';
 import { themeIdSchema } from '../src/shared/appearance';
 import { projectPublicEpisode } from '../src/shared/episode';
 import { withShareArtwork } from '../src/shared/episode-art';
@@ -115,6 +115,7 @@ export async function maybeServePublicHtml(request: Request, env: Env): Promise<
   const data = { origin, site, appearance: { theme: appearance.theme }, episodes, categories };
   const preview = themeIdSchema.safeParse(url.searchParams.get('theme'));
   const theme = preview.success ? preview.data : appearance.theme;
+  const chrome = themeChromeColor(theme, path, preview.success);
   const rendered = renderPublicPage(`${path}${url.search}`, data);
   const bootstrap = JSON.stringify(data).replace(/</g, '\\u003c');
   let html = injectSeoIntoHtml(shell, seo, jsonLd).replace(
@@ -123,8 +124,16 @@ export async function maybeServePublicHtml(request: Request, env: Env): Promise<
       `<div id="root">${rendered}</div><script id="public-data" type="application/json">${bootstrap}</script>`,
   );
   html = html
+    .replace(
+      '<html',
+      `<html data-public-theme="${theme}" style="--public-paper:${themes[theme].palette[0]};--public-chrome:${chrome}"`,
+    )
+    .replace(/<meta name="theme-color"[^>]*>\s*/g, '')
     .replace(/<link rel="icon"[^>]*>\s*/g, '')
-    .replace('</head>', `<link rel="icon" type="image/svg+xml" href="${themeFaviconSrc(theme)}" /></head>`);
+    .replace(
+      '</head>',
+      `<meta name="theme-color" content="${chrome}" /><link rel="icon" type="image/svg+xml" href="${themeFaviconSrc(theme)}" /></head>`,
+    );
   if (path === '/') {
     html = html.replace('</head>', `${renderHeroPreloads(theme)}</head>`);
   }

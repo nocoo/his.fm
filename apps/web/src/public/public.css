@@ -10,9 +10,7 @@
   -webkit-font-smoothing: antialiased;
 }
 html:has(.appearance-gate),
-html:has(.appearance-gate) body,
-html:has(.public-site),
-html:has(.public-site) body {
+html:has(.appearance-gate) body {
   background: var(--public-paper);
   color-scheme: light;
 }
@@ -79,7 +77,9 @@ html:has(.public-site) body {
   --reveal-ease: cubic-bezier(0.22, 1, 0.36, 1);
   --font: "Space Grotesk", "Noto Sans SC", "PingFang SC", sans-serif;
   font-family: var(--font);
-  background: var(--paper);
+  background:
+    linear-gradient(var(--public-chrome, var(--paper)), var(--public-chrome, var(--paper))) top / 100%
+    env(safe-area-inset-top, 0px) no-repeat var(--paper);
   color: var(--ink);
   font-size: 15px;
   line-height: 1.7;

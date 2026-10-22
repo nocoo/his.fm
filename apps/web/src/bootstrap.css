@@ -11,6 +11,11 @@ html.dark {
 body {
   margin: 0;
 }
+html[data-public-theme],
+html[data-public-theme] body {
+  background: var(--public-chrome);
+  color-scheme: light;
+}
 .app-loading {
   display: grid;
   place-content: center;

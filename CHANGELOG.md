@@ -2,6 +2,17 @@
 
 All notable changes to his.fm are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions use the owner’s patch-only deployment policy in `AGENTS.md`, with the authoritative version in `package.json`.
 
+## 2.10.6 - 2026-10-22
+
+### Fixed
+
+- Align Safari browser chrome, the document canvas and top safe-area background with the visible header: dark ink on Stillwood and Window Seat homepages, paper on ordinary pages, and ink for theme-preview banners.
+- Render the correct browser color in the initial public HTML, preserve it through the studio theme bootstrap, and synchronize it during navigation without changing studio theme preferences or public layouts.
+
+### Verification
+
+- Retain normal commit hooks and release CI. The owner waived additional manual regression; native iPhone toolbar presentation still requires device acceptance.
+
 ## 2.10.5 - 2026-10-22
 
 ### Changed

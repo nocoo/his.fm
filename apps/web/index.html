@@ -32,7 +32,9 @@
       root.classList.toggle('dark', dark);
       root.classList.toggle('light', !dark);
       root.dataset.mode = dark ? 'dark' : 'light';
-      document.querySelector('meta[name="theme-color"]').content = getComputedStyle(root).backgroundColor;
+      if (!root.dataset.publicTheme) {
+        document.querySelector('meta[name="theme-color"]').content = getComputedStyle(root).backgroundColor;
+      }
     </script>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>

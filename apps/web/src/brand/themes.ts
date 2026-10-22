@@ -25,6 +25,11 @@ export function themeFaviconSrc(id: ThemeId): string {
   return `/brand/favicons/${id}.svg`;
 }
 
+export function themeChromeColor(id: ThemeId, pathname: string, preview = false): string {
+  const darkHeader = pathname === '/' && (id === 'stillwood' || id === 'window-seat');
+  return themes[id].palette[preview || darkHeader ? 1 : 0];
+}
+
 export const themes: Record<ThemeId, Theme> = {
   grove: {
     number: '01',

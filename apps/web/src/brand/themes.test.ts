@@ -1,7 +1,18 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { themeIds } from '../shared/appearance';
-import { themeCoverFrameSrc, themeFaviconSrc, themes } from './themes';
+import { themeChromeColor, themeCoverFrameSrc, themeFaviconSrc, themes } from './themes';
+
+it('matches browser chrome to dark home headers, paper inner pages and the preview banner', () => {
+  for (const id of themeIds) {
+    const [paper, ink] = themes[id].palette;
+    expect(themeChromeColor(id, '/')).toBe(id === 'stillwood' || id === 'window-seat' ? ink : paper);
+    expect(themeChromeColor(id, '/episodes')).toBe(paper);
+    expect(themeChromeColor(id, '/about')).toBe(paper);
+    expect(themeChromeColor(id, '/', true)).toBe(ink);
+    expect(themeChromeColor(id, '/episodes', true)).toBe(ink);
+  }
+});
 
 it('keeps theme names, design copy and palette labels from the archived design index', () => {
   const index = readFileSync(new URL('../../../../docs/design/index.html', import.meta.url), 'utf8');
