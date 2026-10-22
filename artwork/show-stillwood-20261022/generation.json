@@ -1,0 +1,15 @@
+{
+  "model": "gpt-image-2.5-sunburst",
+  "size": "2880x2880",
+  "quality": "high",
+  "n": 1,
+  "prompt": "prompt.txt",
+  "original": "background-original.png",
+  "referenceMode": "text-only; user reference inspected, not transmitted",
+  "status": "generation failed; no image created; not published",
+  "failure": {
+    "httpStatus": 401,
+    "reason": "Azure rejected the subscription key or endpoint pairing",
+    "attempts": 1
+  }
+}
