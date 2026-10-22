@@ -1,0 +1,43 @@
+{
+  "status": "local review only; not uploaded or approved",
+  "original": {
+    "path": "background-original.png",
+    "width": 2880,
+    "height": 2880,
+    "bytes": 9076288,
+    "sha256": "2b2b298723132a17f5b3a0b136dd3d24714c928d69769079f5be4f6c2a4b76fe"
+  },
+  "identitySource": "apps/web/src/brand/identity.svg",
+  "identitySha256": "bab0d3c2cb6edf04567b9d8788d6a63725d79ff4c4db4518069835a9e40d3eb2",
+  "wordmarkPaintedBounds": {
+    "x": 25,
+    "y": 17.4,
+    "width": 556.2,
+    "height": 133.7
+  },
+  "composition": "Unmodified canonical wordmark paths, centered by painted bounds; broadcast echoes derived from the canonical parenthesis curve. Center crop for landscape. No upscaling.",
+  "assets": [
+    {
+      "path": "podcast-cover.jpg",
+      "width": 2880,
+      "height": 2880,
+      "bytes": 483217,
+      "quality": 79,
+      "format": "jpeg",
+      "colourspace": "srgb",
+      "alpha": false,
+      "sha256": "8664dda6ed10971e22dcff0107d5a2fbe5091236cd0dece1bf210493df7045e7"
+    },
+    {
+      "path": "homepage-social.jpg",
+      "width": 1200,
+      "height": 630,
+      "bytes": 144848,
+      "quality": 94,
+      "format": "jpeg",
+      "colourspace": "srgb",
+      "alpha": false,
+      "sha256": "b4e5fdb5d7cbd70a907a98d429d5f15098e83bf46affc9d0ed1c55b08078037f"
+    }
+  ]
+}
