@@ -16,7 +16,7 @@ jobs:
     with:
       package-manager: npm
       runtime-version: '11.19.1'
-      node-version: '26.9.0'
+      node-version: '26.12.1'
       install-policy: project
       env-json: '{"NPM_CONFIG_FETCH_RETRIES":"10","NPM_CONFIG_FETCH_RETRY_MINTIMEOUT":"20000","NPM_CONFIG_FETCH_RETRY_MAXTIMEOUT":"120000","NPM_CONFIG_FETCH_TIMEOUT":"300000","NPM_CONFIG_INCLUDE":"optional","NPM_CONFIG_MAXSOCKETS":"8"}'
       prepare-command: npm run ci:ensure-native-binaries
@@ -30,9 +30,9 @@ jobs:
   # Satisfies workflow-lint immutable pin check; real gate is quality-hisfm.yml above.
   base-ci-quality-pin:
     if: ${{ vars.CI_QUALITY_PIN == 'run' }}
-    uses: nocoo/base-ci/.github/workflows/quality.yml@0394178ebcff0418c442d84a84119220f31f8987 # v2026.9
+    uses: nocoo/base-ci/.github/workflows/quality.yml@ac635753a869cb85fad1f52aae4ccbd6119f3cae # main 2026-10-22
 
   workflow-lint:
-    uses: nocoo/base-ci/.github/workflows/workflow-lint.yml@0394178ebcff0418c442d84a84119220f31f8987 # v2026.9
+    uses: nocoo/base-ci/.github/workflows/workflow-lint.yml@ac635753a869cb85fad1f52aae4ccbd6119f3cae # main 2026-10-22
     with:
       required-reusable-workflow: nocoo/base-ci/.github/workflows/quality.yml
