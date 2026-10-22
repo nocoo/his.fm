@@ -16,7 +16,7 @@ jobs:
     with:
       package-manager: npm
       runtime-version: '11.19.1'
-      node-version: '26.9.0'
+      node-version: '26.12.1'
       install-policy: project
       env-json: '{"NPM_CONFIG_FETCH_RETRIES":"10","NPM_CONFIG_FETCH_RETRY_MINTIMEOUT":"20000","NPM_CONFIG_FETCH_RETRY_MAXTIMEOUT":"120000","NPM_CONFIG_FETCH_TIMEOUT":"300000","NPM_CONFIG_INCLUDE":"optional","NPM_CONFIG_MAXSOCKETS":"8"}'
       prepare-command: npm run ci:ensure-native-binaries

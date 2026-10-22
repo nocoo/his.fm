@@ -30,7 +30,7 @@ jobs:
       require-fresh-main: false
       package-manager: npm
       runtime-version: '11.19.1'
-      node-version: '26.9.0'
+      node-version: '26.12.1'
       install-policy: project
       build-command: npm run ci:build
       deploy-cli: cf

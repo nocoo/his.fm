@@ -9,7 +9,7 @@ Runs on every push to `main`, pull requests against `main`, and manual dispatch.
 - `quality-hisfm.yml` — vendored from base-ci `quality.yml` with `setup-js-hisfm` (retries frozen `npm ci` on transient `ECONNRESET`) and `prepare-command: npm run ci:ensure-native-binaries`. Otherwise the same L1 stack: typecheck, lint, unit coverage, security, and build. Security and optional test-job paths still call pinned base-ci reusable workflows.
 - `workflow-lint.yml` — actionlint syntax validation of both workflow files and enforcement of full-SHA base-ci references.
 
-Runtime is pinned to Node `26.9.0` and npm `11.19.1` (`packageManager` in root `package.json`) with frozen `npm ci` (`install-policy: project`). CI applies `env-json` npm retry settings before install; `.npmrc` mirrors them for local installs. After install, `ci:ensure-native-binaries` installs any missing lockfile platform optional packages, rebuilds `workerd`, and smoke-checks Biome, workerd, TypeScript, and Vite. Root `allowScripts` approves pinned `workerd` postinstalls.
+Runtime is pinned to Node `26.12.1` and npm `11.19.1` (`packageManager` in root `package.json`) with frozen `npm ci` (`install-policy: project`). CI applies `env-json` npm retry settings before install; `.npmrc` mirrors them for local installs. After install, `ci:ensure-native-binaries` installs any missing lockfile platform optional packages, rebuilds `workerd`, and smoke-checks Biome, workerd, TypeScript, and Vite. Root `allowScripts` approves pinned `workerd` postinstalls.
 
 ## Release (`.github/workflows/release.yml`)
 
