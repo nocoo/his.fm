@@ -131,6 +131,47 @@ landscape social image. Inspect native model output dimensions before choosing
 derivatives; do not describe an upscaled image as native high-resolution output.
 Local owner review must precede any upload or production reference replacement.
 
+## Owner-supplied validator report and remediation
+
+The supplied report is third-party evidence, not a fresh validation run by this
+repository. It reported a 1.044-second fetch, 1009 KB cover, descriptions below
+50 characters, a missing Podcast namespace, missing channel locked/GUID tags,
+and missing item explicit/transcript tags. XML, RSS 2.0, HTTPS, feed URL, audio
+HEAD/ranges, Technology taxonomy, search metadata, enclosure extensions and the
+required channel/item fields passed.
+
+Approved remediation for v2.11.0:
+
+| Finding | Action and boundary |
+| --- | --- |
+| Cover too large | Approved 3000 x 3000 opaque sRGB JPEG, 495,570 bytes (below both 512 KB and 512 KiB); enlarged from the native 2880-square lossless master. |
+| Brand configuration | Uploaded all five original/delivery files via pinned `cf`; verified CDN hashes. Saved cover, sharing image, existing image override and 109-character description through versioned admin SEO settings (v8). |
+| Short summary | Channel description and iTunes summary share the configured expanded description; category feeds retain it with a category prefix. |
+| Slow feed | Narrow D1 projection, one appearance read, existing native PublicContent cache with 60-second TTL and mutation purge; ETag/304 and HEAD support. Live latency is measured separately, not guaranteed by unit tests. |
+| Missing Podcast namespace | Added `https://podcastindex.org/namespace/1.0`. |
+| Missing channel GUID/locked | UUIDv5 show identities and `podcast:locked=no`, preserving existing import behavior. Persist category identity through renames. |
+| Missing item explicit | Inherit the saved channel explicit-content boolean. |
+| Missing transcript | Intentionally omitted: the owner explicitly declines public transcripts. This optional recommendation does not authorize content disclosure. |
+| Mutable item GUIDs | Migration 0024 freezes existing URL strings; new records use stable ID-based URNs. |
+| Oversized item descriptions | Supported escaped HTML in CDATA; bounded summary and complete mention entries with a full-notes link. |
+| Cold artwork 503 | Share same-key renders and serialize a bounded queue of distinct keys; excess load still receives retryable 503. |
+| Artwork byte ranges | Use the existing R2 media streamer for 206/416/If-Range; do not cache partial objects as full images. |
+
+The owner approved generation, reviewed composites locally, then authorized R2
+upload and production adoption. The earlier pending approval language documents
+that earlier stage; `artwork/show-stillwood-20261022/publication.json` records the
+completed adoption. The generation model was `gpt-image-2.5-sunburst`, with native
+2880-square output. Original bytes remain archived.
+
+Read-only review found category feed UUIDs initially followed the mutable feed
+path. Persisting the initial category identity and carrying it through rename
+fixes that issue; regression coverage includes migrated and newly created
+categories. The main feed identity remains unchanged.
+
+Still unverified: actual AI narration provenance/disclosure, full-program loudness
+and true peak, and Podcasts Connect acceptance. No transcript exposure, audio
+recompression, invented owner identity or directory submission is included.
+
 ## Official references
 
 Consulted on 2026-10-22; requirements can change.

@@ -4,11 +4,11 @@ import { discoveryLinks, routeAgent, routeDiscovery } from './agent-api';
 import { getAppearance } from './appearance';
 import { accessLogin, authenticate, isLocal, localLogin, logout } from './auth';
 import { routeEpisodeCard } from './card';
-import { getCategory, listCategories } from './categories';
+import { listCategories } from './categories';
 import { episodeArtRoute, routeEpisodeArt } from './episode-art';
 import { routeEpisodeThumbnail } from './episode-thumbnails';
 import { getEpisode, listEpisodes } from './episodes';
-import { buildCategoryRssFeed, buildRssFeed } from './feed';
+import { conditionalFeedResponse, feedResponse, feedRoute } from './feed-response';
 import { HttpError, json, requireSameOrigin } from './http';
 import { buildLlmsFull } from './llms-full';
 import { routeManagement } from './management';
@@ -59,7 +59,6 @@ async function route(request: Request, env: Env, ctx?: ExecutionContext): Promis
   const url = new URL(request.url);
   const path = url.pathname;
   const origin = url.origin;
-  const mediaBase = env.MEDIA_BASE_URL ?? 'https://f.no.mt';
   if (env.ENVIRONMENT === 'local' && /^\/(?:@|src\/|node_modules\/)/.test(path))
     return env.ASSETS.fetch(request);
   if (url.hostname === 'www.his.fm' || (url.hostname === 'his.fm' && url.protocol === 'http:')) {
@@ -86,8 +85,13 @@ async function route(request: Request, env: Env, ctx?: ExecutionContext): Promis
   if (episodeArt) return routeEpisodeArt(request, env, episodeArt[1], episodeArt[2] as 'art' | 'share', ctx);
   if (ctx && env.ENVIRONMENT !== 'local' && cacheablePublicRequest(request)) {
     const cached = await ctx.exports.PublicContent.fetch(new Request(url, { method: 'GET' }));
-    const response = new Response(request.method === 'HEAD' ? null : cached.body, cached);
+    const response = new Response(cached.body, cached);
     response.headers.set('X-Public-Cache', cached.headers.get('CF-Cache-Status') ?? 'UNKNOWN');
+    if (feedRoute.test(path)) return conditionalFeedResponse(request, response);
+    if (request.method === 'HEAD') {
+      void response.body?.cancel();
+      return new Response(null, response);
+    }
     return response;
   }
   const shell = () => env.ASSETS.fetch(new Request(new URL('/', request.url), request));
@@ -117,30 +121,7 @@ async function route(request: Request, env: Env, ctx?: ExecutionContext): Promis
     });
     return request.method === 'HEAD' ? new Response(null, response) : response;
   }
-  if (path === '/feed.xml') {
-    if (request.method !== 'GET' && request.method !== 'HEAD') throw new HttpError(405, '不支持这个请求方式');
-    const body = await buildRssFeed(env.DB, origin, mediaBase, env.MEDIA);
-    const response = new Response(body, {
-      headers: {
-        'Content-Type': 'application/rss+xml; charset=utf-8',
-        'Cache-Control': 'public, max-age=600',
-      },
-    });
-    return request.method === 'HEAD' ? new Response(null, response) : response;
-  }
-  const categoryFeed = /^\/feeds\/([a-z0-9-]+)\.xml$/.exec(path);
-  if (categoryFeed) {
-    if (request.method !== 'GET' && request.method !== 'HEAD') throw new HttpError(405, '不支持这个请求方式');
-    const category = await getCategory(env.DB, categoryFeed[1]);
-    const body = await buildCategoryRssFeed(env.DB, origin, mediaBase, category.id, category.name, env.MEDIA);
-    const response = new Response(body, {
-      headers: {
-        'Content-Type': 'application/rss+xml; charset=utf-8',
-        'Cache-Control': 'public, max-age=600',
-      },
-    });
-    return request.method === 'HEAD' ? new Response(null, response) : response;
-  }
+  if (feedRoute.test(path)) return feedResponse(request, env);
   if (path === '/api/episodes') {
     if (request.method !== 'GET') throw new HttpError(405, '不支持这个请求方式');
     return json({ episodes: await listEpisodes(env.DB, true, undefined, origin) });

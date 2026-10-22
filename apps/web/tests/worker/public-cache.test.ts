@@ -7,7 +7,11 @@ import {
   publicContentResponse,
 } from '../../worker/public-cache';
 
-const mocks = vi.hoisted(() => ({ html: vi.fn(), thumbnail: vi.fn() }));
+const mocks = vi.hoisted(() => ({ html: vi.fn(), thumbnail: vi.fn(), feed: vi.fn() }));
+vi.mock('../../worker/feed-response', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../worker/feed-response')>()),
+  feedResponse: mocks.feed,
+}));
 vi.mock('../../worker/public-html', () => ({ maybeServePublicHtml: mocks.html }));
 vi.mock('../../worker/episode-thumbnails', () => ({ routeEpisodeThumbnail: mocks.thumbnail }));
 
@@ -21,6 +25,8 @@ describe('public cache boundary', () => {
     for (const path of [
       '/',
       '/about',
+      '/feed.xml',
+      '/feeds/learning.xml',
       '/episodes',
       '/episodes/legacy',
       '/episodes/learning/one',
@@ -38,6 +44,8 @@ describe('public cache boundary', () => {
       '/api/episodes',
       '/api/agent/episodes',
       '/missing',
+      '/feed.xml?anything=1',
+      '/feeds/learning.xml?theme=stillwood',
       '/about/',
       '/episodes/learning/one/extra',
       '/?theme=missing',
@@ -115,6 +123,20 @@ describe('public cache boundary', () => {
     const response = await publicContentResponse(input, env);
     expect(mocks.thumbnail).toHaveBeenCalledWith(input, env, 'one', '3', 'stillwood', '320');
     expect(response.headers.get('Cache-Control')).toBe('public, max-age=3600');
+    expect(mocks.html).not.toHaveBeenCalled();
+  });
+
+  it('routes RSS through the same purgeable entrypoint without rendering HTML', async () => {
+    mocks.feed.mockResolvedValue(
+      new Response('<rss/>', {
+        headers: { 'Cache-Control': 'public, max-age=60', 'Content-Type': 'application/rss+xml' },
+      }),
+    );
+    const input = request('/feed.xml');
+    const response = await publicContentResponse(input, env);
+    expect(mocks.feed).toHaveBeenCalledWith(input, env);
+    expect(await response.text()).toBe('<rss/>');
+    expect(response.headers.get('Cache-Control')).toBe('public, max-age=60');
     expect(mocks.html).not.toHaveBeenCalled();
   });
 

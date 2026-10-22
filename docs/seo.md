@@ -24,7 +24,7 @@ stylesheets remain in the static entry so no-JavaScript pages retain their layou
 
 The uncached gateway normalizes canonical URLs and strips request credentials
 before invoking the named `PublicContent` entrypoint. Native Workers Cache stores
-only successful public HTML templates (60 seconds) and versioned artwork
+only successful public HTML templates and canonical RSS feeds (60 seconds), and versioned artwork
 derivatives (one hour). Each HTML delivery gets a fresh CSP nonce after the cache
 read and uses browser `no-store`; admin/API/authentication responses never enter
 this cache. Unknown queries bypass it. Successful episode, production, category,
@@ -91,6 +91,11 @@ cache or the responsive WebP-thumbnail cache. These sRGB JPEG derivatives have n
 alpha or embedded ICC profile and never overwrite clean originals or saved publication
 snapshots. Static brand assets are committed with their reproducible generation
 script. These code defaults do not rewrite saved or live SEO settings.
+
+Episode JPEG endpoints support HEAD, conditional requests and byte ranges through
+the shared R2 media streamer. Partial responses bypass the full-object edge cache.
+Cold renders share in-flight work for identical keys and serialize distinct keys,
+with at most eight pending keys per isolate; overload remains a retryable 503.
 
 ## Studio social previews
 
@@ -169,6 +174,34 @@ still requires live endpoint and platform validation after deployment. The
 See [the owner content checklist](seo-content-checklist.md) for confirmed values,
 artwork delivery requirements, per-production SEO and the versioned correction
 path. Deployment alone does not populate these production settings.
+
+## Feed identity and delivery
+
+RSS channel artwork is controlled by `/admin/seo` `podcastCoverUrl`; homepage
+sharing uses `defaultOgImageUrl` unless an explicit site image override wins.
+The approved Stillwood image adoption is recorded in
+`artwork/show-stillwood-20261022/publication.json`, not runtime URL constants.
+
+The Podcasting 2.0 namespace includes a channel UUIDv5 `podcast:guid` and
+`podcast:locked=no` (no new restriction on directory imports). The main seed is
+the immutable `his.fm/feed.xml`; category seeds use their stored initial
+`rss_identity`, preserved by category renames. These are assignment seeds, not
+current URLs: retain them if the hostname or feed routes change in the future.
+Migration 0024 preserves existing item GUID URL strings. New episodes use opaque
+record-ID URNs; corrections to titles, slugs or categories never change them.
+
+Items inherit configured `itunes:explicit`. Descriptions use supported escaped
+HTML in CDATA, cap escaped summaries at 8,000 characters and keep complete mention
+entries within 10,000 characters, linking to full public notes. Transcripts stay
+private: the owner explicitly declined `podcast:transcript`, a recommended but
+optional element. No new transcript endpoint is exposed.
+
+RSS reads a narrow published-only D1 projection without transcripts or show notes.
+Canonical feeds share the existing PublicContent mutation purge and short TTL.
+The gateway strips credentials and conditional headers before the cache lookup;
+it applies content-derived ETags, conditional 304 responses and bodyless HEAD
+afterward. Query variants bypass the native cache. Local tests do not establish
+native edge HIT/purge behavior; verify that separately after deployment.
 
 References:
 

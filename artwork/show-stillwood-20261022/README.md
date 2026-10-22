@@ -1,7 +1,8 @@
-# Stillwood show artwork - local review
+# Stillwood show artwork
 
-Status: generated and composed locally. Not approved for upload or production use.
-No RSS, SEO settings, public assets or production records have been changed.
+Status: approved by the owner after local Preview review; uploaded through the
+pinned project `cf` CLI and adopted through the versioned admin SEO API (v8).
+`publication.json` records immutable R2 keys and verified CDN byte hashes.
 
 ## Generation
 
@@ -43,5 +44,12 @@ vector treatments; `*-review.png` and the 160-pixel thumbnail are visual checks
 derived from the actual compressed JPEGs. `delivery.json` records hashes,
 dimensions, sizes, quality settings and canonical identity provenance.
 
-Both actual delivery JPEGs were opened in macOS Preview for owner review.
-Uploading and changing production references require subsequent owner approval.
+The owner subsequently requested a 3000-square derivative. Run
+`node artwork/show-stillwood-20261022/enlarge.mjs` to reproduce its Lanczos3 upscale
+from the lossless 2880-square master: 495,570 bytes, JPEG quality 77, opaque sRGB.
+This is an upscale, not native 3000-pixel generation. Both originals, the native
+square JPEG, the enlarged JPEG and the landscape JPEG are archived in R2.
+Production `podcastCoverUrl` uses the enlarged square; `defaultOgImageUrl` and the
+existing site `overrides.ogImageUrl` use the landscape. No production URL is
+hardcoded into runtime code. `delivery.json` preserves the original review state;
+`publication.json` records the later approval and adoption.

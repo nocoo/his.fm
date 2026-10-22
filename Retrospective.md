@@ -1,5 +1,24 @@
 # Retrospective
 
+## 2026-10-22 - Preserve show identity independently of category routes
+
+The initial Podcasting 2.0 implementation derived category UUIDs from each
+request's current feed path. Read-only review identified that supported category
+renames would change a show's identity. Persist the initial category identity,
+copy it through the existing rename transaction and test both migrated and newly
+created categories. Deterministic hashing alone does not make mutable inputs
+stable identifiers.
+
+## 2026-10-22 - Target Herdr panes explicitly after checking workspace state
+
+A stale current-pane environment pointed at another workspace. A delegated pane
+was briefly created there and immediately closed without assigning work. Inspect
+the live pane list and use explicit workspace/pane IDs for creation and cleanup;
+do not assume inherited current-pane metadata identifies the visible controller.
+Cloudflare command discovery must start with anonymous `cf cli search` queries,
+not guessed nested help. Verify each command's working directory before composing
+relative paths.
+
 ## 2026-10-19 - Discover Herdr list flags before querying a workspace
 
 I passed an unsupported `--space` flag to `herdr pane list`. The read-only

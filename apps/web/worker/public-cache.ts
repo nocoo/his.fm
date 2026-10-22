@@ -1,6 +1,7 @@
 import { themeIdSchema } from '../src/shared/appearance';
 import { episodeArtRoute } from './episode-art';
 import { routeEpisodeThumbnail } from './episode-thumbnails';
+import { feedResponse, feedRoute } from './feed-response';
 import { HttpError, json } from './http';
 import { maybeServePublicHtml } from './public-html';
 
@@ -12,6 +13,7 @@ export function cacheablePublicRequest(request: Request): boolean {
   if (!['GET', 'HEAD'].includes(request.method) || url.origin !== 'https://his.fm') return false;
   if (episodeArtRoute.test(url.pathname)) return false;
   if (thumbnailRoute.test(url.pathname)) return !url.search;
+  if (feedRoute.test(url.pathname)) return !url.search;
   if (!publicPage.test(url.pathname)) return false;
   const seen = new Set<string>();
   for (const [key, value] of url.searchParams) {
@@ -37,10 +39,13 @@ export function invalidatesPublicContent(request: Request, response: Response): 
 export async function publicContentResponse(request: Request, env: Env): Promise<Response> {
   if (!cacheablePublicRequest(request)) return json({ error: '页面不存在' }, 404);
   try {
-    const thumbnail = thumbnailRoute.exec(new URL(request.url).pathname);
-    const response = thumbnail
-      ? await routeEpisodeThumbnail(request, env, thumbnail[1], thumbnail[2], thumbnail[3], thumbnail[4])
-      : await maybeServePublicHtml(request, env);
+    const pathname = new URL(request.url).pathname;
+    const thumbnail = thumbnailRoute.exec(pathname);
+    const response = feedRoute.test(pathname)
+      ? await feedResponse(request, env)
+      : thumbnail
+        ? await routeEpisodeThumbnail(request, env, thumbnail[1], thumbnail[2], thumbnail[3], thumbnail[4])
+        : await maybeServePublicHtml(request, env);
     if (!response) return json({ error: '页面不存在' }, 404);
     if (response.status !== 200) response.headers.set('Cache-Control', 'no-store');
     return response;

@@ -82,8 +82,8 @@ export async function renameCategoryId(
     results = await db.batch([
       db
         .prepare(
-          `INSERT INTO categories (id,name,icon,color,prompt,seo,version,updated_at,updated_by,prompt_slots,prompt_slots_version)
-         SELECT ?,?,?,?,prompt,?,version+1,?,?,prompt_slots,prompt_slots_version
+          `INSERT INTO categories (id,name,icon,color,prompt,seo,version,updated_at,updated_by,prompt_slots,prompt_slots_version,rss_identity)
+         SELECT ?,?,?,?,prompt,?,version+1,?,?,prompt_slots,prompt_slots_version,rss_identity
          FROM categories WHERE id=? AND version=?`,
         )
         .bind(
@@ -185,11 +185,12 @@ export async function routeCategories(request: Request, env: Env, actor: Actor, 
       requireScope(actor, 'prompts:write');
       throw new HttpError(400, '旧提示词字段已只读，请使用栏目 prompt-slots');
     }
+    const categoryId = crypto.randomUUID();
     const category = await env.DB.prepare(
-      `INSERT INTO categories (id,name,icon,color,prompt,seo,updated_at,updated_by) VALUES (?,?,?,?,?,?,?,?) RETURNING ${fields}`,
+      `INSERT INTO categories (id,name,icon,color,prompt,seo,updated_at,updated_by,rss_identity) VALUES (?,?,?,?,?,?,?,?,?) RETURNING ${fields}`,
     )
       .bind(
-        crypto.randomUUID(),
+        categoryId,
         input.name,
         input.icon,
         input.color,
@@ -197,6 +198,7 @@ export async function routeCategories(request: Request, env: Env, actor: Actor, 
         JSON.stringify(input.seo ?? {}),
         new Date().toISOString(),
         actor.name,
+        categoryId,
       )
       .first<CategoryRow>();
     if (!category) throw new HttpError(503, '栏目暂时无法创建，请重试');

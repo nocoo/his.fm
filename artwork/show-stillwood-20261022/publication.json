@@ -1,0 +1,77 @@
+{
+  "status": "approved; uploaded and adopted via versioned admin SEO API",
+  "assets": [
+    {
+      "file": "background-original.png",
+      "key": "images/brand/stillwood-20261022-2b2b29872313-background-original.png",
+      "url": "https://f.no.mt/images/brand/stillwood-20261022-2b2b29872313-background-original.png",
+      "width": 2880,
+      "height": 2880,
+      "bytes": 9076288,
+      "sha256": "2b2b298723132a17f5b3a0b136dd3d24714c928d69769079f5be4f6c2a4b76fe",
+      "contentType": "image/png",
+      "uploaded": true,
+      "verifiedHttpStatus": 200
+    },
+    {
+      "file": "podcast-cover-master.png",
+      "key": "images/brand/stillwood-20261022-8876d375853e-podcast-cover-master.png",
+      "url": "https://f.no.mt/images/brand/stillwood-20261022-8876d375853e-podcast-cover-master.png",
+      "width": 2880,
+      "height": 2880,
+      "bytes": 13707775,
+      "sha256": "8876d375853e61879f4bd33e467ed28cb146a0622cc1a4d2466542b863c9b522",
+      "contentType": "image/png",
+      "uploaded": true,
+      "verifiedHttpStatus": 200
+    },
+    {
+      "file": "podcast-cover.jpg",
+      "key": "images/brand/stillwood-20261022-8664dda6ed10-podcast-cover.jpg",
+      "url": "https://f.no.mt/images/brand/stillwood-20261022-8664dda6ed10-podcast-cover.jpg",
+      "width": 2880,
+      "height": 2880,
+      "bytes": 483217,
+      "sha256": "8664dda6ed10971e22dcff0107d5a2fbe5091236cd0dece1bf210493df7045e7",
+      "contentType": "image/jpeg",
+      "uploaded": true,
+      "verifiedHttpStatus": 200
+    },
+    {
+      "file": "podcast-cover-3000.jpg",
+      "key": "images/brand/stillwood-20261022-0a64cac84ab3-podcast-cover-3000.jpg",
+      "url": "https://f.no.mt/images/brand/stillwood-20261022-0a64cac84ab3-podcast-cover-3000.jpg",
+      "width": 3000,
+      "height": 3000,
+      "bytes": 495570,
+      "sha256": "0a64cac84ab3bbb8a1c5bcb03976b516698cb41cfec0ea2cdd9c5b5e1372cd85",
+      "contentType": "image/jpeg",
+      "quality": 77,
+      "source": "podcast-cover-master.png",
+      "resampling": "Lanczos3 upscale from 2880 x 2880",
+      "uploaded": true,
+      "verifiedHttpStatus": 200
+    },
+    {
+      "file": "homepage-social.jpg",
+      "key": "images/brand/stillwood-20261022-b4e5fdb5d7cb-homepage-social.jpg",
+      "url": "https://f.no.mt/images/brand/stillwood-20261022-b4e5fdb5d7cb-homepage-social.jpg",
+      "width": 1200,
+      "height": 630,
+      "bytes": 144848,
+      "sha256": "b4e5fdb5d7cbd70a907a98d429d5f15098e83bf46affc9d0ed1c55b08078037f",
+      "contentType": "image/jpeg",
+      "uploaded": true,
+      "verifiedHttpStatus": 200
+    }
+  ],
+  "seoVersion": 8,
+  "seoFields": {
+    "podcastCoverUrl": "https://f.no.mt/images/brand/stillwood-20261022-0a64cac84ab3-podcast-cover-3000.jpg",
+    "defaultOgImageUrl": "https://f.no.mt/images/brand/stillwood-20261022-b4e5fdb5d7cb-homepage-social.jpg",
+    "podcastDescription": "his.fm 是一档面向开发者和技术从业者的中文播客。我们在「每日手冲」里梳理 AI 与科技动态，也在「主理人手札」里聊团队管理、组织变化与工作中的具体问题。世界很快，你可以慢慢来：一起理解技术，也关心屏幕之外的生活。",
+    "overrides": {
+      "ogImageUrl": "https://f.no.mt/images/brand/stillwood-20261022-b4e5fdb5d7cb-homepage-social.jpg"
+    }
+  }
+}

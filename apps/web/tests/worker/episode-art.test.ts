@@ -9,7 +9,7 @@ import { artLocation } from '../../src/shared/episode-art';
 import worker from '../../worker';
 import { loadCoverFonts } from '../../worker/cover-fonts';
 import * as raster from '../../worker/cover-raster';
-import { routeEpisodeArt } from '../../worker/episode-art';
+import { ensureEpisodeArt, routeEpisodeArt } from '../../worker/episode-art';
 import { HttpError } from '../../worker/http';
 import { cacheablePublicRequest } from '../../worker/public-cache';
 import { putR2Fixture, r2FixtureWorker } from './r2-fixtures';
@@ -243,6 +243,96 @@ describe('versioned artwork edge cache', () => {
     },
   );
 
+  it.each([
+    ['bytes=0-1', 206, 'bytes 0-1/4', [0xff, 0xd8]],
+    ['bytes=1-', 206, 'bytes 1-3/4', [0xd8, 0xff, 0xd9]],
+    ['bytes=-2', 206, 'bytes 2-3/4', [0xff, 0xd9]],
+    ['bytes=0-99', 206, 'bytes 0-3/4', [0xff, 0xd8, 0xff, 0xd9]],
+    ['bytes=4-', 416, 'bytes */4', []],
+    ['bytes=2-1', 416, 'bytes */4', []],
+    ['bytes=-0', 416, 'bytes */4', []],
+    ['bytes=0-1,2-3', 416, 'bytes */4', []],
+    ['invalid', 416, 'bytes */4', []],
+  ])('serves isolated GET ranges: %s', async (range, status, contentRange, expected) => {
+    const url = await pregenerated('share');
+    await (await routeEpisodeArt(new Request(url), env, 'one', 'share')).arrayBuffer();
+    const response = await routeEpisodeArt(
+      new Request(url, { headers: { Range: range } }),
+      env,
+      'one',
+      'share',
+    );
+    expect(response.status).toBe(status);
+    expect(response.headers.get('Accept-Ranges')).toBe('bytes');
+    expect(response.headers.get('Content-Range')).toBe(contentRange);
+    expect([...new Uint8Array(await response.arrayBuffer())]).toEqual(expected);
+    expect(response.headers.get('Content-Length')).toBe(status === 206 ? String(expected.length) : null);
+    const full = await routeEpisodeArt(new Request(url), env, 'one', 'share');
+    expect(full.status).toBe(200);
+    expect(full.headers.get('X-Hisfm-Art')).toBe('edge-hit');
+    expect(new Uint8Array(await full.arrayBuffer())).toEqual(bytes);
+  });
+
+  it('does not cache cold partial responses and ignores Range on HEAD', async () => {
+    const url = await pregenerated('share');
+    const partial = await routeEpisodeArt(
+      new Request(url, { headers: { Range: 'bytes=0-1' } }),
+      env,
+      'one',
+      'share',
+    );
+    expect(partial.status).toBe(206);
+    await partial.arrayBuffer();
+    expect(await edge.match(url.href)).toBeUndefined();
+    for (const warm of [false, true]) {
+      if (warm) await (await routeEpisodeArt(new Request(url), env, 'one', 'share')).arrayBuffer();
+      const response = await routeEpisodeArt(
+        new Request(url, { method: 'HEAD', headers: { Range: 'bytes=0-1' } }),
+        env,
+        'one',
+        'share',
+      );
+      expect(response.status).toBe(200);
+      expect(response.headers.get('Content-Length')).toBe('4');
+      expect(response.headers.has('Content-Range')).toBe(false);
+      expect(await response.text()).toBe('');
+    }
+  });
+
+  it('honors strong If-Range validators and conditional precedence', async () => {
+    const url = await pregenerated('share');
+    const full = await routeEpisodeArt(new Request(url), env, 'one', 'share');
+    await full.arrayBuffer();
+    const etag = full.headers.get('ETag') ?? '';
+    for (const [validator, status] of [
+      [etag, 206],
+      [full.headers.get('Last-Modified') ?? '', 206],
+      ['Fri, 01 Jan 2100 00:00:00 GMT', 206],
+      [`W/${etag}`, 200],
+      ['"other"', 200],
+      ['Wed, 01 Jan 2020 00:00:00 GMT', 200],
+      ['invalid', 200],
+    ] as const) {
+      const response = await routeEpisodeArt(
+        new Request(url, { headers: { Range: 'bytes=-2', 'If-Range': validator } }),
+        env,
+        'one',
+        'share',
+      );
+      expect(response.status).toBe(status);
+      expect(new Uint8Array(await response.arrayBuffer())).toEqual(status === 206 ? bytes.slice(2) : bytes);
+    }
+    const conditional = await routeEpisodeArt(
+      new Request(url, { headers: { Range: 'bytes=99-', 'If-None-Match': etag } }),
+      env,
+      'one',
+      'share',
+    );
+    expect(conditional.status).toBe(304);
+    expect(conditional.headers.has('Content-Length')).toBe(false);
+    expect(await conditional.text()).toBe('');
+  });
+
   it('keeps cold HEAD and conditional responses out of the GET cache', async () => {
     const url = await pregenerated('share');
     const head = await routeEpisodeArt(new Request(url, { method: 'HEAD' }), env, 'one', 'share');
@@ -391,7 +481,7 @@ describe('versioned artwork edge cache', () => {
     } as ExecutionContext;
     const response = await worker.fetch(
       new Request(url, {
-        headers: { Cookie: 'private=session', Authorization: 'Bearer private', Range: 'bytes=0-1' },
+        headers: { Cookie: 'private=session', Authorization: 'Bearer private' },
       }),
       env,
       ctx,
@@ -765,7 +855,7 @@ describe('public episode JPEG artwork', () => {
     await expect(call('share')).rejects.toMatchObject({ status: 413 });
   });
 
-  it('bounds simultaneous cache-miss composition without queuing', async () => {
+  it('shares simultaneous same-key cache misses', async () => {
     let notifyReady = () => {};
     let release: (object: R2ObjectBody | null) => void = () => {};
     const ready = new Promise<void>((resolve) => {
@@ -789,13 +879,78 @@ describe('public episode JPEG artwork', () => {
     } as unknown as Env;
     const pending = call('share', '', 'GET', bindings);
     await ready;
-    const busy = await call('share');
-    expect(busy.status).toBe(503);
-    expect(busy.headers.get('Retry-After')).toBe('1');
-    expect(busy.headers.get('Cache-Control')).toBe('no-store');
+    const render = vi.spyOn(raster, 'renderCoverJpeg');
+    const shared = call('share');
     release(await env.MEDIA.get(key));
-    expect((await pending).status).toBe(200);
+    const responses = await Promise.all([pending, shared]);
+    expect(responses.map((response) => response.status)).toEqual([200, 200]);
+    const bodies = await Promise.all(responses.map((response) => response.arrayBuffer()));
+    expect(Buffer.from(bodies[0]).equals(Buffer.from(bodies[1]))).toBe(true);
+    expect(render).toHaveBeenCalledTimes(1);
   });
+
+  it.each([false, true])(
+    'serializes a bounded different-key queue and releases after failure=%s',
+    async (fail) => {
+      let release = () => {};
+      let ready = () => {};
+      const held = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      const started = new Promise<void>((resolve) => {
+        ready = resolve;
+      });
+      const render = vi.spyOn(raster, 'renderCoverJpeg').mockImplementation(async () => {
+        ready();
+        await held;
+        if (fail) {
+          fail = false;
+          throw new HttpError(422, 'invalid image');
+        }
+        return new Uint8Array([0xff, 0xd8, 0xff, 0xd9]);
+      });
+      const head = vi.fn(env.MEDIA.head.bind(env.MEDIA));
+      const bindings = {
+        ...env,
+        MEDIA: {
+          ...env.MEDIA,
+          head,
+          get: env.MEDIA.get.bind(env.MEDIA),
+          put: env.MEDIA.put.bind(env.MEDIA),
+        },
+      };
+      const record = {
+        resource: 'episodes' as const,
+        id: 'queued-0',
+        title: 'Title',
+        episodeNumber: 1,
+        categoryName: 'Category',
+        coverUrl: `https://f.no.mt/${key}`,
+      };
+      const first = ensureEpisodeArt(bindings, origin, record, null);
+      const outcome = first.then(
+        () => 200,
+        (error: HttpError) => error.status,
+      );
+      await started;
+      const queued = Array.from({ length: 7 }, (_, index) =>
+        ensureEpisodeArt(bindings, origin, { ...record, id: `queued-${index + 1}` }, null),
+      );
+      await vi.waitFor(() => expect(head).toHaveBeenCalledTimes(9));
+      await expect(
+        ensureEpisodeArt(bindings, origin, { ...record, id: 'overflow' }, null),
+      ).rejects.toMatchObject({ status: 503 });
+      expect(render).toHaveBeenCalledTimes(1);
+      const expectedStatus = fail ? 422 : 200;
+      release();
+      expect(await outcome).toBe(expectedStatus);
+      expect((await Promise.all(queued)).every(({ source }) => source === 'rendered')).toBe(true);
+      expect(render).toHaveBeenCalledTimes(8);
+      expect((await ensureEpisodeArt(bindings, origin, { ...record, id: 'later' }, null)).source).toBe(
+        'rendered',
+      );
+    },
+  );
 
   it('preserves shared PNG renderer contention and releases the JPEG entry guard', async () => {
     vi.spyOn(raster, 'renderCoverJpeg').mockRejectedValueOnce(new HttpError(503, 'busy'));

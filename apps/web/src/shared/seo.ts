@@ -38,7 +38,9 @@ export const siteSeoSchema = z.strictObject({
     .trim()
     .min(1)
     .max(4000)
-    .default('一档给开发者的中文播客。聊 AI，聊工作，也聊屏幕之外正在发生的生活。'),
+    .default(
+      'his.fm 是一档面向开发者和技术从业者的中文播客。我们在「每日手冲」里梳理 AI 与科技动态，也在「主理人手札」里聊团队管理、组织变化与工作中的具体问题。世界很快，你可以慢慢来：一起理解技术，也关心屏幕之外的生活。',
+    ),
   podcastAuthor: z.string().trim().min(1).max(120).default('his.fm'),
   podcastAuthorType: z.enum(['Person', 'Organization']).default('Organization'),
   podcastAuthorUrl: z

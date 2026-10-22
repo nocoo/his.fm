@@ -1,24 +1,33 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { type Episode, projectPublicEpisode } from '../../src/shared/episode';
+import type { Episode } from '../../src/shared/episode';
 import { artLocation } from '../../src/shared/episode-art';
 import { type SiteSeoRecord, siteSeoSchema } from '../../src/shared/seo';
 import { getAppearance } from '../../worker/appearance';
-import { artRecords } from '../../worker/episode-art-cache';
-import { listEpisodes, listPublishedEpisodesInCategory } from '../../worker/episodes';
-import { buildCategoryRssFeed, buildRssFeed } from '../../worker/feed';
+import { buildCategoryRssFeed, buildRssFeed, podcastGuid } from '../../worker/feed';
 import { getSiteSeo } from '../../worker/seo-store';
 
-vi.mock('../../worker/episodes', () => ({
-  listEpisodes: vi.fn(),
-  listPublishedEpisodesInCategory: vi.fn(),
-}));
 vi.mock('../../worker/seo-store', () => ({ getSiteSeo: vi.fn() }));
 vi.mock('../../worker/appearance', () => ({ getAppearance: vi.fn() }));
-vi.mock('../../worker/episode-art-cache', () => ({ artRecords: vi.fn() }));
 
 const origin = 'https://his.fm';
 const mediaBase = 'https://f.no.mt';
-const db = {} as D1Database;
+let rows: Record<string, unknown>[] = [];
+let querySuccess = true;
+let categoryIdentity: string | null = 'learning';
+const query = vi.fn();
+const db = {
+  prepare(sql: string) {
+    return {
+      bind(...values: unknown[]) {
+        query(sql, values);
+        return {
+          all: async () => ({ success: querySuccess, results: rows }),
+          first: async () => (categoryIdentity === null ? null : { rss_identity: categoryIdentity }),
+        };
+      },
+    };
+  },
+} as unknown as D1Database;
 let site: SiteSeoRecord;
 
 function episode(patch: Partial<Episode> = {}): Episode {
@@ -48,11 +57,12 @@ function episode(patch: Partial<Episode> = {}): Episode {
 }
 
 function catalogue(...episodes: Episode[]) {
-  vi.mocked(artRecords).mockResolvedValue(
-    episodes.map((item) => ({ ...item, categoryName: '生活', resource: 'episodes' as const })),
-  );
-  vi.mocked(listEpisodes).mockResolvedValue(episodes.map((item) => projectPublicEpisode(item, origin)));
-  vi.mocked(listPublishedEpisodesInCategory).mockResolvedValue(episodes);
+  rows = episodes.map((item) => ({
+    ...item,
+    categoryName: '生活',
+    guid: `https://his.fm/episodes/${item.category}/${item.slug}`,
+    mentions: JSON.stringify(item.mentions),
+  }));
 }
 
 function media(size = 12345, contentType: string | undefined = 'audio/mpeg') {
@@ -64,6 +74,8 @@ function media(size = 12345, contentType: string | undefined = 'audio/mpeg') {
 
 beforeEach(() => {
   vi.resetAllMocks();
+  querySuccess = true;
+  categoryIdentity = 'learning';
   site = {
     ...siteSeoSchema.parse({}),
     version: 1,
@@ -307,7 +319,7 @@ describe('podcast feeds', () => {
     },
   );
 
-  it('keeps descriptions and mentions as escaped HTML without CDATA breakouts', async () => {
+  it('uses supported HTML inside CDATA without markup injection', async () => {
     catalogue(
       episode({
         title: 'Title <&> "quoted"',
@@ -322,14 +334,13 @@ describe('podcast feeds', () => {
       }),
     );
     const xml = await buildRssFeed(db, origin, mediaBase, media().bucket);
-    expect(xml).not.toContain('<![CDATA[');
-    expect(xml).not.toContain(']]>');
+    expect(xml).toContain('<![CDATA[');
     expect(xml).not.toContain('<injected');
     expect(xml).toContain('<title>Title &lt;&amp;&gt; &quot;quoted&quot;</title>');
-    expect(xml).toContain('Summary ]]&amp;gt;&amp;lt;injected /&amp;gt; &amp;amp; text');
-    expect(xml).toContain('&lt;section&gt;&lt;h2&gt;本期提到&lt;/h2&gt;');
-    expect(xml).toContain('Name ]]&amp;gt;&amp;lt;injected /&amp;gt;');
-    expect(xml).toContain('q=]]&amp;gt;&amp;amp;b=2');
+    expect(xml).toContain('Summary ]]&gt;&lt;injected /&gt; &amp; text');
+    expect(xml).toContain('<p>本期提到</p><ul>');
+    expect(xml).toContain('Name ]]&gt;&lt;injected /&gt;');
+    expect(xml).toContain('q=]]&gt;&amp;b=2');
   });
 
   it('keeps Chinese category identity outside the iTunes taxonomy and applies the same item filtering', async () => {
@@ -343,7 +354,7 @@ describe('podcast feeds', () => {
       media().bucket,
     );
     expect(xml).toContain('<title>管理手记 · his.fm</title>');
-    expect(xml).toContain('<description>管理手记 栏目节目更新</description>');
+    expect(xml).toContain(`<description>管理手记 · ${site.podcastDescription}</description>`);
     expect(xml).toContain('href="https://his.fm/feeds/manager-notes.xml"');
     expect(xml).toContain('<itunes:category text="Technology" />');
     expect(xml).not.toContain('text="管理手记"');
@@ -352,7 +363,8 @@ describe('podcast feeds', () => {
     expect(xml).toContain('<itunes:image href="https://his.fm/brand/podcast.jpg" />');
     expect(xml).toContain(`<itunes:image href="${origin}${await artUrl()}" />`);
     expect(xml).not.toContain('/episodes/no-audio/art.jpg');
-    expect(listPublishedEpisodesInCategory).toHaveBeenCalledWith(db, 'manager-notes');
+    expect(query.mock.calls[0][0]).toContain('AND e.category = ?');
+    expect(query.mock.calls[0][1][1]).toBe('manager-notes');
   });
 
   it('shares in-flight R2 lookups for the same trusted key', async () => {
@@ -363,6 +375,76 @@ describe('podcast feeds', () => {
     const { bucket, head } = media();
     await buildRssFeed(db, origin, mediaBase, bucket);
     expect(head).toHaveBeenCalledExactlyOnceWith('audio.mp3');
-    expect(listEpisodes).toHaveBeenCalledWith(db, true, undefined, origin);
+    expect(query).toHaveBeenCalledTimes(1);
+    expect(query.mock.calls[0][0]).not.toContain('transcript');
+  });
+});
+
+describe('RSS identity and interoperability', () => {
+  it('matches the independent UUIDv5 fixture and requires a stored category identity', async () => {
+    expect(podcastGuid('/feed.xml')).toBe('aaec6c4e-48bc-5668-9dbb-57d637222774');
+    categoryIdentity = null;
+    await expect(
+      buildCategoryRssFeed(db, origin, mediaBase, 'learning', 'Learning', media().bucket),
+    ).rejects.toMatchObject({ status: 503 });
+  });
+
+  it('caps escaped summary characters without splitting entities or surrogate pairs', async () => {
+    catalogue(episode({ summary: '&😀'.repeat(3000) }));
+    const xml = await buildRssFeed(db, origin, mediaBase, media().bucket);
+    const html = xml.match(/<description><!\[CDATA\[([\s\S]*?)\]\]><\/description>/)?.[1] ?? '';
+    expect(html.length).toBeLessThanOrEqual(8007);
+    expect(html).toMatch(/^<p>(?:&amp;😀)*(?:&amp;)?<\/p>$/);
+  });
+  it('declares Podcasting 2.0 metadata and explicit per item without exposing private transcripts', async () => {
+    site.itunesExplicit = true;
+    const xml = await buildRssFeed(db, origin, mediaBase, media().bucket);
+    expect(xml).toContain('xmlns:podcast="https://podcastindex.org/namespace/1.0"');
+    expect(xml).toContain(`<podcast:guid>${podcastGuid('/feed.xml')}</podcast:guid>`);
+    expect(xml).toContain('<podcast:locked>no</podcast:locked>');
+    expect(xml.match(/<itunes:explicit>true<\/itunes:explicit>/g)).toHaveLength(2);
+    expect(xml).not.toContain('podcast:transcript');
+    expect(podcastGuid('/feed.xml')).not.toBe(podcastGuid('/feeds/learning.xml'));
+    expect(await buildRssFeed(db, 'https://hisfm.dev.hexly.ai', mediaBase, media().bucket)).toContain(
+      `<podcast:guid>${podcastGuid('/feed.xml')}</podcast:guid>`,
+    );
+  });
+
+  it('keeps an assigned GUID after a slug/category change and supports new opaque identities', async () => {
+    rows[0].guid = 'https://his.fm/episodes/old/old-slug';
+    rows[0].category = 'learning';
+    rows[0].slug = 'new-slug';
+    let xml = await buildRssFeed(db, origin, mediaBase, media().bucket);
+    expect(xml).toContain('<guid isPermaLink="true">https://his.fm/episodes/old/old-slug</guid>');
+    expect(xml).toContain('<link>https://his.fm/episodes/learning/new-slug</link>');
+    rows[0].guid = 'urn:his.fm:episode:episode-1';
+    xml = await buildRssFeed(db, origin, mediaBase, media().bucket);
+    expect(xml).toContain('<guid isPermaLink="false">urn:his.fm:episode:episode-1</guid>');
+  });
+
+  it('bounds rich descriptions without cutting markup and links to the complete notes', async () => {
+    catalogue(
+      episode({
+        summary: '简介'.repeat(1000),
+        mentions: Array.from({ length: 50 }, (_, i) => ({
+          name: `Link ${i}`,
+          description: '<&>'.repeat(150),
+          url: 'https://example.test/path',
+        })),
+      }),
+    );
+    const xml = await buildRssFeed(db, origin, mediaBase, media().bucket);
+    const html = xml.match(/<description><!\[CDATA\[([\s\S]*?)\]\]><\/description>/)?.[1] ?? '';
+    expect(html.length).toBeLessThanOrEqual(10000);
+    expect(html).toContain('完整节目介绍与相关链接');
+    expect(html.match(/<li>/g)?.length).toBeLessThan(50);
+    expect(html.match(/<li>/g)?.length).toBe(html.match(/<\/li>/g)?.length);
+    expect(html).not.toContain('<section>');
+    expect(html).not.toContain('<h2>');
+  });
+
+  it('fails closed when the feed query fails', async () => {
+    querySuccess = false;
+    await expect(buildRssFeed(db, origin, mediaBase, media().bucket)).rejects.toMatchObject({ status: 503 });
   });
 });

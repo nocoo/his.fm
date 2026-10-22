@@ -8,12 +8,16 @@ import { getAppearance } from './appearance';
 import { coverSource } from './cover';
 import { loadCoverFonts } from './cover-fonts';
 import { HttpError, json } from './http';
+import { streamMedia } from './media';
 import { coverDimensions } from './media-validation';
 import { readBytes } from './production-body';
 
 export const episodeArtRoute = /^\/episodes\/([^/]+)\/(art|share)\.jpg$/;
 const maxSourceBytes = 20_000_000;
-let composing = false;
+type ArtResult = { object: R2Object; source: 'r2-hit' | 'rendered' };
+const pendingRenders = new Map<string, Promise<ArtResult>>();
+const maxPendingRenders = 8;
+let renderTail = Promise.resolve();
 
 async function readSvg(env: Env, origin: string, path: string) {
   const response = await env.ASSETS.fetch(new Request(new URL(path, origin)));
@@ -93,10 +97,12 @@ export async function routeEpisodeArt(
         ? (caches as CacheStorage & { default: Cache }).default
         : undefined;
     const cacheKey = new Request(request.url);
-    const cached = await cache?.match(cacheKey).catch((error: unknown) => {
+    const ranged = request.method === 'GET' && request.headers.has('Range');
+    const cached = await (ranged ? undefined : cache?.match(cacheKey))?.catch((error: unknown) => {
       console.error(JSON.stringify({ event: 'episode_art_edge_read_failed', message: String(error) }));
     });
     let headers: Headers;
+    let metadata: R2Object | undefined;
     if (cached) {
       headers = new Headers(cached.headers);
       const length = headers.get('X-Hisfm-Art-Length');
@@ -105,6 +111,7 @@ export async function routeEpisodeArt(
       headers.set('X-Hisfm-Art', 'edge-hit');
     } else {
       const { object, source } = await ensureEpisodeArt(env, url.origin, record, theme, size);
+      metadata = object;
       headers = new Headers({
         'Content-Type': 'image/jpeg',
         'Content-Length': String(object.size),
@@ -115,6 +122,7 @@ export async function routeEpisodeArt(
         'X-Hisfm-Art': source,
       });
     }
+    headers.set('Accept-Ranges', 'bytes');
     const etags = request.headers.get('If-None-Match');
     const modifiedSince = request.headers.get('If-Modified-Since');
     if (
@@ -127,6 +135,10 @@ export async function routeEpisodeArt(
       await cached?.body?.cancel();
       headers.delete('Content-Length');
       return new Response(null, { status: 304, headers });
+    }
+    if (ranged && metadata) {
+      headers.delete('Content-Length');
+      return streamMedia(request, env.MEDIA, metadata, headers);
     }
     if (request.method === 'HEAD') {
       await cached?.body?.cancel();
@@ -159,61 +171,83 @@ export async function ensureEpisodeArt(
   episode: ArtRecord,
   theme: ThemeId | null,
   size = 1400,
-): Promise<{ object: R2Object; source: 'r2-hit' | 'rendered' }> {
+): Promise<ArtResult> {
   const { key } = await artLocation(episode, theme, size);
   const cached = await env.MEDIA.head(key);
   if (cached) return { object: cached, source: 'r2-hit' };
-  if (composing) throw new HttpError(503, '封面正在生成，请稍后重试');
-  composing = true;
-  try {
-    const width = theme ? size : 1200;
-    const height = theme ? size : 630;
-    const renderWidth = Math.min(width, 1600);
-    const renderHeight = Math.min(height, 1600);
-    const frame = await readSvg(
-      env,
-      origin,
-      theme ? themeCoverFrameSrc(theme) : '/brand/stillwood-wordmark.svg',
-    );
-    const { fonts, families } = theme
-      ? await loadCoverFonts(env, origin, coverText(theme, episode))
-      : { fonts: [], families: {} };
-    const stream = await sourceStream(env, origin, episode.coverUrl);
-    let jpeg: Uint8Array;
-    try {
-      const artwork = theme ? coverArtwork(theme) : null;
-      const source = await env.IMAGES.input(stream)
-        .transform({
-          width: artwork ? Math.ceil((renderWidth * artwork.width) / coverDesignSize) : 1600,
-          height: artwork ? Math.ceil((renderHeight * artwork.height) / coverDesignSize) : 1600,
-          fit: artwork ? 'cover' : 'contain',
-        })
-        .output({ format: 'image/webp', quality: 95, anim: false });
-      const bytes = await readBytes(source.response(), maxSourceBytes);
-      const dataUrl = `data:image/webp;base64,${Buffer.from(bytes).toString('base64')}`;
-      const svg = theme
-        ? composeCoverSvg(theme, episode, dataUrl, frame, families)
-        : composeShareSvg(frame, { dataUrl, ...coverDimensions(bytes) });
-      const { renderCoverJpeg } = await import('./cover-raster');
-      jpeg = await renderCoverJpeg(svg, fonts, renderWidth, renderHeight);
-      if (width > renderWidth) {
-        const output = await env.IMAGES.input(new Blob([new Uint8Array(jpeg)]).stream())
-          .transform({ width, height, fit: 'squeeze' })
-          .output({ format: 'image/jpeg', quality: 90, anim: false });
-        jpeg = await readBytes(output.response(), maxSourceBytes);
-      }
-    } catch (error) {
-      if (error instanceof HttpError) throw error;
-      throw new HttpError(422, '封面图片无法解码或排版，请检查原图后重试');
-    }
-    const stored = await env.MEDIA.put(key, jpeg, {
-      httpMetadata: { contentType: 'image/jpeg', cacheControl: 'public, max-age=31536000, immutable' },
-      onlyIf: { etagDoesNotMatch: '*' },
+  const pending = pendingRenders.get(key);
+  if (pending) return pending;
+  if (pendingRenders.size >= maxPendingRenders) throw new HttpError(503, '封面正在生成，请稍后重试');
+  const render = renderTail
+    .then(async (): Promise<ArtResult> => {
+      const cached = await env.MEDIA.head(key);
+      if (cached) return { object: cached, source: 'r2-hit' };
+      return renderEpisodeArt(env, origin, episode, theme, size, key);
+    })
+    .finally(() => {
+      pendingRenders.delete(key);
     });
-    const object = stored ?? (await env.MEDIA.head(key));
-    if (!object) throw new HttpError(503, '封面缓存暂时无法保存，请稍后重试');
-    return { object, source: 'rendered' };
-  } finally {
-    composing = false;
+  pendingRenders.set(key, render);
+  renderTail = render.then(
+    () => {},
+    () => {},
+  );
+  return render;
+}
+
+async function renderEpisodeArt(
+  env: Env,
+  origin: string,
+  episode: ArtRecord,
+  theme: ThemeId | null,
+  size: number,
+  key: string,
+): Promise<ArtResult> {
+  const width = theme ? size : 1200;
+  const height = theme ? size : 630;
+  const renderWidth = Math.min(width, 1600);
+  const renderHeight = Math.min(height, 1600);
+  const frame = await readSvg(
+    env,
+    origin,
+    theme ? themeCoverFrameSrc(theme) : '/brand/stillwood-wordmark.svg',
+  );
+  const { fonts, families } = theme
+    ? await loadCoverFonts(env, origin, coverText(theme, episode))
+    : { fonts: [], families: {} };
+  const stream = await sourceStream(env, origin, episode.coverUrl);
+  let jpeg: Uint8Array;
+  try {
+    const artwork = theme ? coverArtwork(theme) : null;
+    const source = await env.IMAGES.input(stream)
+      .transform({
+        width: artwork ? Math.ceil((renderWidth * artwork.width) / coverDesignSize) : 1600,
+        height: artwork ? Math.ceil((renderHeight * artwork.height) / coverDesignSize) : 1600,
+        fit: artwork ? 'cover' : 'contain',
+      })
+      .output({ format: 'image/webp', quality: 95, anim: false });
+    const bytes = await readBytes(source.response(), maxSourceBytes);
+    const dataUrl = `data:image/webp;base64,${Buffer.from(bytes).toString('base64')}`;
+    const svg = theme
+      ? composeCoverSvg(theme, episode, dataUrl, frame, families)
+      : composeShareSvg(frame, { dataUrl, ...coverDimensions(bytes) });
+    const { renderCoverJpeg } = await import('./cover-raster');
+    jpeg = await renderCoverJpeg(svg, fonts, renderWidth, renderHeight);
+    if (width > renderWidth) {
+      const output = await env.IMAGES.input(new Blob([new Uint8Array(jpeg)]).stream())
+        .transform({ width, height, fit: 'squeeze' })
+        .output({ format: 'image/jpeg', quality: 90, anim: false });
+      jpeg = await readBytes(output.response(), maxSourceBytes);
+    }
+  } catch (error) {
+    if (error instanceof HttpError) throw error;
+    throw new HttpError(422, '封面图片无法解码或排版，请检查原图后重试');
   }
+  const stored = await env.MEDIA.put(key, jpeg, {
+    httpMetadata: { contentType: 'image/jpeg', cacheControl: 'public, max-age=31536000, immutable' },
+    onlyIf: { etagDoesNotMatch: '*' },
+  });
+  const object = stored ?? (await env.MEDIA.head(key));
+  if (!object) throw new HttpError(503, '封面缓存暂时无法保存，请稍后重试');
+  return { object, source: 'rendered' };
 }
