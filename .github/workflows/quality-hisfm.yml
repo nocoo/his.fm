@@ -221,7 +221,7 @@ jobs:
           persist-credentials: false
 
       - name: Configure test environment
-        uses: nocoo/base-ci/.github/actions/configure-env@908d392767f22fc305256ac3fef653ee003173e0
+        uses: nocoo/base-ci/.github/actions/configure-env@0394178ebcff0418c442d84a84119220f31f8987 # v2026.9
         with:
           env-json: ${{ inputs.env-json }}
 
@@ -414,7 +414,7 @@ jobs:
           persist-credentials: false
 
       - name: Configure test environment
-        uses: nocoo/base-ci/.github/actions/configure-env@908d392767f22fc305256ac3fef653ee003173e0
+        uses: nocoo/base-ci/.github/actions/configure-env@0394178ebcff0418c442d84a84119220f31f8987 # v2026.9
         with:
           env-json: ${{ inputs.env-json }}
 
