@@ -3,6 +3,7 @@ import { themeFaviconSrc } from '../src/brand/themes';
 import { discoveryLinks, routeAgent, routeDiscovery } from './agent-api';
 import { getAppearance } from './appearance';
 import { accessLogin, authenticate, isLocal, localLogin, logout } from './auth';
+import { routeEpisodeCard } from './card';
 import { getCategory, listCategories } from './categories';
 import { episodeArtRoute, routeEpisodeArt } from './episode-art';
 import { routeEpisodeThumbnail } from './episode-thumbnails';
@@ -164,6 +165,7 @@ async function route(request: Request, env: Env, ctx?: ExecutionContext): Promis
     const response = json({ seo });
     return request.method === 'HEAD' ? new Response(null, response) : response;
   }
+  if (path === '/api/card') return routeEpisodeCard(request, env);
   const nestedEpisode = /^\/api\/episodes\/([^/]+)\/([^/]+)$/.exec(path);
   if (nestedEpisode) {
     if (request.method !== 'GET') throw new HttpError(405, '不支持这个请求方式');

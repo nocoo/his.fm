@@ -620,6 +620,52 @@ describe('public podcast catalog', () => {
     }
   });
 
+  it('serves embeddable episode cards for published pages with CORS and cache headers', async () => {
+    const bytes = new Uint8Array([0, 1, 2, 3, 4]);
+    await env.MEDIA.put('sample.mp3', bytes, { httpMetadata: { contentType: 'audio/mpeg' } });
+    const episode = await create({ audioUrl: '/media/sample.mp3' });
+    const pageUrl = `${origin}/episodes/${episode.category}/${episode.slug}`;
+    const card = await call(`/api/card?url=${encodeURIComponent(pageUrl)}`);
+    expect(card.status).toBe(200);
+    expect(card.headers.get('Access-Control-Allow-Origin')).toBe('*');
+    expect(card.headers.get('Cache-Control')).toBe('public, max-age=300, stale-while-revalidate=3600');
+    const payload = (await card.json()) as Record<string, unknown>;
+    expect(payload).toMatchObject({
+      v: 1,
+      status: 'published',
+      page_url: pageUrl,
+      title: episode.title,
+      description: episode.summary,
+      show: 'his.fm',
+      column: '主理人手札',
+      episode_label: '主理人手札 EP.07',
+      published_at: episode.publishedAt,
+      duration: episode.durationSeconds,
+      audio: { mime: 'audio/mpeg', bytes: bytes.byteLength },
+    });
+    expect((payload.audio as { url: string }).url).toContain('sample.mp3');
+    expect((await call('/api/card', { method: 'OPTIONS' })).status).toBe(204);
+    expect(
+      (await call(`/api/card?url=${encodeURIComponent(pageUrl)}`, { method: 'HEAD' })).headers.get(
+        'Cache-Control',
+      ),
+    ).toBe('public, max-age=300, stale-while-revalidate=3600');
+    expect((await call('/api/card')).status).toBe(400);
+    expect((await call('/api/card?url=https://his.fm/about')).status).toBe(400);
+    expect(
+      await (
+        await call(
+          `/api/card?url=${encodeURIComponent(`${origin}/episodes/${episode.category}/missing-slug`)}`,
+        )
+      ).json(),
+    ).toEqual({ v: 1, status: 'not_found' });
+    await create({ slug: 'draft-card', status: 'draft', publishedAt: null, episodeNumber: undefined });
+    expect(
+      (await call(`/api/card?url=${encodeURIComponent(`${origin}/episodes/manager-notes/draft-card`)}`))
+        .status,
+    ).toBe(404);
+  });
+
   it('includes audio enclosures when episodes have playable media', async () => {
     const bytes = new Uint8Array([0, 1, 2, 3, 4]);
     await env.MEDIA.put('sample.mp3', bytes, { httpMetadata: { contentType: 'audio/mpeg' } });
