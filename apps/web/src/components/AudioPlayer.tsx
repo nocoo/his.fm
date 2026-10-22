@@ -4,6 +4,7 @@ import { Headphones, LoaderCircle, Pause, Play, RotateCcw, Volume2, VolumeX } fr
 import { useEffect, useRef, useState } from 'react';
 import { audioErrorMessage, formatAudioTime } from './AudioPlayer.model';
 import { FramedCover } from './FramedCover';
+import { clearMediaMetadata, setMediaMetadata } from './services/media-session';
 import './AudioPlayer.css';
 
 export type AudioPlayerProps = {
@@ -12,6 +13,7 @@ export type AudioPlayerProps = {
   coverUrl?: string;
   coverSrcSet?: string;
   coverSizes?: string;
+  mediaArtworkUrl?: string;
   episodeNumber?: number;
   categoryName?: string;
   subtitle?: string;
@@ -34,6 +36,7 @@ function Player({
   coverUrl,
   coverSrcSet,
   coverSizes,
+  mediaArtworkUrl,
   episodeNumber,
   categoryName,
   subtitle,
@@ -43,6 +46,7 @@ function Player({
   preload = 'metadata',
 }: AudioPlayerProps) {
   const audioRef = useRef<HTMLAudioElement>(null);
+  const mediaMetadata = useRef<MediaMetadata | null>(null);
   const scrubbing = useRef(false);
   const [playing, setPlaying] = useState(false);
   const [loading, setLoading] = useState(preload !== 'none');
@@ -60,8 +64,14 @@ function Player({
     return () => {
       audio?.pause();
       if (activeAudio === audio) activeAudio = null;
+      clearMediaMetadata(mediaMetadata.current);
     };
   }, []);
+
+  useEffect(() => {
+    if (activeAudio === audioRef.current)
+      mediaMetadata.current = setMediaMetadata(title, categoryName, mediaArtworkUrl);
+  }, [title, categoryName, mediaArtworkUrl]);
 
   async function togglePlayback() {
     const audio = audioRef.current;
@@ -130,6 +140,7 @@ function Player({
         onPlay={(event) => {
           if (activeAudio && activeAudio !== event.currentTarget) activeAudio.pause();
           activeAudio = event.currentTarget;
+          mediaMetadata.current = setMediaMetadata(title, categoryName, mediaArtworkUrl);
           setPlaying(true);
         }}
         onPause={() => setPlaying(false)}
@@ -143,6 +154,8 @@ function Player({
         }}
         onRateChange={(event) => setSpeed(event.currentTarget.playbackRate)}
         onError={(event) => {
+          clearMediaMetadata(mediaMetadata.current);
+          if (activeAudio === event.currentTarget) activeAudio = null;
           setError(audioErrorMessage(event.currentTarget.error?.code));
           setLoading(false);
           setPlaying(false);

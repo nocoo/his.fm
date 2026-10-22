@@ -312,6 +312,46 @@ test('play, pause, volume, mute and speed control the hidden media engine; cover
   expect(state.writes).toEqual([]);
 });
 
+test('native media metadata follows public playback, pauses and episode navigation', async ({ page }) => {
+  const state = await mockPlayer(page);
+  const errors: string[] = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  await page.goto('/episodes/player-first?theme=interval');
+  await ready(page);
+  const metadata = () =>
+    page.evaluate(() => {
+      const value = navigator.mediaSession.metadata;
+      return (
+        value && { title: value.title, artist: value.artist, album: value.album, artwork: value.artwork }
+      );
+    });
+  expect(await metadata()).toBeNull();
+  const player = page.locator('.his-audio-player');
+  await player.getByRole('button', { name: '播放', exact: true }).click();
+  await expect.poll(metadata).toEqual({
+    title: '播放器交互测试',
+    artist: 'his.fm',
+    album: '测试栏目',
+    artwork: [
+      { src: new URL('/episodes/first/art.jpg', page.url()).href, sizes: '1400x1400', type: 'image/jpeg' },
+    ],
+  });
+  await player.getByRole('button', { name: '暂停', exact: true }).click();
+  expect((await metadata())?.title).toBe('播放器交互测试');
+  await player.getByRole('button', { name: '播放', exact: true }).click();
+  await page.getByRole('link', { name: '另一段测试音频', exact: true }).click();
+  await ready(page, 45);
+  expect(await metadata()).toBeNull();
+  await player.getByRole('button', { name: '播放', exact: true }).click();
+  await expect.poll(async () => (await metadata())?.title).toBe('另一段测试音频');
+  expect((await metadata())?.artwork[0].src).toBe(new URL('/episodes/second/art.jpg', page.url()).href);
+  await page.locator('.detail-page > .back-link').click();
+  await expect(player).toHaveCount(0);
+  expect(await metadata()).toBeNull();
+  expect(errors).toEqual([]);
+  expect(state.writes).toEqual([]);
+});
+
 test('loading and media errors stay actionable, and retry reloads only the mock audio', async ({ page }) => {
   const state = await mockPlayer(page);
   state.hold();

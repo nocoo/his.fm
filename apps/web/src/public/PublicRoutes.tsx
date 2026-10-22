@@ -465,6 +465,7 @@ function EpisodeDetail() {
                     coverUrl={cover?.src}
                     coverSrcSet={cover?.srcSet}
                     coverSizes={episodeThumbnailSizes(coverArtwork(theme).width / coverDesignSize, true)}
+                    mediaArtworkUrl={`${origin}/episodes/${encodeURIComponent(episode.id)}/art.jpg`}
                     episodeNumber={episode.episodeNumber}
                     categoryName={categories.find((item) => item.id === episode.category)?.name ?? ''}
                     subtitle={episodeDisplayLabel(episode, categories)}

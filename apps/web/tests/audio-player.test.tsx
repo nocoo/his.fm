@@ -10,8 +10,19 @@ import { AudioPlayer } from '../src/components/AudioPlayer';
 describe('shared audio player preview behavior', () => {
   let container: HTMLDivElement;
   let root: Root;
+  const mediaSession: { metadata: MediaMetadataInit | null } = { metadata: null };
 
   beforeEach(() => {
+    mediaSession.metadata = null;
+    vi.stubGlobal('navigator', { mediaSession });
+    vi.stubGlobal(
+      'MediaMetadata',
+      class {
+        constructor(metadata: MediaMetadataInit) {
+          Object.assign(this, metadata);
+        }
+      },
+    );
     vi.spyOn(HTMLMediaElement.prototype, 'play').mockImplementation(async function (this: HTMLMediaElement) {
       Object.defineProperty(this, 'paused', { configurable: true, value: false });
       this.dispatchEvent(new Event('play'));
@@ -31,6 +42,7 @@ describe('shared audio player preview behavior', () => {
     act(() => root.unmount());
     container.remove();
     vi.restoreAllMocks();
+    vi.unstubAllGlobals();
   });
 
   it('preserves full-player heading, status and controls by default', async () => {
@@ -125,7 +137,80 @@ describe('shared audio player preview behavior', () => {
     );
     await act(async () => container.querySelector<HTMLButtonElement>('.his-audio-play')?.click());
     expect(container.querySelector('[role="status"]')?.textContent).toBe('播放未能开始，请再次点击播放。');
+    expect(mediaSession.metadata).toBeNull();
     await act(async () => container.querySelector<HTMLButtonElement>('.his-audio-play')?.click());
     expect(container.querySelector('[role="status"]')?.textContent).toBe('正在播放');
+  });
+
+  it('publishes artwork only on play, retains it while paused and refreshes active details', async () => {
+    const render = (title: string, categoryName: string, mediaArtworkUrl: string) =>
+      root.render(
+        <AudioPlayer
+          src="/episode.mp3"
+          title={title}
+          categoryName={categoryName}
+          mediaArtworkUrl={mediaArtworkUrl}
+          preload="none"
+        />,
+      );
+    await act(async () => render('First', 'Programme', 'https://his.fm/episodes/first/art.jpg'));
+    expect(mediaSession.metadata).toBeNull();
+    await act(async () => container.querySelector<HTMLButtonElement>('.his-audio-play')?.click());
+    expect(mediaSession.metadata).toEqual({
+      title: 'First',
+      artist: 'his.fm',
+      album: 'Programme',
+      artwork: [{ src: 'https://his.fm/episodes/first/art.jpg', sizes: '1400x1400', type: 'image/jpeg' }],
+    });
+    const playingMetadata = mediaSession.metadata;
+    await act(async () => container.querySelector<HTMLButtonElement>('.his-audio-play')?.click());
+    expect(mediaSession.metadata).toBe(playingMetadata);
+    await act(async () => render('Corrected', 'New programme', 'https://his.fm/episodes/new/art.jpg'));
+    expect(mediaSession.metadata?.title).toBe('Corrected');
+    expect(mediaSession.metadata?.album).toBe('New programme');
+    expect(mediaSession.metadata?.artwork?.[0].src).toBe('https://his.fm/episodes/new/art.jpg');
+    await act(async () => container.querySelector('audio')?.dispatchEvent(new Event('ended')));
+    expect(mediaSession.metadata?.title).toBe('Corrected');
+    await act(async () => root.render(null));
+    expect(mediaSession.metadata).toBeNull();
+  });
+
+  it('never lets an inactive player update or clear the active preview metadata', async () => {
+    const render = (title: string, showEpisode = true) =>
+      root.render(
+        <>
+          {showEpisode && (
+            <AudioPlayer key="episode" src="/episode.mp3" title={title} mediaArtworkUrl="/art.jpg" />
+          )}
+          <AudioPlayer key="preview" src="/preview.mp3" title="Preview" compact />
+        </>,
+      );
+    await act(async () => render('Episode'));
+    const buttons = container.querySelectorAll<HTMLButtonElement>('.his-audio-play');
+    await act(async () => buttons[0].click());
+    await act(async () => buttons[1].click());
+    const previewMetadata = mediaSession.metadata;
+    expect(previewMetadata?.title).toBe('Preview');
+    expect(previewMetadata?.artwork).toEqual([]);
+    await act(async () => render('Inactive update'));
+    expect(mediaSession.metadata).toBe(previewMetadata);
+    await act(async () => container.querySelector('audio')?.dispatchEvent(new Event('error')));
+    expect(mediaSession.metadata).toBe(previewMetadata);
+    await act(async () => render('Inactive update', false));
+    expect(mediaSession.metadata).toBe(previewMetadata);
+  });
+
+  it('clears stale metadata on source replacement and active media errors', async () => {
+    await act(async () => root.render(<AudioPlayer src="/first.mp3" title="First" />));
+    await act(async () => container.querySelector<HTMLButtonElement>('.his-audio-play')?.click());
+    expect(mediaSession.metadata?.title).toBe('First');
+    await act(async () => root.render(<AudioPlayer src="/second.mp3" title="Second" />));
+    expect(mediaSession.metadata).toBeNull();
+    await act(async () => container.querySelector<HTMLButtonElement>('.his-audio-play')?.click());
+    expect(mediaSession.metadata?.title).toBe('Second');
+    await act(async () => container.querySelector('audio')?.dispatchEvent(new Event('error')));
+    expect(mediaSession.metadata).toBeNull();
+    await act(async () => root.render(<AudioPlayer src="/second.mp3" title="Changed after error" />));
+    expect(mediaSession.metadata).toBeNull();
   });
 });

@@ -1078,3 +1078,11 @@ the key, and accept completion only after movement. Keep full-visibility checks
 and test deadlines unchanged; do not patch application scrolling to hide a
 test's broken sequencing. Isolated baseline and current-code passes alone did
 not prove the batch failure was a historical application defect.
+
+## 2026-10-22 - Scope repeated navigation labels in playback tests
+
+The new Media Session browser regression passed playback, pause and episode
+switching, then failed because an exact "all episodes" link name matched the
+header, detail back control, related section and footer. Scope the interaction
+to the detail back control instead of assuming an accessible name is globally
+unique. Keep strict selectors and rerun the complete player regression batch.
