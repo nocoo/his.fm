@@ -262,6 +262,9 @@ describe('finished cover controller', () => {
       expect(svg).toContain('追多少个 AI？');
       expect(svg).toContain('生活留白');
       expect(svg).toContain('Test Sans');
+      expect(svg.includes('data-cover-lockup="canonical"')).toBe(
+        theme === 'stillwood' || theme === 'alpine-bloom',
+      );
       expect(svg).not.toContain(production.transcript);
       expect(svg).not.toContain('Private transcript');
       expect(assets).toEqual([`/brand/frames/${theme}.svg`]);

@@ -1,4 +1,5 @@
 import type { ThemeId } from './appearance';
+import { coverLayouts } from './cover-composition';
 import type { PublicEpisode } from './episode';
 
 export type ArtRecord = {
@@ -22,7 +23,14 @@ export async function artVersion(
   theme: ThemeId | null,
 ) {
   const inputs = theme
-    ? [record.coverUrl, theme, record.title, record.episodeNumber, record.categoryName]
+    ? [
+        record.coverUrl,
+        theme,
+        record.title,
+        record.episodeNumber,
+        record.categoryName,
+        coverLayouts[theme].frameDigest,
+      ]
     : [record.coverUrl];
   const digest = await crypto.subtle.digest(
     'SHA-256',

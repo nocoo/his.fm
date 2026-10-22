@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { Miniflare, Response as MiniflareResponse } from 'miniflare';
 import sharp from 'sharp';
@@ -151,6 +152,39 @@ describe('versioned artwork edge cache', () => {
     await env.MEDIA.put(location.key, bytes);
     return new URL(location.url, origin);
   }
+
+  it.each(['stillwood', 'alpine-bloom'] as const)(
+    'redirects cached pre-lockup %s URLs before reading either cache',
+    async (theme) => {
+      await env.DB.prepare('UPDATE site_appearance SET theme = ?').bind(theme).run();
+      const record = {
+        resource: 'episodes' as const,
+        id: 'one',
+        title: '下班后，慢慢来',
+        episodeNumber: 1,
+        categoryName: '生活',
+        coverUrl: `https://f.no.mt/${key}`,
+      };
+      const oldVersion = createHash('sha256')
+        .update(JSON.stringify(['jpeg-v1', record.coverUrl, theme, record.title, 1, '生活']))
+        .digest('hex');
+      const oldRequest = request('art', `?v=${oldVersion}`);
+      await edge.put(oldRequest, new Response(bytes));
+      await env.MEDIA.put(`rendered/episodes/one/art/${theme}/${oldVersion}/1400.jpg`, bytes);
+      const head = vi.fn(env.MEDIA.head.bind(env.MEDIA));
+      const response = await routeEpisodeArt(
+        oldRequest,
+        { ...env, MEDIA: { ...env.MEDIA, head } },
+        'one',
+        'art',
+      );
+      expect(response.status).toBe(302);
+      expect(response.headers.get('Location')).toBe((await artLocation(record, theme)).url);
+      expect(response.headers.get('Cache-Control')).toBe('no-store');
+      expect(head).not.toHaveBeenCalled();
+      expect(await response.text()).toBe('');
+    },
+  );
 
   it.each(['art', 'share'] as const)(
     'serves pregenerated %s then edge GET, HEAD and 304 without R2',

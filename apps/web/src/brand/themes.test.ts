@@ -1,6 +1,8 @@
+import { createHash } from 'node:crypto';
 import { readdirSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { themeIds } from '../shared/appearance';
+import { coverLayouts } from '../shared/cover-composition';
 import { themeChromeColor, themeCoverFrameSrc, themeFaviconSrc, themes } from './themes';
 
 it('matches browser chrome to dark home headers, paper inner pages and the preview banner', () => {
@@ -30,6 +32,33 @@ describe('theme cover frames', () => {
       expect(themeCoverFrameSrc(id)).toBe(`/brand/frames/${id}.svg`);
     }
   });
+
+  it('versions finished artwork with the exact exported frame bytes', () => {
+    for (const id of themeIds) {
+      const frame = readFileSync(new URL(`../../public/brand/frames/${id}.svg`, import.meta.url));
+      expect(coverLayouts[id].frameDigest).toBe(createHash('sha256').update(frame).digest('hex'));
+    }
+  });
+
+  it.each([
+    ['stillwood', 59, 46, 319, '#ffffff'],
+    ['alpine-bloom', 54, 41, 334, '#404F50'],
+  ] as const)(
+    'uses the canonical left-aligned lockup in %s without changing the identity',
+    (id, x, y, width, color) => {
+      const identity = readFileSync(new URL('./identity.svg', import.meta.url), 'utf8');
+      const wordmark = identity.match(/<symbol id="wordmark"[^>]*>(.*?)<\/symbol>/s)?.[1];
+      const symbol = identity.match(/<symbol id="symbol"[^>]*>(.*?)<\/symbol>/s)?.[1];
+      expect(wordmark).toBeTruthy();
+      expect(symbol).toBeTruthy();
+      const frame = readFileSync(new URL(`../../public/brand/frames/${id}.svg`, import.meta.url), 'utf8');
+      const scale = width / 600;
+      expect(frame).toContain(
+        `<g data-cover-lockup="canonical" color="${color}" transform="translate(${x - 25.04 * scale} ${y}) scale(${scale})">${wordmark}<g transform="translate(${600 + (600 * 8) / 116} 0) scale(${170 / 128})">${symbol}</g></g>`,
+      );
+      expect(frame).not.toContain('<text');
+    },
+  );
 });
 
 describe('canonical theme favicons', () => {

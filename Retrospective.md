@@ -1093,3 +1093,14 @@ The Safari canvas change placed a plain `body` rule after the scoped public
 body selector. The normal commit hook rejected the descending-specificity
 warning. Keep base element rules before contextual overrides rather than
 disabling the lint rule for an otherwise small stylesheet.
+
+## 2026-10-22 - Separate browser and Node TLS verification
+
+The cover acceptance probe assumed Playwright's Node request client shared
+Chrome's trust in the local Caddy certificate. Chrome loaded the page, but the
+request client rejected the certificate chain. Verify API exports with an
+already trusted client, without disabling TLS validation or changing Keychain
+trust. Keep browser cleanup in `finally` so failed API probes do not leave a
+test browser running. Use exact-path file deletion for temporary cookie jars;
+the first shell cleanup was rejected because it used the prohibited `rm -f`
+form, and no files were deleted by that rejected command.

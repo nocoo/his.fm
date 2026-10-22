@@ -5,6 +5,7 @@ import argparse
 import hashlib
 import importlib.util
 import json
+import re
 import sys
 import tempfile
 from pathlib import Path
@@ -45,6 +46,21 @@ ART_WINDOWS = {
 }
 
 
+def canonical_cover_logo(x: float, y: float, width: float, color: str) -> str:
+    identity = (ROOT / 'apps/web/src/brand/identity.svg').read_text()
+    wordmark = re.search(r'<symbol id="wordmark"[^>]*>(.*?)</symbol>', identity, re.S)[1]
+    symbol = re.search(r'<symbol id="symbol"[^>]*>(.*?)</symbol>', identity, re.S)[1]
+    scale = width / 600
+    # The first round stroke starts at (10 - 14 / 2) * 1.68 + 20, not at the viewBox edge.
+    left_inset = 25.04
+    return (
+        f'<g data-cover-lockup="canonical" color="{color}" '
+        f'transform="translate({x - left_inset * scale} {y}) scale({scale})">'
+        f'{wordmark}<g transform="translate({600 + 600 * 8 / 116} 0) scale({170 / 128})">'
+        f'{symbol}</g></g>'
+    )
+
+
 def svg_body(content: str) -> str:
     return (
         f'<svg xmlns="http://www.w3.org/2000/svg" width="{EXPORT_SIZE}" height="{EXPORT_SIZE}" '
@@ -66,6 +82,12 @@ def export_frames(destination: Path, layout_path: Path, quiet: bool = False) -> 
         paper, ink, accent = [c for _, c in brand['palette'][:3]]
         slots = []
         outline = assets.text
+        place_logo = assets.place_logo
+
+        def cover_logo(num, x, y, width, color):
+            if num in ('05', '08'):
+                return canonical_cover_logo(x, y, width, '#ffffff' if num == '05' else ink)
+            return place_logo(num, x, y, width, color)
 
         def capture(value, x, y, size, color, font='noto-sans-sc', weight=500, max_width=None, tracking=0):
             if any(token in value for token in ('{number}', '{category}', '{title1}', '{title2}')):
@@ -88,12 +110,14 @@ def export_frames(destination: Path, layout_path: Path, quiet: bool = False) -> 
             return outline(value, x, y, size, color, font, weight, max_width, tracking)
 
         assets.text = capture
+        assets.place_logo = cover_logo
         try:
             content = assets.frame(brand, {
                 'number': '{number}', 'tag': '{category}', 'lines': ('{title1}', '{title2}'),
             })
         finally:
             assets.text = outline
+            assets.place_logo = place_logo
         if theme_id == 'tidal-hours':
             content += (
                 f'<rect x="1" y="1" width="1022" height="1022" fill="none" '
@@ -104,8 +128,10 @@ def export_frames(destination: Path, layout_path: Path, quiet: bool = False) -> 
             if key not in font_widths:
                 glyphs, cmap, units = assets.font_data(slot['font'], slot['weight'])
                 font_widths[key] = [round(glyphs[cmap[point]].width / units, 6) for point in range(32, 127)]
-        (destination / f'{theme_id}.svg').write_text(svg_body(content))
+        frame = svg_body(content)
+        (destination / f'{theme_id}.svg').write_text(frame)
         layouts[theme_id] = {
+            'frameDigest': hashlib.sha256(frame.encode()).hexdigest(),
             'paper': paper,
             'ink': ink,
             'accent': accent,

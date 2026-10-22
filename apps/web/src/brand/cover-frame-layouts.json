@@ -3,6 +3,7 @@
   "designSize": 1024,
   "themes": {
     "grove": {
+      "frameDigest": "fff86d1f2a4ee262f2ec9500ff1a8bab6eaee7c001107b0c4cd76991b4ce88a7",
       "paper": "#F3F3EC",
       "ink": "#213E2D",
       "accent": "#759C45",
@@ -60,6 +61,7 @@
       ]
     },
     "interval": {
+      "frameDigest": "49fd5aefe4621f6a3625513af306e70b77f06184686f13ac20e5d9967205ce76",
       "paper": "#F5F4EE",
       "ink": "#1C211A",
       "accent": "#D6F25B",
@@ -128,6 +130,7 @@
       ]
     },
     "soft-landing": {
+      "frameDigest": "11b4035944ee7adbd48d8503afba184d3acdd445733067688f23f543be56352d",
       "paper": "#F5EDCF",
       "ink": "#423048",
       "accent": "#D8C8EA",
@@ -174,6 +177,7 @@
       ]
     },
     "human-sample": {
+      "frameDigest": "4ce459a3e4cb9a95dd784f5601f09bf152c2b003f3fc93160e5b598e9635b9b5",
       "paper": "#F2F0E6",
       "ink": "#20241E",
       "accent": "#BCEF52",
@@ -231,6 +235,7 @@
       ]
     },
     "stillwood": {
+      "frameDigest": "f4265951c78939dbda1168d1bfa79b7d592d8ea3074d35ed0c98c813e3998b65",
       "paper": "#ECEBE1",
       "ink": "#263C35",
       "accent": "#A6AF94",
@@ -277,6 +282,7 @@
       ]
     },
     "tidal-hours": {
+      "frameDigest": "6fc4fcbdc5703c37391796b489afae5e1cad54044238574858d0c935b963f360",
       "paper": "#EFF1EB",
       "ink": "#344C57",
       "accent": "#B3C5C5",
@@ -334,6 +340,7 @@
       ]
     },
     "window-seat": {
+      "frameDigest": "c21db0d050be9351be665133ce8e3107f03dc320bf30f185c03f4127952d0040",
       "paper": "#E9E7DF",
       "ink": "#293940",
       "accent": "#CEB581",
@@ -391,6 +398,7 @@
       ]
     },
     "alpine-bloom": {
+      "frameDigest": "49117211a6fc63b5945e27c4fa5329569e8007a8945ef0e58ba7d6b832bca4dc",
       "paper": "#F0F1E9",
       "ink": "#404F50",
       "accent": "#B8C8D9",

@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { Miniflare } from 'miniflare';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { coverLayouts } from '../../src/shared/cover-composition';
 import { type Episode, projectPublicEpisode } from '../../src/shared/episode';
 import { type ArtRecord, artLocation, artVersion, withShareArtwork } from '../../src/shared/episode-art';
 import { artRecords, currentArtPrefixes } from '../../worker/episode-art-cache';
@@ -73,7 +74,17 @@ afterAll(() => mf.dispose());
 describe('versioned managed episode artwork descriptors', () => {
   it('hashes the explicit JPEG descriptor with SHA-256 and separates every square input', async () => {
     const expected = createHash('sha256')
-      .update(JSON.stringify(['jpeg-v1', record.coverUrl, 'stillwood', record.title, 8, '生活']))
+      .update(
+        JSON.stringify([
+          'jpeg-v1',
+          record.coverUrl,
+          'stillwood',
+          record.title,
+          8,
+          '生活',
+          coverLayouts.stillwood.frameDigest,
+        ]),
+      )
       .digest('hex');
     expect(await artVersion(record, 'stillwood')).toBe(expected);
     expect(await artVersion({ ...record }, 'stillwood')).toBe(expected);
@@ -90,6 +101,23 @@ describe('versioned managed episode artwork descriptors', () => {
       await artVersion({ ...record, title: 'a', categoryName: '1,b' }, 'stillwood'),
     );
   });
+
+  it.each(['stillwood', 'alpine-bloom'] as const)(
+    'invalidates pre-lockup %s artwork without changing share artwork',
+    async (theme) => {
+      const oldVersion = createHash('sha256')
+        .update(JSON.stringify(['jpeg-v1', record.coverUrl, theme, record.title, 8, '生活']))
+        .digest('hex');
+      const location = await artLocation(record, theme);
+      expect(location.version).not.toBe(oldVersion);
+      expect(location.key).toContain(`/${theme}/${location.version}/`);
+      expect(await artVersion(record, null)).toBe(
+        createHash('sha256')
+          .update(JSON.stringify(['jpeg-v1', record.coverUrl]))
+          .digest('hex'),
+      );
+    },
+  );
 
   it('versions share images only by original cover, independently of copy and saved theme', async () => {
     const version = await artVersion(record, null);
