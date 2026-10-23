@@ -15,7 +15,11 @@ export function SeoOverrideFields({
 }) {
   return (
     <div className="admin-fields">
-      <Field label="SEO 标题" htmlFor={`${idPrefix}-title`} hint="留空则使用页面默认标题。">
+      <Field
+        label="SEO 标题"
+        htmlFor={`${idPrefix}-title`}
+        hint="写清具体主题，避免只用栏目名或日期；留空则使用页面默认标题。"
+      >
         <Input
           id={`${idPrefix}-title`}
           value={value.title ?? ''}

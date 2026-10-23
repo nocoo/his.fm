@@ -80,7 +80,10 @@ export async function maybeServePublicHtml(request: Request, env: Env): Promise<
   } else if (path === '/episodes') {
     const categoryId = url.searchParams.get('category');
     const category = categories.find((item) => item.id === categoryId);
-    seo = resolveCatalogueSeo(site, origin, category, category?.seo);
+    const count = records.filter(
+      (episode) => categoryId === null || categoryId === 'all' || episode.category === categoryId,
+    ).length;
+    seo = resolveCatalogueSeo(site, origin, count, category);
   } else if (categoryEpisode) {
     const [, categoryId, slug] = categoryEpisode;
     const episode = episodes.find((item) => item.category === categoryId && item.slug === slug);

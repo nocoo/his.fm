@@ -48,7 +48,7 @@ describe('seo-resolve', () => {
     const site = siteSeoSchema.parse({});
     expect(resolveSiteDefaults(site, origin).canonical).toBe(`${origin}/`);
     expect(resolveAboutPageSeo(site, origin).canonical).toBe(`${origin}/about`);
-    expect(resolveCatalogueSeo(site, origin).canonical).toBe(`${origin}/episodes`);
+    expect(resolveCatalogueSeo(site, origin, 1).canonical).toBe(`${origin}/episodes`);
     const category = {
       id: 'manager-notes',
       name: '主理人手札',
@@ -56,7 +56,26 @@ describe('seo-resolve', () => {
       color: 'blue' as const,
       seo: { noindex: true },
     };
-    expect(resolveCatalogueSeo(site, origin, category, category.seo).noindex).toBe(true);
+    expect(resolveCatalogueSeo(site, origin, 1, category).noindex).toBe(true);
+  });
+
+  it('keeps empty catalogues out of the index and restores populated categories unless explicitly hidden', () => {
+    const site = siteSeoSchema.parse({});
+    const category = {
+      id: 'learning',
+      name: '每日手冲',
+      icon: 'coffee' as const,
+      color: 'blue' as const,
+      seo: { description: '整理 AI 动态，聊聊变化怎样进入工作。', noindex: false },
+    };
+    expect(resolveCatalogueSeo(site, origin, 0).noindex).toBe(true);
+    const empty = resolveCatalogueSeo(site, origin, 0, category);
+    expect(empty.noindex).toBe(true);
+    expect(empty.canonical).toBe(`${origin}/episodes?category=learning`);
+    expect(empty.description).toBe(category.seo.description);
+    expect(resolveCatalogueSeo(site, origin, 1, category).noindex).toBe(false);
+    expect(resolveCatalogueSeo(site, origin, 1, { ...category, seo: { noindex: true } }).noindex).toBe(true);
+    expect(resolveCatalogueSeo(site, origin, 1, { ...category, seo: {} }).description).toContain('每日手冲');
   });
 
   it.each([undefined, '', '/brand/share.jpg', 'https://cdn.example.test/site.jpg'])(
@@ -74,8 +93,8 @@ describe('seo-resolve', () => {
       for (const resolved of [
         resolveSiteDefaults(site, origin),
         resolveAboutPageSeo(site, origin),
-        resolveCatalogueSeo(site, origin),
-        resolveCatalogueSeo(site, origin, category),
+        resolveCatalogueSeo(site, origin, 1),
+        resolveCatalogueSeo(site, origin, 1, category),
       ]) {
         expect(resolved.ogImageUrl).toBe(expected);
       }
@@ -90,13 +109,13 @@ describe('seo-resolve', () => {
     for (const resolved of [
       resolveSiteDefaults(site, origin),
       resolveAboutPageSeo(site, origin),
-      resolveCatalogueSeo(site, origin),
+      resolveCatalogueSeo(site, origin, 1),
     ]) {
       expect(resolved.ogImageUrl).toBe(site.overrides?.ogImageUrl);
     }
     const override = { ogImageUrl: '/images/page.jpg' };
     expect(resolveAboutPageSeo(site, origin, override).ogImageUrl).toBe(`${origin}/images/page.jpg`);
-    expect(resolveCatalogueSeo(site, origin, undefined, override).ogImageUrl).toBe(
+    expect(resolveCatalogueSeo(site, origin, 1, undefined, override).ogImageUrl).toBe(
       `${origin}/images/page.jpg`,
     );
   });
@@ -107,7 +126,7 @@ describe('seo-resolve', () => {
     for (const resolved of [
       resolveSiteDefaults(site, localOrigin),
       resolveAboutPageSeo(site, localOrigin),
-      resolveCatalogueSeo(site, localOrigin),
+      resolveCatalogueSeo(site, localOrigin, 1),
     ]) {
       expect(resolved.ogImageUrl).toBe(`${localOrigin}/brand/share.jpg`);
     }

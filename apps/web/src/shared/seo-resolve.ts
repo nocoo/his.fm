@@ -54,8 +54,9 @@ export function resolveAboutPageSeo(site: SiteSeo, origin: string, override?: Se
 export function resolveCatalogueSeo(
   site: SiteSeo,
   origin: string,
+  episodeCount: number,
   category?: PublicCategory,
-  override?: SeoOverride,
+  override: SeoOverride | undefined = category?.seo,
 ): ResolvedPageSeo {
   const base = resolveSiteDefaults(site, origin);
   const merged = mergeOverride({}, site.overrides, override);
@@ -63,10 +64,11 @@ export function resolveCatalogueSeo(
     return {
       ...base,
       title: merged.title ?? `${category.name} · 全部播客${site.titleSuffix}`,
-      description: merged.description ?? `浏览 his.fm「${category.name}」栏目的全部节目。`,
+      description:
+        merged.description ?? `在「${category.name}」收听已发布的节目，浏览每期摘要、话题与参考资料。`,
       canonical: `${origin}/episodes?category=${encodeURIComponent(category.id)}`,
       ogImageUrl: override?.ogImageUrl ? absoluteAsset(origin, override.ogImageUrl) : base.ogImageUrl,
-      noindex: merged.noindex ?? false,
+      noindex: episodeCount === 0 || (merged.noindex ?? false),
     };
   }
   return {
@@ -75,7 +77,7 @@ export function resolveCatalogueSeo(
     description: merged.description ?? '浏览 his.fm 全部已发布节目。',
     canonical: `${origin}/episodes`,
     ogImageUrl: override?.ogImageUrl ? absoluteAsset(origin, override.ogImageUrl) : base.ogImageUrl,
-    noindex: merged.noindex ?? false,
+    noindex: episodeCount === 0 || (merged.noindex ?? false),
   };
 }
 

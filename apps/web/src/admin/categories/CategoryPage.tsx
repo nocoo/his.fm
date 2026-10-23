@@ -174,7 +174,9 @@ function CategoryEditor({ id }: { id: string }) {
           </LayerCard>
           <LayerCard className="studio-stack">
             <strong>栏目 SEO</strong>
-            <p className="admin-muted">作用于栏目列表筛选页与栏目 RSS。</p>
+            <p className="admin-muted">
+              SEO 描述也作为公开栏目页简介。没有公开节目时自动暂不索引，发布首期后恢复；内部提示词不会展示。
+            </p>
             <SeoOverrideFields
               idPrefix={`category-${id}`}
               disabled={vm.pending}

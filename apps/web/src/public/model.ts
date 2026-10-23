@@ -14,6 +14,11 @@ export function catalogueSearchParamsForCategory(searchParams: URLSearchParams, 
   return params;
 }
 
+export function catalogueHref(searchParams: URLSearchParams, category: string) {
+  const params = catalogueSearchParamsForCategory(searchParams, category).toString();
+  return `/episodes${params ? `?${params}` : ''}`;
+}
+
 export function filterEpisodes(episodes: PublicEpisode[], category: string, query: string) {
   const search = query.trim().toLocaleLowerCase();
   return episodes.filter(

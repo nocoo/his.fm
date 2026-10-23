@@ -49,6 +49,35 @@ assets are immutable; replaceable media keeps bounded cache lifetimes. Re-measur
 mobile Lighthouse after deployment rather than treating preload as a score claim.
 The manifest and Apple touch icon reuse the existing identity.
 
+## Programme landing pages and indexing
+
+`/episodes?category={id}` is an independent programme landing page with a stable
+self-canonical URL, the category name as its H1, a public introduction from its
+SEO description, and a direct category RSS link. An unset description uses the
+shared catalogue fallback, never private editorial prompts. Category navigation
+uses real router links, preserves theme previews and participates in browser
+history without introducing new URL paths.
+
+The shared catalogue resolver uses the number of published, non-future records
+in the selected category, independently of local text search. Empty catalogues
+emit `noindex, follow` and leave the sitemap; they become eligible automatically
+when a public record appears unless an explicit SEO override still blocks
+indexing. A record can have useful public notes before its audio is ready, so
+audio availability is not the criterion. Client loading or fetch failures must
+not be mistaken for an empty collection or overwrite the server's metadata.
+
+The sitemap includes only currently indexable canonical pages, respecting
+resolved site, category and episode `noindex` settings. Drafts, future episodes,
+empty categories and explicitly excluded pages are omitted. Category indexing
+and individual episode indexing remain separate decisions; hiding a category
+landing page from search does not hide its publicly indexable episodes.
+
+Editorial title and notes improvements use existing versioned content/SEO
+workflows. Do not derive search headlines from truncated summaries, change
+stable slugs for SEO, publish private transcripts, or invent listening points.
+Google still decides whether to index eligible pages; deployment and crawl
+requests do not guarantee inclusion.
+
 ## Share and podcast artwork
 
 Non-episode pages use the configured site sharing image, falling back to

@@ -10,6 +10,7 @@ export function useEpisodes() {
   const [categories, setCategories] = useState<PublicCategory[]>(initial?.categories ?? []);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(!initial);
+  const [hasData, setHasData] = useState(Boolean(initial));
   const [attempt, setAttempt] = useState(0);
   const retry = useCallback(() => setAttempt((value) => value + 1), []);
   // biome-ignore lint/correctness/useExhaustiveDependencies: The retry counter explicitly restarts the request.
@@ -21,6 +22,7 @@ export function useEpisodes() {
       .then(([episodes, categories]) => {
         setEpisodes(episodes);
         setCategories(categories);
+        setHasData(true);
       })
       .catch((cause: unknown) => {
         if (!controller.signal.aborted)
@@ -31,5 +33,5 @@ export function useEpisodes() {
       });
     return () => controller.abort();
   }, [attempt, initial]);
-  return { episodes, categories, error, loading, retry };
+  return { episodes, categories, error, loading, hasData, retry };
 }

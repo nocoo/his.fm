@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   appearanceHref,
   catalogueCategoryFromSearch,
+  catalogueHref,
   catalogueSearchParamsForCategory,
   categoryLabel,
   dateLabel,
@@ -112,6 +113,13 @@ describe('website appearance', () => {
 });
 
 describe('listening room', () => {
+  it('builds real category links without losing preview or other query parameters', () => {
+    const params = new URLSearchParams('theme=stillwood&category=life');
+    expect(catalogueHref(params, 'manager-notes')).toBe('/episodes?theme=stillwood&category=manager-notes');
+    expect(catalogueHref(params, 'all')).toBe('/episodes?theme=stillwood');
+    expect(catalogueHref(new URLSearchParams(), 'all')).toBe('/episodes');
+    expect(params.get('category')).toBe('life');
+  });
   it('combines category and case-insensitive title, summary and tag search', () => {
     expect(filterEpisodes(episodes, 'all', '')).toHaveLength(2);
     expect(filterEpisodes(episodes, 'manager-notes', '  ai ')).toEqual([episodes[0]]);

@@ -8,6 +8,7 @@ import {
   Headphones,
   Menu,
   MoveUpRight,
+  Rss,
   Search,
   X,
 } from 'lucide-react';
@@ -32,6 +33,7 @@ import { EpisodeMentions } from './EpisodeMentions';
 import { Hero, ThemeImage } from './Hero';
 import {
   catalogueCategoryFromSearch,
+  catalogueHref,
   catalogueSearchParamsForCategory,
   dateLabel,
   durationLabel,
@@ -313,7 +315,7 @@ function Home() {
 }
 
 function Catalogue() {
-  const { episodes, categories } = useLibrary();
+  const { episodes, categories, hasData } = useLibrary();
   const site = usePublicSiteSeo();
   const origin = usePublicOrigin();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -322,47 +324,64 @@ function Catalogue() {
   const setCategoryFilter = (next: string) => {
     setSearchParams(catalogueSearchParamsForCategory(searchParams, next), { replace: true });
   };
-  const filtered = filterEpisodes(episodes, category, query);
+  const categoryEpisodes = filterEpisodes(episodes, category, '');
+  const filtered = filterEpisodes(categoryEpisodes, 'all', query);
   const activeCategory = category === 'all' ? undefined : categories.find((item) => item.id === category);
   useEffect(() => {
-    applyClientSeo(resolveCatalogueSeo(site, origin, activeCategory, activeCategory?.seo), [
+    if (!hasData) return;
+    applyClientSeo(resolveCatalogueSeo(site, origin, categoryEpisodes.length, activeCategory), [
       podcastSeriesJsonLd(origin, site),
     ]);
-  }, [site, origin, activeCategory]);
+  }, [site, origin, activeCategory, categoryEpisodes.length, hasData]);
   return (
     <section className="catalogue wrap">
       <Reveal className="page-heading">
-        <p className="eyebrow">THE LISTENING ROOM / 全部播客</p>
-        <h1>
-          今天，
-          <br />
-          想听<span>点什么？</span>
-          <BrandSymbol />
-        </h1>
-        <p>不必按顺序。挑一个此刻想聊的话题。</p>
+        <p className="eyebrow">{activeCategory ? 'PROGRAMME / 栏目' : 'THE LISTENING ROOM / 全部播客'}</p>
+        {activeCategory ? (
+          <div className="catalogue-title-row">
+            <h1>{activeCategory.name}</h1>
+            <a
+              className="text-link"
+              href={`/feeds/${encodeURIComponent(activeCategory.id)}.xml`}
+              type="application/rss+xml"
+            >
+              <Rss size={17} aria-hidden="true" /> 订阅栏目 RSS
+            </a>
+          </div>
+        ) : (
+          <h1>
+            今天，
+            <br />
+            想听<span>点什么？</span>
+            <BrandSymbol />
+          </h1>
+        )}
+        <p>
+          {activeCategory
+            ? resolveCatalogueSeo(site, origin, categoryEpisodes.length, activeCategory).description
+            : '不必按顺序。挑一个此刻想聊的话题。'}
+        </p>
       </Reveal>
       <div className="catalogue-tools">
-        <fieldset className="category-filters" aria-label="按主题筛选">
-          <button
-            type="button"
+        <nav className="category-filters" aria-label="播客栏目">
+          <Link
+            to={catalogueHref(searchParams, 'all')}
             className={category === 'all' ? 'selected' : ''}
-            aria-pressed={category === 'all'}
-            onClick={() => setCategoryFilter('all')}
+            aria-current={category === 'all' ? 'page' : undefined}
           >
             全部 <span>{episodes.length.toString().padStart(2, '0')}</span>
-          </button>
+          </Link>
           {categories.map((item) => (
-            <button
+            <Link
               key={item.id}
-              type="button"
-              aria-pressed={category === item.id}
+              to={catalogueHref(searchParams, item.id)}
+              aria-current={category === item.id ? 'page' : undefined}
               className={category === item.id ? 'selected' : ''}
-              onClick={() => setCategoryFilter(item.id)}
             >
               {item.name}
-            </button>
+            </Link>
           ))}
-        </fieldset>
+        </nav>
         <label className="episode-search">
           <Search size={18} />
           <input

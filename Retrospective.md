@@ -1113,6 +1113,20 @@ body selector. The normal commit hook rejected the descending-specificity
 warning. Keep base element rules before contextual overrides rather than
 disabling the lint rule for an otherwise small stylesheet.
 
+## 2026-10-23 - Separate missing catalogue data from failed revalidation
+
+The first indexing patch skipped client SEO whenever catalogue fetching failed.
+Review found that a failed refresh retains valid SSR data, so switching categories
+could update the heading and URL while keeping the previous page's canonical and
+robots. Track whether a complete snapshot has ever loaded, independently of
+loading and error state. Use that snapshot for route metadata after refresh
+failure, and cover populated-to-empty navigation in the browser regression.
+
+The initial regression assumed the local seed contained an empty category and
+failed before exercising the fix. Create a uniquely named, test-owned empty
+category through the local API and delete it in `finally`; do not rely on or
+reset the owner's persistent catalogue to manufacture this condition.
+
 ## 2026-10-22 - Separate browser and Node TLS verification
 
 The cover acceptance probe assumed Playwright's Node request client shared

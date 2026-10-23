@@ -432,6 +432,72 @@ describe('public podcast catalog', () => {
     expect(await categoryFeed.text()).toContain('<itunes:author>');
   });
 
+  it('keeps empty and explicitly hidden pages out of the sitemap and restores populated programme pages', async () => {
+    const saved = await env.DB.prepare('SELECT name, prompt, seo FROM categories WHERE id = ?')
+      .bind('learning')
+      .first<{ name: string; prompt: string; seo: string }>();
+    if (!saved) throw new Error('Missing category fixture');
+    try {
+      await env.DB.prepare('UPDATE categories SET name = ?, prompt = ?, seo = ? WHERE id = ?')
+        .bind(
+          'Programme title',
+          'PRIVATE EDITORIAL POLICY',
+          JSON.stringify({ description: 'Public programme introduction' }),
+          'learning',
+        )
+        .run();
+      await create({ category: 'learning', episodeNumber: 1, slug: 'draft-only', status: 'draft' });
+      await create({
+        category: 'learning',
+        episodeNumber: 2,
+        slug: 'future-only',
+        publishedAt: '2999-01-01T00:00:00Z',
+      });
+      const empty = await (await call('/episodes?category=learning')).text();
+      expect(empty).toContain('<h1>Programme title</h1>');
+      expect(empty).toContain('Public programme introduction');
+      expect(empty).not.toContain('PRIVATE EDITORIAL POLICY');
+      expect(empty).toContain('<meta name="robots" content="noindex, follow"');
+      expect(empty).toContain(`rel="canonical" href="${origin}/episodes?category=learning"`);
+      expect(empty).toContain('href="/feeds/learning.xml"');
+      const emptySitemap = await (await call('/sitemap.xml')).text();
+      expect(emptySitemap).not.toContain(`<loc>${origin}/episodes</loc>`);
+      expect(emptySitemap).not.toContain('category=learning');
+      expect(emptySitemap).not.toContain('draft-only');
+      expect(emptySitemap).not.toContain('future-only');
+
+      const published = await create({ category: 'learning', episodeNumber: 3, slug: 'published-programme' });
+      const hidden = await create({
+        category: 'learning',
+        episodeNumber: 4,
+        slug: 'hidden-episode',
+        seo: { noindex: true },
+      });
+      const populated = await (await call('/episodes?category=learning')).text();
+      expect(populated).toContain('<meta name="robots" content="index, follow"');
+      expect(populated).toContain('aria-label="播客栏目"');
+      expect(populated).toContain('href="/episodes?category=learning"');
+      expect(populated).toContain('aria-current="page"');
+      const sitemap = await (await call('/sitemap.xml')).text();
+      expect(sitemap).toContain(`<loc>${origin}/episodes</loc>`);
+      expect(sitemap).toContain(`<loc>${origin}/episodes?category=learning</loc>`);
+      expect(sitemap).toContain(`/episodes/learning/${published.slug}`);
+      expect(sitemap).not.toContain(`/episodes/learning/${hidden.slug}`);
+
+      await env.DB.prepare('UPDATE categories SET seo = ? WHERE id = ?')
+        .bind(JSON.stringify({ noindex: true }), 'learning')
+        .run();
+      expect(await (await call('/episodes?category=learning')).text()).toContain(
+        '<meta name="robots" content="noindex, follow"',
+      );
+      expect(await (await call('/sitemap.xml')).text()).not.toContain('category=learning');
+    } finally {
+      await env.DB.prepare('UPDATE categories SET name = ?, prompt = ?, seo = ? WHERE id = ?')
+        .bind(saved.name, saved.prompt, saved.seo, 'learning')
+        .run();
+    }
+  });
+
   it('renders published public content and safely bootstraps only public data', async () => {
     const episode = await create({
       showNotes: '## Listen closely\n\nA note </script><script>alert(1)</script>',

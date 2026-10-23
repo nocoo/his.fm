@@ -550,6 +550,20 @@ html:has(.appearance-gate) body {
   color: var(--muted);
   font-size: 14px;
 }
+.public-site .catalogue-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  column-gap: var(--space);
+}
+.public-site .catalogue-title-row h1 {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+.public-site .catalogue-title-row .text-link {
+  white-space: nowrap;
+}
 .public-site .catalogue-tools {
   display: flex;
   justify-content: space-between;
@@ -567,7 +581,9 @@ html:has(.appearance-gate) body {
   padding: 0;
   margin: 0;
 }
-.public-site .category-filters button {
+.public-site .category-filters a {
+  display: inline-flex;
+  align-items: center;
   min-height: 42px;
   padding: 8px 17px;
   border: 1px solid transparent;
@@ -575,7 +591,7 @@ html:has(.appearance-gate) body {
   font-size: 12px;
   border-radius: var(--radius);
 }
-.public-site .category-filters button.selected {
+.public-site .category-filters a.selected {
   background: var(--ink);
   color: var(--paper);
 }
@@ -1230,7 +1246,7 @@ html:has(.appearance-gate) body {
   .public-site .category-filters {
     gap: 3px;
   }
-  .public-site .category-filters button {
+  .public-site .category-filters a {
     font-size: 11px;
     padding-inline: 12px;
   }
@@ -1402,7 +1418,7 @@ html:has(.appearance-gate) body {
   .public-site .page-heading h1 {
     font-size: 46px;
   }
-  .public-site .category-filters button {
+  .public-site .category-filters a {
     padding-inline: 10px;
   }
   .public-site .recording-note {

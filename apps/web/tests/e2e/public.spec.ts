@@ -45,10 +45,20 @@ test('listeners can browse, filter and read episode summaries without transcript
   await page.getByRole('link', { name: '找一期，歇一会儿' }).click();
   await expect(page).toHaveURL(/\/episodes\?theme=interval$/);
   await expect(page.locator('.episode-card')).toHaveCount(6);
-  await page.getByRole('button', { name: '生活留白', exact: true }).click();
+  await page
+    .getByRole('navigation', { name: '播客栏目' })
+    .getByRole('link', { name: '生活留白', exact: true })
+    .click();
+  await expect(page.locator('.episode-card')).toHaveCount(2);
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('生活留白');
+  await expect(page.getByRole('link', { name: '订阅栏目 RSS' })).toHaveAttribute('href', '/feeds/life.xml');
+  await page.goBack();
+  await expect(page.locator('.episode-card')).toHaveCount(6);
+  await page.goForward();
   await expect(page.locator('.episode-card')).toHaveCount(2);
   await page.getByRole('searchbox', { name: '搜索播客' }).fill('不存在的关键词');
   await expect(page.getByRole('heading', { name: '还没聊到这个话题。' })).toBeVisible();
+  await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', 'index, follow');
   await page.getByRole('button', { name: '查看全部', exact: true }).click();
   await page.getByRole('searchbox', { name: '搜索播客' }).fill('AI 学习');
   await expect(page.locator('.episode-card')).toHaveCount(1);
