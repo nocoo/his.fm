@@ -2,6 +2,24 @@
 
 All notable changes to his.fm are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions use the owner’s patch-only deployment policy in `AGENTS.md`, with the authoritative version in `package.json`.
 
+## 2.11.1 - 2026-10-23
+
+### Added
+
+- Present category query URLs as independent programme pages with a category heading, public SEO-description introduction and direct RSS subscription link. Use crawlable category links with current-page semantics, theme-preview preservation and browser history.
+- Clarify editor guidance for topic-specific SEO titles and public category descriptions without rewriting existing published episode titles, summaries, notes or transcripts.
+
+### Fixed
+
+- Derive catalogue indexability from published, non-future records rather than text-search results. Empty catalogues emit `noindex, follow` and automatically become eligible when content appears unless explicitly excluded.
+- Remove empty categories and resolved `noindex` pages from the sitemap while preserving independent category and episode decisions, stable canonicals and valid publication dates.
+- Keep client title, canonical and robots synchronized during category navigation after failed revalidation by retaining the validity of an already loaded SSR/API snapshot.
+
+### Verification
+
+- Pass 1,221 unit tests (1,114 web, 107 contracts), both workspaces' four 95% coverage floors, lint, typecheck and production build.
+- Pass four focused Chrome cases covering mobile/desktop programme navigation, descriptions, RSS, empty-category indexability, search independence, history and failed revalidation. Resolve the independent review finding; the full browser suite was not rerun. Google indexing itself remains an external decision, not a deployment guarantee.
+
 ## 2.11.0 - 2026-10-22
 
 ### Added
