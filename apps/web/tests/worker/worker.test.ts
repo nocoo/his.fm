@@ -32,6 +32,11 @@ const input: EpisodeInput = {
   summary: '记录今天停下来的位置。',
   transcript: '今天先到这里，明天从下一步开始。',
   showNotes: '00:00 从停下来的地方继续',
+  lead: '',
+  researchNote: '',
+  credits: '',
+  body: '',
+  topics: [],
   coverUrl: '/images/episode-01.webp',
   category: 'manager-notes',
   tags: ['工作节奏'],
@@ -397,6 +402,61 @@ describe('public podcast catalog', () => {
     expect(newer.id).not.toBe(older.id);
   });
 
+  it('stores structured episode content and keeps omitted collections intact', async () => {
+    const episode = await create();
+    const structured = {
+      ...input,
+      version: episode.version,
+      lead: '开场的一段话。',
+      researchNote: '公司自报的数据按据称处理。',
+      credits: '本期旁白：测试音色。',
+      body: '补充段落。',
+      topics: [
+        {
+          title: '第一个主题',
+          detail: '展开说明。',
+          sourceUrls: ['https://example.com/source'],
+        },
+        { title: '第二个主题', detail: '', sourceUrls: [] },
+      ],
+      mentions: [{ name: '示例来源', description: '一句话说明。', url: 'https://example.com/report' }],
+    };
+    const updated = await call(`/admin/api/episodes/${episode.id}`, {
+      method: 'PUT',
+      ...body(structured),
+    });
+    expect(updated.status).toBe(200);
+    const saved = ((await updated.json()) as { episode: Episode }).episode;
+    expect(saved.lead).toBe('开场的一段话。');
+    expect(saved.topics).toHaveLength(2);
+    expect(saved.topics[0]?.sourceUrls).toEqual(['https://example.com/source']);
+    expect(saved.mentions).toEqual(structured.mentions);
+
+    const { topics: _topics, mentions: _mentions, ...withoutCollections } = input;
+    const partial = await call(`/admin/api/episodes/${episode.id}`, {
+      method: 'PUT',
+      ...body({
+        ...withoutCollections,
+        version: saved.version,
+        title: '改过标题',
+        lead: '新的导语。',
+        researchNote: structured.researchNote,
+        credits: structured.credits,
+        body: structured.body,
+      }),
+    });
+    const kept = ((await partial.json()) as { episode: Episode }).episode;
+    expect(kept.title).toBe('改过标题');
+    expect(kept.topics).toHaveLength(2);
+    expect(kept.mentions).toEqual(structured.mentions);
+
+    const publicDetail = (await (await call(`/api/episodes/${episode.slug}`)).json()) as {
+      episode: PublicEpisode;
+    };
+    expect(publicDetail.episode.topics[0]?.title).toBe('第一个主题');
+    expect(publicDetail.episode.researchNote).toContain('据称');
+  });
+
   it('keeps mentions and long-form notes on the detail endpoint and out of the catalogue', async () => {
     const episode = await create();
     const listed = (await (await call('/api/episodes')).json()) as { episodes: PublicEpisodeSummary[] };
@@ -511,6 +571,11 @@ describe('public podcast catalog', () => {
   it('renders published public content and safely bootstraps only public data', async () => {
     const episode = await create({
       showNotes: '## Listen closely\n\nA note </script><script>alert(1)</script>',
+      lead: '',
+      researchNote: '',
+      credits: '',
+      body: '',
+      topics: [],
     });
     await create({ slug: 'private-draft', episodeNumber: 99, title: 'PRIVATE DRAFT', status: 'draft' });
     for (const path of ['/', '/episodes', '/about', `/episodes/${episode.category}/${episode.slug}`]) {

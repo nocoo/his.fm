@@ -13,7 +13,15 @@ export function mediaUrl(env: Pick<Env, 'ENVIRONMENT'>, key: string) {
 }
 
 export function hydrateProduction(production: Production): Production {
-  return { ...production, mentions: production.mentions ?? [] };
+  return {
+    ...production,
+    mentions: production.mentions ?? [],
+    lead: production.lead ?? '',
+    researchNote: production.researchNote ?? '',
+    credits: production.credits ?? '',
+    body: production.body ?? '',
+    topics: production.topics ?? [],
+  };
 }
 
 export function projectProduction(

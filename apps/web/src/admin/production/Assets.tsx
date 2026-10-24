@@ -23,6 +23,7 @@ import {
 import { DraftConflicts } from '../draft/DraftConflicts';
 import { useDraft } from '../draft/useDraft';
 import { MarkdownEditor } from '../markdown/MarkdownEditor';
+import { TopicsEditor } from '../TopicsEditor';
 import { CoverDownload } from './CoverDownload';
 import { Confirm } from './controls';
 import { ReadingText } from './ReadingText';
@@ -55,7 +56,15 @@ export function Assets({
   const [detach, setDetach] = useState<'cover' | 'audio' | null>(null);
   const [replaceCover, setReplaceCover] = useState(!production.assets.cover);
   const [replaceAudio, setReplaceAudio] = useState(!production.assets.audio);
-  const draft = useDraft({ summary: production.summary, description: production.description });
+  const draft = useDraft({
+    summary: production.summary,
+    lead: production.lead,
+    researchNote: production.researchNote,
+    credits: production.credits,
+    body: production.body,
+    topics: production.topics,
+    description: production.description,
+  });
   useEffect(() => onDirty(draft.dirty || Boolean(cover || audio)), [draft.dirty, cover, audio, onDirty]);
   useEffect(() => {
     if (!production.assets.cover) setReplaceCover(true);
@@ -287,10 +296,59 @@ export function Assets({
             disabled={pending}
           />
         </Field>
-        <Field label="发布简介" htmlFor="production-description">
+        <Field label="开篇导语" htmlFor="production-lead" hint="节目开始时的一段话。">
+          <MarkdownEditor
+            id="production-lead"
+            label="开篇导语"
+            value={draft.value.lead}
+            onChange={(next) => draft.change('lead', next)}
+            maxLength={4000}
+            disabled={pending}
+          />
+        </Field>
+        <TopicsEditor
+          value={draft.value.topics}
+          disabled={pending}
+          onChange={(next) => draft.change('topics', next)}
+        />
+        <Field label="其余正文" htmlFor="production-body" hint="不属于听点的补充段落，可留空。">
+          <MarkdownEditor
+            id="production-body"
+            label="其余正文"
+            value={draft.value.body}
+            onChange={(next) => draft.change('body', next)}
+            maxLength={20000}
+            disabled={pending}
+          />
+        </Field>
+        <Field label="研究边界" htmlFor="production-research-note">
+          <MarkdownEditor
+            id="production-research-note"
+            label="研究边界"
+            value={draft.value.researchNote}
+            onChange={(next) => draft.change('researchNote', next)}
+            maxLength={4000}
+            disabled={pending}
+          />
+        </Field>
+        <Field label="致谢与许可" htmlFor="production-credits">
+          <MarkdownEditor
+            id="production-credits"
+            label="致谢与许可"
+            value={draft.value.credits}
+            onChange={(next) => draft.change('credits', next)}
+            maxLength={4000}
+            disabled={pending}
+          />
+        </Field>
+        <Field
+          label="旧版发布简介（迁移中）"
+          htmlFor="production-description"
+          hint="迁移期间保留：已发布快照仍保存这段整篇笔记，页面优先渲染上面的结构字段。"
+        >
           <MarkdownEditor
             id="production-description"
-            label="发布简介"
+            label="旧版发布简介"
             value={draft.value.description}
             defaultMode={production.description ? 'preview' : 'edit'}
             onChange={(next) => draft.change('description', next)}

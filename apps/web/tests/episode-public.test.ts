@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { type Episode, projectPublicEpisode, projectPublicEpisodeSummary } from '../src/shared/episode';
+import { hasStructuredContent, outlineFromTopics } from '../src/shared/episode-structure';
 
 const origin = 'https://hisfm.dev.hexly.ai';
 
@@ -12,6 +13,11 @@ const episode: Episode = {
   summary: '公开摘要',
   transcript: '这是不应出现在公开端的完整逐字稿正文。',
   showNotes: '节目备注',
+  lead: '',
+  researchNote: '',
+  credits: '',
+  body: '',
+  topics: [],
   coverUrl: '/images/episode-01.webp',
   category: 'learning',
   tags: ['示例'],
@@ -35,9 +41,33 @@ describe('public episode projection', () => {
       title: episode.title,
       summary: episode.summary,
       showNotes: episode.showNotes,
+      lead: '',
+      researchNote: '',
+      credits: '',
+      body: '',
+      topics: [],
     });
     expect(publicEpisode).not.toHaveProperty('transcript');
     expect(JSON.stringify(publicEpisode)).not.toContain('逐字稿');
+  });
+
+  it('detects structured content and maps topics to outline entries', () => {
+    const empty = { lead: '', researchNote: '', credits: '', body: '', topics: [] };
+    expect(hasStructuredContent(empty)).toBe(false);
+    expect(hasStructuredContent({ ...empty, lead: '  ' })).toBe(false);
+    expect(hasStructuredContent({ ...empty, credits: '致谢' })).toBe(true);
+    expect(hasStructuredContent({ ...empty, topics: [{ title: '主题', detail: '', sourceUrls: [] }] })).toBe(
+      true,
+    );
+    expect(
+      outlineFromTopics([
+        { title: '主题一', detail: '说明一', sourceUrls: [] },
+        { title: '主题二', detail: '', sourceUrls: ['https://example.com'] },
+      ]),
+    ).toEqual([
+      { title: '主题一', detail: '说明一' },
+      { title: '主题二', detail: '' },
+    ]);
   });
 
   it('keeps the catalogue projection free of bodies, sources and resolved SEO', () => {

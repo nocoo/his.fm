@@ -37,7 +37,31 @@ async function feedEpisodes(db: D1Database, category?: string): Promise<FeedEpis
     .bind(new Date().toISOString(), ...(category ? [category] : []))
     .all<Omit<FeedEpisode, 'mentions'> & { mentions: string }>();
   if (!result.success) throw new HttpError(503, '播客订阅暂时无法读取');
-  return result.results.map((row) => ({ ...row, mentions: JSON.parse(row.mentions) as Mention[] }));
+  const ids = result.results.map((row) => row.id);
+  const mentionsByEpisode = new Map<string, Mention[]>();
+  if (ids.length) {
+    const mentions = await db
+      .prepare(
+        `SELECT episode_id, name, description, url FROM episode_mentions
+         WHERE episode_id IN (${ids.map(() => '?').join(', ')}) ORDER BY episode_id, position`,
+      )
+      .bind(...ids)
+      .all<{ episode_id: string; name: string; description: string; url: string | null }>();
+    if (!mentions.success) throw new HttpError(503, '播客订阅暂时无法读取');
+    for (const row of mentions.results) {
+      const entries = mentionsByEpisode.get(row.episode_id) ?? [];
+      entries.push({
+        name: row.name,
+        description: row.description,
+        ...(row.url ? { url: row.url } : {}),
+      });
+      mentionsByEpisode.set(row.episode_id, entries);
+    }
+  }
+  return result.results.map((row) => ({
+    ...row,
+    mentions: mentionsByEpisode.get(row.id) ?? (JSON.parse(row.mentions) as Mention[]),
+  }));
 }
 
 export function podcastGuid(path: string) {

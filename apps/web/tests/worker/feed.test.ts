@@ -40,6 +40,11 @@ function episode(patch: Partial<Episode> = {}): Episode {
     summary: '节目简介',
     transcript: 'Private transcript',
     showNotes: '',
+    lead: '',
+    researchNote: '',
+    credits: '',
+    body: '',
+    topics: [],
     coverUrl: '/images/episode-01.webp',
     category: 'manager-notes',
     tags: [],
@@ -375,8 +380,9 @@ describe('podcast feeds', () => {
     const { bucket, head } = media();
     await buildRssFeed(db, origin, mediaBase, bucket);
     expect(head).toHaveBeenCalledExactlyOnceWith('audio.mp3');
-    expect(query).toHaveBeenCalledTimes(1);
+    expect(query).toHaveBeenCalledTimes(2);
     expect(query.mock.calls[0][0]).not.toContain('transcript');
+    expect(query.mock.calls[1][0]).toContain('episode_mentions');
   });
 });
 

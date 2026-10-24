@@ -100,6 +100,17 @@ export const productionResponseSchema = briefSchema.extend({
   scriptVersion: z.number().int(),
   description: z.string(),
   summary: z.string(),
+  lead: z.string(),
+  researchNote: z.string(),
+  credits: z.string(),
+  body: z.string(),
+  topics: z.array(
+    z.object({
+      title: z.string(),
+      detail: z.string(),
+      sourceUrls: z.array(z.string()),
+    }),
+  ),
   assets: z.object({ cover: asset, audio: asset }),
   approvals: z.object({ brief: approval, script: approval, final: approval }),
   publications: z.array(

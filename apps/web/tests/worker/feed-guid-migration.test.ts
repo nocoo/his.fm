@@ -28,7 +28,7 @@ beforeAll(async () => {
   });
   db = (await mf.getBindings<Env>()).DB;
   for (const name of readdirSync('migrations')
-    .filter((name) => name.endsWith('.sql') && name < '0024')
+    .filter((name) => name.endsWith('.sql') && (name < '0024' || name === '0025_episode_structure.sql'))
     .sort()) {
     await db.batch(
       readFileSync(`migrations/${name}`, 'utf8')

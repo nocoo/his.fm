@@ -40,21 +40,23 @@ function collect(value: unknown, label: string, keys: References['keys'], proper
 }
 
 async function references(db: D1Database): Promise<References> {
-  const [productions, episodes, provenance, channel, bumpers, categories, siteSeo] = await db.batch<
-    Record<string, unknown>
-  >([
-    db.prepare('SELECT data FROM productions'),
-    db.prepare(
-      'SELECT title, cover_url, audio_url, transcript, show_notes, summary, seo, mentions FROM episodes',
-    ),
-    db.prepare('SELECT data FROM media_provenance'),
-    db.prepare('SELECT content, prompts, prompt_slots FROM channel_profile'),
-    db.prepare('SELECT name, data FROM bumpers'),
-    db.prepare('SELECT name, prompt, prompt_slots, seo FROM categories'),
-    db.prepare('SELECT data FROM site_seo WHERE id = 1'),
-  ]);
+  const [productions, episodes, provenance, channel, bumpers, categories, siteSeo, topics, mentions] =
+    await db.batch<Record<string, unknown>>([
+      db.prepare('SELECT data FROM productions'),
+      db.prepare(
+        `SELECT title, cover_url, audio_url, transcript, show_notes, summary, seo, mentions,
+        lead, research_note, credits, body FROM episodes`,
+      ),
+      db.prepare('SELECT data FROM media_provenance'),
+      db.prepare('SELECT content, prompts, prompt_slots FROM channel_profile'),
+      db.prepare('SELECT name, data FROM bumpers'),
+      db.prepare('SELECT name, prompt, prompt_slots, seo FROM categories'),
+      db.prepare('SELECT data FROM site_seo WHERE id = 1'),
+      db.prepare('SELECT episode_id, title, detail, source_urls FROM episode_topics'),
+      db.prepare('SELECT episode_id, name, description, url FROM episode_mentions'),
+    ]);
   if (
-    [productions, episodes, provenance, channel, bumpers, categories, siteSeo].some(
+    [productions, episodes, provenance, channel, bumpers, categories, siteSeo, topics, mentions].some(
       (result) => !result.success,
     )
   )
@@ -82,6 +84,14 @@ async function references(db: D1Database): Promise<References> {
     collect(JSON.parse(String(row.seo)), `栏目 SEO：${row.name}`, refs.keys);
   }
   for (const row of siteSeo.results) collect(JSON.parse(String(row.data)), '站点 SEO', refs.keys);
+  for (const row of topics.results)
+    collect(
+      { title: row.title, detail: row.detail, source_urls: JSON.parse(String(row.source_urls)) },
+      `听点：${row.title}`,
+      refs.keys,
+    );
+  for (const row of mentions.results)
+    collect({ name: row.name, description: row.description, url: row.url }, `来源：${row.name}`, refs.keys);
   return refs;
 }
 

@@ -1,6 +1,7 @@
 import { AUDIO_SAMPLE_RATE, type Principal, type Scope } from '@his-fm/contracts';
 import { z } from 'zod';
 import { categoryIdSchema } from './category';
+import { type EpisodeTopic, episodeTopicsSchema } from './episode';
 import { mentionsSchema } from './mentions';
 import { seoOverrideSchema } from './seo';
 
@@ -80,6 +81,11 @@ export const productionPatchSchema = briefSchema
     transcript: z.string().max(50000).optional(),
     description: z.string().max(20000).optional(),
     summary: z.string().trim().max(2000).optional(),
+    lead: z.string().max(4000).optional(),
+    researchNote: z.string().max(4000).optional(),
+    credits: z.string().max(4000).optional(),
+    body: z.string().max(20000).optional(),
+    topics: episodeTopicsSchema.optional(),
   })
   .strict();
 export const actionNames = [
@@ -142,6 +148,11 @@ export type Production = ProductionBrief & {
   scriptVersion: number;
   description: string;
   summary: string;
+  lead: string;
+  researchNote: string;
+  credits: string;
+  body: string;
+  topics: EpisodeTopic[];
   assets: { cover: ProductionAsset | null; audio: ProductionAsset | null };
   approvals: { brief: Approval | null; script: Approval | null; final: Approval | null };
   publications: Publication[];
@@ -206,7 +217,18 @@ export const agentActionSchema = z.strictObject({
 export const agentEditableFields: Record<Production['stage'], string[]> = {
   draft: Object.keys(briefSchema.shape),
   scripting: ['transcript', 'category', 'tags'],
-  production: ['description', 'summary', 'category', 'tags', 'seo'],
+  production: [
+    'description',
+    'summary',
+    'category',
+    'tags',
+    'seo',
+    'lead',
+    'researchNote',
+    'credits',
+    'body',
+    'topics',
+  ],
   brief_review: [],
   script_review: [],
   final_review: [],

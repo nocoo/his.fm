@@ -13,6 +13,7 @@ import { type FormEvent, useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { FramedCover } from '../components/FramedCover';
 import type { Episode } from '../shared/episode';
+import { type EpisodeTopic, episodeTopicsSchema } from '../shared/episode';
 import { episodePublicPath } from '../shared/episode-url';
 import { type Mention, mentionsSchema } from '../shared/mentions';
 import type { SeoOverride } from '../shared/seo';
@@ -28,6 +29,7 @@ import { useUnsavedChanges } from './production/useUnsavedChanges';
 import { EpisodeSocialPreview } from './seo/EpisodeSocialPreview';
 import { SeoOverrideFields } from './seo/SeoOverrideFields';
 import { adminService } from './service';
+import { TopicsEditor } from './TopicsEditor';
 
 export function EpisodeEditor() {
   const { id } = useParams();
@@ -50,6 +52,7 @@ export function EpisodeEditor() {
   });
   const { categories } = useCategories();
   const [mentions, setMentions] = useState<Mention[]>(emptyEpisode.mentions);
+  const [topics, setTopics] = useState<EpisodeTopic[]>(emptyEpisode.topics);
   const [seo, setSeo] = useState<SeoOverride>(emptyEpisode.seo);
   useUnsavedChanges(dirty);
   // biome-ignore lint/correctness/useExhaustiveDependencies: The retry key intentionally restarts the request.
@@ -66,6 +69,7 @@ export function EpisodeEditor() {
       .then(({ episode: result }) => {
         setEpisode(result);
         setMentions(result.mentions);
+        setTopics(result.topics);
         setSeo(result.seo);
       })
       .catch((cause: unknown) => {
@@ -94,6 +98,21 @@ export function EpisodeEditor() {
     setErrors(result.errors ?? {});
     setError('');
     if (!result.data) return;
+    let parsedTopics: EpisodeTopic[];
+    try {
+      parsedTopics = episodeTopicsSchema.parse(
+        topics
+          .filter((topic) => topic.title.trim() || topic.detail.trim() || topic.sourceUrls.length)
+          .map((topic) => ({
+            title: topic.title.trim(),
+            detail: topic.detail.trim(),
+            sourceUrls: topic.sourceUrls,
+          })),
+      );
+    } catch {
+      setErrors({ topics: '请检查「本期听点」的标题、说明和来源链接' });
+      return;
+    }
     let parsedMentions: Mention[];
     try {
       parsedMentions = mentionsSchema.parse(
@@ -111,7 +130,7 @@ export function EpisodeEditor() {
     }
     setPending(true);
     try {
-      const payload = { ...result.data, mentions: parsedMentions, seo };
+      const payload = { ...result.data, mentions: parsedMentions, topics: parsedTopics, seo };
       const { episode: saved } =
         id && episode
           ? await adminService.update(id, payload, episode.version)
@@ -298,24 +317,97 @@ export function EpisodeEditor() {
                     />
                   </Field>
                   <Field
-                    label="节目笔记"
-                    htmlFor="showNotes"
-                    error={errors.showNotes}
-                    hint="补充资料来源、提到的项目或延伸阅读。"
+                    label="开篇导语"
+                    htmlFor="lead"
+                    error={errors.lead}
+                    hint="节目开头的一段话，说明这一期从哪里讲起。支持 Markdown。"
                   >
                     <MarkdownEditor
-                      label="节目笔记"
+                      label="开篇导语"
                       disabled={pending}
                       onChange={() => setDirty(true)}
-                      id="showNotes"
-                      name="showNotes"
-                      defaultValue={value.showNotes}
-                      maxLength={20000}
-                      placeholder="资料与延伸阅读"
+                      id="lead"
+                      name="lead"
+                      defaultValue={value.lead}
+                      maxLength={4000}
+                      placeholder="这一期从哪个具体的场景讲起……"
                     />
                   </Field>
+                  <Field
+                    label="其余正文"
+                    htmlFor="body"
+                    error={errors.body}
+                    hint="不属于听点、说明或致谢的补充内容，可留空。"
+                  >
+                    <MarkdownEditor
+                      label="其余正文"
+                      disabled={pending}
+                      onChange={() => setDirty(true)}
+                      id="body"
+                      name="body"
+                      defaultValue={value.body}
+                      maxLength={20000}
+                      placeholder="补充段落、延伸阅读等"
+                    />
+                  </Field>
+                  <Field
+                    label="研究边界"
+                    htmlFor="researchNote"
+                    error={errors.researchNote}
+                    hint="方法说明与免责声明，例如「公司自报数据按据称处理」。"
+                  >
+                    <MarkdownEditor
+                      label="研究边界"
+                      disabled={pending}
+                      onChange={() => setDirty(true)}
+                      id="researchNote"
+                      name="researchNote"
+                      defaultValue={value.researchNote}
+                      maxLength={4000}
+                      placeholder="这一期怎样处理未经独立核实的数据……"
+                    />
+                  </Field>
+                  <Field
+                    label="致谢与许可"
+                    htmlFor="credits"
+                    error={errors.credits}
+                    hint="旁白、音乐与许可说明。"
+                  >
+                    <MarkdownEditor
+                      label="致谢与许可"
+                      disabled={pending}
+                      onChange={() => setDirty(true)}
+                      id="credits"
+                      name="credits"
+                      defaultValue={value.credits}
+                      maxLength={4000}
+                      placeholder="本期旁白、片头片尾音乐与授权说明"
+                    />
+                  </Field>
+                  {value.showNotes.trim() && (
+                    <LayerCard padding="none">
+                      <LayerCard.Header>
+                        <strong>旧版节目笔记（迁移中，只读）</strong>
+                      </LayerCard.Header>
+                      <LayerCard.Body>
+                        <p className="admin-muted studio-prose">
+                          这期节目仍保存着迁移前的整篇笔记。上面的结构字段保存后，页面以结构字段渲染；
+                          旧笔记在完成迁移后删除。
+                        </p>
+                        <pre className="studio-legacy-notes">{value.showNotes}</pre>
+                      </LayerCard.Body>
+                    </LayerCard>
+                  )}
                 </LayerCard.Body>
               </LayerCard>
+              <TopicsEditor
+                value={topics}
+                disabled={pending}
+                onChange={(next) => {
+                  setTopics(next);
+                  setDirty(true);
+                }}
+              />
               <MentionsEditor
                 value={mentions}
                 disabled={pending}
@@ -340,6 +432,11 @@ export function EpisodeEditor() {
                   />
                 </LayerCard.Body>
               </LayerCard>
+              {errors.topics && (
+                <div className="admin-error-banner" role="alert">
+                  {errors.topics}
+                </div>
+              )}
               {errors.mentions && (
                 <div className="admin-error-banner" role="alert">
                   {errors.mentions}

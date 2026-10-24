@@ -3,7 +3,9 @@ import type { OutlineEntry } from '../shared/show-notes-outline';
 
 const visibleEntries = 5;
 
-export function EpisodeOutline({ entries }: { entries: OutlineEntry[] }) {
+export type OutlineItem = OutlineEntry & { href?: string };
+
+export function EpisodeOutline({ entries }: { entries: OutlineItem[] }) {
   if (!entries.length) return null;
   const shown = entries.slice(0, visibleEntries);
   const remaining = entries.length - shown.length;
@@ -17,7 +19,13 @@ export function EpisodeOutline({ entries }: { entries: OutlineEntry[] }) {
           <li key={entry.title}>
             <span className="outline-index">{String(index + 1).padStart(2, '0')}</span>
             <span className="outline-text">
-              <strong>{entry.title}</strong>
+              {entry.href ? (
+                <a href={entry.href}>
+                  <strong>{entry.title}</strong>
+                </a>
+              ) : (
+                <strong>{entry.title}</strong>
+              )}
               {entry.detail && <em>{entry.detail}</em>}
             </span>
           </li>

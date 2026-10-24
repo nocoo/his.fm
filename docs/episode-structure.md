@@ -1,6 +1,9 @@
 # Episode structure: schema plan
 
-Status: proposal. No migration in this document is applied yet.
+Status: steps 1-3 are implemented and applied. Migration `0025_episode_structure.sql` is live on
+production, the worker reads and writes the structured fields, and the thirteen published episodes
+were backfilled with `apps/web/scripts/migrate-episode-structure.mjs`. Step 4 (dropping the legacy
+columns) is still pending and needs an explicit go-ahead.
 
 ## Purpose
 
@@ -210,9 +213,9 @@ No data is read or rewritten. Deploying this alone changes nothing observable.
   is structured, its topic count, mention count, and the digest of the legacy `show_notes` that was
   present when the structure was written.
 
-### Step 3 — bot backfill
+### Step 3 — backfill (done by the script)
 
-Two possible channels; this is the decision that needs an explicit answer before step 3 starts.
+Two possible channels were considered; the owner chose to run the backfill directly instead.
 
 **M1 — through the editorial workflow.** The bot patches each production (`lead`, `topics`,
 `researchNote`, `credits`), which revokes final approval, then a human re-approves and a publication
@@ -260,6 +263,24 @@ constraint/index list before the release is published.
 After the rebuild, delete: the legacy columns and their mapping, the structured/legacy branch, the
 outline parser and its tests, the M2 endpoint, and the stale `mentions` wording in
 `docs/api-onboarding.md`.
+
+## Backfill record
+
+`apps/web/scripts/migrate-episode-structure.mjs` reads the live catalogue, parses each legacy
+`show_notes` into lead, topics, research note, credits and leftover body, and writes:
+
+- `episodes.lead / research_note / credits / body`
+- `episode_topics` rows (1-23 per episode, with per-topic source URLs from the older generation)
+- `episode_mentions` rows copied from the legacy JSON array, which stays in place
+- the matching `production.data` fields, so the next publication keeps the structure
+
+`--review` writes a per-episode comparison to `.local/migration/<target>/review.md` without touching
+the database; `--apply` writes inside one batched transaction per target. It never modifies
+`show_notes`, `mentions`, approvals, publications, versions or timestamps, so the previous rendering
+path and a rollback stay available.
+
+Pre-write backups were captured to `.local/backups/d1-<timestamp>/` (per-table JSON plus schema) with
+a D1 point-in-time bookmark in `manifest.json`.
 
 ## Risks
 

@@ -85,7 +85,9 @@ test('listeners can browse, filter and read episode summaries without transcript
   expect(await outline.locator('li').count()).toBeGreaterThanOrEqual(3);
   await expect(outline.locator('li').first()).toContainText('603 条建议');
   const reading = page.locator('#reading-panel');
-  await expect(reading.getByRole('heading', { level: 1 })).toHaveText('下班后，还要追多少个 AI？');
+  await expect(reading.locator('.episode-lead')).toContainText('下班又打开了新工具的教程');
+  await expect(reading.locator('.episode-topics > li')).toHaveCount(6);
+  await expect(reading.locator('#topic-2 h3')).toHaveText('连续两周限制睡眠');
   const source = reading.getByRole('link', { name: 'HowToLiveBetter：《高性价比人生指南》', exact: true });
   await expect(source).toHaveAttribute('href', 'https://github.com/eternity4719/HowToLiveBetter');
   await expect(source).toHaveAttribute('target', '_blank');
@@ -178,7 +180,7 @@ test('public content and episode links are readable without JavaScript', async (
     await expect(page.locator('main h1:not(article h1)')).toBeVisible();
     await expect(page.getByRole('link', { name: '全部播客', exact: true }).first()).toBeVisible();
   }
-  await expect(page.locator('#reading-panel')).toContainText('下班后');
+  await expect(page.locator('#reading-panel')).toContainText('白天消息不停');
   await expect(page.locator('#reading-panel a').first()).toBeVisible();
   await context.close();
 });

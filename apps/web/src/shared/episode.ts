@@ -21,6 +21,27 @@ const mediaUrl = z
     }
   }, '请使用 HTTPS 地址或站内图片、媒体路径');
 
+const episodeSourceUrl = z
+  .string()
+  .trim()
+  .max(2048)
+  .refine((value) => {
+    try {
+      const url = new URL(value);
+      return url.protocol === 'https:' && !url.username && !url.password;
+    } catch {
+      return false;
+    }
+  }, '来源链接需使用 HTTPS 地址');
+
+export const episodeTopicSchema = z.strictObject({
+  title: z.string().trim().min(1).max(120),
+  detail: z.string().trim().max(2000).default(''),
+  sourceUrls: z.array(episodeSourceUrl).max(8).default([]),
+});
+export const episodeTopicsSchema = z.array(episodeTopicSchema).max(30);
+export type EpisodeTopic = z.infer<typeof episodeTopicSchema>;
+
 const episodeBodySchema = z.strictObject({
   slug: z
     .string()
@@ -32,7 +53,12 @@ const episodeBodySchema = z.strictObject({
   title: z.string().trim().min(1).max(160),
   summary: z.string().trim().min(1).max(2000),
   transcript: z.string().max(100000),
-  showNotes: z.string().max(20000),
+  lead: z.string().max(4000).default(''),
+  researchNote: z.string().max(4000).default(''),
+  credits: z.string().max(4000).default(''),
+  body: z.string().max(20000).default(''),
+  topics: episodeTopicsSchema.default([]),
+  showNotes: z.string().max(20000).default(''),
   coverUrl: mediaUrl,
   category: categoryIdSchema,
   tags: z.array(z.string().trim().min(1).max(30)).max(10),
@@ -68,7 +94,18 @@ export const episodeCreateSchema = episodeBodySchema
     path: ['publishedAt'],
   });
 export type EpisodeCreateInput = z.infer<typeof episodeCreateSchema>;
-export const episodeUpdateSchema = episodeInputSchema.safeExtend({ version: z.number().int().positive() });
+/**
+ * Updates keep the legacy body, the mention list and the topic list when the caller omits them,
+ * so a client that only edits structure cannot erase the parts it does not know about.
+ */
+export const episodeUpdateSchema = episodeBodySchema
+  .extend({
+    version: z.number().int().positive(),
+    showNotes: episodeBodySchema.shape.showNotes.removeDefault().optional(),
+    mentions: episodeBodySchema.shape.mentions.removeDefault().optional(),
+    topics: episodeBodySchema.shape.topics.removeDefault().optional(),
+  })
+  .refine(requirePublishedAt, { message: '发布前请填写发布时间', path: ['publishedAt'] });
 export const episodeDisplaySchema = z.strictObject({
   version: z.number().int().positive(),
   featured: z.boolean(),

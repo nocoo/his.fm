@@ -3,6 +3,7 @@ import type { z } from 'zod';
 import {
   type Episode,
   type EpisodeInput,
+  type EpisodeTopic,
   episodeCreateSchema,
   episodeDisplaySchema,
   episodeUpdateSchema,
@@ -11,6 +12,7 @@ import {
   projectPublicEpisode,
   projectPublicEpisodeSummary,
 } from '../src/shared/episode';
+import type { Mention } from '../src/shared/mentions';
 
 type EpisodeUpdate = z.infer<typeof episodeUpdateSchema>;
 
@@ -50,6 +52,11 @@ type EpisodeRow = Omit<
   Episode,
   | 'episodeNumber'
   | 'showNotes'
+  | 'lead'
+  | 'researchNote'
+  | 'credits'
+  | 'body'
+  | 'topics'
   | 'coverUrl'
   | 'durationSeconds'
   | 'audioUrl'
@@ -64,6 +71,10 @@ type EpisodeRow = Omit<
   source_production_id: string | null;
   episode_number: number;
   show_notes: string;
+  lead: string;
+  research_note: string;
+  credits: string;
+  body: string;
   cover_url: string;
   duration_seconds: number;
   audio_url: string | null;
@@ -87,6 +98,11 @@ function fromRow(row: EpisodeRow): Episode {
     summary: row.summary,
     transcript: row.transcript,
     showNotes: row.show_notes,
+    lead: row.lead,
+    researchNote: row.research_note,
+    credits: row.credits,
+    body: row.body,
+    topics: [],
     coverUrl: row.cover_url,
     category: row.category,
     tags: JSON.parse(row.tags),
@@ -102,6 +118,72 @@ function fromRow(row: EpisodeRow): Episode {
   };
 }
 
+type TopicRow = {
+  episode_id: string;
+  position: number;
+  title: string;
+  detail: string;
+  source_urls: string;
+};
+
+type MentionRow = {
+  episode_id: string;
+  position: number;
+  name: string;
+  description: string;
+  url: string | null;
+};
+
+function placeholderList(count: number) {
+  return Array.from({ length: count }, () => '?').join(', ');
+}
+
+async function readEpisodeChildren(db: D1Database, ids: string[]) {
+  const topics = new Map<string, EpisodeTopic[]>();
+  const mentions = new Map<string, Mention[]>();
+  if (!ids.length) return { topics, mentions };
+  const list = placeholderList(ids.length);
+  const [topicResult, mentionResult] = await db.batch<TopicRow | MentionRow>([
+    db
+      .prepare(
+        `SELECT episode_id, position, title, detail, source_urls FROM episode_topics WHERE episode_id IN (${list}) ORDER BY episode_id, position`,
+      )
+      .bind(...ids),
+    db
+      .prepare(
+        `SELECT episode_id, position, name, description, url FROM episode_mentions WHERE episode_id IN (${list}) ORDER BY episode_id, position`,
+      )
+      .bind(...ids),
+  ]);
+  for (const row of topicResult.results as TopicRow[]) {
+    const entries = topics.get(row.episode_id) ?? [];
+    entries.push({
+      title: row.title,
+      detail: row.detail,
+      sourceUrls: JSON.parse(row.source_urls) as string[],
+    });
+    topics.set(row.episode_id, entries);
+  }
+  for (const row of mentionResult.results as MentionRow[]) {
+    const entries = mentions.get(row.episode_id) ?? [];
+    entries.push({
+      name: row.name,
+      description: row.description,
+      ...(row.url ? { url: row.url } : {}),
+    });
+    mentions.set(row.episode_id, entries);
+  }
+  return { topics, mentions };
+}
+
+function withChildren(episode: Episode, children: Awaited<ReturnType<typeof readEpisodeChildren>>): Episode {
+  return {
+    ...episode,
+    topics: children.topics.get(episode.id) ?? [],
+    mentions: children.mentions.get(episode.id) ?? [],
+  };
+}
+
 export async function readPublishedEpisodes(db: D1Database): Promise<Episode[]> {
   const result = await db
     .prepare(
@@ -109,7 +191,12 @@ export async function readPublishedEpisodes(db: D1Database): Promise<Episode[]> 
     )
     .bind(new Date().toISOString())
     .all<EpisodeRow>();
-  return result.results.map(fromRow);
+  const episodes = result.results.map(fromRow);
+  const children = await readEpisodeChildren(
+    db,
+    episodes.map((episode) => episode.id),
+  );
+  return episodes.map((episode) => withChildren(episode, children));
 }
 
 type EpisodeLookup = { category?: string; slug?: string; id?: string };
@@ -148,7 +235,12 @@ export async function listAllEpisodes(db: D1Database, actor?: Actor): Promise<Ep
   const result = await db
     .prepare('SELECT * FROM episodes ORDER BY updated_at DESC, episode_number DESC')
     .all<EpisodeRow>();
-  return result.results.map(fromRow);
+  const episodes = result.results.map(fromRow);
+  const children = await readEpisodeChildren(
+    db,
+    episodes.map((episode) => episode.id),
+  );
+  return episodes.map((episode) => withChildren(episode, children));
 }
 
 export async function getEpisode(
@@ -164,11 +256,17 @@ export async function getEpisode(
     requireScope(actor, 'episodes:read');
     const row = await db.prepare('SELECT * FROM episodes WHERE id = ?').bind(key).first<EpisodeRow>();
     if (!row) throw new HttpError(404, '这期节目不存在');
-    return fromRow(row);
+    const episode = fromRow(row);
+    return withChildren(episode, await readEpisodeChildren(db, [episode.id]));
   }
   const row = await fetchPublishedRow(db, { category: options.category, slug: key });
   if (!row) throw new HttpError(404, '这期节目不存在');
-  return projectPublishedEpisode(db, fromRow(row), origin);
+  const episode = fromRow(row);
+  return projectPublishedEpisode(
+    db,
+    withChildren(episode, await readEpisodeChildren(db, [episode.id])),
+    origin,
+  );
 }
 
 export async function listPublishedEpisodesInCategory(db: D1Database, categoryId: string) {
@@ -219,14 +317,51 @@ async function readInput(request: Request, update: boolean) {
   return parsed.data;
 }
 
-function inputValues(input: EpisodeInput) {
+export function childStatements(
+  db: D1Database,
+  id: string,
+  input: { topics?: EpisodeTopic[]; mentions?: Mention[] },
+) {
+  const statements: D1PreparedStatement[] = [];
+  if (input.topics) {
+    statements.push(db.prepare('DELETE FROM episode_topics WHERE episode_id = ?').bind(id));
+    input.topics.forEach((topic, index) => {
+      statements.push(
+        db
+          .prepare(
+            'INSERT INTO episode_topics (episode_id, position, title, detail, source_urls) VALUES (?, ?, ?, ?, ?)',
+          )
+          .bind(id, index + 1, topic.title, topic.detail, JSON.stringify(topic.sourceUrls)),
+      );
+    });
+  }
+  if (input.mentions) {
+    statements.push(db.prepare('DELETE FROM episode_mentions WHERE episode_id = ?').bind(id));
+    input.mentions.forEach((mention, index) => {
+      statements.push(
+        db
+          .prepare(
+            'INSERT INTO episode_mentions (episode_id, position, name, description, url) VALUES (?, ?, ?, ?, ?)',
+          )
+          .bind(id, index + 1, mention.name, mention.description, mention.url ?? null),
+      );
+    });
+  }
+  return statements;
+}
+
+function createValues(input: EpisodeInput, episodeNumber: number) {
   return [
     input.slug,
-    input.episodeNumber,
+    episodeNumber,
     input.title,
     input.summary,
     input.transcript,
     input.showNotes,
+    input.lead,
+    input.researchNote,
+    input.credits,
+    input.body,
     input.coverUrl,
     input.category,
     JSON.stringify(input.tags),
@@ -241,11 +376,12 @@ function inputValues(input: EpisodeInput) {
 }
 
 export async function mutateEpisode(request: Request, db: D1Database, actor: Actor, id?: string) {
-  const respond = (row: EpisodeRow, status = 200) =>
-    json(
-      { episode: hasScope(actor, 'episodes:read') ? fromRow(row) : { id: row.id, version: row.version } },
-      status,
-    );
+  const respond = async (row: EpisodeRow, status = 200) => {
+    if (!hasScope(actor, 'episodes:read'))
+      return json({ episode: { id: row.id, version: row.version } }, status);
+    const episode = fromRow(row);
+    return json({ episode: withChildren(episode, await readEpisodeChildren(db, [episode.id])) }, status);
+  };
   if (
     !['POST', 'PUT', 'PATCH', 'DELETE'].includes(request.method) ||
     (request.method !== 'POST' && !id) ||
@@ -266,7 +402,7 @@ export async function mutateEpisode(request: Request, db: D1Database, actor: Act
       .bind(Number(input.featured), new Date().toISOString(), id, input.version)
       .first<EpisodeRow>();
     if (!row) throw new HttpError(409, '节目已被修改，请刷新后重试');
-    return respond(row);
+    return await respond(row);
   }
   if (current?.source_production_id)
     throw new HttpError(409, '这期节目由制作流程管理，请进入制作任务修改和重新审核');
@@ -286,7 +422,7 @@ export async function mutateEpisode(request: Request, db: D1Database, actor: Act
     await deleteHolderEpisodeNumberClaims(db, 'episode', id).run();
     return new Response(null, { status: 204 });
   }
-  const input = await readInput(request, Boolean(id));
+  const input = (await readInput(request, Boolean(id))) as EpisodeInput;
   if (
     input.status === 'published' ||
     current?.status === 'published' ||
@@ -313,9 +449,40 @@ export async function mutateEpisode(request: Request, db: D1Database, actor: Act
     const statements = [
       db
         .prepare(
-          'UPDATE episodes SET slug = ?, episode_number = ?, title = ?, summary = ?, transcript = ?, show_notes = ?, cover_url = ?, category = ?, tags = ?, mentions = ?, seo = ?, duration_seconds = ?, audio_url = ?, status = ?, featured = ?, published_at = ?, updated_at = ?, write_id = ?, version = version + 1 WHERE id = ? AND version = ? AND source_production_id IS NULL',
+          `UPDATE episodes SET slug = ?, episode_number = ?, title = ?, summary = ?, transcript = ?,
+            show_notes = COALESCE(?, show_notes), lead = ?, research_note = ?, credits = ?, body = ?,
+            cover_url = ?, category = ?, tags = ?, mentions = COALESCE(?, mentions), seo = ?,
+            duration_seconds = ?, audio_url = ?, status = ?, featured = ?, published_at = ?,
+            updated_at = ?, write_id = ?, version = version + 1
+          WHERE id = ? AND version = ? AND source_production_id IS NULL`,
         )
-        .bind(...inputValues(payload), now, writeId, id, expectedVersion),
+        .bind(
+          payload.slug,
+          episodeNumber,
+          payload.title,
+          payload.summary,
+          payload.transcript,
+          input.showNotes ?? null,
+          payload.lead,
+          payload.researchNote,
+          payload.credits,
+          payload.body,
+          payload.coverUrl,
+          payload.category,
+          JSON.stringify(payload.tags),
+          input.mentions ? JSON.stringify(input.mentions) : null,
+          JSON.stringify(payload.seo ?? {}),
+          payload.durationSeconds,
+          payload.audioUrl,
+          payload.status,
+          Number(payload.featured),
+          payload.publishedAt,
+          now,
+          writeId,
+          id,
+          expectedVersion,
+        ),
+      ...childStatements(db, id, { topics: input.topics, mentions: input.mentions }),
     ];
     if (claimChanged) {
       statements.push(
@@ -327,7 +494,7 @@ export async function mutateEpisode(request: Request, db: D1Database, actor: Act
       if (results[0].meta.changes !== 1) throw new HttpError(409, '节目已被修改，请刷新后重试');
       const row = await db.prepare('SELECT * FROM episodes WHERE id = ?').bind(id).first<EpisodeRow>();
       if (!row) throw new HttpError(409, '节目已被修改，请刷新后重试');
-      return respond(row);
+      return await respond(row);
     } catch (error) {
       if (error instanceof HttpError) throw error;
       const message = error instanceof Error ? error.message : '';
@@ -348,10 +515,14 @@ export async function mutateEpisode(request: Request, db: D1Database, actor: Act
     (episodeNumber) =>
       db
         .prepare(
-          'INSERT INTO episodes (slug, episode_number, title, summary, transcript, show_notes, cover_url, category, tags, mentions, seo, duration_seconds, audio_url, status, featured, published_at, created_at, updated_at, write_id, id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *',
+          `INSERT INTO episodes (slug, episode_number, title, summary, transcript, show_notes, lead,
+            research_note, credits, body, cover_url, category, tags, mentions, seo, duration_seconds,
+            audio_url, status, featured, published_at, created_at, updated_at, write_id, id)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *`,
         )
-        .bind(...inputValues({ ...input, episodeNumber }), now, now, writeId, newId),
+        .bind(...createValues({ ...input, episodeNumber }, episodeNumber), now, now, writeId, newId),
     input.episodeNumber,
   );
-  return respond(row, 201);
+  await db.batch(childStatements(db, newId, { topics: input.topics, mentions: input.mentions }));
+  return await respond(row, 201);
 }
