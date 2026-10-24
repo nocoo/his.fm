@@ -37,8 +37,12 @@ test('listeners can browse, filter and read episode summaries without transcript
   page.on('pageerror', (error) => errors.push(error.message));
   await page.goto('/?theme=interval');
   await expect(page.getByRole('heading', { level: 1 })).toContainText('今天就');
+  const homeGroups = page.locator('.programme-group');
   const homeCards = page.locator('.episode-card');
-  await expect(homeCards).toHaveCount(3);
+  expect(await homeGroups.count()).toBeGreaterThan(0);
+  for (const group of await homeGroups.all()) {
+    expect(await group.locator('.episode-card').count()).toBeLessThanOrEqual(3);
+  }
   for (const card of await homeCards.all()) {
     await expect(card.locator('.framed-cover-overlay')).toHaveAttribute('src', '/brand/frames/interval.svg');
   }
@@ -103,7 +107,7 @@ test('public pages fit a phone and respect reduced motion', async ({ page }) => 
   await mkdir('.local', { recursive: true });
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/');
-  await expect(page.locator('.episode-card')).toHaveCount(3);
+  await expect(page.locator('.programme-group').first()).toBeVisible();
   await expect(page.getByRole('navigation', { name: '主导航' })).toBeHidden();
   await page.getByRole('button', { name: '打开导航' }).click();
   await page.getByRole('navigation', { name: '主导航' }).getByRole('link', { name: '关于 his.fm' }).click();
@@ -116,7 +120,7 @@ test('public pages fit a phone and respect reduced motion', async ({ page }) => 
     expect(fits, `${path} fits the viewport`).toBe(true);
   }
   await page.goto('/');
-  await expect(page.locator('.episode-card')).toHaveCount(3);
+  await expect(page.locator('.programme-group').first()).toBeVisible();
   expect(
     await page.locator('.pace-line').evaluate((element) => getComputedStyle(element).animationName),
   ).toBe('none');
@@ -170,7 +174,7 @@ test('unknown URLs return 404 and real icons retain their media types', async ({
 
 test('public re-entry revalidates the server snapshot without a document reload', async ({ page }) => {
   await page.goto('/');
-  await expect(page.locator('.episode-card')).toHaveCount(3);
+  await expect(page.locator('.programme-group').first()).toBeVisible();
   await page.locator('footer a[href="/login"]').click();
   await expect(page).toHaveURL(/\/login$/);
   await expect(page.getByRole('heading', { name: '欢迎回到工作室' })).toBeVisible();

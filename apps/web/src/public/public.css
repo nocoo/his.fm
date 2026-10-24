@@ -311,6 +311,39 @@ html:has(.appearance-gate) body {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 32px;
 }
+.public-site .programme-group + .programme-group {
+  margin-top: clamp(48px, 5vw, 76px);
+}
+.public-site .programme-heading {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  padding-top: 22px;
+  margin-bottom: 26px;
+  border-top: 1px solid var(--line);
+}
+.public-site .programme-heading h3 {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: clamp(22px, 2.1vw, 30px);
+  font-weight: 500;
+  letter-spacing: -0.04em;
+  line-height: 1.4;
+}
+.public-site .programme-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  flex: none;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+}
+.public-site .programme-heading > .text-link {
+  margin-left: auto;
+  flex: none;
+}
 .public-site .episode-card {
   min-width: 0;
 }
@@ -471,6 +504,114 @@ html:has(.appearance-gate) body {
 .public-site .about-teaser-copy .text-link {
   margin-top: 15px;
 }
+.public-site .subscribe {
+  padding-block: clamp(48px, 5vw, 78px) clamp(40px, 4vw, 64px);
+}
+.public-site .subscribe-inner {
+  position: relative;
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr);
+  gap: clamp(26px, 4vw, 64px);
+  align-items: center;
+  padding: clamp(28px, 3.6vw, 56px);
+  background-color: var(--ink);
+  background-image: radial-gradient(
+    circle at 1px 1px,
+    color-mix(in srgb, var(--paper) 10%, transparent) 1px,
+    transparent 0
+  );
+  background-size: 20px 20px;
+  color: var(--paper);
+  border-radius: var(--radius);
+}
+.public-site .subscribe-copy {
+  position: relative;
+  z-index: 1;
+}
+.public-site .subscribe-copy h2 {
+  font-size: clamp(28px, 3.2vw, 46px);
+  font-weight: 450;
+  letter-spacing: -0.05em;
+  line-height: 1.55;
+  margin-block: 18px 16px;
+}
+.public-site .subscribe-copy > p:not(.eyebrow) {
+  font-size: 13px;
+  line-height: 2;
+  max-width: 380px;
+  color: color-mix(in srgb, var(--paper) 74%, var(--ink));
+}
+.public-site .subscribe-options {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  gap: 0;
+  border-top: 1px solid color-mix(in srgb, var(--paper) 26%, var(--ink));
+}
+.public-site .subscribe-option {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 4px;
+  border-bottom: 1px solid color-mix(in srgb, var(--paper) 26%, var(--ink));
+  transition:
+    padding-left 0.2s ease,
+    background-color 0.2s ease;
+}
+.public-site .subscribe-option:hover,
+.public-site .subscribe-option:focus-visible {
+  padding-left: 14px;
+  background-color: color-mix(in srgb, var(--paper) 7%, transparent);
+}
+.public-site .subscribe-mark {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  flex: none;
+  border: 1px solid color-mix(in srgb, var(--paper) 34%, var(--ink));
+  border-radius: 50%;
+}
+.public-site .subscribe-text {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+.public-site .subscribe-text strong {
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+.public-site .subscribe-text em {
+  font-size: 11px;
+  font-style: normal;
+  letter-spacing: 0.03em;
+  color: color-mix(in srgb, var(--paper) 62%, var(--ink));
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.public-site .subscribe-option > svg {
+  margin-left: auto;
+  flex: none;
+  opacity: 0.55;
+}
+.public-site .subscribe-option.is-primary .subscribe-mark {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--ink);
+}
+.public-site .subscribe-symbol {
+  position: absolute;
+  right: -3%;
+  bottom: -14%;
+  width: 34%;
+  max-width: 240px;
+  height: auto;
+  opacity: 0.07;
+  pointer-events: none;
+}
 .public-site .site-footer {
   border-top: 1px solid var(--line);
   padding-top: 34px;
@@ -488,8 +629,8 @@ html:has(.appearance-gate) body {
 }
 .public-site .footer-top > div {
   display: grid;
-  grid-template-columns: repeat(3, auto);
-  gap: 28px;
+  grid-template-columns: repeat(2, minmax(96px, auto));
+  gap: 14px 28px;
   padding-top: 5px;
   font-size: 12px;
 }
@@ -658,21 +799,30 @@ html:has(.appearance-gate) body {
   overflow-wrap: anywhere;
 }
 .public-site .episode-mentions {
-  margin-top: 1.5rem;
+  margin-top: 56px;
+  padding-top: 26px;
+  border-top: 1px solid var(--line);
 }
 
 .public-site .episode-mentions h2 {
-  font-size: 1rem;
-  margin: 0 0 0.75rem;
+  font-size: clamp(20px, 1.8vw, 26px);
+  font-weight: 500;
+  letter-spacing: -0.03em;
+  margin: 0 0 18px;
 }
 
 .public-site .episode-mentions ul {
   margin: 0;
   padding-left: 1.1rem;
+  display: grid;
+  gap: 10px;
+  font-size: 13px;
+  line-height: 1.85;
+  color: var(--muted);
 }
 
 .public-site .episode-mentions li {
-  margin-bottom: 0.45rem;
+  margin: 0;
 }
 
 .public-site .episode-license {
@@ -1128,6 +1278,9 @@ html:has(.appearance-gate) body {
   .public-site .footer-top > div {
     gap: 20px;
   }
+  .public-site .subscribe-inner {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 @media (max-width: 760px) {
   .public-site {
@@ -1223,6 +1376,21 @@ html:has(.appearance-gate) body {
   }
   .public-site .footer-top > p {
     font-size: 16px;
+  }
+  .public-site .programme-heading {
+    flex-wrap: wrap;
+    gap: 10px 14px;
+    margin-bottom: 20px;
+  }
+  .public-site .programme-heading > .text-link {
+    margin-left: auto;
+  }
+  .public-site .subscribe-inner {
+    padding: 26px 22px 30px;
+  }
+  .public-site .subscribe-symbol {
+    width: 46%;
+    opacity: 0.06;
   }
   .public-site .footer-top > div {
     grid-template-columns: 1fr;

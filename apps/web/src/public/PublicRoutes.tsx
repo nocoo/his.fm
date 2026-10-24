@@ -8,6 +8,7 @@ import {
   Headphones,
   Menu,
   MoveUpRight,
+  Podcast,
   Rss,
   Search,
   X,
@@ -18,6 +19,8 @@ import { BrandSymbol, Wordmark } from '../brand/Brand';
 import { BrandLockup } from '../brand/BrandLockup';
 import { themeMedia } from '../brand/themes';
 import { AudioPlayer } from '../components/AudioPlayer';
+import type { PublicCategory } from '../shared/category';
+import { categoryIconComponents } from '../shared/category-icons';
 import { coverArtwork, coverDesignSize } from '../shared/cover-composition';
 import type { PublicEpisodeSummary } from '../shared/episode';
 import { episodeThumbnailProps, episodeThumbnailSizes } from '../shared/episode-thumbnail';
@@ -44,6 +47,8 @@ import { Reveal } from './Reveal';
 import { useEpisodeDetail, useEpisodes } from './useEpisodes';
 import { PublicSiteSeoProvider, usePublicSiteSeo } from './usePublicSiteSeo';
 import './hero.css';
+
+const applePodcastsUrl = 'https://podcasts.apple.com/us/podcast/his-fm/id6826007787';
 
 const EpisodeContext = createContext<ReturnType<typeof useEpisodes> | null>(null);
 
@@ -111,6 +116,12 @@ function Footer() {
               {site.podcastAuthor}的主页 <ArrowUpRight size={16} />
             </a>
           )}
+          <a href={applePodcastsUrl} rel="noopener noreferrer" target="_blank">
+            Apple Podcasts <ArrowUpRight size={16} />
+          </a>
+          <a href="/feed.xml" type="application/rss+xml">
+            RSS 订阅 <ArrowUpRight size={16} />
+          </a>
           <a href="https://lizheng.blog" rel="noopener noreferrer" target="_blank">
             博客 <ArrowUpRight size={16} />
           </a>
@@ -228,6 +239,113 @@ function EpisodeCard({ episode }: { episode: PublicEpisodeSummary }) {
   );
 }
 
+function ProgrammeGroup({
+  category,
+  episodes,
+  anchor,
+}: {
+  category: PublicCategory;
+  episodes: PublicEpisodeSummary[];
+  anchor?: string;
+}) {
+  const Icon = categoryIconComponents[category.icon];
+  return (
+    <section className="programme-group" id={anchor}>
+      <Reveal className="programme-heading">
+        <h3>
+          <span className="programme-icon" aria-hidden="true">
+            <Icon size={18} strokeWidth={1.5} />
+          </span>
+          {category.name}
+        </h3>
+        <Link to={catalogueHref(new URLSearchParams(), category.id)} className="text-link">
+          全部 {episodes.length} 期 <ArrowUpRight size={18} />
+        </Link>
+      </Reveal>
+      <div className="episode-grid">
+        {episodes.slice(0, 3).map((episode) => (
+          <Reveal key={episode.id}>
+            <EpisodeCard episode={episode} />
+          </Reveal>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function ProgrammeSections() {
+  const { episodes, categories } = useLibrary();
+  const groups = categories
+    .map((category) => ({
+      category,
+      episodes: episodes.filter((episode) => episode.category === category.id),
+    }))
+    .filter((group) => group.episodes.length > 0);
+  return (
+    <>
+      {groups.map((group, index) => (
+        <ProgrammeGroup
+          key={group.category.id}
+          category={group.category}
+          episodes={group.episodes}
+          anchor={index === 0 ? 'episodes' : undefined}
+        />
+      ))}
+    </>
+  );
+}
+
+function Subscribe() {
+  return (
+    <section className="subscribe wrap" aria-labelledby="subscribe-heading">
+      <Reveal className="subscribe-inner">
+        <div className="subscribe-copy">
+          <p className="eyebrow">SUBSCRIBE / 订阅</p>
+          <h2 id="subscribe-heading">
+            路上的时候，
+            <br />
+            也能接着听。
+          </h2>
+          <p>站内就可以直接听。想在通勤和散步时接着听，可以把它放进自己的播客应用。</p>
+        </div>
+        <div className="subscribe-options">
+          <Link to="/episodes" className="subscribe-option is-primary">
+            <span className="subscribe-mark" aria-hidden="true">
+              <Headphones size={19} strokeWidth={1.4} />
+            </span>
+            <span className="subscribe-text">
+              <strong>在站内收听</strong>
+              <em>打开全部播客</em>
+            </span>
+            <ArrowUpRight size={18} aria-hidden="true" />
+          </Link>
+          <a href="/feed.xml" type="application/rss+xml" className="subscribe-option">
+            <span className="subscribe-mark" aria-hidden="true">
+              <Rss size={19} strokeWidth={1.4} />
+            </span>
+            <span className="subscribe-text">
+              <strong>RSS 订阅</strong>
+              <em>任何播客应用 · his.fm/feed.xml</em>
+            </span>
+            <ArrowUpRight size={18} aria-hidden="true" />
+          </a>
+          <a href={applePodcastsUrl} rel="noopener noreferrer" target="_blank" className="subscribe-option">
+            <span className="subscribe-mark" aria-hidden="true">
+              <Podcast size={19} strokeWidth={1.4} />
+            </span>
+            <span className="subscribe-text">
+              <strong>Apple Podcasts</strong>
+              <em>iPhone、iPad 与 Mac 自带</em>
+            </span>
+            <ArrowUpRight size={18} aria-hidden="true" />
+          </a>
+        </div>
+        <BrandSymbol className="subscribe-symbol" />
+      </Reveal>
+    </section>
+  );
+}
+
 function Home() {
   const { episodes, categories } = useLibrary();
   const { id } = useAppearance();
@@ -249,7 +367,7 @@ function Home() {
         <i />
         <span>生活还在继续</span>
       </div>
-      <section className="episode-section wrap" id="episodes">
+      <section className="episode-section wrap">
         <Reveal className="section-heading">
           <div>
             <p className="eyebrow">ON THE OTHER SIDE OF THE SCREEN</p>
@@ -260,13 +378,7 @@ function Home() {
           </Link>
         </Reveal>
         <LibraryState>
-          <div className="episode-grid">
-            {episodes.slice(0, 3).map((episode) => (
-              <Reveal key={episode.id}>
-                <EpisodeCard episode={episode} />
-              </Reveal>
-            ))}
-          </div>
+          <ProgrammeSections />
         </LibraryState>
       </section>
       {!quiet && (
@@ -309,6 +421,7 @@ function Home() {
           />
         </Reveal>
       </section>
+      <Subscribe />
     </>
   );
 }
@@ -525,7 +638,6 @@ function EpisodeDetail() {
               <span key={tag}>{tag}</span>
             ))}
           </div>
-          <EpisodeMentions mentions={episode.mentions} />
           <p className="episode-license">
             文字内容采用{' '}
             <a
@@ -575,6 +687,7 @@ function EpisodeDetail() {
           </div>
         </div>
       </div>
+      <EpisodeMentions mentions={episode.mentions} />
       <section className="related-episodes">
         <div className="section-heading">
           <div>
