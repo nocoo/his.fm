@@ -3,7 +3,6 @@ import { themeCoverFrameSrc } from '../brand/themes';
 import type { ThemeId } from '../shared/appearance';
 import { type CoverCopy, coverArtwork, coverDesignSize, coverText } from '../shared/cover-composition';
 import { useResolvedThemeId } from '../shared/useResolvedThemeId';
-import './FramedCover.css';
 
 /** Whether a prior load error should hide the cover for the current `src`. */
 export function coverErrorHidesSrc(failedCoverSrc: string | null, src: string): boolean {

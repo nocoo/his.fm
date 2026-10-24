@@ -5,7 +5,6 @@ import { useEffect, useRef, useState } from 'react';
 import { audioErrorMessage, formatAudioTime } from './AudioPlayer.model';
 import { FramedCover } from './FramedCover';
 import { clearMediaMetadata, setMediaMetadata } from './services/media-session';
-import './AudioPlayer.css';
 
 export type AudioPlayerProps = {
   src: string;

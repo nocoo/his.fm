@@ -23,10 +23,26 @@ def svg(viewbox, body, color=palette['ink'].lower()):
 wordmark = symbol('wordmark')
 mark = symbol('symbol')
 components = ['// Generated from identity.svg by scripts/prepare-identity.py.\n']
-for name, css, shape in [('Wordmark', 'wordmark', wordmark), ('BrandSymbol', 'symbol', mark)]:
+for name, css, shape, fallback_width in [
+    ('Wordmark', 'wordmark', wordmark, 144),
+    ('BrandSymbol', 'symbol', mark, 28),
+]:
     body = shape[1].replace('stroke-width', 'strokeWidth').replace('stroke-linecap', 'strokeLinecap').replace('stroke-linejoin', 'strokeLinejoin')
+    _, _, box_width, box_height = shape[0].split()
+    fallback_height = round(fallback_width * int(box_height) / int(box_width))
     components.append(f'''export function {name}({{ className = '' }}: {{ className?: string }}) {{
-  return <svg className={{`brand-{css} ${{className}}`}} viewBox="{shape[0]}" aria-hidden="true" focusable="false">{body}</svg>;
+  return (
+    <svg
+      className={{`brand-{css} ${{className}}`}}
+      viewBox="{shape[0]}"
+      width={{{fallback_width}}}
+      height={{{fallback_height}}}
+      aria-hidden="true"
+      focusable="false"
+    >
+      {body}
+    </svg>
+  );
 }}
 ''')
 (ROOT / 'apps/web/src/brand/Brand.tsx').write_text('\n'.join(components))

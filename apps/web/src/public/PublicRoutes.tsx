@@ -23,6 +23,7 @@ import type { PublicCategory } from '../shared/category';
 import { categoryIconComponents } from '../shared/category-icons';
 import { coverArtwork, coverDesignSize } from '../shared/cover-composition';
 import type { PublicEpisodeSummary } from '../shared/episode';
+import { formatEpisodeNumber } from '../shared/episode-display';
 import { episodeThumbnailProps, episodeThumbnailSizes } from '../shared/episode-thumbnail';
 import { episodePublicPath } from '../shared/episode-url';
 import { ReadingText } from '../shared/ReadingText';
@@ -46,7 +47,6 @@ import { usePublicOrigin } from './PublicData';
 import { Reveal } from './Reveal';
 import { useEpisodeDetail, useEpisodes } from './useEpisodes';
 import { PublicSiteSeoProvider, usePublicSiteSeo } from './usePublicSiteSeo';
-import './hero.css';
 
 const applePodcastsUrl = 'https://podcasts.apple.com/us/podcast/his-fm/id6826007787';
 
@@ -617,7 +617,6 @@ function EpisodeDetail() {
               mediaArtworkUrl={`${origin}/episodes/${encodeURIComponent(episode.id)}/art.jpg`}
               episodeNumber={episode.episodeNumber}
               categoryName={categories.find((item) => item.id === episode.category)?.name ?? ''}
-              subtitle={episodeDisplayLabel(episode, categories)}
             />
           ) : (
             <EpisodeCover
@@ -628,8 +627,11 @@ function EpisodeDetail() {
           )}
         </Reveal>
         <Reveal className="detail-intro">
-          <p className="eyebrow">
-            {episodeDisplayLabel(episode, categories)} <span> / </span> {dateLabel(episode.publishedAt)}
+          <p className="eyebrow detail-meta">
+            <span>{formatEpisodeNumber(episode.episodeNumber)}</span>
+            <span>{dateLabel(episode.publishedAt)}</span>
+            {episode.durationSeconds > 0 && <span>{durationLabel(episode.durationSeconds)}</span>}
+            {episode.mentions.length > 0 && <span>{episode.mentions.length} 个来源</span>}
           </p>
           <h1>{episode.title}</h1>
           <p className="detail-summary">{episode.summary}</p>
@@ -638,17 +640,6 @@ function EpisodeDetail() {
               <span key={tag}>{tag}</span>
             ))}
           </div>
-          <p className="episode-license">
-            文字内容采用{' '}
-            <a
-              href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh"
-              rel="license noopener noreferrer"
-              target="_blank"
-            >
-              知识共享 署名-非商业性使用-相同方式共享 4.0
-            </a>{' '}
-            许可。
-          </p>
           {!episode.audioUrl && (
             <div className="recording-note">
               <BrandSymbol />
@@ -688,6 +679,17 @@ function EpisodeDetail() {
         </div>
       </div>
       <EpisodeMentions mentions={episode.mentions} />
+      <p className="episode-license">
+        文字内容采用{' '}
+        <a
+          href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh"
+          rel="license noopener noreferrer"
+          target="_blank"
+        >
+          知识共享 署名-非商业性使用-相同方式共享 4.0
+        </a>{' '}
+        许可。
+      </p>
       <section className="related-episodes">
         <div className="section-heading">
           <div>
