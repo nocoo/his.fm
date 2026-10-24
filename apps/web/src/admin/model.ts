@@ -42,7 +42,6 @@ export function readEpisodeForm(form: FormData) {
     title: text('title'),
     summary: text('summary'),
     transcript: text('transcript'),
-    showNotes: text('showNotes'),
     lead: text('lead'),
     researchNote: text('researchNote'),
     credits: text('credits'),

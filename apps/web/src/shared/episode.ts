@@ -87,6 +87,8 @@ export const episodeInputSchema = episodeBodySchema.refine(requirePublishedAt, {
 });
 
 export type EpisodeInput = z.infer<typeof episodeInputSchema>;
+/** Writes may omit the legacy Markdown body; the worker keeps whatever is stored. */
+export type EpisodeWriteInput = Omit<EpisodeInput, 'showNotes'> & { showNotes?: string };
 export const episodeCreateSchema = episodeBodySchema
   .extend({ episodeNumber: episodeBodySchema.shape.episodeNumber.optional() })
   .refine(requirePublishedAt, {

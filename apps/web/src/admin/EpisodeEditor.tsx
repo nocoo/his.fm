@@ -130,7 +130,9 @@ export function EpisodeEditor() {
     }
     setPending(true);
     try {
-      const payload = { ...result.data, mentions: parsedMentions, topics: parsedTopics, seo };
+      // The legacy Markdown column is read-only during the migration: omit it so the worker keeps it.
+      const { showNotes: _legacyNotes, ...content } = result.data;
+      const payload = { ...content, mentions: parsedMentions, topics: parsedTopics, seo };
       const { episode: saved } =
         id && episode
           ? await adminService.update(id, payload, episode.version)
