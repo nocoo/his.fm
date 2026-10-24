@@ -133,7 +133,7 @@ Export accepts static PNG/JPEG/WebP up to **4 MiB**, **4,000,000 pixels**, and *
 
 Standalone `/episodes` supports POST/GET and `/:id` GET/PUT/DELETE. PUT includes version; DELETE uses `?version=N`. Publishing/changing published standalone content additionally requires `episodes:publish`. Linked production snapshots reject standalone content writes/deletion. `PATCH /episodes/:id` permits only `{version, featured}` display metadata.
 
-Production briefs and standalone episode bodies accept an ordered `mentions` array (at most 50 items). Each item is `{name, description, url?}`: `name` and `description` are required strings; `description` is a single-sentence explanation; `url` is optional and must be `http` or `https` when present. Published snapshots copy `mentions` to the public episode. Public `/api/episodes` responses include `mentions` but never full transcripts.
+Production briefs and standalone episode bodies accept an ordered `mentions` array (at most 50 items). Each item is `{name, description, url?}`: `name` and `description` are required strings; `description` is a single-sentence explanation; `url` is optional and must be `http` or `https` when present. Published snapshots copy `mentions` to the public episode. The public catalogue `GET /api/episodes` returns a light summary (no mentions, no episode body); `GET /api/episodes/{category}/{slug}` and `GET /api/episodes/{id}` include `mentions` and the episode body but never the transcript.
 
 Production briefs/patches also accept optional `seo` with the existing page override
 fields (`title`, `description`, `ogImageUrl`, `noindex`). A metadata SEO change
