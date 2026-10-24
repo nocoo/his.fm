@@ -2,6 +2,19 @@
 
 All notable changes to his.fm are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions use the owner’s patch-only deployment policy in `AGENTS.md`, with the authoritative version in `package.json`.
 
+## 2.11.4 - 2026-10-24
+
+### Fixed
+
+- Declare a 32-square PNG favicon beside every theme's SVG, because Safari bookmarks ignore vector favicons and kept showing the deleted grove-era icon. `scripts/prepare-favicon-png.mjs` rasterizes the canonical theme icons, SSR emits both tags and client navigation keeps them synchronized.
+- Point the declared apple-touch-icon at the new `/brand/icons/icon-180.png` path and keep `/apple-touch-icon.png` as a byte-identical copy, so a cached touch icon can no longer shadow the approved channel cover.
+
+### Verification
+
+- Pass 1,118 web unit tests and 107 contracts tests, both workspaces' four 95% coverage floors, lint, typecheck and the production build.
+- Pass 28 Chrome cases covering public delivery, identity and appearance. One appearance focus-ring case fails identically on the unmodified 2.11.3 tree in this local Chrome, so it predates this change and is left open.
+- Safari bookmark and home-screen rendering after cache clearing remains an owner check on the real device.
+
 ## 2.11.3 - 2026-10-24
 
 ### Added
