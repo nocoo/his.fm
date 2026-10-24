@@ -31,9 +31,10 @@ export default defineConfig(({ mode }) => {
         DB: bindings.d1({
           name: 'his-fm',
           id: local ? '00000000-0000-4000-8000-000000007056' : '66f7e201-22a8-450d-838d-ecbc382afbc6',
+          dev: { remote: !local },
         }),
-        MEDIA: bindings.r2({ name: 'his-fm' }),
-        IMAGES: bindings.images(),
+        MEDIA: bindings.r2({ name: 'his-fm', dev: { remote: !local } }),
+        IMAGES: bindings.images({ dev: { remote: !local } }),
         BUILD_INFO: bindings.versionMetadata(),
         ASSETS: bindings.assets(),
       },

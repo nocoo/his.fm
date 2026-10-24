@@ -59,8 +59,7 @@ async function route(request: Request, env: Env, ctx?: ExecutionContext): Promis
   const url = new URL(request.url);
   const path = url.pathname;
   const origin = url.origin;
-  if (env.ENVIRONMENT === 'local' && /^\/(?:@|src\/|node_modules\/)/.test(path))
-    return env.ASSETS.fetch(request);
+  if (import.meta.env.DEV && /^\/(?:@|src\/|node_modules\/)/.test(path)) return env.ASSETS.fetch(request);
   if (url.hostname === 'www.his.fm' || (url.hostname === 'his.fm' && url.protocol === 'http:')) {
     url.protocol = 'https:';
     url.hostname = 'his.fm';

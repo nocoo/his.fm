@@ -44,6 +44,7 @@
 ## Local development
 
 - `npm run dev` migrates and seeds local D1 once, then starts Vite on loopback port 7056.
+- `npm run dev:remote` (`vite --mode production`) runs the same port against the production bindings: real D1, R2 and image resizing, with the deployed worker config. It is read-only acceptance tooling; studio login stays disabled because `ENVIRONMENT=production` requires Access.
 - User-facing URL: `https://hisfm.dev.hexly.ai`. Caddy proxies to `127.0.0.1:7056` and permits only loopback clients.
 - Reserved ports: integration 17056, browser 27056, inspector 37056. See nmem `hisfm-local-ports` before changing them.
 - `apps/web/cloudflare.config.ts` selects local bindings and `ENVIRONMENT=local` only in `development` mode. All other modes use production settings. Local D1 uses `00000000-0000-4000-8000-000000007056`; Run local CLI commands from `apps/web` with `--local --persist-to .cloudflare/state` to share Vite state. Local login requires this flag, an allowed hostname and same-origin requests. It creates an expiring HttpOnly session; production never enables it.

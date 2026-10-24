@@ -6,7 +6,7 @@ import { productionProxy } from './scripts/production-proxy.ts';
 
 process.env.CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV = 'false';
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   define: {
     __BUILD_REVISION__: JSON.stringify(
       execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(),
@@ -16,7 +16,9 @@ export default defineConfig({
     react(),
     productionProxy(),
     cloudflare({
-      remoteBindings: false,
+      // `--mode development` runs against local Miniflare state; any other mode keeps the
+      // production bindings of cloudflare.config.ts and talks to the real D1 and R2.
+      remoteBindings: mode !== 'development',
       inspectorPort: false,
     }),
   ],
@@ -26,4 +28,4 @@ export default defineConfig({
     strictPort: true,
     allowedHosts: ['hisfm.dev.hexly.ai'],
   },
-});
+}));

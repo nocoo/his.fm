@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "node scripts/dev.mjs",
+    "dev:remote": "vite --mode production",
     "build": "cf build",
     "preview": "vite preview --host 127.0.0.1 --port 7056",
     "typecheck": "npm run cf:typegen && tsc --noEmit",

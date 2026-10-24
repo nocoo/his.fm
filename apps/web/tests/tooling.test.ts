@@ -66,13 +66,19 @@ describe('Cloudflare configuration', () => {
     });
     expect(local.env.DB.id).toBe('00000000-0000-4000-8000-000000007056');
     expect(production.env.DB.id).toBe('66f7e201-22a8-450d-838d-ecbc382afbc6');
+    expect(local.env.DB.dev).toEqual({ remote: false });
+    expect(local.env.MEDIA.dev).toEqual({ remote: false });
+    expect(local.env.IMAGES.dev).toEqual({ remote: false });
+    expect(production.env.DB.dev).toEqual({ remote: true });
+    expect(production.env.MEDIA.dev).toEqual({ remote: true });
+    expect(production.env.IMAGES.dev).toEqual({ remote: true });
     for (const worker of [local, production]) {
       expect(worker.workersDev).toBe(false);
       expect(worker.previewUrls).toBe(false);
       expect(worker.env).not.toHaveProperty('AUDIO_WORKFLOW');
       expect(worker.env).not.toHaveProperty('AGENT_HUB');
       expect(worker.env).not.toHaveProperty('GEMINI_API_KEY');
-      expect(worker.env.IMAGES).toEqual({ type: 'images' });
+      expect(worker.env.IMAGES.type).toBe('images');
       expect(worker.assets.runWorkerFirst).toBe(true);
       expect(worker.assets.notFoundHandling).toBe('none');
     }

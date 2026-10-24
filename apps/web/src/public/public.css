@@ -825,6 +825,7 @@ html:has(.appearance-gate) body {
 
 .public-site .episode-mentions li {
   margin: 0;
+  overflow-wrap: anywhere;
 }
 
 .public-site .episode-license {
