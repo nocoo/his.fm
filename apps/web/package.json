@@ -44,7 +44,7 @@
     "@vitejs/plugin-react": "6.1.2",
     "@vitest/coverage-v8": "5.0.5",
     "cf": "1.0.0-beta.12",
-    "happy-dom": "^20.14.6",
+    "happy-dom": "^21.0.4",
     "miniflare": "5.20261006.1-alpha",
     "typescript": "7.0.2",
     "vite": "^8.3.5",
