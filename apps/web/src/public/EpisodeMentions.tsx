@@ -1,5 +1,4 @@
 import type { Mention } from '../shared/mentions';
-import { formatMentionHtml } from '../shared/mentions-format';
 
 function mentionListKey(mention: Mention) {
   return `${mention.name}\u0000${mention.description}\u0000${mention.url ?? ''}`;
@@ -13,8 +12,14 @@ export function EpisodeMentions({ mentions }: { mentions: Mention[] }) {
       <ul>
         {mentions.map((mention) => (
           <li key={mentionListKey(mention)}>
-            {/* biome-ignore lint/security/noDangerouslySetInnerHtml: escaped mention labels */}
-            <span dangerouslySetInnerHTML={{ __html: formatMentionHtml(mention) }} />
+            {mention.url ? (
+              <a href={mention.url} target="_blank" rel="noopener noreferrer">
+                {mention.name}
+              </a>
+            ) : (
+              <strong>{mention.name}</strong>
+            )}
+            <span>{mention.description}</span>
           </li>
         ))}
       </ul>

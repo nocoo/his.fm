@@ -613,7 +613,7 @@ function EpisodeDetail() {
       <Link to="/episodes" className="back-link">
         <ArrowLeft size={17} /> 全部播客
       </Link>
-      <section className="episode-detail-hero">
+      <div className="episode-layout">
         <Reveal className="detail-art">
           {episode.audioUrl ? (
             <AudioPlayer
@@ -634,115 +634,106 @@ function EpisodeDetail() {
             />
           )}
         </Reveal>
-        <Reveal className={`detail-intro ${outline.length ? '' : 'is-lead-only'}`}>
-          <div className="detail-lead">
-            <p className="eyebrow detail-meta">
-              <span>{formatEpisodeNumber(episode.episodeNumber)}</span>
-              <span>{dateLabel(episode.publishedAt)}</span>
-              {episode.durationSeconds > 0 && <span>{durationLabel(episode.durationSeconds)}</span>}
-              {episode.mentions.length > 0 && <span>{episode.mentions.length} 个来源</span>}
-            </p>
-            <h1>{episode.title}</h1>
-            <p className="detail-summary">{episode.summary}</p>
-            {episode.tags.length > 0 && (
-              <div className="detail-tags">
-                {episode.tags.map((tag) => (
-                  <span key={tag}>{tag}</span>
-                ))}
-              </div>
-            )}
-            <EpisodeOutline entries={outline} />
-            {!episode.audioUrl && (
-              <div className="recording-note">
-                <BrandSymbol />
-                <div>
-                  <strong>声音正在准备中</strong>
-                  <span>预计 {durationLabel(episode.durationSeconds)} · 先看本期摘要</span>
+        <div className="episode-main">
+          <Reveal className={`detail-intro ${outline.length ? '' : 'is-lead-only'}`}>
+            <div className="detail-lead">
+              <p className="eyebrow detail-meta">
+                <span>{formatEpisodeNumber(episode.episodeNumber)}</span>
+                <span>{dateLabel(episode.publishedAt)}</span>
+                {episode.durationSeconds > 0 && <span>{durationLabel(episode.durationSeconds)}</span>}
+                {episode.mentions.length > 0 && <span>{episode.mentions.length} 个来源</span>}
+              </p>
+              <h1>{episode.title}</h1>
+              <p className="detail-summary">{episode.summary}</p>
+              {episode.tags.length > 0 && (
+                <div className="detail-tags">
+                  {episode.tags.map((tag) => (
+                    <span key={tag}>{tag}</span>
+                  ))}
                 </div>
-                <a href="#episode-content" className="round-link" aria-label="阅读本期摘要">
-                  <ArrowDown size={21} />
+              )}
+              <EpisodeOutline entries={outline} />
+              {!episode.audioUrl && (
+                <div className="recording-note">
+                  <BrandSymbol />
+                  <div>
+                    <strong>声音正在准备中</strong>
+                    <span>预计 {durationLabel(episode.durationSeconds)} · 先看本期摘要</span>
+                  </div>
+                  <a href="#episode-content" className="round-link" aria-label="阅读本期摘要">
+                    <ArrowDown size={21} />
+                  </a>
+                </div>
+              )}
+            </div>
+            <div className="detail-actions">
+              {!outline.length && (
+                <a className="text-link" href="#episode-content">
+                  读正文 <ArrowDown size={16} aria-hidden="true" />
                 </a>
-              </div>
-            )}
+              )}
+              <button type="button" className="share-link" onClick={share}>
+                {copyState === '链接已复制' ? <Check size={16} /> : <Copy size={16} />}
+                {copyState || '分享这一期'}
+              </button>
+              <span className="sr-only" aria-live="polite">
+                {copyState}
+              </span>
+            </div>
+          </Reveal>
+          <div className="episode-writing" id="episode-content">
+            <h2 className="sr-only">本期内容</h2>
+            <div id="reading-panel">
+              {episode.lead.trim() && (
+                <ReadingText className="readable-text episode-lead" text={episode.lead} />
+              )}
+              {episode.topics.length > 0 && (
+                <ol className="episode-topics">
+                  {episode.topics.map((topic, index) => (
+                    <li key={topic.title} id={`topic-${index + 1}`}>
+                      <h3>{topic.title}</h3>
+                      {topic.detail.trim() && <p>{topic.detail}</p>}
+                      {topic.sourceUrls.length > 0 && (
+                        <ul className="topic-sources" aria-label="来源">
+                          {topic.sourceUrls.map((url) => (
+                            <li key={url}>
+                              <a href={url} target="_blank" rel="noopener noreferrer">
+                                {new URL(url).hostname.replace(/^www\./, '')}
+                              </a>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </li>
+                  ))}
+                </ol>
+              )}
+              {episode.body.trim() && <ReadingText className="readable-text" text={episode.body} />}
+              {episode.researchNote.trim() && (
+                <ReadingText className="readable-text episode-research-note" text={episode.researchNote} />
+              )}
+              {episode.credits.trim() && (
+                <ReadingText className="readable-text episode-credits" text={episode.credits} />
+              )}
+              {!episode.lead.trim() && !episode.body.trim() && !episode.topics.length && (
+                <p className="readable-text">{episode.summary}</p>
+              )}
+            </div>
           </div>
-          <div className="detail-actions">
-            {!outline.length && (
-              <a className="text-link" href="#episode-content">
-                读正文 <ArrowDown size={16} aria-hidden="true" />
-              </a>
-            )}
-            <button type="button" className="share-link" onClick={share}>
-              {copyState === '链接已复制' ? <Check size={16} /> : <Copy size={16} />}
-              {copyState || '分享这一期'}
-            </button>
-            <span className="sr-only" aria-live="polite">
-              {copyState}
-            </span>
-          </div>
-        </Reveal>
-      </section>
-      <div className="episode-body" id="episode-content">
-        <aside>
-          <p className="eyebrow">IN THIS EPISODE</p>
-          <p>
-            给这段文字，
-            <br />
-            留一会儿时间。
+          <EpisodeMentions mentions={episode.mentions} />
+          <p className="episode-license">
+            文字内容采用{' '}
+            <a
+              href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh"
+              rel="license noopener noreferrer"
+              target="_blank"
+            >
+              知识共享 署名-非商业性使用-相同方式共享 4.0
+            </a>{' '}
+            许可。
           </p>
-          <span>his.fm · {episodeDisplayLabel(episode, categories)}</span>
-        </aside>
-        <div className="episode-writing">
-          <h2 className="sr-only">本期内容</h2>
-          <div id="reading-panel">
-            {episode.lead.trim() && (
-              <ReadingText className="readable-text episode-lead" text={episode.lead} />
-            )}
-            {episode.topics.length > 0 && (
-              <ol className="episode-topics">
-                {episode.topics.map((topic, index) => (
-                  <li key={topic.title} id={`topic-${index + 1}`}>
-                    <h3>{topic.title}</h3>
-                    {topic.detail.trim() && <p>{topic.detail}</p>}
-                    {topic.sourceUrls.length > 0 && (
-                      <ul className="topic-sources" aria-label="来源">
-                        {topic.sourceUrls.map((url) => (
-                          <li key={url}>
-                            <a href={url} target="_blank" rel="noopener noreferrer">
-                              {new URL(url).hostname.replace(/^www\./, '')}
-                            </a>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </li>
-                ))}
-              </ol>
-            )}
-            {episode.body.trim() && <ReadingText className="readable-text" text={episode.body} />}
-            {episode.researchNote.trim() && (
-              <ReadingText className="readable-text episode-research-note" text={episode.researchNote} />
-            )}
-            {episode.credits.trim() && (
-              <ReadingText className="readable-text episode-credits" text={episode.credits} />
-            )}
-            {!episode.lead.trim() && !episode.body.trim() && !episode.topics.length && (
-              <p className="readable-text">{episode.summary}</p>
-            )}
-          </div>
         </div>
       </div>
-      <EpisodeMentions mentions={episode.mentions} />
-      <p className="episode-license">
-        文字内容采用{' '}
-        <a
-          href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh"
-          rel="license noopener noreferrer"
-          target="_blank"
-        >
-          知识共享 署名-非商业性使用-相同方式共享 4.0
-        </a>{' '}
-        许可。
-      </p>
       <section className="related-episodes">
         <div className="section-heading">
           <div>

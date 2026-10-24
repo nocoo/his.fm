@@ -209,7 +209,7 @@ for (const width of [375, 390, 430, 1440]) {
     await page.goto('/episodes/player-first?theme=interval');
     await ready(page);
     const player = await page.locator('.his-audio-player').boundingBox();
-    const hero = await page.locator('.episode-detail-hero').boundingBox();
+    const hero = await page.locator('.episode-layout').boundingBox();
     const intro = await page.locator('.detail-intro').boundingBox();
     if (!player || !hero || !intro) throw new Error('Missing player layout');
     expect(Math.abs(player.y - hero.y)).toBeLessThan(1);

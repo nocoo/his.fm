@@ -20,17 +20,18 @@ for (const width of [375, 390, 430, 1440]) {
     await expect(artwork.locator('.framed-cover')).toBeVisible();
     const art = await artwork.boundingBox();
     const intro = await page.locator('.detail-intro').boundingBox();
-    const hero = await page.locator('.episode-detail-hero').boundingBox();
-    if (!art || !intro || !hero) throw new Error('Missing episode layout');
-    expect(Math.abs(art.y - hero.y)).toBeLessThan(1);
-    expect(Math.abs(art.x - hero.x)).toBeLessThan(1);
+    const layout = await page.locator('.episode-layout').boundingBox();
+    if (!art || !intro || !layout) throw new Error('Missing episode layout');
+    expect(Math.abs(art.y - layout.y)).toBeLessThan(1);
+    expect(Math.abs(art.x - layout.x)).toBeLessThan(1);
     if (width < 760) {
-      expect(Math.abs(art.width - hero.width)).toBeLessThan(1);
+      expect(Math.abs(art.width - layout.width)).toBeLessThan(1);
       expect(intro.y - (art.y + art.height)).toBeGreaterThanOrEqual(20);
       expect(intro.y - (art.y + art.height)).toBeLessThanOrEqual(32);
       expect(await artwork.evaluate((element) => getComputedStyle(element).position)).toBe('static');
     } else {
       expect(Math.abs(art.y - intro.y)).toBeLessThan(1);
+      expect(art.width).toBeLessThanOrEqual(430);
       expect(await artwork.evaluate((element) => getComputedStyle(element).position)).toBe('sticky');
     }
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
@@ -105,6 +106,21 @@ test('listeners can browse, filter and read episode summaries without transcript
   await page.goto('/episodes/missing-episode');
   await expect(page.getByRole('heading', { level: 1 })).toContainText('别的频道');
   expect(errors).toEqual([]);
+});
+
+test('the episode rail stays visible while the source list scrolls', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/episodes/manager-notes/how-many-ai-tools-after-work?theme=interval');
+  const artwork = page.locator('.detail-art');
+  await expect(artwork).toBeVisible();
+  const before = await artwork.boundingBox();
+  await page.evaluate(() => window.scrollTo({ top: 1200 }));
+  await expect
+    .poll(async () => Math.abs(Math.round((await artwork.boundingBox())?.y ?? -999) - 24))
+    .toBeLessThanOrEqual(8);
+  const after = await artwork.boundingBox();
+  if (!before || !after) throw new Error('Missing episode rail');
+  expect(after.height).toBeCloseTo(before.height, 0);
 });
 
 test('theme preview swaps the cover frame overlay on episode art', async ({ page }) => {

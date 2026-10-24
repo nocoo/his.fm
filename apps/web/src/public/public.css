@@ -777,16 +777,19 @@ html:has(.appearance-gate) body {
   font-size: 12px;
   margin-bottom: 28px;
 }
-.public-site .episode-detail-hero {
+.public-site .episode-layout {
   display: grid;
-  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
-  gap: 7%;
+  grid-template-columns: minmax(280px, 430px) minmax(0, 1fr);
+  gap: clamp(26px, 3.4vw, 62px);
   align-items: start;
 }
 .public-site .detail-art {
   min-width: 0;
   position: sticky;
   top: 24px;
+}
+.public-site .episode-main {
+  min-width: 0;
 }
 .public-site .detail-intro {
   min-width: 0;
@@ -984,16 +987,34 @@ html:has(.appearance-gate) body {
 .public-site .episode-mentions ul {
   margin: 0;
   padding-left: 1.1rem;
-  display: grid;
-  gap: 10px;
+  column-count: 2;
+  column-gap: clamp(24px, 3vw, 48px);
+  column-rule: 1px solid var(--line);
   font-size: 13px;
   line-height: 1.85;
   color: var(--muted);
 }
 
 .public-site .episode-mentions li {
-  margin: 0;
+  margin: 0 0 14px;
+  break-inside: avoid;
   overflow-wrap: anywhere;
+}
+.public-site .episode-mentions li > a,
+.public-site .episode-mentions li > strong {
+  display: block;
+  font-weight: 500;
+  color: var(--ink);
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--ink) 28%, transparent);
+  text-underline-offset: 3px;
+}
+.public-site .episode-mentions li > a:hover {
+  text-decoration-color: currentColor;
+}
+.public-site .episode-mentions li > span {
+  display: block;
+  margin-top: 3px;
 }
 
 .public-site .episode-license {
@@ -1071,32 +1092,12 @@ html:has(.appearance-gate) body {
   padding: 0;
   margin-top: 22px;
 }
-.public-site .episode-body {
-  display: grid;
-  grid-template-columns: 0.35fr 1fr;
-  gap: 10%;
-  margin-top: 60px;
-  padding-top: 35px;
-  border-top: 1px solid var(--line);
-  scroll-margin-top: 25px;
-}
-.public-site .episode-body > aside {
-  align-self: start;
-  position: sticky;
-  top: 25px;
-}
-.public-site .episode-body > aside > p:nth-child(2) {
-  font-size: 24px;
-  line-height: 1.7;
-  margin-block: 20px;
-}
-.public-site .episode-body > aside > span {
-  font-size: 12px;
-  color: var(--muted);
-}
 .public-site .episode-writing {
   min-width: 0;
-  max-width: 830px;
+  margin-top: 52px;
+  padding-top: 30px;
+  border-top: 1px solid var(--line);
+  scroll-margin-top: 25px;
 }
 .public-site .reading-tabs {
   display: flex;
@@ -1465,6 +1466,21 @@ html:has(.appearance-gate) body {
     grid-template-columns: minmax(0, 1fr);
   }
 }
+@media (max-width: 1080px) {
+  .public-site .episode-layout {
+    grid-template-columns: minmax(240px, 320px) minmax(0, 1fr);
+    gap: 28px;
+  }
+  .public-site .episode-mentions ul {
+    column-count: 1;
+    column-rule: 0;
+  }
+}
+@media (max-height: 820px) and (min-width: 761px) {
+  .public-site .episode-layout {
+    grid-template-columns: minmax(240px, 360px) minmax(0, 1fr);
+  }
+}
 @media (max-width: 760px) {
   .public-site {
     --space: 24px;
@@ -1608,8 +1624,8 @@ html:has(.appearance-gate) body {
   .public-site .episode-search {
     flex-basis: 100%;
   }
-  .public-site .episode-detail-hero {
-    grid-template-columns: 1fr;
+  .public-site .episode-layout {
+    grid-template-columns: minmax(0, 1fr);
     gap: 30px;
   }
   .public-site .detail-art {
@@ -1619,15 +1635,9 @@ html:has(.appearance-gate) body {
   .public-site .detail-intro h1 {
     font-size: 33px;
   }
-  .public-site .episode-body {
-    grid-template-columns: 1fr;
-    gap: 24px;
-    margin-top: 36px;
-    padding-top: 25px;
-  }
-  .public-site .episode-body > aside {
-    position: static;
-    display: none;
+  .public-site .episode-writing {
+    margin-top: 34px;
+    padding-top: 24px;
   }
   .public-site .readable-text {
     font-size: 16px;
