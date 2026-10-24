@@ -2,6 +2,28 @@
 
 All notable changes to his.fm are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions use the owner’s patch-only deployment policy in `AGENTS.md`, with the authoritative version in `package.json`.
 
+## 2.11.3 - 2026-10-24
+
+### Added
+
+- Ship `/brand/icons/icon-192.png` and `/brand/icons/icon-512.png` as opaque sRGB PNGs in the web app manifest, so home-screen, dock and install surfaces use the show identity instead of a theme symbol.
+
+### Fixed
+
+- Replace the stale grove-era `apple-touch-icon.png` with the approved Stillwood channel cover. `scripts/prepare-app-icons.mjs` derives all three icons from the archived 3000-square artwork and refuses a source whose digest does not match the published channel cover.
+- Keep installed-app icons independent of website appearance; previewing or saving a theme no longer changes what an installed app shows.
+
+### Verification
+
+- Pass 1,116 web unit tests and 107 contracts tests, both workspaces' four 95% coverage floors, lint, typecheck and the production build.
+- Pass 31 Chrome cases covering identity, appearance and public delivery against the local Caddy site, and verify the 180/192/512 PNG sizes, media types and manifest entries locally. Home-screen and dock rendering after installation remains an owner check on real devices.
+
+## 2.11.2 - 2026-10-24
+
+### Fixed
+
+- Override transitive `undici`, `zod` and `happy-dom` to patched releases for G2 osv-scanner findings.
+
 ## 2.11.1 - 2026-10-23
 
 ### Added
