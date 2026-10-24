@@ -106,6 +106,8 @@ above 1600 are upscaled JPEGs rather than additional native-resolution detail. I
 artwork is independent of episode social-image overrides and channel artwork.
 The channel uses the configured `podcastCoverUrl`; an empty value falls back to
 the committed 3000 x 3000 `/brand/podcast.jpg`, not the landscape sharing image.
+Installed-app icons come from the approved archived channel cover instead, so they
+stay independent of both this fallback and the website theme; see `docs/appearance.md`.
 
 The public episode JPEG endpoints serve published, non-future episodes only.
 Stable record-ID URLs resolve to versioned URLs (`art.jpg?v=<hash>`, optionally
