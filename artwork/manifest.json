@@ -136,6 +136,42 @@
         "quality": 85,
         "method": 6
       }
+    },
+    "subscribe": {
+      "size": "1536x1024",
+      "prompt": "prompts/subscribe-texture-20261025.txt",
+      "original": "originals/subscribe-20261025.png",
+      "optimization": {
+        "library": "Pillow 12.3.0",
+        "format": "WebP",
+        "options": {
+          "quality": 76,
+          "method": 6
+        }
+      },
+      "derivatives": [
+        {
+          "path": "../apps/web/public/images/subscribe-texture-20261025-1536.webp",
+          "dimensions": [
+            1536,
+            1024
+          ],
+          "bytes": 267794,
+          "sha256": "2b418606321ce08087987b4700054437ddda2d6b0ee361b99234a6fc850f6a36"
+        },
+        {
+          "path": "../apps/web/public/images/subscribe-texture-20261025-768.webp",
+          "dimensions": [
+            768,
+            512
+          ],
+          "bytes": 75648,
+          "sha256": "c66db80cb408c0fa1955f23026bf36ad4f33465b482452ca07496dc5870b0ee2"
+        }
+      ],
+      "original_bytes": 3116541,
+      "original_sha256": "57ddabaca6c6f5cced10d98984bfe5e35d80181606caf1c255b38c15603fef41",
+      "usage": "Home subscribe band background. Rendered under background-blend-mode: soft-light over --ink, so one neutral texture serves all eight themes; image-set picks 768 at 1x and 1536 at 2x. No R2 copy: this is a fingerprinted same-origin asset like the hero."
     }
   },
   "visual_review": {
@@ -146,11 +182,13 @@
       "hero": "Full landscape: subject at 74% horizontal, 64% vertical. Square mobile derivative: subject at 61.8% horizontal; preserve object-position 61.8% center. Responsive sizes include object-fit: cover height.",
       "episode-01": "Botanical headphones; centered focal object.",
       "episode-02": "Lilac glass sculpture on chartreuse pedestal; centered focal object.",
-      "episode-03": "Moonlit meadow; adult figure at approximately 75% horizontal and 61% vertical."
+      "episode-03": "Moonlit meadow; adult figure at approximately 75% horizontal and 61% vertical.",
+      "subscribe": "Texture only: matte cotton paper with a soft light sweep from the upper right. No focal object, no text; safe to crop from any edge under background-size: cover."
     }
   },
   "generation_notes": [
     "Three initial requests succeeded. The episode-01 request received HTTP 429 and was retried with the same Sunburst model after the indicated delay; retry succeeded. No model substitution.",
-    "Retina hero: reference-image edit of the approved original with Sunburst at native 3504x2336. Generation record and previous asset manifest are archived in hero-retina-20260926/."
+    "Retina hero: reference-image edit of the approved original with Sunburst at native 3504x2336. Generation record and previous asset manifest are archived in hero-retina-20260926/.",
+    "Subscribe texture: single Sunburst text-only generation at 1536x1024, quality high. Chosen for a neutral charcoal fibre surface that survives soft-light blending on every theme ink."
   ]
 }

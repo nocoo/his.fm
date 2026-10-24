@@ -516,12 +516,14 @@ html:has(.appearance-gate) body {
   align-items: center;
   padding: clamp(28px, 3.6vw, 56px);
   background-color: var(--ink);
-  background-image: radial-gradient(
-    circle at 1px 1px,
-    color-mix(in srgb, var(--paper) 10%, transparent) 1px,
-    transparent 0
+  background-image: image-set(
+    url("/images/subscribe-texture-20261025-768.webp") 1x,
+    url("/images/subscribe-texture-20261025-1536.webp") 2x
   );
-  background-size: 20px 20px;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-blend-mode: soft-light;
   color: var(--paper);
   border-radius: var(--radius);
 }

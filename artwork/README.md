@@ -33,6 +33,14 @@ The previous 1536×1024 image supplied less than 53% of the physical width neede
 
 Regeneration incurs a new image-generation request and may produce a different image.
 
+## Subscribe band texture
+
+`originals/subscribe-20261025.png` is a neutral charcoal cotton-paper texture used behind the home subscribe band.
+
+- Derivatives: `subscribe-texture-20261025-1536.webp` and `-768.webp` in `../apps/web/public/images/`, served through `image-set()` for 2x and 1x displays.
+- Rendering: `background-blend-mode: soft-light` over `--ink`, so a single neutral texture reads correctly on all eight themes. No per-theme variants and no R2 copy; this stays a fingerprinted same-origin asset like the hero.
+- The image must stay object-free and text-free: it is a texture, not an illustration, and any crop must remain usable under `background-size: cover`.
+
 ## Art direction
 
 Cinematic forest shade, spring-green light, tactile botanical materials, quiet human scale, warm cream, and restrained violet and coral accents. Images intentionally contain no text or logos so the responsive interface owns all typography.
