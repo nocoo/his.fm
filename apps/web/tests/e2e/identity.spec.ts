@@ -141,7 +141,10 @@ test('public header IDs and favicons follow previews across navigation and retur
         page.locator('.site-header .brand-lockup'),
         dark ? 'rgb(255, 255, 255)' : rgb(themes[id].palette[1]),
       );
-      await expect(page.locator('link[rel="icon"]')).toHaveAttribute('href', themeFaviconSrc(id));
+      await expect(page.locator('link[rel="icon"][type="image/svg+xml"]')).toHaveAttribute(
+        'href',
+        themeFaviconSrc(id),
+      );
       const icon = await page.request.get(themeFaviconSrc(id));
       expect(icon.ok()).toBe(true);
       expect(icon.headers()['content-type']).toContain('image/svg+xml');
@@ -149,7 +152,10 @@ test('public header IDs and favicons follow previews across navigation and retur
       await page.getByRole('link', { name: '找一期，歇一会儿' }).click();
       await expect(page).toHaveURL(new RegExp(`/episodes\\?theme=${id}$`));
       await expectLockup(page.locator('.site-header .brand-lockup'), rgb(themes[id].palette[1]));
-      await expect(page.locator('link[rel="icon"]')).toHaveAttribute('href', themeFaviconSrc(id));
+      await expect(page.locator('link[rel="icon"][type="image/svg+xml"]')).toHaveAttribute(
+        'href',
+        themeFaviconSrc(id),
+      );
     }
     await page.screenshot({
       path: testInfo.outputPath(`public-identity-${width}.png`),
@@ -157,7 +163,7 @@ test('public header IDs and favicons follow previews across navigation and retur
     });
   }
   await page.getByRole('link', { name: '退出预览' }).click();
-  await expect(page.locator('link[rel="icon"]')).toHaveAttribute(
+  await expect(page.locator('link[rel="icon"][type="image/svg+xml"]')).toHaveAttribute(
     'href',
     themeFaviconSrc(saved.appearance.theme),
   );
@@ -177,17 +183,29 @@ test('studio favicon changes only after a successful apply, independently of the
     return route.fulfill({ json: { appearance: saved } });
   });
   await page.goto('/admin/appearance');
-  await expect(page.locator('link[rel="icon"]')).toHaveAttribute('href', themeFaviconSrc('interval'));
+  await expect(page.locator('link[rel="icon"][type="image/svg+xml"]')).toHaveAttribute(
+    'href',
+    themeFaviconSrc('interval'),
+  );
   await page.getByRole('radio', { name: '05 · 雾林来信', exact: true }).click();
-  await expect(page.locator('link[rel="icon"]')).toHaveAttribute('href', themeFaviconSrc('interval'));
+  await expect(page.locator('link[rel="icon"][type="image/svg+xml"]')).toHaveAttribute(
+    'href',
+    themeFaviconSrc('interval'),
+  );
   await page.getByRole('button', { name: '应用到公开网站' }).click();
-  await expect(page.locator('link[rel="icon"]')).toHaveAttribute('href', themeFaviconSrc('stillwood'));
+  await expect(page.locator('link[rel="icon"][type="image/svg+xml"]')).toHaveAttribute(
+    'href',
+    themeFaviconSrc('stillwood'),
+  );
   await expectLockup(page.locator('.admin-rail-mark .brand-lockup'), rgb(themes.stillwood.palette[1]), 92);
   await page.getByRole('button', { name: '切换主题', exact: true }).click();
   await page.getByRole('button', { name: '切换主题', exact: true }).click();
   await expect(page.locator('html')).toHaveClass(/dark/);
   await expectLockup(page.locator('.admin-rail-mark .brand-lockup'), 'rgb(255, 255, 255)', 92);
-  await expect(page.locator('link[rel="icon"]')).toHaveAttribute('href', themeFaviconSrc('stillwood'));
+  await expect(page.locator('link[rel="icon"][type="image/svg+xml"]')).toHaveAttribute(
+    'href',
+    themeFaviconSrc('stillwood'),
+  );
 });
 
 for (const mode of ['light', 'dark']) {

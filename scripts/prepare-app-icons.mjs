@@ -21,6 +21,7 @@ if (digest !== published?.sha256) {
 await mkdir(iconDirectory, { recursive: true });
 const targets = [
   { path: join(publicDirectory, 'apple-touch-icon.png'), size: 180 },
+  { path: join(iconDirectory, 'icon-180.png'), size: 180 },
   { path: join(iconDirectory, 'icon-192.png'), size: 192 },
   { path: join(iconDirectory, 'icon-512.png'), size: 512 },
 ];

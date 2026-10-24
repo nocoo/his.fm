@@ -3,7 +3,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { themeIds } from '../shared/appearance';
 import { coverLayouts } from '../shared/cover-composition';
-import { themeChromeColor, themeCoverFrameSrc, themeFaviconSrc, themes } from './themes';
+import { themeChromeColor, themeCoverFrameSrc, themeFaviconPngSrc, themeFaviconSrc, themes } from './themes';
 
 it('matches browser chrome to dark home headers, paper inner pages and the preview banner', () => {
   for (const id of themeIds) {
@@ -67,7 +67,11 @@ describe('canonical theme favicons', () => {
     const identity = readFileSync(new URL('./identity.svg', import.meta.url), 'utf8');
     const symbol = identity.match(/<symbol id="symbol"[^>]*>(.*?)<\/symbol>/s)?.[1];
     expect(symbol).toBeTruthy();
-    expect(readdirSync(directory).sort()).toEqual(themeIds.map((id) => `${id}.svg`).sort());
+    expect(
+      readdirSync(directory)
+        .filter((name) => name.endsWith('.svg'))
+        .sort(),
+    ).toEqual(themeIds.map((id) => `${id}.svg`).sort());
     for (const id of themeIds) {
       expect(themeFaviconSrc(id)).toBe(`/brand/favicons/${id}.svg`);
       const svg = readFileSync(new URL(`${id}.svg`, directory), 'utf8');
@@ -77,6 +81,16 @@ describe('canonical theme favicons', () => {
       );
       expect(svg).toContain(`<g transform="translate(16 16) scale(0.75)">${symbol}</g>`);
       expect(svg).not.toContain('<text');
+    }
+  });
+
+  it('ships a 32-square bitmap fallback for each theme', () => {
+    const directory = new URL('../../public/brand/favicons/', import.meta.url);
+    for (const id of themeIds) {
+      expect(themeFaviconPngSrc(id)).toBe(`/brand/favicons/${id}-32.png`);
+      const bytes = readFileSync(new URL(`${id}-32.png`, directory));
+      expect(bytes.subarray(1, 4).toString('latin1')).toBe('PNG');
+      expect([bytes.readUInt32BE(16), bytes.readUInt32BE(20)]).toEqual([32, 32]);
     }
   });
 });

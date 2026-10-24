@@ -279,7 +279,10 @@ test('failed saves preserve selection and conflicts require an explicit reload',
       : route.fulfill({ json: { appearance: saved } }),
   );
   await page.goto('/admin/appearance');
-  await expect(page.locator('link[rel="icon"]')).toHaveAttribute('href', themeFaviconSrc('interval'));
+  await expect(page.locator('link[rel="icon"][type="image/svg+xml"]')).toHaveAttribute(
+    'href',
+    themeFaviconSrc('interval'),
+  );
   await page.getByRole('radio', { name: '01 · 林间电台', exact: true }).click();
   await page.getByRole('button', { name: '应用到公开网站' }).click();
   await expect(page.getByRole('alert')).toContainText('连接暂时中断');
@@ -291,7 +294,10 @@ test('failed saves preserve selection and conflicts require an explicit reload',
   await page.getByRole('button', { name: '读取最新设置' }).click();
   const current = page.getByRole('radio', { name: '05 · 雾林来信', exact: true });
   await expect(current).toBeChecked();
-  await expect(page.locator('link[rel="icon"]')).toHaveAttribute('href', themeFaviconSrc('stillwood'));
+  await expect(page.locator('link[rel="icon"][type="image/svg+xml"]')).toHaveAttribute(
+    'href',
+    themeFaviconSrc('stillwood'),
+  );
   expect(
     await page.locator('.admin-rail-mark').evaluate((element) => element.style.getPropertyValue('--ink')),
   ).toBe(themes.stillwood.palette[1]);

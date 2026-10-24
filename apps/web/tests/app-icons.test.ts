@@ -13,7 +13,10 @@ function pngHeader(path: string) {
 
 describe('installed-app icons', () => {
   it('ships opaque square PNGs for the home screen and the web app manifest', () => {
-    expect(pngHeader('/apple-touch-icon.png')).toEqual({ width: 180, height: 180, colorType: 2 });
+    expect(pngHeader('/brand/icons/icon-180.png')).toEqual({ width: 180, height: 180, colorType: 2 });
+    expect(readFileSync(new URL('../index.html', import.meta.url), 'utf8')).toContain(
+      '<link rel="apple-touch-icon" sizes="180x180" href="/brand/icons/icon-180.png" />',
+    );
     const manifest = JSON.parse(readFileSync(publicUrl('/site.webmanifest'), 'utf8')) as {
       icons: { src: string; sizes: string; type: string }[];
     };

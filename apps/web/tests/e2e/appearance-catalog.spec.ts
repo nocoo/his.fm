@@ -111,7 +111,10 @@ test('theme catalogue composes the latest four library episodes even when produc
   }
   await page.getByRole('radio', { name: '02 · 间隙', exact: true }).click();
   await expect(page).toHaveURL(/\/admin\/appearance\?theme=interval$/);
-  await expect(page.locator('link[rel="icon"]')).toHaveAttribute('href', '/brand/favicons/stillwood.svg');
+  await expect(page.locator('link[rel="icon"][type="image/svg+xml"]')).toHaveAttribute(
+    'href',
+    '/brand/favicons/stillwood.svg',
+  );
   await page.goBack();
   await expect(page.getByRole('radio', { name: '05 · 雾林来信', exact: true })).toBeChecked();
   await page.goForward();

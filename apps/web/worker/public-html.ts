@@ -1,4 +1,4 @@
-import { themeChromeColor, themeFaviconSrc, themes } from '../src/brand/themes';
+import { themeChromeColor, themeFaviconPngSrc, themeFaviconSrc, themes } from '../src/brand/themes';
 import { themeIdSchema } from '../src/shared/appearance';
 import { projectPublicEpisode } from '../src/shared/episode';
 import { withShareArtwork } from '../src/shared/episode-art';
@@ -135,7 +135,7 @@ export async function maybeServePublicHtml(request: Request, env: Env): Promise<
     .replace(/<link rel="icon"[^>]*>\s*/g, '')
     .replace(
       '</head>',
-      `<meta name="theme-color" content="${chrome}" /><link rel="icon" type="image/svg+xml" href="${themeFaviconSrc(theme)}" /></head>`,
+      `<meta name="theme-color" content="${chrome}" /><link rel="icon" type="image/svg+xml" href="${themeFaviconSrc(theme)}" /><link rel="icon" type="image/png" sizes="32x32" href="${themeFaviconPngSrc(theme)}" /></head>`,
     );
   if (path === '/') {
     html = html.replace('</head>', `${renderHeroPreloads(theme)}</head>`);
