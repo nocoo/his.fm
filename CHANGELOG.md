@@ -2,6 +2,18 @@
 
 All notable changes to his.fm are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions use the owner’s patch-only deployment policy in `AGENTS.md`, with the authoritative version in `package.json`.
 
+## 2.11.5 - 2026-10-25
+
+### Changed
+
+- Episode bodies are stored as structure (`lead`, `research_note`, `credits`, `body`) with ordered `episode_topics` and `episode_mentions` tables instead of one Markdown blob and a JSON mention array.
+- The episode page renders the lead, numbered topics with per-topic source links, remaining body, research note and credits; the outline in the hero links to each topic.
+- Studio offers a topics editor and structured Markdown fields for both standalone episodes and productions; final approval now requires at least three topics.
+
+### Removed
+
+- Migration `0026_drop_legacy_notes.sql` rebuilds `episodes` without the `show_notes` and `mentions` columns. The legacy reading branch, the show-notes outline parser and the migration-time read-only panel are gone with it.
+
 ## 2.11.4 - 2026-10-24
 
 ### Fixed

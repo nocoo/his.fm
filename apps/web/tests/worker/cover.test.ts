@@ -137,7 +137,6 @@ beforeEach(async () => {
         title: production.title,
         summary: 'Saved summary',
         transcript: 'Private transcript, never cover text.',
-        showNotes: '',
         lead: '',
         researchNote: '',
         credits: '',

@@ -20,8 +20,9 @@ const db = {
     return {
       bind(...values: unknown[]) {
         query(sql, values);
+        const results = sql.includes('episode_mentions') ? mentionRows : rows;
         return {
-          all: async () => ({ success: querySuccess, results: rows }),
+          all: async () => ({ success: querySuccess, results }),
           first: async () => (categoryIdentity === null ? null : { rss_identity: categoryIdentity }),
         };
       },
@@ -39,7 +40,6 @@ function episode(patch: Partial<Episode> = {}): Episode {
     title: '第一期',
     summary: '节目简介',
     transcript: 'Private transcript',
-    showNotes: '',
     lead: '',
     researchNote: '',
     credits: '',
@@ -61,13 +61,23 @@ function episode(patch: Partial<Episode> = {}): Episode {
   };
 }
 
+let mentionRows: Record<string, unknown>[] = [];
+
 function catalogue(...episodes: Episode[]) {
   rows = episodes.map((item) => ({
     ...item,
     categoryName: '生活',
     guid: `https://his.fm/episodes/${item.category}/${item.slug}`,
-    mentions: JSON.stringify(item.mentions),
   }));
+  mentionRows = episodes.flatMap((item) =>
+    item.mentions.map((mention, index) => ({
+      episode_id: item.id,
+      position: index + 1,
+      name: mention.name,
+      description: mention.description,
+      url: mention.url ?? null,
+    })),
+  );
 }
 
 function media(size = 12345, contentType: string | undefined = 'audio/mpeg') {

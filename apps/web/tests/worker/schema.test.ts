@@ -7,7 +7,6 @@ const draft = {
   title: '下班之后',
   summary: '从一顿晚饭开始。',
   transcript: '',
-  showNotes: '',
   lead: '',
   researchNote: '',
   credits: '',

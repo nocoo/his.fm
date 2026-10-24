@@ -4,7 +4,16 @@ import { lexTranscriptDocument, type TranscriptSpeaker } from './transcript-docu
 
 type PublicationContent = Pick<
   Production,
-  'title' | 'description' | 'transcript' | 'summary' | 'assets' | 'sources'
+  | 'title'
+  | 'transcript'
+  | 'summary'
+  | 'assets'
+  | 'sources'
+  | 'lead'
+  | 'topics'
+  | 'body'
+  | 'researchNote'
+  | 'credits'
 >;
 const ink = '#183d2e';
 const muted = '#687469';
@@ -72,8 +81,24 @@ export function cleanText(markdown: string): string {
     .trim();
 }
 
+/** The copy an editor pastes into another platform, composed from the structured episode. */
+export function composePublicationNotes(production: PublicationContent): string {
+  const sections: string[] = [];
+  if (production.lead.trim()) sections.push(production.lead.trim());
+  if (production.topics.length)
+    sections.push(
+      production.topics
+        .map((topic) => `- **${topic.title}**${topic.detail ? `：${topic.detail}` : ''}`)
+        .join('\n'),
+    );
+  if (production.body.trim()) sections.push(production.body.trim());
+  if (production.researchNote.trim()) sections.push(`## 研究边界\n\n${production.researchNote.trim()}`);
+  if (production.credits.trim()) sections.push(`## 致谢\n\n${production.credits.trim()}`);
+  return sections.join('\n\n');
+}
+
 export function formatXiaoyuzhou(production: PublicationContent): string {
-  return cleanText(production.description);
+  return cleanText(composePublicationNotes(production));
 }
 
 function createWechatMarked(references: string[]) {

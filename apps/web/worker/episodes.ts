@@ -51,7 +51,6 @@ async function projectPublishedEpisode(db: D1Database, episode: Episode, origin:
 type EpisodeRow = Omit<
   Episode,
   | 'episodeNumber'
-  | 'showNotes'
   | 'lead'
   | 'researchNote'
   | 'credits'
@@ -64,13 +63,11 @@ type EpisodeRow = Omit<
   | 'createdAt'
   | 'updatedAt'
   | 'tags'
-  | 'mentions'
   | 'seo'
   | 'featured'
 > & {
   source_production_id: string | null;
   episode_number: number;
-  show_notes: string;
   lead: string;
   research_note: string;
   credits: string;
@@ -82,7 +79,6 @@ type EpisodeRow = Omit<
   created_at: string;
   updated_at: string;
   tags: string;
-  mentions: string;
   seo: string;
   featured: number;
 };
@@ -97,16 +93,15 @@ function fromRow(row: EpisodeRow): Episode {
     title: row.title,
     summary: row.summary,
     transcript: row.transcript,
-    showNotes: row.show_notes,
     lead: row.lead,
     researchNote: row.research_note,
     credits: row.credits,
     body: row.body,
     topics: [],
+    mentions: [],
     coverUrl: row.cover_url,
     category: row.category,
     tags: JSON.parse(row.tags),
-    mentions: JSON.parse(row.mentions),
     seo: parseSeoOverride(row.seo),
     durationSeconds: row.duration_seconds,
     audioUrl: row.audio_url,
@@ -317,33 +312,44 @@ async function readInput(request: Request, update: boolean) {
   return parsed.data;
 }
 
+/** When a fence is given, the rows only change for the snapshot that fence produced. */
 export function childStatements(
   db: D1Database,
   id: string,
   input: { topics?: EpisodeTopic[]; mentions?: Mention[] },
+  fence?: { productionId: string },
 ) {
+  const guard = fence ? ' AND EXISTS (SELECT 1 FROM episodes WHERE id = ? AND source_production_id = ?)' : '';
+  const guardParams = fence ? [id, fence.productionId] : [];
+  const insertGuard = fence
+    ? ' WHERE EXISTS (SELECT 1 FROM episodes WHERE id = ? AND source_production_id = ?)'
+    : '';
   const statements: D1PreparedStatement[] = [];
   if (input.topics) {
-    statements.push(db.prepare('DELETE FROM episode_topics WHERE episode_id = ?').bind(id));
+    statements.push(
+      db.prepare(`DELETE FROM episode_topics WHERE episode_id = ?${guard}`).bind(id, ...guardParams),
+    );
     input.topics.forEach((topic, index) => {
       statements.push(
         db
           .prepare(
-            'INSERT INTO episode_topics (episode_id, position, title, detail, source_urls) VALUES (?, ?, ?, ?, ?)',
+            `INSERT INTO episode_topics (episode_id, position, title, detail, source_urls) SELECT ?, ?, ?, ?, ?${insertGuard}`,
           )
-          .bind(id, index + 1, topic.title, topic.detail, JSON.stringify(topic.sourceUrls)),
+          .bind(id, index + 1, topic.title, topic.detail, JSON.stringify(topic.sourceUrls), ...guardParams),
       );
     });
   }
   if (input.mentions) {
-    statements.push(db.prepare('DELETE FROM episode_mentions WHERE episode_id = ?').bind(id));
+    statements.push(
+      db.prepare(`DELETE FROM episode_mentions WHERE episode_id = ?${guard}`).bind(id, ...guardParams),
+    );
     input.mentions.forEach((mention, index) => {
       statements.push(
         db
           .prepare(
-            'INSERT INTO episode_mentions (episode_id, position, name, description, url) VALUES (?, ?, ?, ?, ?)',
+            `INSERT INTO episode_mentions (episode_id, position, name, description, url) SELECT ?, ?, ?, ?, ?${insertGuard}`,
           )
-          .bind(id, index + 1, mention.name, mention.description, mention.url ?? null),
+          .bind(id, index + 1, mention.name, mention.description, mention.url ?? null, ...guardParams),
       );
     });
   }
@@ -357,7 +363,6 @@ function createValues(input: EpisodeInput, episodeNumber: number) {
     input.title,
     input.summary,
     input.transcript,
-    input.showNotes,
     input.lead,
     input.researchNote,
     input.credits,
@@ -365,7 +370,6 @@ function createValues(input: EpisodeInput, episodeNumber: number) {
     input.coverUrl,
     input.category,
     JSON.stringify(input.tags),
-    JSON.stringify(input.mentions),
     JSON.stringify(input.seo ?? {}),
     input.durationSeconds,
     input.audioUrl,
@@ -450,8 +454,8 @@ export async function mutateEpisode(request: Request, db: D1Database, actor: Act
       db
         .prepare(
           `UPDATE episodes SET slug = ?, episode_number = ?, title = ?, summary = ?, transcript = ?,
-            show_notes = COALESCE(?, show_notes), lead = ?, research_note = ?, credits = ?, body = ?,
-            cover_url = ?, category = ?, tags = ?, mentions = COALESCE(?, mentions), seo = ?,
+            lead = ?, research_note = ?, credits = ?, body = ?,
+            cover_url = ?, category = ?, tags = ?, seo = ?,
             duration_seconds = ?, audio_url = ?, status = ?, featured = ?, published_at = ?,
             updated_at = ?, write_id = ?, version = version + 1
           WHERE id = ? AND version = ? AND source_production_id IS NULL`,
@@ -462,7 +466,6 @@ export async function mutateEpisode(request: Request, db: D1Database, actor: Act
           payload.title,
           payload.summary,
           payload.transcript,
-          input.showNotes ?? null,
           payload.lead,
           payload.researchNote,
           payload.credits,
@@ -470,7 +473,6 @@ export async function mutateEpisode(request: Request, db: D1Database, actor: Act
           payload.coverUrl,
           payload.category,
           JSON.stringify(payload.tags),
-          input.mentions ? JSON.stringify(input.mentions) : null,
           JSON.stringify(payload.seo ?? {}),
           payload.durationSeconds,
           payload.audioUrl,
@@ -515,10 +517,10 @@ export async function mutateEpisode(request: Request, db: D1Database, actor: Act
     (episodeNumber) =>
       db
         .prepare(
-          `INSERT INTO episodes (slug, episode_number, title, summary, transcript, show_notes, lead,
-            research_note, credits, body, cover_url, category, tags, mentions, seo, duration_seconds,
-            audio_url, status, featured, published_at, created_at, updated_at, write_id, id)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *`,
+          `INSERT INTO episodes (slug, episode_number, title, summary, transcript, lead, research_note,
+            credits, body, cover_url, category, tags, seo, duration_seconds, audio_url, status, featured,
+            published_at, created_at, updated_at, write_id, id)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *`,
         )
         .bind(...createValues({ ...input, episodeNumber }, episodeNumber), now, now, writeId, newId),
     input.episodeNumber,

@@ -44,8 +44,8 @@ async function references(db: D1Database): Promise<References> {
     await db.batch<Record<string, unknown>>([
       db.prepare('SELECT data FROM productions'),
       db.prepare(
-        `SELECT title, cover_url, audio_url, transcript, show_notes, summary, seo, mentions,
-        lead, research_note, credits, body FROM episodes`,
+        `SELECT title, cover_url, audio_url, transcript, summary, seo, lead, research_note,
+        credits, body FROM episodes`,
       ),
       db.prepare('SELECT data FROM media_provenance'),
       db.prepare('SELECT content, prompts, prompt_slots FROM channel_profile'),
@@ -66,8 +66,8 @@ async function references(db: D1Database): Promise<References> {
     const data = JSON.parse(String(row.data));
     collect(data, `制作：${data.title}`, refs.keys);
   }
-  for (const { seo, mentions, ...row } of episodes.results) {
-    collect({ ...row, mentions: JSON.parse(String(mentions)) }, `节目：${row.title}`, refs.keys);
+  for (const { seo, ...row } of episodes.results) {
+    collect(row, `节目：${row.title}`, refs.keys);
     collect(JSON.parse(String(seo)), `节目 SEO：${row.title}`, refs.keys);
   }
   for (const row of provenance.results) collect(JSON.parse(String(row.data)), '历史音频素材', refs.keys);

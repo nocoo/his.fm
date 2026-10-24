@@ -92,8 +92,13 @@ describe('final review readiness', () => {
     expect(latestPublication(production, 'wechat')).toEqual(newer);
     expect(latestPublication(production, 'xiaoyuzhou')).toEqual(podcast);
   });
-  it('requires descriptions and current cover and completed audio', () => {
-    expect(finalMissing(fixture())).toEqual(['摘要', '发布简介', '当前版本封面', '当前版本完整音频']);
+  it('requires summaries, topics, current cover and completed audio', () => {
+    expect(finalMissing(fixture())).toEqual([
+      '摘要',
+      '本期听点（至少三条）',
+      '当前版本封面',
+      '当前版本完整音频',
+    ]);
     expect(finalMissing(readyFixture())).toEqual([]);
     expect(finalMissing(readyFixture({ scriptVersion: 2 }))).toEqual(['当前版本封面', '当前版本完整音频']);
     const ready = readyFixture();

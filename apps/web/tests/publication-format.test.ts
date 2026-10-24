@@ -4,7 +4,14 @@ import { cleanText, formatReading, formatWechat, formatXiaoyuzhou } from '../src
 const content = {
   title: '下班之后',
   summary: '一段介绍',
-  description: '# 这一期\n\n**把今天停在这里。**\n\n- 00:00 从工作回到生活\n- 03:20 找回自己的节奏',
+  lead: '**把今天停在这里。**',
+  topics: [
+    { title: '00:00 从工作回到生活', detail: '', sourceUrls: [] },
+    { title: '03:20 找回自己的节奏', detail: '', sourceUrls: [] },
+  ],
+  researchNote: '',
+  credits: '',
+  body: '',
   transcript:
     '# 下班之后\n\n一段 **温和** 的话，读一读 [原始资料](https://example.com/?a=1&b=2)。\n\n再看[原文](https://example.com/?a=1&b=2)。\n\n<script>alert(1)</script>\n\n![追踪](https://evil.example/pixel)\n\n[危险链接](javascript:alert(1))',
   assets: {
@@ -26,7 +33,7 @@ describe('manual platform publication materials', () => {
     expect(text).toContain('00:00 从工作回到生活');
     expect(text).toContain('• 03:20');
     expect(text).not.toMatch(/<[^>]+>|\*\*|^# /m);
-    expect(text).toContain('这一期\n\n把今天停在这里。');
+    expect(text).toContain('把今天停在这里。');
   });
   it('creates inline WeChat formatting, deduplicated references and only the approved cover', () => {
     const { html, text } = formatWechat(content);

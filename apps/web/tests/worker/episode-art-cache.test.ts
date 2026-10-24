@@ -168,7 +168,6 @@ describe('versioned managed episode artwork descriptors', () => {
         version: 1,
         summary: '晚饭',
         transcript: '',
-        showNotes: '',
         lead: '',
         researchNote: '',
         credits: '',

@@ -1,9 +1,8 @@
 import { ArrowDown } from 'lucide-react';
-import type { OutlineEntry } from '../shared/show-notes-outline';
 
 const visibleEntries = 5;
 
-export type OutlineItem = OutlineEntry & { href?: string };
+export type OutlineItem = { title: string; detail: string; href?: string };
 
 export function EpisodeOutline({ entries }: { entries: OutlineItem[] }) {
   if (!entries.length) return null;

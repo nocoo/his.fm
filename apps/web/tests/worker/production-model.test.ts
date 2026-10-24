@@ -204,7 +204,7 @@ describe('production approvals and revision state machine', () => {
     expect(script).toMatchObject({
       stage: 'scripting',
       scriptVersion: 2,
-      description: ready.description,
+      lead: ready.lead,
       summary: ready.summary,
       assets: ready.assets,
       approvals: { script: null, final: null },
@@ -270,7 +270,7 @@ describe('production approvals and revision state machine', () => {
     expect(scriptEdit).toMatchObject({
       stage: 'scripting',
       scriptVersion: 2,
-      description: ready.description,
+      lead: ready.lead,
       assets: ready.assets,
       approvals: { brief: ready.approvals.brief, script: null, final: null },
     });
@@ -305,7 +305,8 @@ describe('production approvals and revision state machine', () => {
       { ...ready, approvals: { ...ready.approvals, script: null } },
       { ...ready, transcript: '' },
       { ...ready, summary: '' },
-      { ...ready, description: '' },
+      { ...ready, topics: [] },
+      { ...ready, topics: ready.topics.slice(0, 2) },
       { ...ready, assets: { ...ready.assets, cover: null } },
       { ...ready, assets: { ...ready.assets, audio: null } },
       { ...ready, scriptVersion: 2 },

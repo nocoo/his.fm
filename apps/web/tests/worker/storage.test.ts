@@ -155,8 +155,8 @@ describe('owner R2 inventory and cleanup', () => {
         crypto.randomUUID(),
       )
       .run();
-    await env.DB.prepare(`INSERT INTO episodes (id, slug, episode_number, title, summary, transcript, show_notes, cover_url, category, status, created_at, updated_at)
-      VALUES ('art-episode', 'art-episode', 1, '当前节目', '', '', '', '/images/episode-01.webp', 'life', 'draft', 'now', 'now')`).run();
+    await env.DB.prepare(`INSERT INTO episodes (id, slug, episode_number, title, summary, transcript, cover_url, category, status, created_at, updated_at)
+      VALUES ('art-episode', 'art-episode', 1, '当前节目', '', '', '/images/episode-01.webp', 'life', 'draft', 'now', 'now')`).run();
     return artRecords(env.DB);
   }
 
@@ -315,12 +315,14 @@ describe('owner R2 inventory and cleanup', () => {
     await env.DB.prepare('UPDATE categories SET seo = ? WHERE id = ?')
       .bind(JSON.stringify({ ogImageUrl: `https://f.no.mt/${keys[4]}` }), 'life')
       .run();
-    await env.DB.prepare(`INSERT INTO episodes (id, slug, episode_number, title, summary, transcript, show_notes, cover_url, category, status, created_at, updated_at, seo, mentions)
-      VALUES ('seo-episode', 'seo-episode', 1, '节目', '', '', '', '/images/episode-01.webp', 'life', 'draft', 'now', 'now', ?, ?)`)
-      .bind(
-        JSON.stringify({ ogImageUrl: `/media/${keys[3]}` }),
-        JSON.stringify([{ name: '图片', description: '节目提及', url: `https://f.no.mt/${keys[5]}` }]),
-      )
+    await env.DB.prepare(`INSERT INTO episodes (id, slug, episode_number, title, summary, transcript, cover_url, category, status, created_at, updated_at, seo)
+      VALUES ('seo-episode', 'seo-episode', 1, '节目', '', '', '/images/episode-01.webp', 'life', 'draft', 'now', 'now', ?)`)
+      .bind(JSON.stringify({ ogImageUrl: `/media/${keys[3]}` }))
+      .run();
+    await env.DB.prepare(
+      'INSERT INTO episode_mentions (episode_id, position, name, description, url) VALUES (?, 1, ?, ?, ?)',
+    )
+      .bind('seo-episode', '图片', '节目提及', `https://f.no.mt/${keys[5]}`)
       .run();
     const production = readyFixture({ seo: { ogImageUrl: `/media/${keys[6]}` } });
     await env.DB.prepare('INSERT INTO productions VALUES (?, ?, ?, ?, ?, ?, ?)')
@@ -476,7 +478,7 @@ describe('owner R2 inventory and cleanup', () => {
     )
       .bind('https://f.no.mt/channel.webp')
       .run();
-    await env.DB.prepare(`INSERT INTO episodes (id, slug, episode_number, title, summary, transcript, show_notes, cover_url, category, status, created_at, updated_at)
+    await env.DB.prepare(`INSERT INTO episodes (id, slug, episode_number, title, summary, transcript, lead, cover_url, category, status, created_at, updated_at)
       VALUES ('episode', 'episode', 1, '目录标题', '', '/media/transcript.wav', 'https://his.fm/media/notes.wav', 'https://f.no.mt/published.webp', 'life', 'draft', 'now', 'now')`).run();
     for (const [id] of [
       ['active', 'running'],
@@ -576,8 +578,8 @@ describe('owner R2 inventory and cleanup', () => {
     const mediaKey = 'uploads/ref-media-query.png';
     const imageKey = 'images/ref-image-fragment.webp';
     await env.DB.prepare(
-      `INSERT INTO episodes (id, slug, episode_number, title, summary, transcript, show_notes, cover_url, category, seo, status, created_at, updated_at)
-      VALUES ('seo-path', 'seo-path', 2, '路径引用', '', '', '', '', 'life', ?, 'draft', 'now', 'now')`,
+      `INSERT INTO episodes (id, slug, episode_number, title, summary, transcript, cover_url, category, seo, status, created_at, updated_at)
+      VALUES ('seo-path', 'seo-path', 2, '路径引用', '', '', '', 'life', ?, 'draft', 'now', 'now')`,
     )
       .bind(
         JSON.stringify({
@@ -615,8 +617,8 @@ describe('owner R2 inventory and cleanup', () => {
       .bind(JSON.stringify({ ogImageUrl: `https://f.no.mt/${categoryKey}` }), 'life')
       .run();
     await env.DB.prepare(
-      `INSERT INTO episodes (id, slug, episode_number, title, summary, transcript, show_notes, cover_url, category, seo, status, created_at, updated_at)
-      VALUES ('episode', 'episode', 1, '节目元数据', '', '', '', '', 'life', ?, 'draft', 'now', 'now')`,
+      `INSERT INTO episodes (id, slug, episode_number, title, summary, transcript, cover_url, category, seo, status, created_at, updated_at)
+      VALUES ('episode', 'episode', 1, '节目元数据', '', '', '', 'life', ?, 'draft', 'now', 'now')`,
     )
       .bind(JSON.stringify({ ogImageUrl: `/media/${episodeKey}` }))
       .run();

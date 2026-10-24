@@ -17,7 +17,6 @@ function validForm() {
     title: '下班后的留白',
     summary: '给自己一点时间。',
     transcript: '你好，欢迎收听 his.fm。',
-    showNotes: '阅读记录',
     lead: '',
     researchNote: '',
     credits: '',

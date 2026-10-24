@@ -24,14 +24,13 @@ import { categoryIconComponents } from '../shared/category-icons';
 import { coverArtwork, coverDesignSize } from '../shared/cover-composition';
 import type { PublicEpisodeSummary } from '../shared/episode';
 import { formatEpisodeNumber } from '../shared/episode-display';
-import { hasStructuredContent, outlineFromTopics } from '../shared/episode-structure';
+import { outlineFromTopics } from '../shared/episode-structure';
 import { episodeThumbnailProps, episodeThumbnailSizes } from '../shared/episode-thumbnail';
 import { episodePublicPath } from '../shared/episode-url';
 import { ReadingText } from '../shared/ReadingText';
 import { applyClientSeo } from '../shared/seo-client';
 import { episodeBreadcrumbs, podcastEpisodeJsonLd, podcastSeriesJsonLd } from '../shared/seo-jsonld';
 import { resolveAboutPageSeo, resolveCatalogueSeo, resolveSiteDefaults } from '../shared/seo-resolve';
-import { outlineFromShowNotes } from '../shared/show-notes-outline';
 import { PublicLink as Link, PublicNavLink as NavLink, SiteAppearance, useAppearance } from './Appearance';
 import { EpisodeCover } from './EpisodeCover';
 import { EpisodeMentions } from './EpisodeMentions';
@@ -548,14 +547,11 @@ function EpisodeDetail() {
   const { episode, error, loading, retry } = useEpisodeDetail(categoryId, slug);
   const site = usePublicSiteSeo();
   const cover = episode && episodeThumbnailProps(episode, theme);
-  const structured = episode ? hasStructuredContent(episode) : false;
   const outline = episode
-    ? structured
-      ? outlineFromTopics(episode.topics).map((entry, index) => ({
-          ...entry,
-          href: `#topic-${index + 1}`,
-        }))
-      : outlineFromShowNotes(episode.showNotes)
+    ? outlineFromTopics(episode.topics).map((entry, index) => ({
+        ...entry,
+        href: `#topic-${index + 1}`,
+      }))
     : [];
   const [copyState, setCopyState] = useState('');
   const origin = usePublicOrigin();
@@ -698,42 +694,39 @@ function EpisodeDetail() {
         <div className="episode-writing">
           <h2 className="sr-only">本期内容</h2>
           <div id="reading-panel">
-            {structured ? (
-              <>
-                {episode.lead.trim() && (
-                  <ReadingText className="readable-text episode-lead" text={episode.lead} />
-                )}
-                {episode.topics.length > 0 && (
-                  <ol className="episode-topics">
-                    {episode.topics.map((topic, index) => (
-                      <li key={topic.title} id={`topic-${index + 1}`}>
-                        <h3>{topic.title}</h3>
-                        {topic.detail.trim() && <p>{topic.detail}</p>}
-                        {topic.sourceUrls.length > 0 && (
-                          <ul className="topic-sources" aria-label="来源">
-                            {topic.sourceUrls.map((url) => (
-                              <li key={url}>
-                                <a href={url} target="_blank" rel="noopener noreferrer">
-                                  {new URL(url).hostname.replace(/^www\./, '')}
-                                </a>
-                              </li>
-                            ))}
-                          </ul>
-                        )}
-                      </li>
-                    ))}
-                  </ol>
-                )}
-                {episode.body.trim() && <ReadingText className="readable-text" text={episode.body} />}
-                {episode.researchNote.trim() && (
-                  <ReadingText className="readable-text episode-research-note" text={episode.researchNote} />
-                )}
-                {episode.credits.trim() && (
-                  <ReadingText className="readable-text episode-credits" text={episode.credits} />
-                )}
-              </>
-            ) : (
-              <ReadingText className="readable-text" text={episode.showNotes || episode.summary} />
+            {episode.lead.trim() && (
+              <ReadingText className="readable-text episode-lead" text={episode.lead} />
+            )}
+            {episode.topics.length > 0 && (
+              <ol className="episode-topics">
+                {episode.topics.map((topic, index) => (
+                  <li key={topic.title} id={`topic-${index + 1}`}>
+                    <h3>{topic.title}</h3>
+                    {topic.detail.trim() && <p>{topic.detail}</p>}
+                    {topic.sourceUrls.length > 0 && (
+                      <ul className="topic-sources" aria-label="来源">
+                        {topic.sourceUrls.map((url) => (
+                          <li key={url}>
+                            <a href={url} target="_blank" rel="noopener noreferrer">
+                              {new URL(url).hostname.replace(/^www\./, '')}
+                            </a>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </li>
+                ))}
+              </ol>
+            )}
+            {episode.body.trim() && <ReadingText className="readable-text" text={episode.body} />}
+            {episode.researchNote.trim() && (
+              <ReadingText className="readable-text episode-research-note" text={episode.researchNote} />
+            )}
+            {episode.credits.trim() && (
+              <ReadingText className="readable-text episode-credits" text={episode.credits} />
+            )}
+            {!episode.lead.trim() && !episode.body.trim() && !episode.topics.length && (
+              <p className="readable-text">{episode.summary}</p>
             )}
           </div>
         </div>

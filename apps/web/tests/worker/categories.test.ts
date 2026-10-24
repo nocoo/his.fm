@@ -227,7 +227,7 @@ it('renames category id and updates episode and production references', async ()
   assert(productionResponse);
   const { production } = (await productionResponse.json()) as { production: ReturnType<typeof fixture> };
   await env.DB.prepare(
-    'INSERT INTO episodes (id, slug, episode_number, title, summary, transcript, show_notes, cover_url, category, tags, duration_seconds, status, featured, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+    'INSERT INTO episodes (id, slug, episode_number, title, summary, transcript, cover_url, category, tags, duration_seconds, status, featured, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
   )
     .bind(
       'episode-category-rename',
@@ -235,7 +235,6 @@ it('renames category id and updates episode and production references', async ()
       1,
       '栏目迁移',
       '摘要',
-      '',
       '',
       '/images/episode-01.webp',
       category.id,
@@ -363,7 +362,7 @@ it('does not move episode or production references when rename uses a stale vers
   assert(productionResponse);
   const { production } = (await productionResponse.json()) as { production: ReturnType<typeof fixture> };
   await env.DB.prepare(
-    'INSERT INTO episodes (id, slug, episode_number, title, summary, transcript, show_notes, cover_url, category, tags, duration_seconds, status, featured, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+    'INSERT INTO episodes (id, slug, episode_number, title, summary, transcript, cover_url, category, tags, duration_seconds, status, featured, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
   )
     .bind(
       'episode-stale-rename-race',
@@ -371,7 +370,6 @@ it('does not move episode or production references when rename uses a stale vers
       1,
       '栏目迁移竞态',
       '摘要',
-      '',
       '',
       '/images/episode-01.webp',
       category.id,

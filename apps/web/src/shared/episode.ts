@@ -58,7 +58,6 @@ const episodeBodySchema = z.strictObject({
   credits: z.string().max(4000).default(''),
   body: z.string().max(20000).default(''),
   topics: episodeTopicsSchema.default([]),
-  showNotes: z.string().max(20000).default(''),
   coverUrl: mediaUrl,
   category: categoryIdSchema,
   tags: z.array(z.string().trim().min(1).max(30)).max(10),
@@ -87,8 +86,6 @@ export const episodeInputSchema = episodeBodySchema.refine(requirePublishedAt, {
 });
 
 export type EpisodeInput = z.infer<typeof episodeInputSchema>;
-/** Writes may omit the legacy Markdown body; the worker keeps whatever is stored. */
-export type EpisodeWriteInput = Omit<EpisodeInput, 'showNotes'> & { showNotes?: string };
 export const episodeCreateSchema = episodeBodySchema
   .extend({ episodeNumber: episodeBodySchema.shape.episodeNumber.optional() })
   .refine(requirePublishedAt, {
@@ -97,13 +94,12 @@ export const episodeCreateSchema = episodeBodySchema
   });
 export type EpisodeCreateInput = z.infer<typeof episodeCreateSchema>;
 /**
- * Updates keep the legacy body, the mention list and the topic list when the caller omits them,
- * so a client that only edits structure cannot erase the parts it does not know about.
+ * Updates keep the mention and topic lists when the caller omits them, so a client that only
+ * edits the prose cannot erase the collections it does not know about.
  */
 export const episodeUpdateSchema = episodeBodySchema
   .extend({
     version: z.number().int().positive(),
-    showNotes: episodeBodySchema.shape.showNotes.removeDefault().optional(),
     mentions: episodeBodySchema.shape.mentions.removeDefault().optional(),
     topics: episodeBodySchema.shape.topics.removeDefault().optional(),
   })

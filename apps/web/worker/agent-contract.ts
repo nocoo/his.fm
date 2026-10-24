@@ -98,7 +98,6 @@ export const productionResponseSchema = briefSchema.extend({
   stage: z.enum(productionStages),
   transcript: z.string(),
   scriptVersion: z.number().int(),
-  description: z.string(),
   summary: z.string(),
   lead: z.string(),
   researchNote: z.string(),

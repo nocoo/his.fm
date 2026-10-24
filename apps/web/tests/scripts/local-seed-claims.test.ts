@@ -77,8 +77,8 @@ describe('local seed episode number claims', () => {
     const now = '2026-09-24T08:00:00.000Z';
     await db
       .prepare(
-        `INSERT INTO episodes (id, slug, episode_number, title, summary, transcript, show_notes, cover_url, category, tags, duration_seconds, audio_url, status, featured, published_at, created_at, updated_at, version, write_id)
-         VALUES (?, ?, 1, '预览', '摘要', '正文', '节目单', '/images/episode-01.webp', 'life', '[]', 600, NULL, 'published', 0, ?, ?, ?, 1, ?)`,
+        `INSERT INTO episodes (id, slug, episode_number, title, summary, transcript, cover_url, category, tags, duration_seconds, audio_url, status, featured, published_at, created_at, updated_at, version, write_id)
+         VALUES (?, ?, 1, '预览', '摘要', '正文', '/images/episode-01.webp', 'life', '[]', 600, NULL, 'published', 0, ?, ?, ?, 1, ?)`,
       )
       .bind('local-episode-01', 'preview-life', now, now, now, crypto.randomUUID())
       .run();
@@ -196,8 +196,8 @@ describe('local seed episode number claims', () => {
     const now = '2026-09-24T08:00:00.000Z';
     await db
       .prepare(
-        `INSERT INTO episodes (id, slug, episode_number, title, summary, transcript, show_notes, cover_url, category, tags, duration_seconds, audio_url, status, featured, published_at, created_at, updated_at, version, write_id)
-         SELECT ?, ?, (SELECT COALESCE(MAX(episode_number), 0) + 1 FROM episode_number_claims WHERE category = 'manager-notes'), '预览', '摘要', '正文', '节目单', '/images/episode-01.webp', 'manager-notes', '[]', 600, NULL, 'published', 0, ?, ?, ?, 1, ?`,
+        `INSERT INTO episodes (id, slug, episode_number, title, summary, transcript, cover_url, category, tags, duration_seconds, audio_url, status, featured, published_at, created_at, updated_at, version, write_id)
+         SELECT ?, ?, (SELECT COALESCE(MAX(episode_number), 0) + 1 FROM episode_number_claims WHERE category = 'manager-notes'), '预览', '摘要', '正文', '/images/episode-01.webp', 'manager-notes', '[]', 600, NULL, 'published', 0, ?, ?, ?, 1, ?`,
       )
       .bind(id, 'seed-preview', now, now, now, crypto.randomUUID())
       .run();
@@ -251,8 +251,8 @@ describe('local seed episode number claims', () => {
     const episodeId = 'local-episode-02';
     await db
       .prepare(
-        `INSERT INTO episodes (id, slug, episode_number, title, summary, transcript, show_notes, cover_url, category, tags, duration_seconds, audio_url, status, featured, published_at, created_at, updated_at, version, write_id)
-         VALUES (?, ?, 1, '预览', '摘要', '正文', '节目单', '/images/episode-01.webp', 'life', '[]', 600, NULL, 'published', 0, ?, ?, ?, 1, ?)`,
+        `INSERT INTO episodes (id, slug, episode_number, title, summary, transcript, cover_url, category, tags, duration_seconds, audio_url, status, featured, published_at, created_at, updated_at, version, write_id)
+         VALUES (?, ?, 1, '预览', '摘要', '正文', '/images/episode-01.webp', 'life', '[]', 600, NULL, 'published', 0, ?, ?, ?, 1, ?)`,
       )
       .bind(episodeId, 'preview-life-claimed', now, now, now, crypto.randomUUID())
       .run();

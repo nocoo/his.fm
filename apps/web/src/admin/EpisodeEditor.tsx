@@ -130,9 +130,7 @@ export function EpisodeEditor() {
     }
     setPending(true);
     try {
-      // The legacy Markdown column is read-only during the migration: omit it so the worker keeps it.
-      const { showNotes: _legacyNotes, ...content } = result.data;
-      const payload = { ...content, mentions: parsedMentions, topics: parsedTopics, seo };
+      const payload = { ...result.data, mentions: parsedMentions, topics: parsedTopics, seo };
       const { episode: saved } =
         id && episode
           ? await adminService.update(id, payload, episode.version)
@@ -386,20 +384,6 @@ export function EpisodeEditor() {
                       placeholder="本期旁白、片头片尾音乐与授权说明"
                     />
                   </Field>
-                  {value.showNotes.trim() && (
-                    <LayerCard padding="none">
-                      <LayerCard.Header>
-                        <strong>旧版节目笔记（迁移中，只读）</strong>
-                      </LayerCard.Header>
-                      <LayerCard.Body>
-                        <p className="admin-muted studio-prose">
-                          这期节目仍保存着迁移前的整篇笔记。上面的结构字段保存后，页面以结构字段渲染；
-                          旧笔记在完成迁移后删除。
-                        </p>
-                        <pre className="studio-legacy-notes">{value.showNotes}</pre>
-                      </LayerCard.Body>
-                    </LayerCard>
-                  )}
                 </LayerCard.Body>
               </LayerCard>
               <TopicsEditor

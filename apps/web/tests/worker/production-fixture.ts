@@ -31,7 +31,6 @@ export function fixture(changes: Partial<Production> = {}): Production {
     stage: 'draft',
     transcript: '',
     scriptVersion: 0,
-    description: '',
     summary: '',
     lead: '',
     researchNote: '',
@@ -53,8 +52,13 @@ export function readyFixture(changes: Partial<Production> = {}): Production {
     stage: 'ready',
     scriptVersion: 1,
     transcript: '这里是 his.fm。今晚先好好吃饭。',
-    description: '从一顿晚饭聊工作边界。',
+    lead: '从一顿晚饭聊工作边界。',
     summary: '今晚先好好吃饭。',
+    topics: [
+      { title: '晚饭为什么会被消息打断', detail: '从一条下班后的消息说起。', sourceUrls: [] },
+      { title: '把边界说清楚', detail: '团队里怎样约定响应时间。', sourceUrls: [] },
+      { title: '留一点自己的时间', detail: '晚上还能做什么。', sourceUrls: [] },
+    ],
     approvals: { brief: approval, script: approval, final: approval },
     assets: {
       cover: {
@@ -92,7 +96,6 @@ export function episodeFixture(changes: Partial<Episode> = {}): Episode {
     seo: {},
     summary: 'A saved library episode.',
     transcript: '',
-    showNotes: '',
     lead: '',
     researchNote: '',
     credits: '',

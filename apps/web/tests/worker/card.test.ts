@@ -33,7 +33,6 @@ function episode(patch: Partial<Episode> = {}): Episode {
     title: '给明天留一张纸条',
     summary: '记录今天停下来的位置。',
     transcript: 'hidden',
-    showNotes: '',
     lead: '',
     researchNote: '',
     credits: '',

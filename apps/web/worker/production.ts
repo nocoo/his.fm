@@ -267,10 +267,10 @@ export async function publishProduction(
   const eventId = next.events.at(-1)?.id;
   const seo = next.seo === undefined ? null : JSON.stringify(next.seo);
   const snapshot = db
-    .prepare(`INSERT INTO episodes (id, slug, episode_number, title, summary, transcript, show_notes, lead, research_note, credits, body, cover_url, category, tags, mentions, seo, duration_seconds, audio_url, status, featured, published_at, created_at, updated_at, source_production_id, version)
-    SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, COALESCE(?, '{}'), ?, ?, 'published', 0, ?, ?, ?, ?, 1
+    .prepare(`INSERT INTO episodes (id, slug, episode_number, title, summary, transcript, lead, research_note, credits, body, cover_url, category, tags, seo, duration_seconds, audio_url, status, featured, published_at, created_at, updated_at, source_production_id, version)
+    SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, COALESCE(?, '{}'), ?, ?, 'published', 0, ?, ?, ?, ?, 1
     WHERE EXISTS (SELECT 1 FROM productions WHERE id = ? AND version = ? AND json_extract(data, '$.events[#-1].id') = ?)
-    ON CONFLICT(source_production_id) DO UPDATE SET slug = excluded.slug, episode_number = excluded.episode_number, title = excluded.title, summary = excluded.summary, transcript = excluded.transcript, show_notes = excluded.show_notes, lead = excluded.lead, research_note = excluded.research_note, credits = excluded.credits, body = excluded.body, cover_url = excluded.cover_url, category = excluded.category, tags = excluded.tags, mentions = excluded.mentions, seo = COALESCE(?, episodes.seo), duration_seconds = excluded.duration_seconds, audio_url = excluded.audio_url, status = excluded.status, published_at = excluded.published_at, updated_at = excluded.updated_at, version = episodes.version + 1`)
+    ON CONFLICT(source_production_id) DO UPDATE SET slug = excluded.slug, episode_number = excluded.episode_number, title = excluded.title, summary = excluded.summary, transcript = excluded.transcript, lead = excluded.lead, research_note = excluded.research_note, credits = excluded.credits, body = excluded.body, cover_url = excluded.cover_url, category = excluded.category, tags = excluded.tags, seo = COALESCE(?, episodes.seo), duration_seconds = excluded.duration_seconds, audio_url = excluded.audio_url, status = excluded.status, published_at = excluded.published_at, updated_at = excluded.updated_at, version = episodes.version + 1`)
     .bind(
       next.id,
       next.slug,
@@ -278,7 +278,6 @@ export async function publishProduction(
       next.title,
       next.summary,
       next.transcript,
-      next.description,
       next.lead ?? '',
       next.researchNote ?? '',
       next.credits ?? '',
@@ -286,7 +285,6 @@ export async function publishProduction(
       next.assets.cover?.url,
       next.category,
       JSON.stringify(next.tags),
-      JSON.stringify(next.mentions ?? []),
       seo,
       next.assets.audio?.durationSeconds,
       next.assets.audio?.url,
@@ -305,7 +303,12 @@ export async function publishProduction(
       categoryFence(db, next.category),
       updateStatement(db, next, input.version, writeId),
       snapshot,
-      ...childStatements(db, next.id, { topics: next.topics ?? [], mentions: next.mentions ?? [] }),
+      ...childStatements(
+        db,
+        next.id,
+        { topics: next.topics ?? [], mentions: next.mentions ?? [] },
+        { productionId: next.id },
+      ),
       ...publishSnapshotClaimSyncStatements(
         db,
         next.id,
@@ -413,7 +416,6 @@ export async function routeProductions(
             stage: 'draft',
             transcript: '',
             scriptVersion: 0,
-            description: '',
             summary: '',
             lead: '',
             researchNote: '',

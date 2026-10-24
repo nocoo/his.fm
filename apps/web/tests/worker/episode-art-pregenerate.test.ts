@@ -24,7 +24,6 @@ const episodeInput: EpisodeInput = {
   title: '独立节目',
   summary: '今晚好好吃饭',
   transcript: '',
-  showNotes: '',
   lead: '',
   researchNote: '',
   credits: '',
@@ -71,8 +70,8 @@ async function insert(production: Production) {
 }
 async function insertEpisode(id: string, category = 'life', source: string | null = null) {
   await env.DB.prepare(
-    `INSERT INTO episodes (id, slug, episode_number, title, summary, transcript, show_notes, cover_url, category, status, created_at, updated_at, source_production_id)
-    VALUES (?, ?, ?, ?, '', '', '', '/images/episode-01.webp', ?, 'draft', 'now', 'now', ?)`,
+    `INSERT INTO episodes (id, slug, episode_number, title, summary, transcript, cover_url, category, status, created_at, updated_at, source_production_id)
+    VALUES (?, ?, ?, ?, '', '', '/images/episode-01.webp', ?, 'draft', 'now', 'now', ?)`,
   )
     .bind(id, id, source ? 8 : 10, id, category, source)
     .run();

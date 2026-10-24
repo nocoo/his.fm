@@ -1,5 +1,5 @@
 import type { ThemeId } from '../shared/appearance';
-import type { Episode, EpisodeWriteInput } from '../shared/episode';
+import type { Episode, EpisodeInput } from '../shared/episode';
 import { getEnvironment } from './environment';
 
 export type Session = {
@@ -81,12 +81,12 @@ export const adminService = {
     request<{ episode: Episode }>(`/episodes/${encodeURIComponent(id)}`, {
       signal,
     }),
-  create: (input: EpisodeWriteInput) =>
+  create: (input: EpisodeInput) =>
     request<{ episode: Episode }>('/episodes', {
       method: 'POST',
       body: JSON.stringify(input),
     }),
-  update: (id: string, input: EpisodeWriteInput, version: number) =>
+  update: (id: string, input: EpisodeInput, version: number) =>
     request<{ episode: Episode }>(`/episodes/${encodeURIComponent(id)}`, {
       method: 'PUT',
       body: JSON.stringify({ ...input, version }),

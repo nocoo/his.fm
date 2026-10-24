@@ -47,7 +47,14 @@ export function Assets({
   pending: boolean;
   dirty: boolean;
   onDirty: (dirty: boolean) => void;
-  onSave: (fields: { summary: string; description: string }) => Promise<void>;
+  onSave: (fields: {
+    summary: string;
+    lead: string;
+    researchNote: string;
+    credits: string;
+    body: string;
+    topics: Production['topics'];
+  }) => Promise<void>;
   mutate: (operation: () => Promise<{ production: Production }>, message: string) => Promise<boolean>;
 }) {
   const [cover, setCover] = useState<File | null>(null);
@@ -63,7 +70,6 @@ export function Assets({
     credits: production.credits,
     body: production.body,
     topics: production.topics,
-    description: production.description,
   });
   useEffect(() => onDirty(draft.dirty || Boolean(cover || audio)), [draft.dirty, cover, audio, onDirty]);
   useEffect(() => {
@@ -341,21 +347,6 @@ export function Assets({
             disabled={pending}
           />
         </Field>
-        <Field
-          label="旧版发布简介（迁移中）"
-          htmlFor="production-description"
-          hint="迁移期间保留：已发布快照仍保存这段整篇笔记，页面优先渲染上面的结构字段。"
-        >
-          <MarkdownEditor
-            id="production-description"
-            label="旧版发布简介"
-            value={draft.value.description}
-            defaultMode={production.description ? 'preview' : 'edit'}
-            onChange={(next) => draft.change('description', next)}
-            maxLength={20000}
-            disabled={pending}
-          />
-        </Field>
         <div className="studio-actions">
           <Button
             disabled={pending || !draft.dirty || draft.conflicts.length > 0}
@@ -517,8 +508,21 @@ export function FinalReview({ production, categoryName }: { production: Producti
       </div>
       <strong>节目摘要</strong>
       <ReadingText text={production.summary || '摘要尚未准备。'} />
-      <strong>发布简介</strong>
-      <ReadingText text={production.description || '发布简介尚未准备。'} />
+      <strong>开篇导语</strong>
+      <ReadingText text={production.lead || '导语尚未准备。'} />
+      <strong>本期听点</strong>
+      {production.topics.length ? (
+        <ol>
+          {production.topics.map((topic) => (
+            <li key={topic.title}>
+              <strong>{topic.title}</strong>
+              {topic.detail && <p>{topic.detail}</p>}
+            </li>
+          ))}
+        </ol>
+      ) : (
+        <p>听点尚未准备。</p>
+      )}
     </div>
   );
 }

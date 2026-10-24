@@ -31,7 +31,6 @@ const input: EpisodeInput = {
   title: '给明天留一张纸条',
   summary: '记录今天停下来的位置。',
   transcript: '今天先到这里，明天从下一步开始。',
-  showNotes: '00:00 从停下来的地方继续',
   lead: '',
   researchNote: '',
   credits: '',
@@ -457,14 +456,14 @@ describe('public podcast catalog', () => {
     expect(publicDetail.episode.researchNote).toContain('据称');
   });
 
-  it('keeps mentions and long-form notes on the detail endpoint and out of the catalogue', async () => {
+  it('keeps mentions and the episode body on the detail endpoint and out of the catalogue', async () => {
     const episode = await create();
     const listed = (await (await call('/api/episodes')).json()) as { episodes: PublicEpisodeSummary[] };
     expect(listed.episodes[0]).not.toHaveProperty('mentions');
-    expect(listed.episodes[0]).not.toHaveProperty('showNotes');
+    expect(listed.episodes[0]).not.toHaveProperty('topics');
     const detail = (await (await call(`/api/episodes/${episode.slug}`)).json()) as { episode: PublicEpisode };
     expect(detail.episode.mentions).toEqual(input.mentions);
-    expect(detail.episode.showNotes).toBe(input.showNotes);
+    expect(detail.episode.topics).toEqual(input.topics);
     expect(detail.episode).not.toHaveProperty('transcript');
   });
 
@@ -570,12 +569,11 @@ describe('public podcast catalog', () => {
 
   it('renders published public content and safely bootstraps only public data', async () => {
     const episode = await create({
-      showNotes: '## Listen closely\n\nA note </script><script>alert(1)</script>',
-      lead: '',
+      lead: '开场的一段导语。',
       researchNote: '',
       credits: '',
       body: '',
-      topics: [],
+      topics: [{ title: 'Listen closely', detail: '第一个主题的说明。', sourceUrls: [] }],
     });
     await create({ slug: 'private-draft', episodeNumber: 99, title: 'PRIVATE DRAFT', status: 'draft' });
     for (const path of ['/', '/episodes', '/about', `/episodes/${episode.category}/${episode.slug}`]) {
@@ -592,7 +590,10 @@ describe('public podcast catalog', () => {
       const data = JSON.parse(bootstrap?.[1] ?? '{}');
       expect(data.site).not.toHaveProperty('updatedBy');
       expect(data.appearance).not.toHaveProperty('updatedBy');
-      if (path.includes(episode.slug)) expect(html).toContain('<h2>Listen closely</h2>');
+      if (path.includes(episode.slug)) {
+        expect(html).toContain('开场的一段导语。');
+        expect(html).toContain('<h3>Listen closely</h3>');
+      }
     }
     const home = await (await call('/?theme=interval')).text();
     expect(home).toContain('imageSrcSet=');

@@ -19,8 +19,7 @@ export function requireFinalAssets(production: Production) {
     throw new HttpError(409, '请先完成选题与逐字稿确认');
   }
   if (!production.summary.trim()) throw new HttpError(409, '请完成摘要与发布简介');
-  if (!production.description.trim() && (production.topics ?? []).length < 3)
-    throw new HttpError(409, '请完成发布简介或至少三条本期听点');
+  if ((production.topics ?? []).length < 3) throw new HttpError(409, '请至少填写三条本期听点');
   if (!production.assets.cover || !production.assets.audio) throw new HttpError(409, '请完成封面与音频');
   if (
     [production.assets.cover, production.assets.audio].some(
@@ -61,10 +60,7 @@ export function editAssets(production: Production, actor: Actor): Production {
 
 type EditableProductionFields = Partial<
   ProductionBrief &
-    Pick<
-      Production,
-      'transcript' | 'summary' | 'description' | 'lead' | 'researchNote' | 'credits' | 'body' | 'topics'
-    >
+    Pick<Production, 'transcript' | 'summary' | 'lead' | 'researchNote' | 'credits' | 'body' | 'topics'>
 >;
 
 function canReopen(actor: Actor) {

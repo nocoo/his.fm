@@ -82,7 +82,7 @@ export function readBrief(form: FormData, sources: ProductionBrief['sources'], s
 export function finalMissing(production: Production): string[] {
   const missing: string[] = [];
   if (!production.summary.trim()) missing.push('摘要');
-  if (!production.description.trim()) missing.push('发布简介');
+  if (production.topics.length < 3) missing.push('本期听点（至少三条）');
   if (!production.assets.cover || production.assets.cover.scriptVersion !== production.scriptVersion)
     missing.push('当前版本封面');
   if (

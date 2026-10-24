@@ -43,7 +43,6 @@ describe('seo-jsonld', () => {
       episodeNumber: 1,
       title: 't',
       summary: 's',
-      showNotes: '',
       lead: '',
       researchNote: '',
       credits: '',

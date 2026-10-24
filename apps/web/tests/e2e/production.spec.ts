@@ -245,7 +245,6 @@ function snapshot(sourceProductionId: string | null): Episode {
     seo: {},
     summary: '已发布节目',
     transcript: production.transcript,
-    showNotes: production.description,
     lead: '',
     researchNote: '',
     credits: '',

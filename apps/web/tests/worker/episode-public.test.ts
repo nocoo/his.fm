@@ -25,7 +25,6 @@ describe('episode-public helpers', () => {
       episodeNumber: 1,
       title: 't',
       summary: 's',
-      showNotes: '',
       lead: '',
       researchNote: '',
       credits: '',

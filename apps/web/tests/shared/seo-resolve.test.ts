@@ -16,7 +16,6 @@ const episode: PublicEpisode = {
   episodeNumber: 3,
   title: '测试节目',
   summary: '摘要',
-  showNotes: '',
   lead: '',
   researchNote: '',
   credits: '',

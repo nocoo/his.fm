@@ -16,7 +16,6 @@ function episode(changes: Partial<Episode> = {}): Episode {
     seo: {},
     summary: 'Summary',
     transcript: '',
-    showNotes: '',
     lead: '',
     researchNote: '',
     credits: '',

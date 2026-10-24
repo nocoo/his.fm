@@ -519,15 +519,3 @@ html.dark .admin-app a.admin-rail-mark {
   line-height: 1.65;
   resize: vertical;
 }
-.studio-legacy-notes {
-  max-height: 260px;
-  overflow: auto;
-  padding: 12px 14px;
-  background: var(--basalt-muted);
-  border-radius: var(--basalt-radius);
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 12px;
-  line-height: 1.7;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-}

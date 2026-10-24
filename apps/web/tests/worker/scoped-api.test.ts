@@ -425,7 +425,6 @@ describe('grant-specific representations', () => {
       title: 'Private write',
       summary: 'Summary',
       transcript: 'Private transcript',
-      showNotes: '',
       lead: '',
       researchNote: '',
       credits: '',

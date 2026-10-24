@@ -13,7 +13,6 @@ const episode: Episode = {
   title: '本期的具体话题',
   summary: '浏览和收听这期已经发布的节目。',
   transcript: '',
-  showNotes: '',
   lead: '',
   researchNote: '',
   credits: '',

@@ -36,7 +36,6 @@ const draft = {
   title: 'Versioned episode',
   summary: 'Summary',
   transcript: '',
-  showNotes: '',
   lead: '',
   researchNote: '',
   credits: '',

@@ -26,7 +26,7 @@ type FeedEpisode = Pick<
 async function feedEpisodes(db: D1Database, category?: string): Promise<FeedEpisode[]> {
   const result = await db
     .prepare(
-      `SELECT e.id, e.title, e.slug, e.category, e.summary, e.mentions, e.audio_url AS audioUrl,
+      `SELECT e.id, e.title, e.slug, e.category, e.summary, e.audio_url AS audioUrl,
       e.duration_seconds AS durationSeconds, e.published_at AS publishedAt, e.cover_url AS coverUrl,
       e.episode_number AS episodeNumber, c.name AS categoryName,
       COALESCE(e.rss_guid, 'urn:his.fm:episode:' || e.id) AS guid
@@ -35,7 +35,7 @@ async function feedEpisodes(db: D1Database, category?: string): Promise<FeedEpis
     ORDER BY e.published_at DESC, e.episode_number DESC`,
     )
     .bind(new Date().toISOString(), ...(category ? [category] : []))
-    .all<Omit<FeedEpisode, 'mentions'> & { mentions: string }>();
+    .all<Omit<FeedEpisode, 'mentions'>>();
   if (!result.success) throw new HttpError(503, '播客订阅暂时无法读取');
   const ids = result.results.map((row) => row.id);
   const mentionsByEpisode = new Map<string, Mention[]>();
@@ -60,7 +60,7 @@ async function feedEpisodes(db: D1Database, category?: string): Promise<FeedEpis
   }
   return result.results.map((row) => ({
     ...row,
-    mentions: mentionsByEpisode.get(row.id) ?? (JSON.parse(row.mentions) as Mention[]),
+    mentions: mentionsByEpisode.get(row.id) ?? [],
   }));
 }
 

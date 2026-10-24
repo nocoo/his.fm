@@ -79,7 +79,6 @@ export const productionPatchSchema = briefSchema
     mentions: briefSchema.shape.mentions.removeDefault().optional(),
     version: z.number().int().min(1),
     transcript: z.string().max(50000).optional(),
-    description: z.string().max(20000).optional(),
     summary: z.string().trim().max(2000).optional(),
     lead: z.string().max(4000).optional(),
     researchNote: z.string().max(4000).optional(),
@@ -146,7 +145,6 @@ export type Production = ProductionBrief & {
   stage: ProductionStage;
   transcript: string;
   scriptVersion: number;
-  description: string;
   summary: string;
   lead: string;
   researchNote: string;
@@ -217,18 +215,7 @@ export const agentActionSchema = z.strictObject({
 export const agentEditableFields: Record<Production['stage'], string[]> = {
   draft: Object.keys(briefSchema.shape),
   scripting: ['transcript', 'category', 'tags'],
-  production: [
-    'description',
-    'summary',
-    'category',
-    'tags',
-    'seo',
-    'lead',
-    'researchNote',
-    'credits',
-    'body',
-    'topics',
-  ],
+  production: ['summary', 'category', 'tags', 'seo', 'lead', 'researchNote', 'credits', 'body', 'topics'],
   brief_review: [],
   script_review: [],
   final_review: [],

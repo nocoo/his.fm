@@ -131,6 +131,7 @@ beforeAll(async () => {
     '0023_prompt_slots.sql',
     '0024_rss_guids.sql',
     '0025_episode_structure.sql',
+    '0026_drop_legacy_notes.sql',
   ]) {
     const sql = readFileSync(new URL(`../../migrations/${file}`, import.meta.url), 'utf8');
     await env.DB.batch(
@@ -502,7 +503,7 @@ describe('production API and optimistic updates', () => {
     expect(next).toMatchObject({
       stage: 'scripting',
       transcript: '新的完整文稿',
-      description: original.description,
+      lead: original.lead,
       assets: original.assets,
       approvals: { brief: original.approvals.brief, script: null, final: null },
       scriptVersion: 2,
@@ -545,7 +546,7 @@ describe('production API and optimistic updates', () => {
     response = await call(path, 'PUT', {
       version: production.version,
       summary: '新的具体摘要',
-      description: '来源与内容',
+      lead: '来源与内容',
       category: 'life',
       tags: ['日常'],
     });
@@ -563,7 +564,7 @@ describe('production API and optimistic updates', () => {
 
   it('performs compare-and-swap and retries background updates without losing parallel edits', async () => {
     const original = await insert(fixture());
-    const changed = await saveProduction(env.DB, { ...original, description: '一条新简介' }, 1);
+    const changed = await saveProduction(env.DB, { ...original, lead: '一条新导语' }, 1);
     await expect(saveProduction(env.DB, original, 1)).rejects.toMatchObject({ status: 409 });
     const [first, second] = await Promise.all([
       updateProduction(env.DB, original.id, agent, 'cover_ready', (current) => ({
@@ -577,7 +578,7 @@ describe('production API and optimistic updates', () => {
     ]);
     const latest = await getProduction(env.DB, original.id);
     expect(latest.tags).toEqual(expect.arrayContaining(['封面', '音频']));
-    expect(latest.description).toBe(changed.description);
+    expect(latest.lead).toBe(changed.lead);
     expect(latest.version).toBe(Math.max(first.version, second.version));
     expect(latest.events).toHaveLength(2);
     await expect(
@@ -950,7 +951,7 @@ describe('scope-authorized publication snapshots', () => {
     expect((await getProduction(env.DB, duplicate.id)).publications).toHaveLength(0);
     await env.DB.prepare('DELETE FROM episodes').run();
     await env.DB.prepare(
-      "INSERT INTO episodes (id, slug, episode_number, title, summary, transcript, show_notes, cover_url, category, tags, duration_seconds, status, featured, created_at, updated_at) VALUES (?, 'unrelated-manual', 1, 'Manual', 'Summary', '', '', '/images/episode-01.webp', 'manager-notes', '[]', 0, 'draft', 0, '', '')",
+      "INSERT INTO episodes (id, slug, episode_number, title, summary, transcript, cover_url, category, tags, duration_seconds, status, featured, created_at, updated_at) VALUES (?, 'unrelated-manual', 1, 'Manual', 'Summary', '', '/images/episode-01.webp', 'manager-notes', '[]', 0, 'draft', 0, '', '')",
     )
       .bind(duplicate.id)
       .run();

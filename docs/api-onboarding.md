@@ -154,10 +154,9 @@ links cited by that topic. `mentions` keeps its existing shape and order.
 }
 ```
 
-An update that omits `topics`, `mentions` or the legacy `showNotes` preserves what is stored; sending
-an empty array clears it. `GET /api/episodes/{category}/{slug}` returns the structured fields plus the
-legacy `showNotes` while the catalogue is still being migrated; new clients should render `lead`,
-`topics`, `body`, `researchNote` and `credits` and ignore `showNotes`.
+An update that omits `topics` or `mentions` preserves what is stored; sending an empty array clears
+it. `GET /api/episodes/{category}/{slug}` returns the structured fields, and every episode body is
+composed from `lead`, `topics`, `body`, `researchNote` and `credits`.
 
 Production briefs and standalone episode bodies accept an ordered `mentions` array (at most 50 items). Each item is `{name, description, url?}`: `name` and `description` are required strings; `description` is a single-sentence explanation; `url` is optional and must be `http` or `https` when present. Published snapshots copy `mentions` to the public episode. The public catalogue `GET /api/episodes` returns a light summary (no mentions, no episode body); `GET /api/episodes/{category}/{slug}` and `GET /api/episodes/{id}` include `mentions` and the episode body but never the transcript.
 

@@ -144,6 +144,7 @@ beforeAll(async () => {
     '0023_prompt_slots.sql',
     '0024_rss_guids.sql',
     '0025_episode_structure.sql',
+    '0026_drop_legacy_notes.sql',
   ]) {
     const sql = readFileSync(new URL(`../../migrations/${file}`, import.meta.url), 'utf8');
     await env.DB.batch(
@@ -351,7 +352,12 @@ describe('production scope enforcement and projections', () => {
       await call(path, 'PUT', {
         version: production.version,
         summary: 'Summary',
-        description: 'Description',
+        lead: 'Description',
+        topics: [
+          { title: '第一个主题', detail: '说明。', sourceUrls: [] },
+          { title: '第二个主题', detail: '说明。', sourceUrls: [] },
+          { title: '第三个主题', detail: '说明。', sourceUrls: [] },
+        ],
       }),
     );
     production = await result(await call(`${path}/assets/cover?version=${production.version}`, 'PUT', png));

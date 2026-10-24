@@ -7,7 +7,6 @@ export const emptyEpisode: EpisodeInput = {
   title: '',
   summary: '',
   transcript: '',
-  showNotes: '',
   lead: '',
   researchNote: '',
   credits: '',
