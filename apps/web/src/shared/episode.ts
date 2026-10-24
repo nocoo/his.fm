@@ -89,6 +89,45 @@ export type PublicEpisode = Omit<Episode, 'transcript' | 'seo'> & {
   pageSeo: ResolvedPageSeo;
 };
 
+/**
+ * Catalogue payloads stay small: the long-form body, source list and resolved SEO belong to the
+ * single-episode endpoints and the server-rendered detail page.
+ */
+export type PublicEpisodeSummary = Pick<
+  PublicEpisode,
+  | 'id'
+  | 'version'
+  | 'slug'
+  | 'episodeNumber'
+  | 'title'
+  | 'summary'
+  | 'coverUrl'
+  | 'category'
+  | 'tags'
+  | 'durationSeconds'
+  | 'audioUrl'
+  | 'featured'
+  | 'publishedAt'
+>;
+
+export function projectPublicEpisodeSummary(episode: Episode): PublicEpisodeSummary {
+  return {
+    id: episode.id,
+    version: episode.version,
+    slug: episode.slug,
+    episodeNumber: episode.episodeNumber,
+    title: episode.title,
+    summary: episode.summary,
+    coverUrl: episode.coverUrl,
+    category: episode.category,
+    tags: episode.tags,
+    durationSeconds: episode.durationSeconds,
+    audioUrl: episode.audioUrl,
+    featured: episode.featured,
+    publishedAt: episode.publishedAt,
+  };
+}
+
 export function projectPublicEpisode(
   episode: Episode,
   origin: string,

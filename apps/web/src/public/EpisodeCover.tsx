@@ -1,7 +1,7 @@
 import { useLocation } from 'react-router';
 import { FramedCover } from '../components/FramedCover';
 import { coverArtwork, coverDesignSize } from '../shared/cover-composition';
-import type { PublicEpisode } from '../shared/episode';
+import type { PublicEpisodeSummary } from '../shared/episode';
 import { episodeThumbnailProps, episodeThumbnailSizes } from '../shared/episode-thumbnail';
 import { useAppearance } from './Appearance';
 
@@ -10,7 +10,7 @@ export function EpisodeCover({
   categoryName,
   priority = false,
 }: {
-  episode: PublicEpisode;
+  episode: PublicEpisodeSummary;
   categoryName: string;
   priority?: boolean;
 }) {

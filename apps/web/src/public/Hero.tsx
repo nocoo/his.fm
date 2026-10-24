@@ -1,7 +1,7 @@
 import { ArrowDown, ArrowUpRight, Headphones } from 'lucide-react';
 import { BrandSymbol, Wordmark } from '../brand/Brand';
 import { themeMedia, themes } from '../brand/themes';
-import type { PublicEpisode } from '../shared/episode';
+import type { PublicEpisodeSummary } from '../shared/episode';
 import { episodePublicPath } from '../shared/episode-url';
 import { PublicLink, useAppearance } from './Appearance';
 import { durationLabel } from './model';
@@ -50,7 +50,7 @@ export function ThemeImage({
   );
 }
 
-export function Hero({ featured, episodeLabel }: { featured?: PublicEpisode; episodeLabel?: string }) {
+export function Hero({ featured, episodeLabel }: { featured?: PublicEpisodeSummary; episodeLabel?: string }) {
   const { id } = useAppearance();
   const theme = themes[id];
   const imageSizes = heroImageSizes(id);

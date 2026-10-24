@@ -8,12 +8,14 @@ import {
   dateLabel,
   durationLabel,
   episodeDisplayLabel,
+  episodeRequestPath,
   filterEpisodes,
   getAppearance,
   getCategories,
+  getEpisodeDetail,
   getEpisodes,
 } from '../src/public/model';
-import { type Episode, projectPublicEpisode } from '../src/shared/episode';
+import { type Episode, projectPublicEpisode, projectPublicEpisodeSummary } from '../src/shared/episode';
 
 const rawEpisodes: Episode[] = [
   {
@@ -61,6 +63,7 @@ const rawEpisodes: Episode[] = [
     seo: {},
   },
 ];
+const summaries = rawEpisodes.map(projectPublicEpisodeSummary);
 const episodes = rawEpisodes.map((episode) => projectPublicEpisode(episode, 'https://his.fm.test'));
 
 afterEach(() => {
@@ -121,11 +124,11 @@ describe('listening room', () => {
     expect(params.get('category')).toBe('life');
   });
   it('combines category and case-insensitive title, summary and tag search', () => {
-    expect(filterEpisodes(episodes, 'all', '')).toHaveLength(2);
-    expect(filterEpisodes(episodes, 'manager-notes', '  ai ')).toEqual([episodes[0]]);
-    expect(filterEpisodes(episodes, 'all', '路边')).toEqual([episodes[1]]);
-    expect(filterEpisodes(episodes, 'all', '开发者')).toEqual([episodes[0]]);
-    expect(filterEpisodes(episodes, 'life', 'AI')).toEqual([]);
+    expect(filterEpisodes(summaries, 'all', '')).toHaveLength(2);
+    expect(filterEpisodes(summaries, 'manager-notes', '  ai ')).toEqual([summaries[0]]);
+    expect(filterEpisodes(summaries, 'all', '路边')).toEqual([summaries[1]]);
+    expect(filterEpisodes(summaries, 'all', '开发者')).toEqual([summaries[0]]);
+    expect(filterEpisodes(summaries, 'life', 'AI')).toEqual([]);
     expect(catalogueCategoryFromSearch(null)).toBe('all');
     expect(catalogueCategoryFromSearch('manager-notes')).toBe('manager-notes');
     const params = new URLSearchParams('category=life&q=1');
@@ -149,10 +152,30 @@ describe('listening room', () => {
   });
   it('loads published episodes and forwards cancellation', async () => {
     const controller = new AbortController();
-    const request = vi.fn().mockResolvedValue(Response.json({ episodes }));
+    const request = vi.fn().mockResolvedValue(Response.json({ episodes: summaries }));
     vi.stubGlobal('fetch', request);
-    await expect(getEpisodes(controller.signal)).resolves.toEqual(episodes);
+    await expect(getEpisodes(controller.signal)).resolves.toEqual(summaries);
     expect(request).toHaveBeenCalledWith('/api/episodes', { signal: controller.signal });
+  });
+  it('loads one episode body from the detail endpoint and reports a missing episode', async () => {
+    const request = vi.fn(async () => Response.json({ episode: episodes[0] }));
+    vi.stubGlobal('fetch', request);
+    await expect(getEpisodeDetail('manager-notes', 'after-work')).resolves.toEqual(episodes[0]);
+    expect(request).toHaveBeenCalledWith('/api/episodes/manager-notes/after-work', { signal: undefined });
+    await expect(getEpisodeDetail(undefined, 'after-work')).resolves.toEqual(episodes[0]);
+    expect(request).toHaveBeenLastCalledWith('/api/episodes/after-work', { signal: undefined });
+    request.mockResolvedValueOnce(new Response(null, { status: 404 }));
+    await expect(getEpisodeDetail('manager-notes', 'missing')).resolves.toBeNull();
+    request.mockResolvedValueOnce(new Response(null, { status: 503 }));
+    await expect(getEpisodeDetail('manager-notes', 'after-work')).rejects.toThrow('这期节目暂时没有加载出来');
+    request.mockRejectedValueOnce(new Error('offline'));
+    await expect(getEpisodeDetail('manager-notes', 'after-work')).rejects.toThrow('offline');
+  });
+  it('encodes detail paths and rejects requests without a slug', async () => {
+    expect(episodeRequestPath('manager-notes', 'a b/c')).toBe('/api/episodes/manager-notes/a%20b%2Fc');
+    expect(episodeRequestPath(undefined, 'a b')).toBe('/api/episodes/a%20b');
+    expect(episodeRequestPath('manager-notes', undefined)).toBeNull();
+    await expect(getEpisodeDetail('manager-notes', undefined)).resolves.toBeNull();
   });
   it('reports HTTP and transport errors instead of inventing an empty catalogue', async () => {
     const request = vi.fn().mockResolvedValue(new Response(null, { status: 503 }));

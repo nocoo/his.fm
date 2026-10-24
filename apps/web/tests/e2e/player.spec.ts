@@ -102,7 +102,18 @@ async function mockPlayer(page: Page) {
       writes.push(route.request().url());
       return route.abort();
     }
-    switch (new URL(route.request().url()).pathname) {
+    const url = new URL(route.request().url());
+    const detail = /^\/api\/episodes\/(?:([^/]+)\/)?([^/]+)$/.exec(url.pathname);
+    if (detail) {
+      const [, category, slug] = detail;
+      const episode = episodes.find(
+        (item) => item.slug === slug && (!category || item.category === category),
+      );
+      return episode
+        ? route.fulfill({ json: { episode: projectPublicEpisode(episode, url.origin) } })
+        : route.fulfill({ status: 404, json: { error: 'Not found' } });
+    }
+    switch (url.pathname) {
       case '/admin/api/session':
         return route.fulfill({ json: { mode: 'local', user: { email: 'player-test@example.invalid' } } });
       case '/admin/api/bumpers':

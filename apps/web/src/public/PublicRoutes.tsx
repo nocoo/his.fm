@@ -19,10 +19,9 @@ import { BrandLockup } from '../brand/BrandLockup';
 import { themeMedia } from '../brand/themes';
 import { AudioPlayer } from '../components/AudioPlayer';
 import { coverArtwork, coverDesignSize } from '../shared/cover-composition';
-import type { PublicEpisode } from '../shared/episode';
+import type { PublicEpisodeSummary } from '../shared/episode';
 import { episodeThumbnailProps, episodeThumbnailSizes } from '../shared/episode-thumbnail';
 import { episodePublicPath } from '../shared/episode-url';
-import { pickLegacyPublishedEpisode } from '../shared/legacy-episode-slug';
 import { ReadingText } from '../shared/ReadingText';
 import { applyClientSeo } from '../shared/seo-client';
 import { episodeBreadcrumbs, podcastEpisodeJsonLd, podcastSeriesJsonLd } from '../shared/seo-jsonld';
@@ -42,7 +41,7 @@ import {
 } from './model';
 import { usePublicOrigin } from './PublicData';
 import { Reveal } from './Reveal';
-import { useEpisodes } from './useEpisodes';
+import { useEpisodeDetail, useEpisodes } from './useEpisodes';
 import { PublicSiteSeoProvider, usePublicSiteSeo } from './usePublicSiteSeo';
 import './hero.css';
 
@@ -191,7 +190,7 @@ function LibraryState({ children }: { children: ReactNode }) {
   return children;
 }
 
-function EpisodeCard({ episode }: { episode: PublicEpisode }) {
+function EpisodeCard({ episode }: { episode: PublicEpisodeSummary }) {
   const { categories } = useLibrary();
   const label = episodeDisplayLabel(episode, categories);
   return (
@@ -429,13 +428,9 @@ function Catalogue() {
 function EpisodeDetail() {
   const { categoryId, slug } = useParams();
   const { id: theme } = useAppearance();
-  const { episodes, categories, loading, error } = useLibrary();
+  const { episodes, categories } = useLibrary();
+  const { episode, error, loading, retry } = useEpisodeDetail(categoryId, slug);
   const site = usePublicSiteSeo();
-  const episode = categoryId
-    ? episodes.find((item) => item.slug === slug && item.category === categoryId)
-    : slug
-      ? pickLegacyPublishedEpisode(episodes, slug)
-      : undefined;
   const cover = episode && episodeThumbnailProps(episode, theme);
   const [copyState, setCopyState] = useState('');
   const origin = usePublicOrigin();
@@ -466,120 +461,139 @@ function EpisodeDetail() {
       setCopyState('请复制浏览器中的地址分享');
     }
   }
-  if (!loading && !error && !episode) return <NotFound />;
+  if (loading)
+    return (
+      <div className="detail-page wrap">
+        <Link to="/episodes" className="back-link">
+          <ArrowLeft size={17} /> 全部播客
+        </Link>
+        <div className="episode-skeletons" role="status" aria-label="正在加载这一期">
+          <div className="episode-skeleton" />
+        </div>
+      </div>
+    );
+  if (error)
+    return (
+      <div className="detail-page wrap">
+        <Link to="/episodes" className="back-link">
+          <ArrowLeft size={17} /> 全部播客
+        </Link>
+        <div className="library-message" role="alert">
+          <p>{error}</p>
+          <button className="pill-button dark" type="button" onClick={retry}>
+            重新加载 <ArrowRight size={18} />
+          </button>
+        </div>
+      </div>
+    );
+  if (!episode) return <NotFound />;
   return (
     <div className="detail-page wrap">
       <Link to="/episodes" className="back-link">
         <ArrowLeft size={17} /> 全部播客
       </Link>
-      <LibraryState>
-        {episode && (
-          <>
-            <section className="episode-detail-hero">
-              <Reveal className="detail-art">
-                {episode.audioUrl ? (
-                  <AudioPlayer
-                    src={episode.audioUrl}
-                    title={episode.title}
-                    coverUrl={cover?.src}
-                    coverSrcSet={cover?.srcSet}
-                    coverSizes={episodeThumbnailSizes(coverArtwork(theme).width / coverDesignSize, true)}
-                    mediaArtworkUrl={`${origin}/episodes/${encodeURIComponent(episode.id)}/art.jpg`}
-                    episodeNumber={episode.episodeNumber}
-                    categoryName={categories.find((item) => item.id === episode.category)?.name ?? ''}
-                    subtitle={episodeDisplayLabel(episode, categories)}
-                  />
-                ) : (
-                  <EpisodeCover
-                    episode={episode}
-                    categoryName={categories.find((item) => item.id === episode.category)?.name ?? ''}
-                    priority
-                  />
-                )}
-              </Reveal>
-              <Reveal className="detail-intro">
-                <p className="eyebrow">
-                  {episodeDisplayLabel(episode, categories)} <span> / </span> {dateLabel(episode.publishedAt)}
-                </p>
-                <h1>{episode.title}</h1>
-                <p className="detail-summary">{episode.summary}</p>
-                <div className="detail-tags">
-                  {episode.tags.map((tag) => (
-                    <span key={tag}>{tag}</span>
-                  ))}
-                </div>
-                <EpisodeMentions mentions={episode.mentions} />
-                <p className="episode-license">
-                  文字内容采用{' '}
-                  <a
-                    href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh"
-                    rel="license noopener noreferrer"
-                    target="_blank"
-                  >
-                    知识共享 署名-非商业性使用-相同方式共享 4.0
-                  </a>{' '}
-                  许可。
-                </p>
-                {!episode.audioUrl && (
-                  <div className="recording-note">
-                    <BrandSymbol />
-                    <div>
-                      <strong>声音正在准备中</strong>
-                      <span>预计 {durationLabel(episode.durationSeconds)} · 先看本期摘要</span>
-                    </div>
-                    <a href="#episode-content" className="round-link" aria-label="阅读本期摘要">
-                      <ArrowDown size={21} />
-                    </a>
-                  </div>
-                )}
-                <button type="button" className="share-link" onClick={share}>
-                  {copyState === '链接已复制' ? <Check size={16} /> : <Copy size={16} />}
-                  {copyState || '分享这一期'}
-                </button>
-                <span className="sr-only" aria-live="polite">
-                  {copyState}
-                </span>
-              </Reveal>
-            </section>
-            <div className="episode-body" id="episode-content">
-              <aside>
-                <p className="eyebrow">IN THIS EPISODE</p>
-                <p>
-                  给这段文字，
-                  <br />
-                  留一会儿时间。
-                </p>
-                <span>his.fm · {episodeDisplayLabel(episode, categories)}</span>
-              </aside>
-              <div className="episode-writing">
-                <h2 className="sr-only">本期摘要</h2>
-                <div id="reading-panel">
-                  <ReadingText className="readable-text" text={episode.showNotes || episode.summary} />
-                </div>
+      <section className="episode-detail-hero">
+        <Reveal className="detail-art">
+          {episode.audioUrl ? (
+            <AudioPlayer
+              src={episode.audioUrl}
+              title={episode.title}
+              coverUrl={cover?.src}
+              coverSrcSet={cover?.srcSet}
+              coverSizes={episodeThumbnailSizes(coverArtwork(theme).width / coverDesignSize, true)}
+              mediaArtworkUrl={`${origin}/episodes/${encodeURIComponent(episode.id)}/art.jpg`}
+              episodeNumber={episode.episodeNumber}
+              categoryName={categories.find((item) => item.id === episode.category)?.name ?? ''}
+              subtitle={episodeDisplayLabel(episode, categories)}
+            />
+          ) : (
+            <EpisodeCover
+              episode={episode}
+              categoryName={categories.find((item) => item.id === episode.category)?.name ?? ''}
+              priority
+            />
+          )}
+        </Reveal>
+        <Reveal className="detail-intro">
+          <p className="eyebrow">
+            {episodeDisplayLabel(episode, categories)} <span> / </span> {dateLabel(episode.publishedAt)}
+          </p>
+          <h1>{episode.title}</h1>
+          <p className="detail-summary">{episode.summary}</p>
+          <div className="detail-tags">
+            {episode.tags.map((tag) => (
+              <span key={tag}>{tag}</span>
+            ))}
+          </div>
+          <EpisodeMentions mentions={episode.mentions} />
+          <p className="episode-license">
+            文字内容采用{' '}
+            <a
+              href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh"
+              rel="license noopener noreferrer"
+              target="_blank"
+            >
+              知识共享 署名-非商业性使用-相同方式共享 4.0
+            </a>{' '}
+            许可。
+          </p>
+          {!episode.audioUrl && (
+            <div className="recording-note">
+              <BrandSymbol />
+              <div>
+                <strong>声音正在准备中</strong>
+                <span>预计 {durationLabel(episode.durationSeconds)} · 先看本期摘要</span>
               </div>
+              <a href="#episode-content" className="round-link" aria-label="阅读本期摘要">
+                <ArrowDown size={21} />
+              </a>
             </div>
-            <section className="related-episodes">
-              <div className="section-heading">
-                <div>
-                  <p className="eyebrow">STAY A LITTLE LONGER</p>
-                  <h2>再坐一会儿。</h2>
-                </div>
-                <Link to="/episodes" className="text-link">
-                  全部播客 <ArrowUpRight size={18} />
-                </Link>
-              </div>
-              <div className="episode-grid">
-                {episodes
-                  .filter((item) => item.id !== episode.id)
-                  .slice(0, 3)
-                  .map((item) => (
-                    <EpisodeCard key={item.id} episode={item} />
-                  ))}
-              </div>
-            </section>
-          </>
-        )}
-      </LibraryState>
+          )}
+          <button type="button" className="share-link" onClick={share}>
+            {copyState === '链接已复制' ? <Check size={16} /> : <Copy size={16} />}
+            {copyState || '分享这一期'}
+          </button>
+          <span className="sr-only" aria-live="polite">
+            {copyState}
+          </span>
+        </Reveal>
+      </section>
+      <div className="episode-body" id="episode-content">
+        <aside>
+          <p className="eyebrow">IN THIS EPISODE</p>
+          <p>
+            给这段文字，
+            <br />
+            留一会儿时间。
+          </p>
+          <span>his.fm · {episodeDisplayLabel(episode, categories)}</span>
+        </aside>
+        <div className="episode-writing">
+          <h2 className="sr-only">本期摘要</h2>
+          <div id="reading-panel">
+            <ReadingText className="readable-text" text={episode.showNotes || episode.summary} />
+          </div>
+        </div>
+      </div>
+      <section className="related-episodes">
+        <div className="section-heading">
+          <div>
+            <p className="eyebrow">STAY A LITTLE LONGER</p>
+            <h2>再坐一会儿。</h2>
+          </div>
+          <Link to="/episodes" className="text-link">
+            全部播客 <ArrowUpRight size={18} />
+          </Link>
+        </div>
+        <div className="episode-grid">
+          {episodes
+            .filter((item) => item.id !== episode.id)
+            .slice(0, 3)
+            .map((item) => (
+              <EpisodeCard key={item.id} episode={item} />
+            ))}
+        </div>
+      </section>
     </div>
   );
 }

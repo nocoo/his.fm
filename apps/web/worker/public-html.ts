@@ -1,6 +1,6 @@
 import { themeChromeColor, themeFaviconPngSrc, themeFaviconSrc, themes } from '../src/brand/themes';
 import { themeIdSchema } from '../src/shared/appearance';
-import { projectPublicEpisode } from '../src/shared/episode';
+import { type PublicEpisode, projectPublicEpisode, projectPublicEpisodeSummary } from '../src/shared/episode';
 import { withShareArtwork } from '../src/shared/episode-art';
 import { episodePublicPath } from '../src/shared/episode-url';
 import { injectSeoIntoHtml } from '../src/shared/seo-head';
@@ -63,16 +63,10 @@ export async function maybeServePublicHtml(request: Request, env: Env): Promise<
   ]);
   const { version: _version, updatedAt: _updatedAt, updatedBy: _updatedBy, ...site } = siteRecord;
   const names = new Map(categories.map((category) => [category.id, category.name]));
-  const episodes = await Promise.all(
-    records.map((episode) =>
-      withShareArtwork(
-        projectPublicEpisode(episode, origin, { site, categoryName: names.get(episode.category) }),
-        origin,
-      ),
-    ),
-  );
+  const summaries = records.map(projectPublicEpisodeSummary);
   let seo = resolveSiteDefaults(site, origin);
   let jsonLd: unknown[] = [podcastSeriesJsonLd(origin, site)];
+  let episode: PublicEpisode | undefined;
 
   if (path === '/about') {
     seo = resolveAboutPageSeo(site, origin);
@@ -86,10 +80,17 @@ export async function maybeServePublicHtml(request: Request, env: Env): Promise<
     seo = resolveCatalogueSeo(site, origin, count, category);
   } else if (categoryEpisode) {
     const [, categoryId, slug] = categoryEpisode;
-    const episode = episodes.find((item) => item.category === categoryId && item.slug === slug);
-    if (!episode) status = 404;
+    const record = records.find((item) => item.category === categoryId && item.slug === slug);
+    if (!record) status = 404;
     else {
-      const category = categories.find((item) => item.id === episode.category);
+      episode = await withShareArtwork(
+        projectPublicEpisode(record, origin, {
+          site,
+          categoryName: names.get(record.category) ?? record.category,
+        }),
+        origin,
+      );
+      const category = categories.find((item) => item.id === record.category);
       seo = episode.pageSeo;
       if (category) {
         jsonLd = [
@@ -115,7 +116,14 @@ export async function maybeServePublicHtml(request: Request, env: Env): Promise<
     jsonLd = [];
   }
 
-  const data = { origin, site, appearance: { theme: appearance.theme }, episodes, categories };
+  const data = {
+    origin,
+    site,
+    appearance: { theme: appearance.theme },
+    episodes: summaries,
+    episode,
+    categories,
+  };
   const preview = themeIdSchema.safeParse(url.searchParams.get('theme'));
   const theme = preview.success ? preview.data : appearance.theme;
   const chrome = themeChromeColor(theme, path, preview.success);

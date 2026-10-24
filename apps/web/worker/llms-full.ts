@@ -1,10 +1,10 @@
-import type { PublicEpisode } from '../src/shared/episode';
+import type { PublicEpisodeSummary } from '../src/shared/episode';
 import { episodeCanonicalUrl } from '../src/shared/episode-url';
 import { listCategories } from './categories';
-import { listEpisodes } from './episodes';
+import { listPublishedEpisodeSummaries } from './episodes';
 import { getSiteSeo } from './seo-store';
 
-function episodeLine(origin: string, episode: PublicEpisode) {
+function episodeLine(origin: string, episode: PublicEpisodeSummary) {
   return `- [${episode.title}](${episodeCanonicalUrl(origin, episode)}): ${episode.summary}`;
 }
 
@@ -12,7 +12,7 @@ export async function buildLlmsFull(db: D1Database, origin: string) {
   const [site, categories, episodes] = await Promise.all([
     getSiteSeo(db),
     listCategories(db),
-    listEpisodes(db, true, undefined, origin) as Promise<PublicEpisode[]>,
+    listPublishedEpisodeSummaries(db),
   ]);
   const sections = categories
     .map((category) => {

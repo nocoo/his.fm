@@ -1,6 +1,6 @@
 import { publicAppearanceSchema, type ThemeId } from '../shared/appearance';
 import type { PublicCategory } from '../shared/category';
-import type { PublicEpisode } from '../shared/episode';
+import type { PublicEpisode, PublicEpisodeSummary } from '../shared/episode';
 import { formatEpisodeLabel } from '../shared/episode-display';
 
 export function catalogueCategoryFromSearch(category: string | null) {
@@ -19,7 +19,7 @@ export function catalogueHref(searchParams: URLSearchParams, category: string) {
   return `/episodes${params ? `?${params}` : ''}`;
 }
 
-export function filterEpisodes(episodes: PublicEpisode[], category: string, query: string) {
+export function filterEpisodes(episodes: PublicEpisodeSummary[], category: string, query: string) {
   const search = query.trim().toLocaleLowerCase();
   return episodes.filter(
     (episode) =>
@@ -28,12 +28,12 @@ export function filterEpisodes(episodes: PublicEpisode[], category: string, quer
   );
 }
 
-export function categoryLabel(category: PublicEpisode['category'], categories: PublicCategory[]) {
+export function categoryLabel(category: PublicEpisodeSummary['category'], categories: PublicCategory[]) {
   return categories.find((item) => item.id === category)?.name;
 }
 
 export function episodeDisplayLabel(
-  episode: Pick<PublicEpisode, 'category' | 'episodeNumber'>,
+  episode: Pick<PublicEpisodeSummary, 'category' | 'episodeNumber'>,
   categories: PublicCategory[],
 ): string {
   const name = categoryLabel(episode.category, categories);
@@ -64,11 +64,32 @@ export function dateLabel(date: string | null) {
     : '即将发布';
 }
 
-export async function getEpisodes(signal?: AbortSignal): Promise<PublicEpisode[]> {
+export async function getEpisodes(signal?: AbortSignal): Promise<PublicEpisodeSummary[]> {
   const response = await fetch('/api/episodes', { signal });
   if (!response.ok) throw new Error('节目暂时没有加载出来，请再试一次。');
-  const result = (await response.json()) as { episodes: PublicEpisode[] };
+  const result = (await response.json()) as { episodes: PublicEpisodeSummary[] };
   return result.episodes;
+}
+
+export function episodeRequestPath(category?: string, slug?: string) {
+  if (!slug) return null;
+  return category
+    ? `/api/episodes/${encodeURIComponent(category)}/${encodeURIComponent(slug)}`
+    : `/api/episodes/${encodeURIComponent(slug)}`;
+}
+
+export async function getEpisodeDetail(
+  category: string | undefined,
+  slug: string | undefined,
+  signal?: AbortSignal,
+): Promise<PublicEpisode | null> {
+  const path = episodeRequestPath(category, slug);
+  if (!path) return null;
+  const response = await fetch(path, { signal });
+  if (response.status === 404) return null;
+  if (!response.ok) throw new Error('这期节目暂时没有加载出来，请再试一次。');
+  const result = (await response.json()) as { episode: PublicEpisode };
+  return result.episode;
 }
 
 export async function getAppearance(signal?: AbortSignal) {

@@ -1,8 +1,10 @@
 import type { Episode, PublicEpisode } from '../src/shared/episode';
 import { episodeCanonicalUrl } from '../src/shared/episode-url';
-import { legacyPublishedSlugOrderSql } from '../src/shared/legacy-episode-slug';
 import { parseSeoOverride } from '../src/shared/seo';
 import { HttpError } from './http';
+
+/** Stable ordering for ambiguous legacy slug lookups (public API and redirects). */
+const legacyPublishedSlugOrderSql = 'published_at ASC, id ASC';
 
 type EpisodeRow = {
   id: string;

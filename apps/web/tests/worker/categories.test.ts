@@ -11,7 +11,7 @@ import {
   routeCategories,
 } from '../../worker/categories';
 import { resolveCategoryAlias } from '../../worker/episode-public';
-import { getEpisode, listEpisodes } from '../../worker/episodes';
+import { getEpisode, listAllEpisodes } from '../../worker/episodes';
 import worker from '../../worker/index';
 import { routeProductions } from '../../worker/production';
 import { applyPatch } from '../../worker/production-model';
@@ -573,7 +573,7 @@ it('maps duplicate nextId insert races to conflict responses', async () => {
   expect(await getCategory(env.DB, category.id)).toMatchObject({ id: category.id, version: 1 });
 });
 it('requires episode read scope for private episode listings', async () => {
-  await expect(listEpisodes(env.DB, false)).rejects.toMatchObject({ status: 403 });
+  await expect(listAllEpisodes(env.DB)).rejects.toMatchObject({ status: 403 });
   await expect(getEpisode(env.DB, 'missing-slug', true)).rejects.toMatchObject({ status: 404 });
 });
 it('protects owner category writes with authentication and same-origin checks', async () => {

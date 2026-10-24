@@ -8,7 +8,12 @@ import { routeAppearance } from '../../worker/appearance';
 import { routeBumpers } from '../../worker/bumpers';
 import { routeCategories } from '../../worker/categories';
 import { getChannel, routeChannel } from '../../worker/channel';
-import { getEpisode, listEpisodes, mutateEpisode } from '../../worker/episodes';
+import {
+  getEpisode,
+  listAllEpisodes,
+  listPublishedEpisodeSummaries,
+  mutateEpisode,
+} from '../../worker/episodes';
 import { routeStorage } from '../../worker/storage';
 import { agent, human } from './production-fixture';
 
@@ -147,9 +152,9 @@ it('fails closed on every private controller without grants, including internal 
     () => routeAppearance(request(), env, unscoped),
     () => routeBumpers(request(), env, unscoped),
     () => routeStorage(request('GET', undefined, 'storage'), env, unscoped),
-    () => listEpisodes(env.DB, false),
+    () => listAllEpisodes(env.DB),
     () => getEpisode(env.DB, 'missing', false),
-    () => listEpisodes(env.DB, false, unscoped),
+    () => listAllEpisodes(env.DB, unscoped),
     () => getEpisode(env.DB, 'missing', false, unscoped),
     () => mutateEpisode(request('POST', draft), env.DB, unscoped),
     () => routeCategories(request('POST'), env, unscoped),
@@ -164,7 +169,7 @@ it('fails closed on every private controller without grants, including internal 
     () => routeStorage(request('DELETE', undefined, 'storage/object'), env, unscoped),
   ])
     await expect(result()).rejects.toMatchObject({ status: 403 });
-  expect(await listEpisodes(env.DB, true)).toEqual([]);
+  expect(await listPublishedEpisodeSummaries(env.DB)).toEqual([]);
 });
 
 it('versions standalone episodes, separates publishing from editing, and protects linked snapshots', async () => {
@@ -173,7 +178,7 @@ it('versions standalone episodes, separates publishing from editing, and protect
   expect(created.status).toBe(201);
   const { episode } = (await created.json()) as { episode: Pick<Episode, 'id' | 'version'> };
   expect(episode.version).toBe(1);
-  expect((await listEpisodes(env.DB, false, granted('episodes:read')))[0].id).toBe(episode.id);
+  expect((await listAllEpisodes(env.DB, granted('episodes:read')))[0].id).toBe(episode.id);
   expect((await getEpisode(env.DB, episode.id, false, granted('episodes:read'))).version).toBe(1);
   await expect(mutateEpisode(request('PUT', draft), env.DB, editor, episode.id)).rejects.toMatchObject({
     status: 400,
@@ -277,9 +282,9 @@ it('bounds and validates episode bodies and preserves the original on slug confl
     const invalid = new Request(origin, { method: 'POST', headers, body });
     await expect(mutateEpisode(invalid, env.DB, human)).rejects.toMatchObject({ status });
   }
-  expect(
-    (await getEpisode(env.DB, (await listEpisodes(env.DB, false, human))[0].id, false, human)).title,
-  ).toBe(draft.title);
+  expect((await getEpisode(env.DB, (await listAllEpisodes(env.DB, human))[0].id, false, human)).title).toBe(
+    draft.title,
+  );
   await expect(
     mutateEpisode(
       request('POST', { ...draft, slug: 'schedule', publishedAt: '2030-01-01T00:00:00Z' }),

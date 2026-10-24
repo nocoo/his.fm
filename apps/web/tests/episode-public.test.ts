@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { type Episode, projectPublicEpisode } from '../src/shared/episode';
+import { type Episode, projectPublicEpisode, projectPublicEpisodeSummary } from '../src/shared/episode';
 
 const origin = 'https://hisfm.dev.hexly.ai';
 
@@ -38,5 +38,28 @@ describe('public episode projection', () => {
     });
     expect(publicEpisode).not.toHaveProperty('transcript');
     expect(JSON.stringify(publicEpisode)).not.toContain('逐字稿');
+  });
+
+  it('keeps the catalogue projection free of bodies, sources and resolved SEO', () => {
+    const summary = projectPublicEpisodeSummary({
+      ...episode,
+      mentions: [{ name: 'his.fm', description: '主站', url: 'https://his.fm/' }],
+    });
+    expect(summary).toEqual({
+      id: episode.id,
+      version: episode.version,
+      slug: episode.slug,
+      episodeNumber: episode.episodeNumber,
+      title: episode.title,
+      summary: episode.summary,
+      coverUrl: episode.coverUrl,
+      category: episode.category,
+      tags: episode.tags,
+      durationSeconds: episode.durationSeconds,
+      audioUrl: episode.audioUrl,
+      featured: episode.featured,
+      publishedAt: episode.publishedAt,
+    });
+    expect(JSON.stringify(summary)).not.toContain('节目备注');
   });
 });

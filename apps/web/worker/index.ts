@@ -7,7 +7,7 @@ import { routeEpisodeCard } from './card';
 import { listCategories } from './categories';
 import { episodeArtRoute, routeEpisodeArt } from './episode-art';
 import { routeEpisodeThumbnail } from './episode-thumbnails';
-import { getEpisode, listEpisodes } from './episodes';
+import { getEpisode, listPublishedEpisodeSummaries } from './episodes';
 import { conditionalFeedResponse, feedResponse, feedRoute } from './feed-response';
 import { HttpError, json, requireSameOrigin } from './http';
 import { buildLlmsFull } from './llms-full';
@@ -124,7 +124,7 @@ async function route(request: Request, env: Env, ctx?: ExecutionContext): Promis
   if (feedRoute.test(path)) return feedResponse(request, env);
   if (path === '/api/episodes') {
     if (request.method !== 'GET') throw new HttpError(405, '不支持这个请求方式');
-    return json({ episodes: await listEpisodes(env.DB, true, undefined, origin) });
+    return json({ episodes: await listPublishedEpisodeSummaries(env.DB) });
   }
   if (path === '/api/categories') {
     if (request.method !== 'GET') throw new HttpError(405, '不支持这个请求方式');

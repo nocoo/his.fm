@@ -7,7 +7,9 @@ import {
   episodeDisplaySchema,
   episodeUpdateSchema,
   type PublicEpisode,
+  type PublicEpisodeSummary,
   projectPublicEpisode,
+  projectPublicEpisodeSummary,
 } from '../src/shared/episode';
 
 type EpisodeUpdate = z.infer<typeof episodeUpdateSchema>;
@@ -41,21 +43,6 @@ async function projectPublishedEpisode(db: D1Database, episode: Episode, origin:
       categoryName: names.get(episode.category) ?? episode.category,
     }),
     origin,
-  );
-}
-
-async function projectPublishedEpisodes(db: D1Database, episodes: Episode[], origin: string) {
-  const [site, names] = await Promise.all([getSiteSeo(db), categoryNames(db)]);
-  return Promise.all(
-    episodes.map((episode) =>
-      withShareArtwork(
-        projectPublicEpisode(episode, origin, {
-          site,
-          categoryName: names.get(episode.category) ?? episode.category,
-        }),
-        origin,
-      ),
-    ),
   );
 }
 
@@ -151,25 +138,11 @@ async function fetchPublishedRow(db: D1Database, lookup: EpisodeLookup) {
   return null;
 }
 
-export function listEpisodes(
-  db: D1Database,
-  publishedOnly: true,
-  actor?: Actor,
-  origin?: string,
-): Promise<PublicEpisode[]>;
-export function listEpisodes(
-  db: D1Database,
-  publishedOnly: boolean,
-  actor?: Actor,
-  origin?: string,
-): Promise<Array<Episode | PublicEpisode>>;
-export async function listEpisodes(
-  db: D1Database,
-  publishedOnly: boolean,
-  actor?: Actor,
-  origin = 'https://his.fm',
-): Promise<Array<Episode | PublicEpisode>> {
-  if (publishedOnly) return projectPublishedEpisodes(db, await readPublishedEpisodes(db), origin);
+export async function listPublishedEpisodeSummaries(db: D1Database): Promise<PublicEpisodeSummary[]> {
+  return (await readPublishedEpisodes(db)).map(projectPublicEpisodeSummary);
+}
+
+export async function listAllEpisodes(db: D1Database, actor?: Actor): Promise<Episode[]> {
   if (!actor) throw new HttpError(403, 'Missing scope: episodes:read');
   requireScope(actor, 'episodes:read');
   const result = await db

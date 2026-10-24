@@ -7,7 +7,7 @@ import { routeCategories } from './categories';
 import { routeChannel } from './channel';
 import { routeCover } from './cover';
 import { pregenerateEpisodeArt } from './episode-art-pregenerate';
-import { getEpisode, listEpisodes, mutateEpisode } from './episodes';
+import { getEpisode, listAllEpisodes, mutateEpisode } from './episodes';
 import { HttpError, json } from './http';
 import { routeProductions } from './production';
 import { routePromptSlots } from './prompt-slots';
@@ -59,7 +59,7 @@ export async function routeManagement(
     if (request.method === 'GET')
       response = episode[1]
         ? json({ episode: await getEpisode(env.DB, episode[1], false, actor) })
-        : json({ episodes: await listEpisodes(env.DB, false, actor) });
+        : json({ episodes: await listAllEpisodes(env.DB, actor) });
     else if (
       (episode[1] && ['PUT', 'PATCH', 'DELETE'].includes(request.method)) ||
       (!episode[1] && request.method === 'POST')

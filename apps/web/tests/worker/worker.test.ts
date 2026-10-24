@@ -7,7 +7,7 @@ import { version } from '../../../../package.json';
 import { themeChromeColor, themeFaviconPngSrc, themeFaviconSrc, themes } from '../../src/brand/themes';
 import { type Appearance, appearanceSchema, themeIds } from '../../src/shared/appearance';
 import { channelProfileSchema } from '../../src/shared/channel';
-import type { Episode, EpisodeInput, projectPublicEpisode } from '../../src/shared/episode';
+import type { Episode, EpisodeInput, PublicEpisode, PublicEpisodeSummary } from '../../src/shared/episode';
 import type { Production } from '../../src/shared/production';
 import worker from '../../worker';
 import { productionCapabilities } from '../../worker/agent-api';
@@ -180,22 +180,30 @@ describe('public podcast catalog', () => {
     await create({ slug: 'draft', status: 'draft', publishedAt: null, episodeNumber: undefined });
     await create({ slug: 'future', publishedAt: '2999-01-01T00:00:00.000Z', episodeNumber: undefined });
     const list = await call('/api/episodes');
-    const listBody = (await list.json()) as { episodes: ReturnType<typeof projectPublicEpisode>[] };
+    const listBody = (await list.json()) as { episodes: PublicEpisodeSummary[] };
     expect(listBody.episodes).toHaveLength(1);
     expect(listBody.episodes[0]).toMatchObject({
       id: episode.id,
       slug: episode.slug,
+      title: episode.title,
+      category: episode.category,
+    });
+    expect(listBody.episodes[0]).not.toHaveProperty('showNotes');
+    expect(listBody.episodes[0]).not.toHaveProperty('mentions');
+    expect(listBody.episodes[0]).not.toHaveProperty('pageSeo');
+    const detail = await call(`/api/episodes/${episode.slug}`);
+    const { episode: publicEpisode } = (await detail.json()) as { episode: PublicEpisode };
+    expect(publicEpisode).toMatchObject({
+      id: episode.id,
       canonical: expect.stringContaining(`/episodes/${episode.category}/${episode.slug}`),
       pageSeo: expect.objectContaining({
         title: expect.stringContaining(episode.title),
         canonical: expect.stringContaining(episode.slug),
       }),
     });
-    const publicEpisode = listBody.episodes[0];
     expect((await call('/api/episodes/draft')).status).toBe(404);
     expect((await call('/api/episodes/future')).status).toBe(404);
     expect((await call('/api/episodes/missing')).status).toBe(404);
-    expect(await (await call(`/api/episodes/${episode.slug}`)).json()).toEqual({ episode: publicEpisode });
     expect((await call('/api/episodes')).headers.get('Cache-Control')).toBe('no-store');
   });
 
@@ -389,12 +397,14 @@ describe('public podcast catalog', () => {
     expect(newer.id).not.toBe(older.id);
   });
 
-  it('exposes mentions on public episode JSON without transcript', async () => {
+  it('keeps mentions and long-form notes on the detail endpoint and out of the catalogue', async () => {
     const episode = await create();
-    const listed = (await (await call('/api/episodes')).json()) as { episodes: Episode[] };
-    expect(listed.episodes[0]?.mentions).toEqual(input.mentions);
-    const detail = (await (await call(`/api/episodes/${episode.slug}`)).json()) as { episode: Episode };
+    const listed = (await (await call('/api/episodes')).json()) as { episodes: PublicEpisodeSummary[] };
+    expect(listed.episodes[0]).not.toHaveProperty('mentions');
+    expect(listed.episodes[0]).not.toHaveProperty('showNotes');
+    const detail = (await (await call(`/api/episodes/${episode.slug}`)).json()) as { episode: PublicEpisode };
     expect(detail.episode.mentions).toEqual(input.mentions);
+    expect(detail.episode.showNotes).toBe(input.showNotes);
     expect(detail.episode).not.toHaveProperty('transcript');
   });
 
