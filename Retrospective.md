@@ -1,5 +1,16 @@
 # Retrospective
 
+## 2026-10-24 - Find the generator before replacing a committed asset
+
+I replaced `apps/web/public/brand/podcast.jpg` with the channel cover taken from
+the live feed, assuming it was the same asset. It is not: `share.jpg` and
+`podcast.jpg` are reproducible output of `scripts/generate-share-art.mjs`, and
+`tests/scripts/share-art.test.ts` byte-compares them against the script's output.
+The suite caught it before the first commit, and the committed file was restored.
+Installed-app icons now derive from the archived channel cover in `artwork/`,
+which is the file the feed actually serves. Before overwriting a committed binary,
+locate the script that produces it and the test that pins its bytes.
+
 ## 2026-10-22 - Preserve show identity independently of category routes
 
 The initial Podcasting 2.0 implementation derived category UUIDs from each
