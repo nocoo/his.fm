@@ -30,9 +30,11 @@ import { ReadingText } from '../shared/ReadingText';
 import { applyClientSeo } from '../shared/seo-client';
 import { episodeBreadcrumbs, podcastEpisodeJsonLd, podcastSeriesJsonLd } from '../shared/seo-jsonld';
 import { resolveAboutPageSeo, resolveCatalogueSeo, resolveSiteDefaults } from '../shared/seo-resolve';
+import { outlineFromShowNotes } from '../shared/show-notes-outline';
 import { PublicLink as Link, PublicNavLink as NavLink, SiteAppearance, useAppearance } from './Appearance';
 import { EpisodeCover } from './EpisodeCover';
 import { EpisodeMentions } from './EpisodeMentions';
+import { EpisodeOutline } from './EpisodeOutline';
 import { Hero, ThemeImage } from './Hero';
 import {
   catalogueCategoryFromSearch,
@@ -545,6 +547,7 @@ function EpisodeDetail() {
   const { episode, error, loading, retry } = useEpisodeDetail(categoryId, slug);
   const site = usePublicSiteSeo();
   const cover = episode && episodeThumbnailProps(episode, theme);
+  const outline = episode ? outlineFromShowNotes(episode.showNotes) : [];
   const [copyState, setCopyState] = useState('');
   const origin = usePublicOrigin();
   useEffect(() => {
@@ -626,39 +629,51 @@ function EpisodeDetail() {
             />
           )}
         </Reveal>
-        <Reveal className="detail-intro">
-          <p className="eyebrow detail-meta">
-            <span>{formatEpisodeNumber(episode.episodeNumber)}</span>
-            <span>{dateLabel(episode.publishedAt)}</span>
-            {episode.durationSeconds > 0 && <span>{durationLabel(episode.durationSeconds)}</span>}
-            {episode.mentions.length > 0 && <span>{episode.mentions.length} 个来源</span>}
-          </p>
-          <h1>{episode.title}</h1>
-          <p className="detail-summary">{episode.summary}</p>
-          <div className="detail-tags">
-            {episode.tags.map((tag) => (
-              <span key={tag}>{tag}</span>
-            ))}
-          </div>
-          {!episode.audioUrl && (
-            <div className="recording-note">
-              <BrandSymbol />
-              <div>
-                <strong>声音正在准备中</strong>
-                <span>预计 {durationLabel(episode.durationSeconds)} · 先看本期摘要</span>
+        <Reveal className={`detail-intro ${outline.length ? '' : 'is-lead-only'}`}>
+          <div className="detail-lead">
+            <p className="eyebrow detail-meta">
+              <span>{formatEpisodeNumber(episode.episodeNumber)}</span>
+              <span>{dateLabel(episode.publishedAt)}</span>
+              {episode.durationSeconds > 0 && <span>{durationLabel(episode.durationSeconds)}</span>}
+              {episode.mentions.length > 0 && <span>{episode.mentions.length} 个来源</span>}
+            </p>
+            <h1>{episode.title}</h1>
+            <p className="detail-summary">{episode.summary}</p>
+            {episode.tags.length > 0 && (
+              <div className="detail-tags">
+                {episode.tags.map((tag) => (
+                  <span key={tag}>{tag}</span>
+                ))}
               </div>
-              <a href="#episode-content" className="round-link" aria-label="阅读本期摘要">
-                <ArrowDown size={21} />
+            )}
+            <EpisodeOutline entries={outline} />
+            {!episode.audioUrl && (
+              <div className="recording-note">
+                <BrandSymbol />
+                <div>
+                  <strong>声音正在准备中</strong>
+                  <span>预计 {durationLabel(episode.durationSeconds)} · 先看本期摘要</span>
+                </div>
+                <a href="#episode-content" className="round-link" aria-label="阅读本期摘要">
+                  <ArrowDown size={21} />
+                </a>
+              </div>
+            )}
+          </div>
+          <div className="detail-actions">
+            {!outline.length && (
+              <a className="text-link" href="#episode-content">
+                读正文 <ArrowDown size={16} aria-hidden="true" />
               </a>
-            </div>
-          )}
-          <button type="button" className="share-link" onClick={share}>
-            {copyState === '链接已复制' ? <Check size={16} /> : <Copy size={16} />}
-            {copyState || '分享这一期'}
-          </button>
-          <span className="sr-only" aria-live="polite">
-            {copyState}
-          </span>
+            )}
+            <button type="button" className="share-link" onClick={share}>
+              {copyState === '链接已复制' ? <Check size={16} /> : <Copy size={16} />}
+              {copyState || '分享这一期'}
+            </button>
+            <span className="sr-only" aria-live="polite">
+              {copyState}
+            </span>
+          </div>
         </Reveal>
       </section>
       <div className="episode-body" id="episode-content">

@@ -1,6 +1,17 @@
 import { mkdir } from 'node:fs/promises';
 import { expect, test } from '@playwright/test';
 
+/**
+ * The dev server hydrates later than `load` because the React entry is imported dynamically,
+ * so a click can land before React owns the DOM. Retry until the interaction takes effect.
+ */
+async function clickWhenHydrated(click: () => Promise<void>, settled: () => Promise<void>) {
+  await expect(async () => {
+    await click();
+    await settled();
+  }).toPass({ timeout: 20_000 });
+}
+
 for (const width of [375, 390, 430, 1440]) {
   test(`episode artwork starts at the top and fits at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 1000 });
@@ -69,6 +80,10 @@ test('listeners can browse, filter and read episode summaries without transcript
   await page.getByRole('link', { name: '下班后，还要追多少个 AI？', exact: true }).click();
   const pageTitle = page.locator('.detail-intro').getByRole('heading', { level: 1 });
   await expect(pageTitle).toHaveText('下班后，还要追多少个 AI？');
+  const outline = page.locator('.episode-outline');
+  await expect(outline.getByRole('heading', { name: '本期讲什么' })).toBeVisible();
+  expect(await outline.locator('li').count()).toBeGreaterThanOrEqual(3);
+  await expect(outline.locator('li').first()).toContainText('603 条建议');
   const reading = page.locator('#reading-panel');
   await expect(reading.getByRole('heading', { level: 1 })).toHaveText('下班后，还要追多少个 AI？');
   const source = reading.getByRole('link', { name: 'HowToLiveBetter：《高性价比人生指南》', exact: true });
@@ -109,8 +124,12 @@ test('public pages fit a phone and respect reduced motion', async ({ page }) => 
   await page.goto('/');
   await expect(page.locator('.programme-group').first()).toBeVisible();
   await expect(page.getByRole('navigation', { name: '主导航' })).toBeHidden();
-  await page.getByRole('button', { name: '打开导航' }).click();
-  await page.getByRole('navigation', { name: '主导航' }).getByRole('link', { name: '关于 his.fm' }).click();
+  const nav = page.getByRole('navigation', { name: '主导航' });
+  await clickWhenHydrated(
+    () => page.getByRole('button', { name: '打开导航' }).click(),
+    () => expect(nav).toBeVisible(),
+  );
+  await nav.getByRole('link', { name: '关于 his.fm' }).click();
   await expect(page.getByRole('heading', { level: 1 })).toContainText('his.fm');
   await expect(page.getByRole('navigation', { name: '主导航' })).toBeHidden();
   for (const path of ['/', '/episodes', '/episodes/how-many-ai-tools-after-work', '/about']) {
@@ -175,8 +194,10 @@ test('unknown URLs return 404 and real icons retain their media types', async ({
 test('public re-entry revalidates the server snapshot without a document reload', async ({ page }) => {
   await page.goto('/');
   await expect(page.locator('.programme-group').first()).toBeVisible();
-  await page.locator('footer a[href="/login"]').click();
-  await expect(page).toHaveURL(/\/login$/);
+  await clickWhenHydrated(
+    () => page.locator('footer a[href="/login"]').click(),
+    () => expect(page).toHaveURL(/\/login$/),
+  );
   await expect(page.getByRole('heading', { name: '欢迎回到工作室' })).toBeVisible();
   await page.route('**/api/episodes', (route) => route.fulfill({ json: { episodes: [] } }));
   await page.route('**/api/appearance', (route) =>
@@ -185,8 +206,10 @@ test('public re-entry revalidates the server snapshot without a document reload'
   await page.route('**/api/site-seo', (route) =>
     route.fulfill({ json: { seo: { defaultTitle: 'Fresh public metadata' } } }),
   );
-  await page.getByRole('link', { name: '返回网站' }).click();
-  await expect(page.locator('.episode-card')).toHaveCount(0);
+  await clickWhenHydrated(
+    () => page.getByRole('link', { name: '返回网站' }).click(),
+    () => expect(page.locator('.episode-card')).toHaveCount(0),
+  );
   await expect(page.locator('.public-site')).toHaveAttribute('data-theme', 'stillwood');
   await expect(page).toHaveTitle('Fresh public metadata');
 });
