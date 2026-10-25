@@ -1109,47 +1109,76 @@ html:has(.appearance-gate) body {
   align-items: center;
   font-size: 14px;
 }
-.public-site .about-panorama {
-  position: relative;
-  height: 460px;
-  margin-inline: var(--space);
-  overflow: hidden;
+.public-site .about-plate {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+  gap: clamp(28px, 4.5vw, 76px);
+  align-items: center;
+  padding-block: 8px 12px;
 }
-.public-site .about-panorama picture,
-.public-site .about-panorama img {
+.public-site .about-plate-art img {
   width: 100%;
-  height: 100%;
-  display: block;
+  height: auto;
+  aspect-ratio: 3 / 2;
+  object-fit: cover;
 }
-.public-site .about-panorama > span {
-  position: absolute;
-  bottom: 25px;
-  left: 25px;
-  background: var(--paper);
-  color: var(--ink);
-  padding: 15px 20px;
-  font-size: 17px;
-  line-height: 1.7;
+.public-site .about-plate-copy h2 {
+  font-size: clamp(30px, 3.4vw, 48px);
+  font-weight: 450;
+  line-height: 1.55;
+  letter-spacing: -0.05em;
+  margin-block: 18px 20px;
 }
-.public-site .about-panorama em {
+.public-site .about-plate-copy em {
+  font-size: 0.42em;
+  font-style: normal;
+  letter-spacing: 0.09em;
+  color: var(--muted);
+  vertical-align: middle;
+}
+.public-site .about-plate-copy > p:not(.eyebrow) {
+  font-size: 15px;
+  line-height: 2;
+  color: var(--muted);
+  max-width: 520px;
+}
+.public-site .about-facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px 26px;
+  margin: 30px 0 0;
+  padding-top: 24px;
+  border-top: 1px solid var(--line);
+}
+.public-site .about-facts dt {
   font-size: 11px;
   letter-spacing: 0.08em;
-  font-style: normal;
+  color: var(--muted);
+}
+.public-site .about-facts dd {
+  margin: 6px 0 0;
+  font-size: 15px;
+  line-height: 1.6;
 }
 .public-site .about-story {
   display: grid;
-  grid-template-columns: 0.65fr 1fr;
-  gap: 8%;
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1fr);
+  gap: clamp(30px, 6vw, 90px);
   padding-block: 70px;
+  align-items: start;
+}
+.public-site .about-story-lead {
+  position: sticky;
+  top: 24px;
 }
 .public-site .about-story h2 {
   font-size: clamp(31px, 3.9vw, 55px);
   font-weight: 450;
   line-height: 1.5;
   letter-spacing: -0.055em;
-  margin-bottom: 30px;
+  margin-top: 26px;
 }
-.public-site .about-story p:not(.eyebrow) {
+.public-site .about-story-body p:not(.eyebrow) {
   font-size: 16px;
   line-height: 2;
   margin-bottom: 22px;
@@ -1157,6 +1186,88 @@ html:has(.appearance-gate) body {
 }
 .public-site .about-story .pill-button {
   margin-top: 15px;
+}
+.public-site .about-programmes {
+  padding-block: 20px 60px;
+}
+.public-site .about-programme-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(20px, 2.4vw, 36px);
+}
+.public-site .about-programme {
+  display: grid;
+  gap: 14px;
+  align-content: start;
+  padding-top: 22px;
+  border-top: 1px solid var(--line);
+}
+.public-site .about-programme h3 {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: clamp(20px, 1.9vw, 26px);
+  font-weight: 500;
+  letter-spacing: -0.03em;
+}
+.public-site .about-programme-count {
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  font-weight: 400;
+}
+.public-site .about-programme-recent {
+  list-style: none;
+  margin: 0;
+  display: grid;
+  gap: 10px;
+}
+.public-site .about-programme-recent li {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid color-mix(in srgb, var(--line) 60%, transparent);
+  font-size: 14px;
+  line-height: 1.6;
+}
+.public-site .about-programme-recent a {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.public-site .about-programme-recent a:hover {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.public-site .about-programme-recent span {
+  flex: none;
+  font-size: 11px;
+  letter-spacing: 0.03em;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.public-site .about-programme .text-link {
+  justify-self: start;
+  font-size: 13px;
+}
+.public-site .about-listen {
+  padding-block: 34px 48px;
+  border-top: 1px solid var(--line);
+}
+.public-site .about-listen > p:not(.eyebrow) {
+  font-size: 15px;
+  line-height: 2;
+  color: var(--muted);
+  max-width: 620px;
+  margin-block: 14px 20px;
+}
+.public-site .about-listen-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px 34px;
 }
 .public-site .about-end {
   border-top: 1px solid var(--line);
@@ -1374,6 +1485,25 @@ html:has(.appearance-gate) body {
     grid-template-columns: minmax(0, 1fr);
   }
 }
+@media (max-width: 900px) {
+  .public-site .about-plate,
+  .public-site .about-programme-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .public-site .about-plate {
+    gap: 30px;
+  }
+  .public-site .about-story {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 26px;
+  }
+  .public-site .about-story-lead {
+    position: static;
+  }
+  .public-site .about-story h2 {
+    margin-top: 18px;
+  }
+}
 @media (max-width: 1080px) {
   .public-site .episode-layout {
     grid-template-columns: minmax(240px, 320px) minmax(0, 1fr);
@@ -1579,7 +1709,7 @@ html:has(.appearance-gate) body {
   .public-site .about-story h2 {
     font-size: 35px;
   }
-  .public-site .about-story p:not(.eyebrow) {
+  .public-site .about-story-body p:not(.eyebrow) {
     font-size: 15px;
   }
   .public-site .about-end {

@@ -50,6 +50,10 @@ import { PublicSiteSeoProvider, usePublicSiteSeo } from './usePublicSiteSeo';
 
 const applePodcastsUrl = 'https://podcasts.apple.com/us/podcast/his-fm/id6826007787';
 
+function chineseCount(value: number) {
+  return ['零', '一', '两', '三', '四', '五', '六', '七', '八', '九'][value] ?? String(value);
+}
+
 const EpisodeContext = createContext<ReturnType<typeof useEpisodes> | null>(null);
 
 function useLibrary() {
@@ -744,8 +748,18 @@ function EpisodeDetail() {
 }
 
 function About() {
+  const { episodes, categories } = useLibrary();
   const site = usePublicSiteSeo();
   const origin = usePublicOrigin();
+  const active = categories
+    .map((category) => ({
+      category,
+      episodes: episodes.filter((episode) => episode.category === category.id),
+    }))
+    .filter((group) => group.episodes.length > 0);
+  const durations = episodes.map((episode) => episode.durationSeconds).filter((value) => value > 0);
+  const minutes = durations.length ? durations.map((value) => Math.round(value / 60)) : [];
+  const latest = episodes[0];
   useEffect(() => {
     applyClientSeo(resolveAboutPageSeo(site, origin), [podcastSeriesJsonLd(origin, site)]);
   }, [site, origin]);
@@ -772,22 +786,57 @@ function About() {
           </div>
         </Reveal>
       </section>
-      <div className="about-panorama">
-        <ThemeImage mobileSizes="max(100vw, 360px)" />
-        <span>
-          生活还在继续。
-          <br />
-          <em>BEYOND THE SCREEN.</em>
-        </span>
-      </div>
+      <section className="about-plate wrap">
+        <Reveal className="about-plate-art">
+          <ThemeImage
+            sizes="(max-width: 760px) max(calc(100vw - 48px), 360px), max(44vw, 640px)"
+            mobileSizes="max(calc(100vw - 48px), 360px)"
+          />
+        </Reveal>
+        <Reveal className="about-plate-copy">
+          <p className="eyebrow">BEYOND THE SCREEN / 镜头之外</p>
+          <h2>
+            生活还在继续。
+            <br />
+            <em>BEYOND THE SCREEN.</em>
+          </h2>
+          <p>
+            每一期的封面都从同一套画里长出来：一段路、一扇窗、一处需要坐下来的地方。声音可以边走边听，也可以听到一半就停下来。
+          </p>
+          {episodes.length > 0 && (
+            <dl className="about-facts">
+              <div>
+                <dt>已发布</dt>
+                <dd>{episodes.length} 期</dd>
+              </div>
+              <div>
+                <dt>在更栏目</dt>
+                <dd>{active.map((group) => group.category.name).join('、')}</dd>
+              </div>
+              <div>
+                <dt>单期时长</dt>
+                <dd>{minutes.length ? `${Math.min(...minutes)}–${Math.max(...minutes)} 分钟` : '待定'}</dd>
+              </div>
+              {latest?.publishedAt && (
+                <div>
+                  <dt>最近更新</dt>
+                  <dd>{dateLabel(latest.publishedAt)}</dd>
+                </div>
+              )}
+            </dl>
+          )}
+        </Reveal>
+      </section>
       <section className="about-story wrap">
-        <p className="eyebrow">WHY WE PRESS RECORD / 为什么开始</p>
-        <div>
+        <div className="about-story-lead">
+          <p className="eyebrow">WHY WE PRESS RECORD / 为什么开始</p>
           <h2>
             新的一天，
             <br />
             不只有新的版本。
           </h2>
+        </div>
+        <div className="about-story-body">
           <p>
             有时是早高峰里没回完的消息，有时是一个让人兴奋的新工具，也有时，只是下班路上突然想起：今天好像还没好好吃饭。
           </p>
@@ -820,6 +869,66 @@ function About() {
           </p>
           <Link to="/episodes" className="pill-button dark">
             从一期节目开始 <MoveUpRight size={19} />
+          </Link>
+        </div>
+      </section>
+      {active.length > 0 && (
+        <section className="about-programmes wrap">
+          <div className="section-heading">
+            <div>
+              <p className="eyebrow">ON AIR / 在更栏目</p>
+              <h2>现在能听到的{chineseCount(active.length)}档。</h2>
+            </div>
+            <Link to="/episodes" className="text-link">
+              全部播客 <ArrowUpRight size={18} />
+            </Link>
+          </div>
+          <div className="about-programme-grid">
+            {active.map((group) => {
+              const Icon = categoryIconComponents[group.category.icon];
+              return (
+                <article className="about-programme" key={group.category.id}>
+                  <h3>
+                    <span className="programme-icon" aria-hidden="true">
+                      <Icon size={18} strokeWidth={1.5} />
+                    </span>
+                    {group.category.name}
+                    <span className="about-programme-count">{group.episodes.length} 期</span>
+                  </h3>
+                  <ol className="about-programme-recent">
+                    {group.episodes.slice(0, 3).map((episode) => (
+                      <li key={episode.id}>
+                        <Link to={episodePublicPath(episode.category, episode.slug)}>{episode.title}</Link>
+                        <span>{formatEpisodeNumber(episode.episodeNumber)}</span>
+                      </li>
+                    ))}
+                  </ol>
+                  <Link to={catalogueHref(new URLSearchParams(), group.category.id)} className="text-link">
+                    全部 {group.episodes.length} 期 <ArrowUpRight size={16} />
+                  </Link>
+                </article>
+              );
+            })}
+          </div>
+        </section>
+      )}
+      <section className="about-listen wrap">
+        <p className="eyebrow">HOW TO LISTEN / 收听方式</p>
+        <p>站内可以直接听；想在通勤和散步时接着听，就把它放进自己的播客应用。</p>
+        <div className="about-listen-links">
+          <a href="/feed.xml" type="application/rss+xml" className="text-link">
+            RSS 订阅 <ArrowUpRight size={16} />
+          </a>
+          <a
+            href="https://podcasts.apple.com/us/podcast/his-fm/id6826007787"
+            rel="noopener noreferrer"
+            target="_blank"
+            className="text-link"
+          >
+            Apple Podcasts <ArrowUpRight size={16} />
+          </a>
+          <Link to="/episodes" className="text-link">
+            全部播客 <ArrowUpRight size={16} />
           </Link>
         </div>
       </section>
