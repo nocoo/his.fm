@@ -1124,6 +1124,32 @@ body selector. The normal commit hook rejected the descending-specificity
 warning. Keep base element rules before contextual overrides rather than
 disabling the lint rule for an otherwise small stylesheet.
 
+## 2026-10-25 - Never clear stored content from a form that stopped rendering it
+
+Replacing the studio's episode-body textarea with structure editors left the form
+payload carrying the schema default for the removed field. Saving a migrated
+episode therefore sent an empty body and erased the legacy Markdown the migration
+still needed for rollback. It surfaced only because the local seed was re-parsed
+into empty sections. The fix is structural: read the payload without the retired
+field and let the worker keep what is stored, then prove it by diffing every
+prose field before and after a studio save.
+
+A later cleanup pass then applied a repository-wide regex that removed every
+`description:` line from the tests, including SEO overrides, mention descriptions
+and Open Graph fixtures. Type checking caught the collateral damage, and the test
+tree had to be restored from git before each removal was made by hand. Bulk edits
+driven by a field name must be scoped to the object that owns the field, and the
+result reviewed with `git diff` before running tests.
+
+## 2026-10-25 - Apply a destructive migration with the release, not before it
+
+Dropping the legacy episode columns while the deployed worker still read them
+would have degraded every detail page to its summary until the next deploy. The
+release workflow runs migrations and then swaps the worker, so the drop belongs in
+that pipeline. Rehearse the table rebuild against a full local copy first, stage
+child rows before dropping the parent because the cascade empties them, and keep
+per-table JSON backups plus a D1 bookmark outside the repository.
+
 ## 2026-10-23 - Separate missing catalogue data from failed revalidation
 
 The first indexing patch skipped client SEO whenever catalogue fetching failed.
