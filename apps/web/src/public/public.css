@@ -615,59 +615,144 @@ html:has(.appearance-gate) body {
   pointer-events: none;
 }
 .public-site .site-footer {
+  --footer-brand: color-mix(in srgb, var(--accent) 42%, var(--ink));
+  margin-top: clamp(48px, 5vw, 80px);
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.6;
+  letter-spacing: 0.03em;
+  font-variant-numeric: tabular-nums;
+}
+.public-site .site-footer-inner {
   border-top: 1px solid var(--line);
-  padding-top: 34px;
 }
-.public-site .footer-top {
+.public-site .site-footer-body {
   display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   justify-content: space-between;
-  gap: 30px;
-  align-items: flex-start;
+  gap: 14px 32px;
+  padding-block: 22px;
 }
-.public-site .footer-top > p {
-  font-size: 19px;
-  line-height: 1.7;
-  font-weight: 450;
-}
-.public-site .footer-top > div {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(96px, auto));
-  gap: 14px 28px;
-  padding-top: 5px;
-  font-size: 12px;
-}
-.public-site .footer-top a {
+.public-site .site-footer-identity {
   display: flex;
+  align-items: center;
+  gap: 22px;
+  min-width: 0;
+}
+.public-site .site-footer-identity p {
+  margin: 0;
+}
+.public-site .zhengli-mark {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  font-family: "Space Grotesk", "Noto Sans SC", sans-serif;
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  color: var(--ink);
+  white-space: nowrap;
+}
+.public-site .brand-grid {
+  display: grid;
+  grid-template-columns: 5px 5px;
+  gap: 3px;
+  margin-right: 12px;
+  transform: rotate(-5deg);
+}
+.public-site .brand-grid i {
+  width: 5px;
+  height: 5px;
+  background: var(--footer-brand);
+}
+.public-site .zhengli-mark .brand-dot {
+  color: var(--footer-brand);
+}
+.public-site .footer-copyright-short {
+  display: none;
+}
+.public-site .site-footer-links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px 20px;
+  margin-left: auto;
+}
+.public-site .site-footer-links a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+}
+.public-site .site-footer-links a:hover {
+  color: var(--ink);
+}
+.public-site .site-footer-bottom .site-footer-inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 24px;
+  padding-block: 16px 20px;
+}
+.public-site .site-footer-bottom a {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 28px;
+}
+.public-site .site-footer-bottom a:hover {
+  color: var(--ink);
+}
+.public-site .location-signature {
+  display: inline-flex;
   align-items: center;
   gap: 8px;
 }
-.public-site .footer-note {
-  font-size: 11px;
-  letter-spacing: 0.07em;
-  line-height: 1.9;
-  color: var(--muted);
+.public-site .location-dot {
+  position: relative;
+  display: inline-block;
+  flex: none;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--footer-brand);
 }
-.public-site .footer-wordmark {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10%;
-  margin-block: 40px;
+.public-site .location-dot::after {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  border-radius: 50%;
+  background: radial-gradient(circle, color-mix(in srgb, var(--accent) 55%, transparent) 0%, transparent 70%);
+  opacity: 0.45;
+  animation: location-breathe 8.6s cubic-bezier(0.42, 0, 0.22, 1) infinite;
 }
-.public-site .footer-wordmark .brand-wordmark {
-  width: 77%;
+@keyframes location-breathe {
+  0%,
+  100% {
+    opacity: 0.3;
+    transform: scale(0.8);
+  }
+  23% {
+    opacity: 0.7;
+    transform: scale(1.15);
+  }
+  47% {
+    opacity: 0.35;
+    transform: scale(0.85);
+  }
+  64% {
+    opacity: 0.55;
+    transform: scale(1);
+  }
+  81% {
+    opacity: 0.32;
+    transform: scale(0.82);
+  }
 }
-.public-site .footer-wordmark .brand-symbol {
-  width: 12%;
-  height: auto;
-}
-.public-site .footer-bottom {
-  display: flex;
-  justify-content: space-between;
-  gap: 20px;
-  padding-block: 18px 24px;
-  border-top: 1px solid var(--line);
-  font-size: 11px;
+.public-site .footer-motto {
   color: var(--muted);
 }
 .public-site .catalogue {
@@ -1461,8 +1546,7 @@ html:has(.appearance-gate) body {
   aspect-ratio: 1;
 }
 @media (max-width: 1100px) {
-  .public-site .brand-caption,
-  .public-site .footer-note {
+  .public-site .brand-caption {
     display: none;
   }
   .public-site .episode-grid {
@@ -1478,8 +1562,8 @@ html:has(.appearance-gate) body {
   .public-site .episode-search input {
     width: 100%;
   }
-  .public-site .footer-top > div {
-    gap: 20px;
+  .public-site .site-footer-links {
+    gap: 2px 16px;
   }
   .public-site .subscribe-inner {
     grid-template-columns: minmax(0, 1fr);
@@ -1608,11 +1692,11 @@ html:has(.appearance-gate) body {
   .public-site .about-teaser-copy h2 {
     font-size: 32px;
   }
-  .public-site .footer-top {
-    gap: 20px;
+  .public-site .site-footer-identity {
+    display: block;
   }
-  .public-site .footer-top > p {
-    font-size: 16px;
+  .public-site .site-footer-identity p {
+    margin-top: 10px;
   }
   .public-site .programme-heading {
     flex-wrap: wrap;
@@ -1629,16 +1713,25 @@ html:has(.appearance-gate) body {
     width: 46%;
     opacity: 0.06;
   }
-  .public-site .footer-top > div {
-    grid-template-columns: 1fr;
-    gap: 12px;
-    font-size: 11px;
-  }
-  .public-site .footer-wordmark {
-    margin-block: 30px;
-  }
-  .public-site .footer-bottom > span:nth-child(2) {
+  .public-site .footer-copyright-full {
     display: none;
+  }
+  .public-site .footer-copyright-short {
+    display: inline;
+  }
+  .public-site .site-footer {
+    margin-top: 44px;
+  }
+  .public-site .site-footer-links {
+    justify-content: flex-start;
+    margin-left: 0;
+  }
+  .public-site .site-footer-bottom .site-footer-inner {
+    gap: 8px 16px;
+  }
+  .public-site .footer-motto {
+    order: 1;
+    flex-basis: 100%;
   }
   .public-site .page-heading h1 {
     font-size: 52px;

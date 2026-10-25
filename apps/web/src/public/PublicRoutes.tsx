@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import { createContext, type ReactNode, useContext, useEffect, useState } from 'react';
 import { Outlet, Route, Routes, useLocation, useParams, useSearchParams } from 'react-router';
-import { BrandSymbol, Wordmark } from '../brand/Brand';
+import { BrandSymbol } from '../brand/Brand';
 import { BrandLockup } from '../brand/BrandLockup';
 import { themeMedia } from '../brand/themes';
 import { AudioPlayer } from '../components/AudioPlayer';
@@ -100,53 +100,61 @@ function Header() {
 
 function Footer() {
   const site = usePublicSiteSeo();
+  const year = new Date().getFullYear();
   return (
-    <footer className="site-footer wrap">
-      <div className="footer-top">
-        <p>
-          保持好奇。
-          <br />
-          也记得，照顾好自己。
-        </p>
-        <div>
-          <Link to="/episodes">
-            全部播客 <ArrowUpRight size={16} />
-          </Link>
-          <Link to="/about">
-            关于我们 <ArrowUpRight size={16} />
-          </Link>
-          {site.podcastAuthorUrl && (
-            <a href={site.podcastAuthorUrl} rel="me noopener noreferrer" target="_blank">
-              {site.podcastAuthor}的主页 <ArrowUpRight size={16} />
+    <footer className="site-footer">
+      <div className="site-footer-inner wrap">
+        <div className="site-footer-body">
+          <div className="site-footer-identity">
+            <Link to="/" className="zhengli-mark" aria-label="zheng li." lang="en">
+              <span className="brand-grid" aria-hidden="true">
+                <i />
+                <i />
+                <i />
+                <i />
+              </span>
+              zheng li<span className="brand-dot">.</span>
+            </Link>
+            <p lang="en">
+              <span className="footer-copyright-full">© {year} Zheng Li. All rights reserved.</span>
+              <span className="footer-copyright-short">© {year} Zheng Li.</span>
+            </p>
+          </div>
+          <nav className="site-footer-links" aria-label="页脚导航">
+            <Link to="/episodes">全部播客</Link>
+            <Link to="/about">关于</Link>
+            <a href="/feed.xml" type="application/rss+xml">
+              RSS
             </a>
-          )}
-          <a href={applePodcastsUrl} rel="noopener noreferrer" target="_blank">
-            Apple Podcasts <ArrowUpRight size={16} />
-          </a>
-          <a href="/feed.xml" type="application/rss+xml">
-            RSS 订阅 <ArrowUpRight size={16} />
-          </a>
-          <a href="https://lizheng.blog" rel="noopener noreferrer" target="_blank">
-            博客 <ArrowUpRight size={16} />
-          </a>
-          <Link to="/login">
-            创作后台 <ArrowUpRight size={16} />
-          </Link>
+            <a href={applePodcastsUrl} rel="noopener noreferrer" target="_blank">
+              Apple Podcasts
+            </a>
+            {site.podcastAuthorUrl && (
+              <a href={site.podcastAuthorUrl} rel="me noopener noreferrer" target="_blank">
+                {site.podcastAuthor}的主页
+              </a>
+            )}
+            <a href="https://lizheng.blog" rel="noopener noreferrer" target="_blank">
+              博客
+            </a>
+            <a href="/llms.txt" lang="en">
+              llms.txt
+            </a>
+            <Link to="/login">创作后台</Link>
+          </nav>
         </div>
-        <span className="footer-note">
-          MADE FOR HUMANS.
-          <br />
-          IN THE AGE OF AI.
-        </span>
       </div>
-      <Link className="footer-wordmark" to="/" aria-label="返回 his.fm 首页">
-        <Wordmark />
-        <BrandSymbol />
-      </Link>
-      <div className="footer-bottom">
-        <span>© {new Date().getFullYear()} his.fm</span>
-        <span>一些声音，一点陪伴。</span>
-        <a href="#top">回到顶部 ↑</a>
+      <div className="site-footer-bottom">
+        <div className="site-footer-inner wrap">
+          <span className="location-signature" lang="en">
+            <span className="location-dot" aria-hidden="true" />
+            MADE IN BEIJING
+          </span>
+          <span className="footer-motto">保持好奇。也记得，照顾好自己。</span>
+          <a href="#main">
+            回到顶部 <span aria-hidden="true">↑</span>
+          </a>
+        </div>
       </div>
     </footer>
   );

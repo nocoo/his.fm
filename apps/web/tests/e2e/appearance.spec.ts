@@ -24,7 +24,7 @@ test('all eight previews load real artwork, inline identity and same-origin font
       await expect(page.locator('.public-site')).toHaveAttribute('data-theme', id);
       await expect(page.getByRole('heading', { level: 1 })).toHaveText(themes[id].heading.join(''));
       await expect(page.locator('.site-header .brand-wordmark path')).toHaveCount(1);
-      await expect(page.locator('.footer-wordmark .brand-wordmark path')).toHaveCount(1);
+      await expect(page.locator('.site-footer .brand-grid i')).toHaveCount(4);
       await expect(page.locator('.brand-wordmark use')).toHaveCount(0);
       await expect
         .poll(() =>
