@@ -487,7 +487,9 @@ describe('public podcast catalog', () => {
     const episode = await create();
     const robots = await call('/robots.txt');
     expect(robots.status).toBe(200);
-    expect(await robots.text()).toContain(`${origin}/sitemap.xml`);
+    const robotsBody = await robots.text();
+    expect(robotsBody).toContain(`${origin}/sitemap.xml`);
+    for (const path of ['/admin', '/login', '/api/']) expect(robotsBody).toContain(`Disallow: ${path}`);
     const sitemap = await call('/sitemap.xml');
     expect(sitemap.status).toBe(200);
     expect(await sitemap.text()).toContain(`/episodes/${episode.category}/${episode.slug}`);

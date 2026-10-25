@@ -203,6 +203,7 @@ async function buildChannel(
   mediaBase: string,
   title: string,
   description: string,
+  channelPath: string,
   selfHref: string,
   identityPath: string,
   episodes: FeedEpisode[],
@@ -251,7 +252,7 @@ async function buildChannel(
   xmlns:podcast="https://podcastindex.org/namespace/1.0">
   <channel>
     <title>${escapeXml(title)}</title>
-    <link>${escapeXml(absoluteUrl(origin, '/'))}</link>
+    <link>${escapeXml(absoluteUrl(origin, channelPath))}</link>
     <description>${escapeXml(description)}</description>
     <language>${escapeXml(site.language)}</language>
     <itunes:author>${escapeXml(site.podcastAuthor)}</itunes:author>
@@ -279,6 +280,7 @@ export async function buildRssFeed(
     mediaBase,
     site.siteName,
     site.podcastDescription,
+    '/',
     absoluteUrl(origin, '/feed.xml'),
     '/feed.xml',
     episodes,
@@ -304,12 +306,14 @@ export async function buildCategoryRssFeed(
       .first<{ rss_identity: string | null }>(),
   ]);
   if (!identity?.rss_identity) throw new HttpError(503, '栏目订阅标识暂时不可用');
+  if (!episodes.length) throw new HttpError(404, '这个栏目还没有已发布的节目');
   return buildChannel(
     db,
     origin,
     mediaBase,
     `${categoryName} · ${site.siteName}`,
     `${categoryName} · ${site.podcastDescription}`,
+    `/episodes?category=${categoryId}`,
     absoluteUrl(origin, categoryFeedPath(categoryId)),
     categoryFeedPath(identity.rss_identity),
     episodes,

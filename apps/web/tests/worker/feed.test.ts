@@ -334,6 +334,12 @@ describe('podcast feeds', () => {
     },
   );
 
+  it('points the category channel at its landing page', async () => {
+    catalogue(episode());
+    const xml = await buildCategoryRssFeed(db, origin, mediaBase, 'learning', 'Learning', media().bucket);
+    expect(xml).toContain('<link>https://his.fm/episodes?category=learning</link>');
+  });
+
   it('uses supported HTML inside CDATA without markup injection', async () => {
     catalogue(
       episode({

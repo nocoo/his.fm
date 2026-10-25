@@ -36,6 +36,8 @@ export function podcastEpisodeJsonLd(
     name: episode.title,
     description: episode.summary,
     url: episodeCanonicalUrl(origin, episode),
+    episodeNumber: episode.episodeNumber,
+    image: `${origin}/episodes/${encodeURIComponent(episode.id)}/art.jpg`,
     datePublished: episode.publishedAt ?? episode.updatedAt,
     author: podcastAuthorJsonLd(site),
     ...(audioAbsoluteUrl

@@ -154,6 +154,19 @@ describe('seo-resolve', () => {
     expect(resolved.description).toBe(episode.summary);
   });
 
+  it('clamps a long default description but leaves an editorial override intact', () => {
+    const site = siteSeoSchema.parse({});
+    const long = '很长的摘要'.repeat(30);
+    const resolved = resolveEpisodePageSeo(site, origin, { ...episode, summary: long });
+    expect(resolved.description.endsWith('…')).toBe(true);
+    expect(resolved.description.length).toBeLessThanOrEqual(81);
+    const editorial = '人工写好的简短描述。';
+    expect(
+      resolveEpisodePageSeo(site, origin, { ...episode, summary: long }, { description: editorial })
+        .description,
+    ).toBe(editorial);
+  });
+
   it('lets only the episode-specific image override replace its share image', () => {
     const site = siteSeoSchema.parse({ overrides: { ogImageUrl: '/images/site.jpg' } });
     const resolved = resolveEpisodePageSeo(site, origin, episode, {

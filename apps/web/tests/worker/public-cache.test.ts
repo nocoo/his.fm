@@ -28,7 +28,6 @@ describe('public cache boundary', () => {
       '/feed.xml',
       '/feeds/learning.xml',
       '/episodes',
-      '/episodes/legacy',
       '/episodes/learning/one',
       '/?theme=stillwood',
       '/episodes?category=learning&theme=interval',
@@ -38,6 +37,7 @@ describe('public cache boundary', () => {
       expect(cacheablePublicRequest(request(path, 'HEAD')), path).toBe(true);
     }
     for (const path of [
+      '/episodes/legacy',
       '/admin',
       '/admin/api/episodes',
       '/login',

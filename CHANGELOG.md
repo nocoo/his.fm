@@ -2,6 +2,22 @@
 
 All notable changes to his.fm are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions use the owner’s patch-only deployment policy in `AGENTS.md`, with the authoritative version in `package.json`.
 
+## 2.11.8 - 2026-10-25
+
+### Fixed
+
+- Legacy `/episodes/{slug}` addresses are no longer cached. They answer with a 301 to the category path, so caching that entry point served stale 200 duplicates of the same episode.
+- The application shell declares `noindex, nofollow` and the brand share image, so `/login` and other unrendered shells are not advertised as indexable pages with a leftover episode placeholder image.
+- `robots.txt` disallows `/admin`, `/login` and `/api/`.
+- A programme with no published episode no longer publishes an empty feed; its feed returns 404 until the first episode ships.
+- Category feeds point their channel link at the programme landing page instead of the site root.
+- PodcastEpisode structured data now carries `episodeNumber` and the episode artwork.
+- Default episode descriptions are clamped to a search-snippet length; hand-written SEO descriptions are left untouched.
+
+### Changed
+
+- Public pages no longer link the studio. `/login` remains the entry point, but no public surface advertises it.
+
 ## 2.11.7 - 2026-10-25
 
 ### Changed

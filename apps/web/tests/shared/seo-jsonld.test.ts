@@ -71,6 +71,8 @@ describe('seo-jsonld', () => {
     expect(podcastEpisodeJsonLd('https://his.fm', episode, site, 'https://f.no.mt/a.mp3')).toMatchObject({
       associatedMedia: { contentUrl: 'https://f.no.mt/a.mp3' },
       author: { '@type': 'Organization', name: 'his.fm' },
+      episodeNumber: episode.episodeNumber,
+      image: `https://his.fm/episodes/${episode.id}/art.jpg`,
     });
     expect(podcastEpisodeJsonLd('https://his.fm', episode, site)).not.toHaveProperty('associatedMedia');
     expect(

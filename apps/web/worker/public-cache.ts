@@ -7,6 +7,7 @@ import { maybeServePublicHtml } from './public-html';
 
 export const thumbnailRoute = /^\/media\/episode-thumbnails\/([^/]+)\/([^/]+)\/([^/]+)\/([^/]+)\.webp$/;
 const publicPage = /^\/(?:about|episodes(?:\/[^/]+){0,2})?$/;
+const legacyEpisodePath = /^\/episodes\/[^/]+$/;
 
 export function cacheablePublicRequest(request: Request): boolean {
   const url = new URL(request.url);
@@ -15,6 +16,8 @@ export function cacheablePublicRequest(request: Request): boolean {
   if (thumbnailRoute.test(url.pathname)) return !url.search;
   if (feedRoute.test(url.pathname)) return !url.search;
   if (!publicPage.test(url.pathname)) return false;
+  // Legacy slugs answer with a 301; caching that entry point served stale 200 pages.
+  if (legacyEpisodePath.test(url.pathname)) return false;
   const seen = new Set<string>();
   for (const [key, value] of url.searchParams) {
     if (seen.has(key)) return false;
@@ -37,9 +40,11 @@ export function invalidatesPublicContent(request: Request, response: Response): 
 }
 
 export async function publicContentResponse(request: Request, env: Env): Promise<Response> {
-  if (!cacheablePublicRequest(request)) return json({ error: '页面不存在' }, 404);
+  const pathname = new URL(request.url).pathname;
+  // The legacy slug answers with a 301, so it never enters the cache but must still resolve here.
+  if (!cacheablePublicRequest(request) && !legacyEpisodePath.test(pathname))
+    return json({ error: '页面不存在' }, 404);
   try {
-    const pathname = new URL(request.url).pathname;
     const thumbnail = thumbnailRoute.exec(pathname);
     const response = feedRoute.test(pathname)
       ? await feedResponse(request, env)

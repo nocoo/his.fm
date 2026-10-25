@@ -84,7 +84,16 @@ it('preserves migrated and newly created category identities through renames', a
     { DB: db } as Env,
     human,
   );
-  const { category: created } = (await response.json()) as { category: { id: string } };
+  const { category: created } = (await response.json()) as { category: { id: string; name: string } };
+  await expect(
+    buildCategoryRssFeed(db, 'https://his.fm', 'https://f.no.mt', created.id, created.name),
+  ).rejects.toMatchObject({ status: 404 });
+  await db
+    .prepare(`INSERT INTO episodes
+  (id,slug,episode_number,title,summary,transcript,show_notes,cover_url,category,tags,duration_seconds,audio_url,status,featured,published_at,created_at,updated_at)
+  VALUES ('renamed-feed', 'renamed-feed', 1, '改名栏目', '简介', '', '', '/images/episode-01.webp', ?, '[]', 60, '/media/audio.mp3', 'published', 0, '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z')`)
+    .bind(created.id)
+    .run();
   for (const id of ['life', created.id]) {
     const category = await getCategory(db, id);
     const before = await buildCategoryRssFeed(db, 'https://his.fm', 'https://f.no.mt', id, category.name);

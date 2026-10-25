@@ -81,6 +81,12 @@ export function resolveCatalogueSeo(
   };
 }
 
+/** Search results truncate long snippets; editorial overrides are left exactly as written. */
+function clampDescription(value: string, max = 80) {
+  const text = value.trim().replace(/\s+/g, ' ');
+  return text.length <= max ? text : `${text.slice(0, max).trimEnd()}…`;
+}
+
 export function resolveEpisodePageSeo(
   site: SiteSeo,
   origin: string,
@@ -90,7 +96,7 @@ export function resolveEpisodePageSeo(
   const merged = mergeOverride({}, site.overrides, override);
   const canonical = episodeCanonicalUrl(origin, episode);
   const title = merged.title ?? `${episode.title}${site.titleSuffix}`;
-  const description = merged.description ?? episode.summary;
+  const description = merged.description ?? clampDescription(episode.summary);
   const ogImage = override?.ogImageUrl ?? `/episodes/${encodeURIComponent(episode.id)}/share.jpg`;
   return {
     title,

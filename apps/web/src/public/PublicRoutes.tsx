@@ -140,7 +140,6 @@ function Footer() {
             <a href="/llms.txt" lang="en">
               llms.txt
             </a>
-            <Link to="/login">创作后台</Link>
           </nav>
         </div>
       </div>

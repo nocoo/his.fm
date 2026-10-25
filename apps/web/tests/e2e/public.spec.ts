@@ -209,10 +209,8 @@ test('unknown URLs return 404 and real icons retain their media types', async ({
 test('public re-entry revalidates the server snapshot without a document reload', async ({ page }) => {
   await page.goto('/');
   await expect(page.locator('.programme-group').first()).toBeVisible();
-  await clickWhenHydrated(
-    () => page.locator('footer a[href="/login"]').click(),
-    () => expect(page).toHaveURL(/\/login$/),
-  );
+  await expect(page.locator('footer a[href="/login"]')).toHaveCount(0);
+  await page.goto('/login');
   await expect(page.getByRole('heading', { name: '欢迎回到工作室' })).toBeVisible();
   await page.route('**/api/episodes', (route) => route.fulfill({ json: { episodes: [] } }));
   await page.route('**/api/appearance', (route) =>
