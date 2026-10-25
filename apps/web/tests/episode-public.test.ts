@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import { type Episode, projectPublicEpisode, projectPublicEpisodeSummary } from '../src/shared/episode';
-import { outlineFromTopics } from '../src/shared/episode-structure';
 
 const origin = 'https://hisfm.dev.hexly.ai';
 
@@ -47,18 +46,6 @@ describe('public episode projection', () => {
     });
     expect(publicEpisode).not.toHaveProperty('transcript');
     expect(JSON.stringify(publicEpisode)).not.toContain('逐字稿');
-  });
-
-  it('maps topics to outline entries', () => {
-    expect(
-      outlineFromTopics([
-        { title: '主题一', detail: '说明一', sourceUrls: [] },
-        { title: '主题二', detail: '', sourceUrls: ['https://example.com'] },
-      ]),
-    ).toEqual([
-      { title: '主题一', detail: '说明一' },
-      { title: '主题二', detail: '' },
-    ]);
   });
 
   it('keeps the catalogue projection free of bodies, sources and resolved SEO', () => {

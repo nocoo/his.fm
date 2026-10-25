@@ -2,6 +2,13 @@
 
 All notable changes to his.fm are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions use the owner’s patch-only deployment policy in `AGENTS.md`, with the authoritative version in `package.json`.
 
+## 2.11.6 - 2026-10-25
+
+### Changed
+
+- The episode page no longer repeats its own structure: the header shows the episode number, date, duration, source count, title and the opening paragraph, then the reading column begins with the topics. The five-item outline that duplicated the list below it, and the separate summary line that repeated the opening paragraph, are gone.
+- The share action sits directly under the opening paragraph; the "read the body" jump link is gone because the body already starts there.
+
 ## 2.11.5 - 2026-10-25
 
 ### Changed

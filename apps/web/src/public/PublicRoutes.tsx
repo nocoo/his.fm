@@ -24,7 +24,6 @@ import { categoryIconComponents } from '../shared/category-icons';
 import { coverArtwork, coverDesignSize } from '../shared/cover-composition';
 import type { PublicEpisodeSummary } from '../shared/episode';
 import { formatEpisodeNumber } from '../shared/episode-display';
-import { outlineFromTopics } from '../shared/episode-structure';
 import { episodeThumbnailProps, episodeThumbnailSizes } from '../shared/episode-thumbnail';
 import { episodePublicPath } from '../shared/episode-url';
 import { ReadingText } from '../shared/ReadingText';
@@ -34,7 +33,6 @@ import { resolveAboutPageSeo, resolveCatalogueSeo, resolveSiteDefaults } from '.
 import { PublicLink as Link, PublicNavLink as NavLink, SiteAppearance, useAppearance } from './Appearance';
 import { EpisodeCover } from './EpisodeCover';
 import { EpisodeMentions } from './EpisodeMentions';
-import { EpisodeOutline } from './EpisodeOutline';
 import { Hero, ThemeImage } from './Hero';
 import {
   catalogueCategoryFromSearch,
@@ -547,12 +545,6 @@ function EpisodeDetail() {
   const { episode, error, loading, retry } = useEpisodeDetail(categoryId, slug);
   const site = usePublicSiteSeo();
   const cover = episode && episodeThumbnailProps(episode, theme);
-  const outline = episode
-    ? outlineFromTopics(episode.topics).map((entry, index) => ({
-        ...entry,
-        href: `#topic-${index + 1}`,
-      }))
-    : [];
   const [copyState, setCopyState] = useState('');
   const origin = usePublicOrigin();
   useEffect(() => {
@@ -635,7 +627,7 @@ function EpisodeDetail() {
           )}
         </Reveal>
         <div className="episode-main">
-          <Reveal className={`detail-intro ${outline.length ? '' : 'is-lead-only'}`}>
+          <Reveal className="detail-intro">
             <div className="detail-lead">
               <p className="eyebrow detail-meta">
                 <span>{formatEpisodeNumber(episode.episodeNumber)}</span>
@@ -644,7 +636,10 @@ function EpisodeDetail() {
                 {episode.mentions.length > 0 && <span>{episode.mentions.length} 个来源</span>}
               </p>
               <h1>{episode.title}</h1>
-              <p className="detail-summary">{episode.summary}</p>
+              <ReadingText
+                className="readable-text episode-lead"
+                text={episode.lead.trim() || episode.summary}
+              />
               {episode.tags.length > 0 && (
                 <div className="detail-tags">
                   {episode.tags.map((tag) => (
@@ -652,7 +647,6 @@ function EpisodeDetail() {
                   ))}
                 </div>
               )}
-              <EpisodeOutline entries={outline} />
               {!episode.audioUrl && (
                 <div className="recording-note">
                   <BrandSymbol />
@@ -667,11 +661,6 @@ function EpisodeDetail() {
               )}
             </div>
             <div className="detail-actions">
-              {!outline.length && (
-                <a className="text-link" href="#episode-content">
-                  读正文 <ArrowDown size={16} aria-hidden="true" />
-                </a>
-              )}
               <button type="button" className="share-link" onClick={share}>
                 {copyState === '链接已复制' ? <Check size={16} /> : <Copy size={16} />}
                 {copyState || '分享这一期'}
@@ -684,9 +673,6 @@ function EpisodeDetail() {
           <div className="episode-writing" id="episode-content">
             <h2 className="sr-only">本期内容</h2>
             <div id="reading-panel">
-              {episode.lead.trim() && (
-                <ReadingText className="readable-text episode-lead" text={episode.lead} />
-              )}
               {episode.topics.length > 0 && (
                 <ol className="episode-topics">
                   {episode.topics.map((topic, index) => (
