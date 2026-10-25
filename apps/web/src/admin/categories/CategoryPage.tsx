@@ -43,12 +43,11 @@ function CategoryList() {
         <div className="category-list">
           {vm.categories.map((category) => (
             <LayerCard key={category.id} className="studio-row">
-              <CategoryBadge category={category} />
+              <span className="category-row-name">{category.name}</span>
               <div className="studio-actions">
-                <Button asChild variant="ghost" size="sm">
-                  <Link to={`/admin/categories/${category.id}`}>
-                    <Pencil size={15} />
-                    编辑 {category.name}
+                <Button asChild variant="ghost" size="icon">
+                  <Link to={`/admin/categories/${category.id}`} aria-label={`编辑 ${category.name}`}>
+                    <Pencil size={16} />
                   </Link>
                 </Button>
                 <Button

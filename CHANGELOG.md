@@ -7,6 +7,7 @@ All notable changes to his.fm are documented here. The format follows [Keep a Ch
 ### Changed
 
 - The public footer adopts the two-layer family layout used across the owner's sites: a `zheng li.` dot-matrix mark with copyright and the site's own links above a hairline, then `MADE IN BEIJING`, the channel motto and back-to-top below. The dot matrix and location dot use each theme's accent instead of a fixed brand colour, and the oversized footer wordmark is gone.
+- The studio's 栏目管理 list drops the coloured badge and shows the category name as plain text; the edit action is now an icon button matching delete.
 - The about page shows its artwork uncropped beside the caption — the 3:2 hero was previously cut into a 460px band — and adds catalogue facts, the active programmes with their latest episodes, and a listening section.
 
 ### Documentation

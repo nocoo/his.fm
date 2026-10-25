@@ -9,12 +9,24 @@
   gap: var(--admin-space-2);
   min-width: 0;
 }
+.category-row-name {
+  font-size: 14px;
+  font-weight: 500;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
 .category-fields {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(180px, 0.6fr);
   gap: var(--admin-space-4);
 }
 @media (max-width: 767px) {
+  .category-row-name {
+    font-size: 14px;
+    font-weight: 500;
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
   .category-fields {
     grid-template-columns: minmax(0, 1fr);
   }
