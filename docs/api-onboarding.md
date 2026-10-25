@@ -133,32 +133,106 @@ Export accepts static PNG/JPEG/WebP up to **4 MiB**, **4,000,000 pixels**, and *
 
 Standalone `/episodes` supports POST/GET and `/:id` GET/PUT/DELETE. PUT includes version; DELETE uses `?version=N`. Publishing/changing published standalone content additionally requires `episodes:publish`. Linked production snapshots reject standalone content writes/deletion. `PATCH /episodes/:id` permits only `{version, featured}` display metadata.
 
-Episode bodies are structured. A production or standalone episode carries `lead`, `researchNote`,
-`credits`, `body` and an ordered `topics` array (at most 30 entries); each topic is
-`{title, detail, sourceUrls}`, where `title` and `detail` are plain text and `sourceUrls` are HTTPS
-links cited by that topic. `mentions` keeps its existing shape and order.
+### Episode structure
+
+Since release 2.11.5 the episode body is structured data, not one Markdown document. `showNotes` no
+longer exists on any request or response, and `description` no longer exists on a production.
+Requests that still send them fail with `400 Unrecognized key: "showNotes"` or
+`400 Unrecognized key: "description"` because both schemas are strict.
+
+| Old field | Replacement |
+| --- | --- |
+| `showNotes` (whole Markdown body) | `lead` + `topics` + `body` + `researchNote` + `credits` |
+| `production.description` | the same five fields on the production |
+| `mentions` | unchanged in shape; still an ordered array of `{name, description, url?}` |
+
+Field reference. Send only what the episode actually has; every prose field accepts Markdown and is
+sanitised on render.
+
+| Field | Type | Limits | Use for |
+| --- | --- | --- | --- |
+| `lead` | string | 4,000 chars | the opening paragraph: where this episode starts and why |
+| `topics` | array | 1-30 items, in broadcast order | what the episode covers, one entry per item |
+| `topics[].title` | string | 1-120 chars, plain text | the topic name, e.g. `实验室怎样关住训练中的模型` |
+| `topics[].detail` | string | 2,000 chars, default `""` | two or three sentences of substance |
+| `topics[].sourceUrls` | array | 8 entries, HTTPS only | links cited by that one topic |
+| `body` | string | 20,000 chars | any remaining prose that is not a topic, note or credit |
+| `researchNote` | string | 4,000 chars | methodology and boundaries, e.g. which numbers are 据称 |
+| `credits` | string | 4,000 chars | narration voice, music attribution, licence |
+| `mentions` | array | 50 items | the episode-wide source list; `name` <=200, `description` <=500 |
 
 ```json
 {
-  "lead": "开场的一段话。",
-  "researchNote": "公司自报的数据一律按「据称」处理。",
-  "credits": "本期旁白：测试音色。",
-  "body": "",
+  "version": 7,
+  "lead": "agent 手里有了终端、浏览器，有的已经能替你登录真实账号。这一期往前走一步：它的边界该怎么划。",
   "topics": [
     {
-      "title": "第一个主题",
-      "detail": "展开说明。",
-      "sourceUrls": ["https://example.com/source"]
+      "title": "实验室怎样关住训练中的模型",
+      "detail": "OpenAI 公开训练环境的隔离做法：一次 DNS 配置错误后暂停最强模型的训练和评估 11 天，并用高算力红队假设内层已经失守再测外层。Anthropic 复盘 Mythos 5 在 AISI 测试中越界，43 次运行里 9 次影响了真实的人和组织。",
+      "sourceUrls": [
+        "https://openai.com/index/securing-our-frontier-model-training-environment/",
+        "https://www.anthropic.com/research/alignment-assessment-ukaisi"
+      ]
+    },
+    {
+      "title": "补丁窗口越缩越短",
+      "detail": "Drew Silcock 主张补丁公布即应视为利用将至；Brotli 解压漏洞第二次跟进，受影响范围扩到 PyPI 包，Node.js 与 Bun 已给出修复版本。",
+      "sourceUrls": ["https://drew.silcock.dev/blog/is-this-the-new-cyber-normal/"]
+    },
+    {
+      "title": "让 agent 用钥匙却看不见钥匙",
+      "detail": "1Password for AI Agents 让 agent 申请、用户批准、由 1Password 代填；Claude Duet 把凭据隔离在模型之外。",
+      "sourceUrls": ["https://1password.com/blog/1password-for-ai-agents"]
+    }
+  ],
+  "body": "",
+  "researchNote": "公司和项目自报的数字一律按「据称」处理；安全相关内容只讲防御与自查。",
+  "credits": "本期旁白采用 AI 合成。片头片尾音乐：Ondrosik — Short piano jingle（CC0）。",
+  "mentions": [
+    {
+      "name": "OpenAI：Securing our frontier model training environment",
+      "description": "训练环境隔离做法与暂停训练的说明。",
+      "url": "https://openai.com/index/securing-our-frontier-model-training-environment/"
     }
   ]
 }
 ```
 
-An update that omits `topics` or `mentions` preserves what is stored; sending an empty array clears
-it. `GET /api/episodes/{category}/{slug}` returns the structured fields, and every episode body is
-composed from `lead`, `topics`, `body`, `researchNote` and `credits`.
+Writing rules:
 
-Production briefs and standalone episode bodies accept an ordered `mentions` array (at most 50 items). Each item is `{name, description, url?}`: `name` and `description` are required strings; `description` is a single-sentence explanation; `url` is optional and must be `http` or `https` when present. Published snapshots copy `mentions` to the public episode. The public catalogue `GET /api/episodes` returns a light summary (no mentions, no episode body); `GET /api/episodes/{category}/{slug}` and `GET /api/episodes/{id}` include `mentions` and the episode body but never the transcript.
+- One idea per topic. If a topic needs more than three sentences, it is probably two topics.
+- Put concrete nouns, numbers and attributions in `detail`; keep `title` a label, not a sentence.
+- `sourceUrls` belongs to the topic it supports. The episode-wide list goes in `mentions`, which is
+  what the public page prints under 本期提到 and what RSS and structured data read.
+- `lead` is the only opening prose. Do not repeat it in `body`.
+- Do not repeat the episode title, the duration or the narration name: those already exist as
+  `title`, `durationSeconds` and the audio asset.
+- Markdown is allowed in the five prose fields. Raw HTML, images and script URLs are stripped.
+- `mentions` items are `{name, description, url?}`: `name` and `description` are required,
+  `description` is one sentence, and `url` must be `http` or `https` when present.
+
+Semantics on write:
+
+- Omitting `topics` or `mentions` on an update preserves what is stored; sending `[]` clears it.
+  Replacing the array is a full replacement in the given order.
+- Standalone episodes use `POST /api/agent/episodes` and `PUT /api/agent/episodes/{id}` with the same
+  five fields; `PUT` includes `version`.
+- Productions use `PUT /api/agent/productions/{id}` in the `production` stage with the same fields
+  plus `version`, then `POST /api/agent/productions/{id}/actions` with
+  `{"version": N, "action": "submit_final"}`. Final review now requires `summary`, **at least three
+  topics**, the current cover and the current audio.
+
+The existing catalogue is already migrated, so previously published work needs no action and is a
+good reference: `GET /api/agent/episodes` with `episodes:read` lists the catalogue, and
+`GET /api/agent/episodes/{id}` returns `lead`, `topics`, `body`, `researchNote`, `credits` and
+`mentions` for any of the thirteen published episodes. Read one before writing a new episode body:
+the released episodes show the intended density of titles and details. The prompt slot named
+`description` still exists and still guides this copy, but its output is now the structure above
+rather than one Markdown blob.
+
+Public payloads follow the same structure: `GET /api/episodes/{category}/{slug}` returns `lead`,
+`topics`, `body`, `researchNote`, `credits` and `mentions` but never the transcript, while the
+catalogue `GET /api/episodes` stays a light summary with neither collection.
 
 Production briefs/patches also accept optional `seo` with the existing page override
 fields (`title`, `description`, `ogImageUrl`, `noindex`). A metadata SEO change

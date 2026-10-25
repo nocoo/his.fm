@@ -2,6 +2,12 @@
 
 All notable changes to his.fm are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions use the owner’s patch-only deployment policy in `AGENTS.md`, with the authoritative version in `package.json`.
 
+## 2.11.7 - 2026-10-25
+
+### Documentation
+
+- `/api/agent/instructions` now opens with the episode structure contract: the removed `showNotes` and production `description` fields, the five replacement fields with their limits, an ordered `topics` example, writing rules, omit-versus-empty semantics and the three-topic final-review requirement. It also states that the published catalogue is already migrated, so existing work needs no change and can be read as a reference.
+
 ## 2.11.6 - 2026-10-25
 
 ### Changed
