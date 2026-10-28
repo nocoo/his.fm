@@ -139,10 +139,10 @@ describe('production audio bind helpers', () => {
     expect(put).not.toHaveBeenCalled();
   });
 
-  it('uses a one-hour production narration limit', () => {
-    expect(PRODUCTION_AUDIO_MAX_DURATION_SECONDS).toBe(3600);
-    expect(PRODUCTION_AUDIO_MAX_BYTES).toBe(172_865_536);
-    expect(PRODUCTION_AUDIO_MP3_MAX_BYTES).toBe(144_065_536);
+  it('uses a two-hour production narration limit', () => {
+    expect(PRODUCTION_AUDIO_MAX_DURATION_SECONDS).toBe(7200);
+    expect(PRODUCTION_AUDIO_MAX_BYTES).toBe(345_665_536);
+    expect(PRODUCTION_AUDIO_MP3_MAX_BYTES).toBe(288_065_536);
     expect(2259.67).toBeLessThanOrEqual(PRODUCTION_AUDIO_MAX_DURATION_SECONDS);
   });
 

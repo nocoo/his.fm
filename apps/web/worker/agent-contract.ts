@@ -731,7 +731,7 @@ export function agentOpenApi(origin: string) {
         put: {
           ...operation(
             'uploadProductionAudio',
-            'Attach mono 24 kHz PCM16 WAV or MP3 (audio/mpeg) after script approval, at most 3600 seconds. WAV up to 172865536 bytes; MP3 up to 144065536 bytes (320 kbps cap). Content-Length is required; duration is derived from validated bytes. Final-approved assets require productions:reopen.',
+            'Attach mono 24 kHz PCM16 WAV or MP3 (audio/mpeg) after script approval, at most 7200 seconds. WAV up to 345665536 bytes; MP3 up to 288065536 bytes (320 kbps cap). Content-Length is required; duration is derived from validated bytes. Final-approved assets require productions:reopen.',
             wrappedProduction,
             ['productions:write', 'storage:write'],
           ),
@@ -749,7 +749,7 @@ export function agentOpenApi(origin: string) {
         post: {
           ...operation(
             'bindProductionAudio',
-            'Attach a validated WAV or MP3 already stored in the his-fm R2 bucket. Requires current script approval, at most 3600 seconds with the same byte caps as PUT; reviewed assets require productions:reopen. Upload out-of-band only with separate infrastructure authorization, then bind by key. Staging sources are retained. Keys must be uploads/<uuid>.{wav|mp3} or productions/{id}/audio-<scriptVersion>-<uuid>.{wav|mp3} for this production.',
+            'Attach a validated WAV or MP3 already stored in the his-fm R2 bucket. Requires current script approval, at most 7200 seconds with the same byte caps as PUT; reviewed assets require productions:reopen. Upload out-of-band only with separate infrastructure authorization, then bind by key. Staging sources are retained. Keys must be uploads/<uuid>.{wav|mp3} or productions/{id}/audio-<scriptVersion>-<uuid>.{wav|mp3} for this production.',
             wrappedProduction,
             ['productions:write', 'storage:write'],
           ),

@@ -11,6 +11,7 @@ vi.mock('node:child_process', async () => {
 });
 
 import { productionProxy } from '../scripts/production-proxy';
+import { productionAudioMaxBytes } from '../src/shared/production';
 
 function deferred<T>() {
   let resolve: (value: T | PromiseLike<T>) => void = () => {
@@ -292,7 +293,7 @@ describe('local production proxy', () => {
   });
 
   it.each([
-    ['/productions/example/assets/audio?version=2', 'PUT', 172865536],
+    ['/productions/example/assets/audio?version=2', 'PUT', productionAudioMaxBytes],
     ['/storage', 'POST', 25 * 1024 * 1024],
   ])('bounds larger media uploads for %s only', async (path, method, limit) => {
     expect(

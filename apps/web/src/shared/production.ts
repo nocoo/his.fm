@@ -6,7 +6,7 @@ import { mentionsSchema } from './mentions';
 import { seoOverrideSchema } from './seo';
 
 const productionAudioHeaderScanBytes = 64 * 1024;
-export const productionAudioMaxDurationSeconds = 3600;
+export const productionAudioMaxDurationSeconds = 7200;
 /** Small slack so frame-scanned MP3 duration near the cap is not rejected vs ffprobe/Xing rounding. */
 export const productionAudioDurationCapSlackSeconds = 0.25;
 export const productionAudioMaxBytes =
