@@ -2,6 +2,12 @@
 
 All notable changes to his.fm are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions use the owner’s patch-only deployment policy in `AGENTS.md`, with the authoritative version in `package.json`.
 
+## 2.11.10 - 2026-10-28
+
+### Added
+
+- Load the Traks analytics collector on public SSR pages with CSP nonces and an allowlisted `track-collect.nocoo.cloud` script origin when that markup is present.
+
 ## 2.11.9 - 2026-10-28
 
 ### Fixed

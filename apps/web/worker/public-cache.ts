@@ -68,10 +68,13 @@ export async function freshPublicHtml(response: Response): Promise<Response> {
   headers.delete('Content-Encoding');
   headers.delete('ETag');
   headers.delete('Age');
+  const htmlBody = await response.text();
+  const traks = htmlBody.includes('track-collect.nocoo.cloud');
+  const scriptSrc = `'self' 'nonce-${nonce}'${traks ? ' https://track-collect.nocoo.cloud' : ''}`;
   headers.set(
     'Content-Security-Policy',
-    `base-uri 'self'; object-src 'none'; frame-ancestors 'none'; script-src 'self' 'nonce-${nonce}'`,
+    `base-uri 'self'; object-src 'none'; frame-ancestors 'none'; script-src ${scriptSrc}`,
   );
-  const html = (await response.text()).replace(/<script\b/g, `<script nonce="${nonce}"`);
+  const html = htmlBody.replace(/<script\b/g, `<script nonce="${nonce}"`);
   return new Response(html, { status: response.status, statusText: response.statusText, headers });
 }

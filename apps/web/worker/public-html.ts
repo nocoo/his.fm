@@ -13,6 +13,9 @@ import { readPublishedEpisodes } from './episodes';
 import { renderHeroPreloads, renderPublicPage } from './public-render';
 import { getSiteSeo } from './seo-store';
 
+const TRAKS_HEAD_SNIPPET = `<script>window.traks=window.traks||function(){(window.traks.q=window.traks.q||[]).push(arguments)}</script>
+<script defer data-site="pb_live_n79lt8f1ry7jcqhl4r74xmt9" src="https://track-collect.nocoo.cloud/t.js"></script>`;
+
 async function loadShell(request: Request, env: Env) {
   const asset = await env.ASSETS.fetch(new Request(new URL('/', request.url)));
   return asset.text();
@@ -143,7 +146,7 @@ export async function maybeServePublicHtml(request: Request, env: Env): Promise<
     .replace(/<link rel="icon"[^>]*>\s*/g, '')
     .replace(
       '</head>',
-      `<meta name="theme-color" content="${chrome}" /><link rel="icon" type="image/svg+xml" href="${themeFaviconSrc(theme)}" /><link rel="icon" type="image/png" sizes="32x32" href="${themeFaviconPngSrc(theme)}" /></head>`,
+      `${TRAKS_HEAD_SNIPPET}<meta name="theme-color" content="${chrome}" /><link rel="icon" type="image/svg+xml" href="${themeFaviconSrc(theme)}" /><link rel="icon" type="image/png" sizes="32x32" href="${themeFaviconPngSrc(theme)}" /></head>`,
     );
   if (path === '/') {
     html = html.replace('</head>', `${renderHeroPreloads(theme)}</head>`);

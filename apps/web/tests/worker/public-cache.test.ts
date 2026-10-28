@@ -173,6 +173,7 @@ describe('public cache boundary', () => {
       expect(nonce).toBeTruthy();
       expect(csp).not.toContain('unsafe-eval');
       expect(csp).not.toContain('unsafe-inline');
+      expect(csp).not.toContain('track-collect.nocoo.cloud');
       expect(await response.text()).toBe(template.replaceAll('<script', `<script nonce="${nonce}"`));
       nonces.add(nonce ?? '');
       expect(response.headers.get('Cache-Control')).toBe('no-store');
@@ -181,5 +182,14 @@ describe('public cache boundary', () => {
     }
     expect(nonces.size).toBe(2);
     expect(await cached.text()).toBe(template);
+  });
+
+  it('allowlists Traks only when the cached public HTML includes the collector', async () => {
+    const template =
+      '<script>window.traks=window.traks||function(){}</script><script defer src="https://track-collect.nocoo.cloud/t.js"></script>';
+    const response = await freshPublicHtml(
+      new Response(template, { headers: { 'Content-Type': 'text/html; charset=utf-8' } }),
+    );
+    expect(response.headers.get('Content-Security-Policy')).toContain('https://track-collect.nocoo.cloud');
   });
 });
