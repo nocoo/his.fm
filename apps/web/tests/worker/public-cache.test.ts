@@ -173,6 +173,7 @@ describe('public cache boundary', () => {
       expect(nonce).toBeTruthy();
       expect(csp).not.toContain('unsafe-eval');
       expect(csp).not.toContain('unsafe-inline');
+      expect(csp).toContain('https://track-collect.nocoo.cloud');
       expect(await response.text()).toBe(template.replaceAll('<script', `<script nonce="${nonce}"`));
       nonces.add(nonce ?? '');
       expect(response.headers.get('Cache-Control')).toBe('no-store');

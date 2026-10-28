@@ -70,7 +70,7 @@ export async function freshPublicHtml(response: Response): Promise<Response> {
   headers.delete('Age');
   headers.set(
     'Content-Security-Policy',
-    `base-uri 'self'; object-src 'none'; frame-ancestors 'none'; script-src 'self' 'nonce-${nonce}'`,
+    `base-uri 'self'; object-src 'none'; frame-ancestors 'none'; script-src 'self' 'nonce-${nonce}' https://track-collect.nocoo.cloud`,
   );
   const html = (await response.text()).replace(/<script\b/g, `<script nonce="${nonce}"`);
   return new Response(html, { status: response.status, statusText: response.statusText, headers });
