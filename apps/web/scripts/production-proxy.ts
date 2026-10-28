@@ -5,13 +5,13 @@ import { pipeline } from 'node:stream/promises';
 import type { ReadableStream } from 'node:stream/web';
 import { promisify } from 'node:util';
 import type { Connect, Plugin } from 'vite';
+import { productionAudioMaxBytes } from '../src/shared/production';
 
 const application = 'https://his.fm/admin';
 const remoteOrigin = 'https://his.fm';
 const apiPrefix = '/admin/remote-api';
 const connectPath = '/admin/remote-connect';
 const defaultUploadBytes = 9 * 1024 * 1024;
-const productionAudioMaxBytes = 3600 * 24000 * 2 + 64 * 1024;
 const run = promisify(execFile);
 const localHosts = new Set(['localhost', '127.0.0.1', '[::1]', 'hisfm.dev.hexly.ai']);
 

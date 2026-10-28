@@ -319,9 +319,9 @@ describe('production approvals and revision state machine', () => {
     });
     requireFinalAssets({
       ...ready,
-      assets: { ...ready.assets, audio: { ...audio, durationSeconds: 3600 } },
+      assets: { ...ready.assets, audio: { ...audio, durationSeconds: 7200 } },
     });
-    for (const durationSeconds of [undefined, -1, Number.NaN, Number.POSITIVE_INFINITY, 3601])
+    for (const durationSeconds of [undefined, -1, Number.NaN, Number.POSITIVE_INFINITY, 7201])
       expect(() =>
         requireFinalAssets({
           ...ready,

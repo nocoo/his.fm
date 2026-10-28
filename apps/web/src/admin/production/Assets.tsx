@@ -18,6 +18,7 @@ import { FramedCover } from '../../components/FramedCover';
 import {
   type Production,
   productionAudioMaxBytes,
+  productionAudioMaxDurationSeconds,
   productionAudioMp3MaxBytes,
 } from '../../shared/production';
 import { DraftConflicts } from '../draft/DraftConflicts';
@@ -31,8 +32,7 @@ import { productionService } from './service';
 
 const coverRules =
   'JPEG、PNG 或 WebP，最大 8 MB。只上传无文字、标志、边框的干净原图；品牌框架仅在下载成品时叠加。';
-const audioRules =
-  'WAV：24 kHz / 单声道 / 16-bit PCM，最大 172,865,536 字节。MP3：audio/mpeg，推荐 96–128 kbps 单声道，最大 144,065,536 字节。最长 3600 秒；服务器检查格式并读取真实时长。';
+const audioRules = `WAV：24 kHz / 单声道 / 16-bit PCM，最大 ${productionAudioMaxBytes.toLocaleString('en-US')} 字节。MP3：audio/mpeg，推荐 96–128 kbps 单声道，最大 ${productionAudioMp3MaxBytes.toLocaleString('en-US')} 字节。最长 ${productionAudioMaxDurationSeconds} 秒；服务器检查格式并读取真实时长。`;
 
 export function Assets({
   production,

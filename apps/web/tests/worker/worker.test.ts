@@ -8,7 +8,12 @@ import { themeChromeColor, themeFaviconPngSrc, themeFaviconSrc, themes } from '.
 import { type Appearance, appearanceSchema, themeIds } from '../../src/shared/appearance';
 import { channelProfileSchema } from '../../src/shared/channel';
 import type { Episode, EpisodeInput, PublicEpisode, PublicEpisodeSummary } from '../../src/shared/episode';
-import type { Production } from '../../src/shared/production';
+import {
+  type Production,
+  productionAudioMaxBytes,
+  productionAudioMaxDurationSeconds,
+  productionAudioMp3MaxBytes,
+} from '../../src/shared/production';
 import worker from '../../worker';
 import { productionCapabilities } from '../../worker/agent-api';
 import {
@@ -1712,9 +1717,9 @@ describe('agent discovery and real bearer routing', () => {
     expect(capabilities.audio).toEqual({
       execution: 'external',
       uploadMimeTypes: ['audio/wav', 'audio/mpeg'],
-      maximumSeconds: 3600,
-      maximumBytes: 172865536,
-      maximumMp3Bytes: 144065536,
+      maximumSeconds: productionAudioMaxDurationSeconds,
+      maximumBytes: productionAudioMaxBytes,
+      maximumMp3Bytes: productionAudioMp3MaxBytes,
     });
     expect((await agentCall('/me', { method: 'POST' })).status).toBe(405);
     expect((await agentCall('/me', { method: 'POST' })).headers.get('Allow')).toBe('GET');
