@@ -6,7 +6,7 @@ All notable changes to his.fm are documented here. The format follows [Keep a Ch
 
 ### Added
 
-- Load the Traks analytics collector on every HTML shell (public SSR pages, studio and login) with CSP nonces and an allowlisted `track-collect.nocoo.cloud` script origin.
+- Load the Traks analytics collector on public SSR pages with CSP nonces and an allowlisted `track-collect.nocoo.cloud` script origin when that markup is present.
 
 ## 2.11.9 - 2026-10-28
 
