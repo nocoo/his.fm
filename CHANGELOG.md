@@ -2,6 +2,12 @@
 
 All notable changes to his.fm are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions use the owner’s patch-only deployment policy in `AGENTS.md`, with the authoritative version in `package.json`.
 
+## 2.11.9 - 2026-10-28
+
+### Fixed
+
+- Raise the production audio duration cap from 3,600 to 7,200 seconds (WAV up to 345,665,536 bytes; MP3 up to 288,065,536 bytes) for uploads, R2 bind, brief `targetDurationSeconds` and final-asset validation so hour-plus narration such as Daily Brew EP.14 can attach.
+
 ## 2.11.8 - 2026-10-25
 
 ### Fixed
