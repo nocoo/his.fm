@@ -2,6 +2,12 @@
 
 All notable changes to his.fm are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions use the owner’s patch-only deployment policy in `AGENTS.md`, with the authoritative version in `package.json`.
 
+## 2.11.11 - 2026-10-31
+
+### Removed
+
+- Legacy whole-prompt storage and API projections (`channel.content`, `channel.prompts.*`, `category.prompt`), runtime migration dry-run/apply endpoints, `prompt_slot_backups`, and the studio migration/legacy read-only UI. Prompt slots are the only prompt model; empty tables initialize on first save. D1 migration `0027_drop_legacy_prompts.sql` drops the legacy columns after deploy applies migrations before the Worker update.
+
 ## 2.11.10 - 2026-10-28
 
 ### Added

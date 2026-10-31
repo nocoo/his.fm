@@ -6,7 +6,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 import { version } from '../../../../package.json';
 import { themeChromeColor, themeFaviconPngSrc, themeFaviconSrc, themes } from '../../src/brand/themes';
 import { type Appearance, appearanceSchema, themeIds } from '../../src/shared/appearance';
-import { channelProfileSchema } from '../../src/shared/channel';
+import { editorialPriority } from '../../src/shared/channel';
 import type { Episode, EpisodeInput, PublicEpisode, PublicEpisodeSummary } from '../../src/shared/episode';
 import {
   type Production,
@@ -23,6 +23,7 @@ import {
   serviceCapabilitiesSchema,
   serviceManifestSchema,
 } from '../../worker/agent-contract';
+import { channelDefault } from '../../worker/prompt-defaults';
 import { agent, brief, fixture, readyFixture } from './production-fixture';
 
 vi.setConfig({ testTimeout: 30000, hookTimeout: 30000 });
@@ -509,18 +510,13 @@ describe('public podcast catalog', () => {
   });
 
   it('keeps empty and explicitly hidden pages out of the sitemap and restores populated programme pages', async () => {
-    const saved = await env.DB.prepare('SELECT name, prompt, seo FROM categories WHERE id = ?')
+    const saved = await env.DB.prepare('SELECT name, seo FROM categories WHERE id = ?')
       .bind('learning')
-      .first<{ name: string; prompt: string; seo: string }>();
+      .first<{ name: string; seo: string }>();
     if (!saved) throw new Error('Missing category fixture');
     try {
-      await env.DB.prepare('UPDATE categories SET name = ?, prompt = ?, seo = ? WHERE id = ?')
-        .bind(
-          'Programme title',
-          'PRIVATE EDITORIAL POLICY',
-          JSON.stringify({ description: 'Public programme introduction' }),
-          'learning',
-        )
+      await env.DB.prepare('UPDATE categories SET name = ?, seo = ? WHERE id = ?')
+        .bind('Programme title', JSON.stringify({ description: 'Public programme introduction' }), 'learning')
         .run();
       await create({ category: 'learning', episodeNumber: 1, slug: 'draft-only', status: 'draft' });
       await create({
@@ -532,7 +528,7 @@ describe('public podcast catalog', () => {
       const empty = await (await call('/episodes?category=learning')).text();
       expect(empty).toContain('<h1>Programme title</h1>');
       expect(empty).toContain('Public programme introduction');
-      expect(empty).not.toContain('PRIVATE EDITORIAL POLICY');
+      expect(empty).not.toContain('INTERNAL PROMPT SLOT SECRET');
       expect(empty).toContain('<meta name="robots" content="noindex, follow"');
       expect(empty).toContain(`rel="canonical" href="${origin}/episodes?category=learning"`);
       expect(empty).toContain('href="/feeds/learning.xml"');
@@ -568,8 +564,8 @@ describe('public podcast catalog', () => {
       );
       expect(await (await call('/sitemap.xml')).text()).not.toContain('category=learning');
     } finally {
-      await env.DB.prepare('UPDATE categories SET name = ?, prompt = ?, seo = ? WHERE id = ?')
-        .bind(saved.name, saved.prompt, saved.seo, 'learning')
+      await env.DB.prepare('UPDATE categories SET name = ?, seo = ? WHERE id = ?')
+        .bind(saved.name, saved.seo, 'learning')
         .run();
     }
   });
@@ -1450,10 +1446,7 @@ describe('R2 media', () => {
 describe('agent discovery and real bearer routing', () => {
   it('persists owner positioning, protects private content and injects the latest revision into all tasks', async () => {
     await env.DB.prepare('DELETE FROM channel_profile').run();
-    const initial = channelProfileSchema.parse(
-      ((await (await call('/admin/api/channel')).json()) as { channel: unknown }).channel,
-    );
-    expect(initial.version).toBe(1);
+    expect(await (await call('/admin/api/channel')).json()).toEqual({ priority: [...editorialPriority] });
     for (const phrase of [
       '年轻程序员',
       'well-being',
@@ -1463,7 +1456,7 @@ describe('agent discovery and real bearer routing', () => {
       '单人播讲',
       '复述这些原则',
     ])
-      expect(initial.content).toContain(phrase);
+      expect(channelDefault).toContain(phrase);
     expect((await call('/api/agent/channel')).status).toBe(401);
     const secret = (await (
       await call('/admin/api/agent-tokens', {
@@ -1483,32 +1476,41 @@ describe('agent discovery and real bearer routing', () => {
         }),
         env,
       );
-    expect(await (await agentCall('/channel')).json()).toEqual({
-      channel: initial,
-      priority: ['channel', 'category', 'intent', 'sources'],
-    });
+    expect(await (await agentCall('/channel')).json()).toEqual({ priority: [...editorialPriority] });
     expect(
       (await agentCall('/channel', { method: 'PUT', ...body({ version: 1, content: 'Injected change' }) }))
         .status,
     ).toBe(403);
     for (const method of ['POST', 'DELETE'])
       expect((await agentCall('/channel', { method })).status).toBe(403);
-    const changed = await call('/admin/api/channel', {
-      method: 'PUT',
-      ...body({ version: initial.version, content: '## 新的全局提示词\n\n自定义定位：从下班后的生活切入。' }),
-    });
-    expect(changed.status).toBe(405);
-    await env.DB.prepare('UPDATE channel_profile SET version=version+1, content=?, updated_by=? WHERE id=1')
-      .bind('## 新的全局提示词\n\n自定义定位：从下班后的生活切入。', 'editor@his.fm')
-      .run();
-    const profile = channelProfileSchema.parse(
-      ((await (await call('/admin/api/channel')).json()) as { channel: unknown }).channel,
-    );
-    expect(profile.version).toBe(2);
-    expect(profile.updatedBy).toBe('editor@his.fm');
-    expect(((await (await call('/admin/api/channel')).json()) as { channel: unknown }).channel).toEqual(
-      profile,
-    );
+    expect(
+      (
+        await call('/admin/api/channel', {
+          method: 'PUT',
+          ...body({ version: 1, content: '## 新的全局提示词\n\n自定义定位：从下班后的生活切入。' }),
+        })
+      ).status,
+    ).toBe(405);
+    expect(
+      (
+        await call('/admin/api/channel/prompt-slots', {
+          method: 'PUT',
+          ...body({
+            version: 0,
+            slots: [
+              {
+                id: 'positioning',
+                title: '定位',
+                body: '## 新的全局提示词\n\n自定义定位：从下班后的生活切入。',
+                order: 0,
+                enabled: true,
+                mode: 'override',
+              },
+            ],
+          }),
+        })
+      ).status,
+    ).toBe(200);
     expect(
       (await call('/admin/api/channel', { method: 'PUT', ...body({ version: 1, content: 'Stale version' }) }))
         .status,
@@ -1521,10 +1523,22 @@ describe('agent discovery and real bearer routing', () => {
     expect(
       (
         await worker.fetch(
-          new Request(`${origin}/admin/api/channel`, {
+          new Request(`${origin}/admin/api/channel/prompt-slots`, {
             method: 'PUT',
             headers: { Cookie: cookie, Origin: 'https://evil.example', 'Content-Type': 'application/json' },
-            body: JSON.stringify({ version: 2, content: 'Forged' }),
+            body: JSON.stringify({
+              version: 1,
+              slots: [
+                {
+                  id: 'positioning',
+                  title: '定位',
+                  body: 'Forged',
+                  order: 0,
+                  enabled: true,
+                  mode: 'override',
+                },
+              ],
+            }),
           }),
           env,
         )
@@ -1540,7 +1554,7 @@ describe('agent discovery and real bearer routing', () => {
     ).json()) as Record<string, string>;
     for (const prompt of Object.values(prompts)) {
       expect(prompt).toContain('自定义定位');
-      expect(prompt).toContain('"version": 2');
+      expect(prompt).toContain('"intent"');
       expect(prompt).not.toContain('有温度，有柔情');
       expect(prompt.indexOf('自定义定位')).toBeLessThan(prompt.indexOf('"intent"'));
     }
@@ -1561,53 +1575,70 @@ describe('agent discovery and real bearer routing', () => {
       expect(await (await call(path)).text()).not.toContain('自定义定位');
     expect(await (await agentCall('/capabilities')).json()).toMatchObject({
       editorial: {
-        priority: ['channel', 'category', 'intent', 'sources'],
-        channelUrl: `${origin}/api/agent/channel`,
+        priority: [...editorialPriority],
+        channelUrl: `${origin}/api/agent/channel/prompt-slots`,
         readBeforeEveryTask: true,
       },
     });
-    const edited = { ...profile.prompts, coordinator: '主控自定义私有标记', script: '逐字稿自定义私有标记' };
-    const updated = await call('/admin/api/channel', {
-      method: 'PUT',
-      ...body({ version: profile.version, prompts: edited }),
-    });
-    expect(updated.status).toBe(405);
-    await env.DB.prepare('UPDATE channel_profile SET version=version+1, prompts=? WHERE id=1')
-      .bind(JSON.stringify(edited))
-      .run();
-    const saved = channelProfileSchema.parse(
-      ((await (await call('/admin/api/channel')).json()) as { channel: unknown }).channel,
-    );
-    expect(saved.content).toBe(profile.content);
-    expect(saved.prompts).toEqual(edited);
-    expect(saved.version).toBe(profile.version + 1);
-    expect(((await (await agentCall('/channel')).json()) as { channel: unknown }).channel).toEqual(saved);
+    expect(
+      (
+        await call('/admin/api/channel/prompt-slots', {
+          method: 'PUT',
+          ...body({
+            version: 1,
+            slots: [
+              {
+                id: 'positioning',
+                title: '定位',
+                body: '## 新的全局提示词\n\n自定义定位：从下班后的生活切入。',
+                order: 0,
+                enabled: true,
+                mode: 'override',
+              },
+              {
+                id: 'script',
+                title: '逐字稿',
+                body: '逐字稿自定义私有标记',
+                order: 1,
+                enabled: true,
+                mode: 'override',
+              },
+            ],
+          }),
+        })
+      ).status,
+    ).toBe(200);
     expect(await (await agentCall(`/productions/${created.production.id}/prompts`)).text()).toContain(
       '逐字稿自定义私有标记',
     );
-    expect(((await (await call('/admin/api/channel')).json()) as { channel: unknown }).channel).toEqual(
-      saved,
-    );
-    expect(
-      (await agentCall('/channel', { method: 'PUT', ...body({ version: saved.version, prompts: edited }) }))
-        .status,
-    ).toBe(403);
-    for (const invalid of [
-      { version: saved.version },
-      { version: saved.version, prompts: {} },
-      { version: saved.version, prompts: { ...edited, speech: '' } },
-      { version: saved.version, prompts: { ...edited, decisionPlan: '中'.repeat(1501) } },
-    ]) {
-      expect((await call('/admin/api/channel', { method: 'PUT', ...body(invalid) })).status).toBe(405);
-    }
     expect(
       (
-        await call('/admin/api/channel', {
+        await agentCall('/channel/prompt-slots', {
           method: 'PUT',
-          ...body({ version: profile.version, prompts: edited }),
+          ...body({
+            version: 2,
+            slots: [
+              {
+                id: 'positioning',
+                title: '定位',
+                body: 'Agent tamper',
+                order: 0,
+                enabled: true,
+                mode: 'override',
+              },
+            ],
+          }),
         })
       ).status,
-    ).toBe(405);
+    ).toBe(403);
+    expect(
+      (
+        await agentCall('/channel', {
+          method: 'PUT',
+          ...body({ version: 2, prompts: { script: '逐字稿自定义私有标记' } }),
+        })
+      ).status,
+    ).toBe(403);
     for (const path of [
       '/api/agent',
       '/api/agent/openapi.json',
@@ -1617,15 +1648,6 @@ describe('agent discovery and real bearer routing', () => {
     ]) {
       expect(await (await call(path)).text()).not.toContain('自定义私有标记');
     }
-    await env.DB.prepare('UPDATE channel_profile SET prompts = NULL WHERE id = 1').run();
-    const initialized = channelProfileSchema.parse(
-      ((await (await call('/admin/api/channel')).json()) as { channel: unknown }).channel,
-    );
-    expect(initialized.content).toBe(saved.content);
-    expect(initialized.version).toBe(saved.version + 1);
-    expect(((await (await call('/admin/api/channel')).json()) as { channel: unknown }).channel).toEqual(
-      initialized,
-    );
     await env.DB.prepare('DELETE FROM channel_profile').run();
   });
   it('serves the advertised root, RFC catalog, OpenAPI and instructions without exposing private records', async () => {
@@ -1664,12 +1686,11 @@ describe('agent discovery and real bearer routing', () => {
     for (const fragment of [
       '/api/agent/channel/prompt-slots',
       '/api/agent/categories/:id/prompt-slots',
-      'deprecated read-only projections',
-      "GET each slot table's /migration/dry-run with prompts:read",
-      'POST /migration/apply with prompts:write',
+      'Uninitialized tables are empty at version 0 until the first save',
     ])
       expect(summary).toContain(fragment);
-    expect(summary).not.toContain('editable prompts bundle');
+    expect(summary).not.toContain('migration/dry-run');
+    expect(summary).not.toContain('migration/apply');
     const artworkDescription = agentOpenApi(origin).paths['/productions/{id}/assets/cover'].put.summary;
     const diagnostic = artworkDescription.slice(
       artworkDescription.indexOf('Successful versioned artwork responses'),

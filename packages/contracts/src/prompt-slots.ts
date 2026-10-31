@@ -62,10 +62,6 @@ export const promptSlotPatchSchema = promptSlotInputSchema
     version: z.number().int().min(0),
   })
   .refine((value) => Object.keys(value).length > 1, '请提供需要修改的提示词字段');
-export const promptSlotApplySchema = z.strictObject({
-  version: z.number().int().min(0),
-  legacyVersion: z.number().int().min(0),
-});
 
 export type PromptSlotInput = z.infer<typeof promptSlotInputSchema>;
 export type PromptSlot = z.infer<typeof promptSlotSchema>;

@@ -1,6 +1,5 @@
 import type { PromptSlotInput, PromptSlotTable } from '@his-fm/contracts';
 import { expect, type Page, test } from '@playwright/test';
-import { defaultPrompts } from '../../worker/prompt-defaults';
 
 const initialSlots: PromptSlotInput[] = [
   {
@@ -41,7 +40,6 @@ async function mockSlots(page: Page, categoryName = '研究笔记') {
     ['category', makeTable()],
   ]);
   let fail = false;
-  let staleMigration = false;
   const writes: { path: string; method: string; body: unknown }[] = [];
   await page.route('**/admin/api/**', async (route) => {
     const request = route.request();
@@ -52,36 +50,12 @@ async function mockSlots(page: Page, categoryName = '研究笔记') {
       return route.fulfill({
         json: { categories: [{ id: 'research', name: categoryName, icon: 'mic', color: 'blue' }] },
       });
-    if (path.endsWith('/channel'))
-      return route.fulfill({
-        json: { channel: { content: '旧版全局正文', prompts: defaultPrompts, version: 11 } },
-      });
-    if (path.endsWith('/categories/research'))
-      return route.fulfill({ json: { category: { prompt: '旧版栏目正文' } } });
     if (!path.includes('/prompt-slots')) return route.fulfill({ json: {} });
     const scope = path.includes('/categories/') ? 'category' : 'channel';
     const table = tables.get(scope) as PromptSlotTable;
-    if (path.endsWith('/migration/dry-run'))
-      return route.fulfill({
-        json: {
-          version: table.version,
-          legacyVersion: 11,
-          initialized: table.initialized,
-          slots: initialSlots,
-          unmappedHeadings: ['未识别的附录'],
-        },
-      });
     if (request.method() === 'GET') return route.fulfill({ json: table });
     const body = request.postDataJSON();
     writes.push({ path, method: request.method(), body });
-    if (path.endsWith('/migration/apply')) {
-      if (staleMigration || body.version !== table.version || body.legacyVersion !== 11) {
-        staleMigration = false;
-        return route.fulfill({ status: 409, json: { error: '迁移预览过期' } });
-      }
-      tables.set(scope, { ...makeTable(), version: table.version + 1 });
-      return route.fulfill({ json: tables.get(scope) });
-    }
     if (fail) {
       fail = false;
       return route.fulfill({ status: 503, json: { error: '测试保存失败，草稿保留' } });
@@ -89,11 +63,11 @@ async function mockSlots(page: Page, categoryName = '研究笔记') {
     if (body.version !== table.version)
       return route.fulfill({ status: 409, json: { error: '集合已在别处更新' } });
     const saved: PromptSlotTable = {
-      ...table,
       version: table.version + 1,
+      initialized: true,
       slots: body.slots.map((slot: PromptSlotInput) => ({
         ...slot,
-        version: 12,
+        version: table.initialized ? 12 : 1,
         updatedAt: 'now',
         updatedBy: 'owner',
       })),
@@ -117,10 +91,7 @@ async function mockSlots(page: Page, categoryName = '研究笔记') {
         ),
       });
     },
-    uninitialize: () => tables.set('channel', { version: 0, initialized: false, slots: [] }),
-    staleMigration: () => {
-      staleMigration = true;
-    },
+    uninitialize: (scope = 'channel') => tables.set(scope, { version: 0, initialized: false, slots: [] }),
   };
 }
 
@@ -320,48 +291,33 @@ test('temporary invalid drafts survive reload and skills accepts only skill name
   expect(state.writes).toHaveLength(0);
 });
 
-test('migration requires separate read-only preview, explicit confirmation and current versions; legacy stays read-only', async ({
-  page,
-}) => {
+test('empty slot tables support first-save initialization and CRUD without migration', async ({ page }) => {
   const state = await mockSlots(page);
-  state.uninitialize();
+  state.uninitialize('channel');
+  state.uninitialize('category');
   await page.goto('/admin/channel');
-  await expect(page.getByText('尚未迁移 · 旧版只读', { exact: true })).toBeVisible();
-  await expect(page.getByRole('button', { name: '新增槽位', exact: true })).toHaveCount(0);
-  await expect(page.getByRole('button', { name: '应用已检查的迁移', exact: true })).toHaveCount(0);
-  expect(state.writes).toHaveLength(0);
-  await page.getByText('旧版整段提示词（只读）', { exact: true }).click();
-  await page.getByRole('button', { name: '读取旧版只读内容', exact: true }).click();
-  await page.getByText('旧版全局创作原则（只读）', { exact: true }).click();
-  await expect(page.getByText('旧版全局正文', { exact: true })).toBeVisible();
-  await expect(page.getByRole('textbox')).toHaveCount(0);
-  await page.getByRole('button', { name: '只读迁移预演', exact: true }).click();
-  await expect(page.getByRole('region', { name: '迁移预演结果', exact: true })).toContainText(
-    '定位 · positioning',
-  );
-  await expect(page.getByRole('alert')).toContainText('未识别的附录');
-  expect(state.writes).toHaveLength(0);
-  await page.getByRole('button', { name: '应用已检查的迁移', exact: true }).click();
-  await page.getByRole('alertdialog').getByRole('button', { name: '取消', exact: true }).click();
-  expect(state.writes).toHaveLength(0);
-  state.staleMigration();
-  await page.getByRole('button', { name: '应用已检查的迁移', exact: true }).click();
+  await expect(page.getByRole('button', { name: '新增槽位', exact: true })).toBeVisible();
+  await expect(page.getByRole('textbox', { name: '槽位正文 · positioning', exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: '新增槽位', exact: true }).click();
+  await page.getByRole('textbox', { name: '新槽位 ID', exact: true }).fill('positioning');
+  await page.getByRole('textbox', { name: '新槽位标题', exact: true }).fill('定位');
+  await page.getByRole('button', { name: '加入草稿', exact: true }).click();
   await page
-    .getByRole('alertdialog')
-    .getByRole('button', { name: '确认应用提示词迁移', exact: true })
-    .click();
-  await expect(page.getByText('迁移预览已过期，未应用任何改动。请重新预演并检查最新内容。')).toBeVisible();
-  await page.getByRole('alertdialog').getByRole('button', { name: '取消', exact: true }).click();
-  await expect(page.getByRole('button', { name: '应用已检查的迁移', exact: true })).toHaveCount(0);
-  await page.getByRole('button', { name: '只读迁移预演', exact: true }).click();
-  await page.getByRole('button', { name: '应用已检查的迁移', exact: true }).click();
-  await page
-    .getByRole('alertdialog')
-    .getByRole('button', { name: '确认应用提示词迁移', exact: true })
-    .click();
-  await expect(page.getByRole('textbox', { name: '槽位正文 · positioning', exact: true })).toBeVisible();
-  expect(state.writes.at(-1)).toMatchObject({ method: 'POST', body: { version: 0, legacyVersion: 11 } });
-  expect(state.writes.filter((write) => !write.path.includes('/migration/apply'))).toHaveLength(0);
+    .getByRole('textbox', { name: '槽位正文 · positioning', exact: true })
+    .fill('## 空表首次保存\n\n从真实细节出发。');
+  await page.getByRole('button', { name: '保存全部提示词', exact: true }).click();
+  await expect(page.getByRole('status').filter({ hasText: '已保存 · v1' })).toBeVisible();
+  expect(state.writes.at(-1)).toMatchObject({ method: 'PUT', body: { version: 0 } });
+  expect(state.saved().initialized).toBe(true);
+  await choose(page, '提示词范围', `栏目 · ${'研究笔记'}`);
+  await page.getByRole('button', { name: '新增槽位', exact: true }).click();
+  await page.getByRole('textbox', { name: '新槽位 ID', exact: true }).fill('editor');
+  await page.getByRole('textbox', { name: '新槽位标题', exact: true }).fill('编辑');
+  await page.getByRole('button', { name: '加入草稿', exact: true }).click();
+  await page.getByRole('textbox', { name: '槽位正文 · editor', exact: true }).fill('栏目空表首次保存');
+  await page.getByRole('button', { name: '保存全部提示词', exact: true }).click();
+  await expect(page.getByRole('status').filter({ hasText: '已保存 · v1' })).toBeVisible();
+  expect(state.saved('category').slots.map((slot) => slot.id)).toEqual(['editor']);
 });
 
 test('slot controls remain compact, keyboard accessible and contained on mobile and both themes', async ({

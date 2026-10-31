@@ -1,7 +1,6 @@
 import {
   grantsSchema,
   principalSchema,
-  promptSlotApplySchema,
   promptSlotCreateSchema,
   promptSlotPatchSchema,
   promptSlotProjectionSchema,
@@ -13,7 +12,7 @@ import { z } from 'zod';
 import { version } from '../../../package.json';
 import { appearanceSchema, appearanceUpdateSchema, themeIdSchema } from '../src/shared/appearance';
 import { categoryInputSchema, categoryMutationSchema, categorySchema } from '../src/shared/category';
-import { channelProfileSchema, editorialPriority } from '../src/shared/channel';
+import { editorialPriority } from '../src/shared/channel';
 import {
   episodeCreateSchema,
   episodeDisplaySchema,
@@ -46,7 +45,7 @@ import { bumperInputSchema, bumperUpdateSchema } from './bumpers';
 
 const stamp = z.string();
 export const promptSlotContractSummary =
-  'Prompt slots use GET/PUT/POST /channel/prompt-slots and /categories/{id}/prompt-slots, plus PATCH/DELETE /{slotId}. Reads require prompts:read; all writes require prompts:write, independently of category metadata grants. Mutations use the collection version; write-only responses contain only version. Category append adds after the same channel ID; override replaces it. Disabled category slots do not mask channel. Enabled results sort by order then ID. GET /migration/dry-run below either table is read-only; POST /migration/apply with version and legacyVersion explicitly initializes slots with an atomic original-value backup. Nothing auto-applies on deploy; reapply is a no-op. Old channel.content, channel.prompts.* and category.prompt are read-only: stored values until apply, then enabled local slots concatenated as Markdown. New clients must use slots; compatibility removal requires a separately announced, verified consumer cutover.';
+  'Prompt slots use GET/PUT/POST /channel/prompt-slots and /categories/{id}/prompt-slots, plus PATCH/DELETE /{slotId}. Reads require prompts:read; all writes require prompts:write, independently of category metadata grants. Mutations use the collection version; write-only responses contain only version. Category append adds after the same channel ID; override replaces it. Disabled category slots do not mask channel. Enabled results sort by order then ID. Uninitialized tables behave as empty slot collections at version 0; the first save initializes them. Production prompt reads merge enabled channel and category slots by stable ID.';
 const prioritySchema = z.tuple([
   z.literal(editorialPriority[0]),
   z.literal(editorialPriority[1]),
@@ -279,7 +278,7 @@ export function agentOpenApi(origin: string) {
       },
     },
   });
-  const categoryProjection = categorySchema.extend({ prompt: z.string() }).partial({ prompt: true });
+  const categoryProjection = categorySchema.omit({ prompt: true });
   const { prompt: _legacyPrompt, ...categoryMetadataFields } = categoryMutationSchema.shape;
   const categoryMetadataMutation = z
     .strictObject(categoryMetadataFields)
@@ -363,7 +362,7 @@ export function agentOpenApi(origin: string) {
       description: promptSlotContractSummary,
       ...operation(
         `read${level}PromptSlots`,
-        'Read the private local slot table. Optional slot=editor,collector returns enabled merged slots plus Markdown body and channel/category versions; both levels must be initialized. Category enabled append adds after channel; override replaces the same ID. Disabled category slots do not mask channel. Order is ascending order then ID. Priority remains channel, category, intent, sources.',
+        'Read the private local slot table. Optional slot=editor,collector returns enabled merged slots plus Markdown body and channel/category versions. Category enabled append adds after channel; override replaces the same ID. Disabled category slots do not mask channel. Order is ascending order then ID. Uninitialized levels contribute no slots. Priority remains channel, category, intent, sources.',
         schema(
           z.union([
             promptSlotTableSchema,
@@ -389,7 +388,7 @@ export function agentOpenApi(origin: string) {
     put: {
       ...operation(
         `replace${level}PromptSlots`,
-        'Atomically replace/reorder the entire table using its collection version. Apply migration explicitly first. Slot versions/audit fields are server-owned. Without prompts:read returns only version.',
+        'Atomically replace/reorder the entire table using its collection version. The first save on an empty table initializes it. Slot versions/audit fields are server-owned. Without prompts:read returns only version.',
         slotMutation,
         ['prompts:write'],
       ),
@@ -425,33 +424,6 @@ export function agentOpenApi(origin: string) {
         ['prompts:write'],
       ),
       parameters: [versionQuery],
-    },
-  });
-  const slotDryRun = (level: string) => ({
-    get: operation(
-      `preview${level}PromptSlotMigration`,
-      'Read-only DRY-RUN from live stored Markdown: proposed per-level slots, unmapped headings, current collection and legacy versions. Does not write, initialize or back up data. Unknown sections remain in positioning. Review before separate explicit apply.',
-      schema(
-        z.object({
-          version: z.number().int().min(0),
-          legacyVersion: z.number().int().min(0),
-          initialized: z.boolean(),
-          slots: z.array(promptSlotProjectionSchema),
-          unmappedHeadings: z.array(z.string()),
-        }),
-      ),
-      ['prompts:read'],
-    ),
-  });
-  const slotApply = (level: string) => ({
-    post: {
-      ...operation(
-        `apply${level}PromptSlotMigration`,
-        'Explicitly apply after reviewing dry-run; requires collection version and legacyVersion. Atomically backs up original text/versions/audit and initializes slots. Nothing auto-applies on deploy. Reapply to initialized level is a no-op, returning current state even after later edits. Write-only receives version only.',
-        slotMutation,
-        ['prompts:write'],
-      ),
-      requestBody: body(promptSlotApplySchema),
     },
   });
   return {
@@ -530,32 +502,22 @@ export function agentOpenApi(origin: string) {
       },
       '/channel': {
         get: operation(
-          'getChannelPositioning',
-          'Deprecated read-only whole prompts. Until explicit slot migration applies, returns stored legacy content and prompts.*. Afterwards content and every old prompts.* field synthesize enabled channel slots in order as Markdown. Use /channel/prompt-slots for all writes and new clients; removal requires a separately announced consumer cutover. Keep internal principles out of public content.',
+          'getEditorialPriority',
+          'Read editorial priority order for prompt composition. Channel and category guidance live in prompt-slots only.',
           {
             type: 'object',
-            required: ['channel', 'priority'],
-            properties: { channel: ref('ChannelProfile'), priority: schema(prioritySchema) },
+            required: ['priority'],
+            properties: { priority: schema(prioritySchema) },
           },
           ['prompts:read'],
         ),
       },
       '/channel/prompt-slots': slotCollection('Channel'),
       '/channel/prompt-slots/{slotId}': slotItem('Channel'),
-      '/channel/prompt-slots/migration/dry-run': slotDryRun('Channel'),
-      '/channel/prompt-slots/migration/apply': slotApply('Channel'),
       '/categories/{id}/prompt-slots': { parameters: [idParameter], ...slotCollection('Category') },
       '/categories/{id}/prompt-slots/{slotId}': {
         ...slotItem('Category'),
         parameters: [idParameter, ...slotItem('Category').parameters],
-      },
-      '/categories/{id}/prompt-slots/migration/dry-run': {
-        parameters: [idParameter],
-        ...slotDryRun('Category'),
-      },
-      '/categories/{id}/prompt-slots/migration/apply': {
-        parameters: [idParameter],
-        ...slotApply('Category'),
       },
       '/productions': {
         get: operation(
@@ -589,7 +551,7 @@ export function agentOpenApi(origin: string) {
             required: ['production', 'categoryProfile'],
             properties: { ...fullProduction.properties, categoryProfile: schema(categoryProjection) },
             description:
-              'categoryProfile includes metadata; its private prompt is omitted without prompts:read. Publication details and publication events depend on publications:read. The same projection applies to mutation responses.',
+              'categoryProfile is category metadata only. Publication details and publication events depend on publications:read. The same projection applies to mutation responses.',
           },
           ['productions:read'],
         ),
@@ -616,7 +578,7 @@ export function agentOpenApi(origin: string) {
       '/categories': {
         get: operation(
           'listCategories',
-          'Read category metadata; prompt is omitted without prompts:read',
+          'Read category metadata only; prompt guidance uses /categories/{id}/prompt-slots.',
           {
             type: 'object',
             required: ['categories'],
@@ -627,7 +589,7 @@ export function agentOpenApi(origin: string) {
         post: {
           ...operation(
             'createCategory',
-            'Create category metadata; legacy prompt input is rejected. Manage guidance separately via prompt-slots with prompts:write; returned deprecated whole prompt needs prompts:read.',
+            'Create category metadata; legacy prompt input is rejected. Manage guidance separately via prompt-slots with prompts:write.',
             schema(z.object({ category: categoryProjection })),
             ['categories:write'],
             201,
@@ -648,7 +610,7 @@ export function agentOpenApi(origin: string) {
         put: {
           ...operation(
             'updateCategory',
-            'Update category metadata by version; optional nextId renames the ID and preserves slots while updating episode/production references atomically. Legacy prompt input is rejected; returned prompt needs prompts:read and synthesizes enabled local slots after explicit migration.',
+            'Update category metadata by version; optional nextId renames the ID and preserves slots while updating episode/production references atomically. Legacy prompt input is rejected.',
             schema(z.object({ category: categoryProjection })),
             ['categories:write'],
           ),
@@ -1109,11 +1071,6 @@ export function agentOpenApi(origin: string) {
         },
       },
       schemas: {
-        ChannelProfile: {
-          ...schema(channelProfileSchema),
-          description:
-            'Deprecated read-only projection. Legacy stored fields until explicit migration; then each whole-prompt field concatenates enabled channel slots in order. New reads/writes use prompt-slots. No fixed removal date: separately announce verified consumer cutover. Prompt edits do not grant permissions or rewrite productions.',
-        },
         ServiceManifest: schema(serviceManifestSchema),
         CreateProduction: schema(briefCreateSchema, 'input'),
         UpdateProduction: schema(productionPatchSchema, 'input'),

@@ -1,6 +1,6 @@
 # Audio uploads and playback
 
-Content generation and audio composition happen outside his.fm. The site stores validated finished recordings and bumper files, presents a custom player and tracks script-version provenance. It has no provider keys, generation endpoint, job queue or voice-selection settings. Narration guidance remains editable as `channel.prompts.narration`.
+Content generation and audio composition happen outside his.fm. The site stores validated finished recordings and bumper files, presents a custom player and tracks script-version provenance. It has no provider keys, generation endpoint, job queue or voice-selection settings. Narration guidance is editable in channel/category prompt slots (for example the `voice` slot), not in provider settings.
 
 ## Recording contract
 

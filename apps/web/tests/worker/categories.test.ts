@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync } from 'node:fs';
+import { mergePromptSlots } from '@his-fm/contracts';
 import { Miniflare } from 'miniflare';
 import { afterAll, beforeAll, beforeEach, expect, it, vi } from 'vitest';
-import { type Category, categoryInputSchema } from '../../src/shared/category';
+import { categoryInputSchema } from '../../src/shared/category';
 import {
   assertCategoryIdAvailable,
   getCategory,
@@ -17,7 +18,6 @@ import { routeProductions } from '../../worker/production';
 import { applyPatch } from '../../worker/production-model';
 import { productionPrompts } from '../../worker/production-prompts';
 import { getProduction, saveProduction } from '../../worker/production-store';
-import { defaultPrompts } from '../../worker/prompt-defaults';
 import { agent, brief, type fixture, human, readyFixture } from './production-fixture';
 
 vi.setConfig({ testTimeout: 30000, hookTimeout: 30000 });
@@ -33,7 +33,7 @@ const input = {
   icon: 'book-open' as const,
   color: 'teal' as const,
 };
-const legacyPrompt = '# 内部风格\n先讲结论，再交代证据边界。';
+const categoryGuidance = '# 内部风格\n先讲结论，再交代证据边界。';
 function request(method = 'GET', data?: unknown, path = '/admin/api/categories') {
   return new Request(origin + path, {
     method,
@@ -43,8 +43,25 @@ function request(method = 'GET', data?: unknown, path = '/admin/api/categories')
 }
 async function create() {
   const response = await routeCategories(request('POST', input), env, human);
-  const { category } = (await response.json()) as { category: Category };
-  await env.DB.prepare('UPDATE categories SET prompt=? WHERE id=?').bind(legacyPrompt, category.id).run();
+  const { category } = (await response.json()) as { category: { id: string } };
+  await env.DB.prepare(`UPDATE categories SET prompt_slots=?, prompt_slots_version=1 WHERE id=?`)
+    .bind(
+      JSON.stringify([
+        {
+          id: 'editor',
+          title: '编辑',
+          body: categoryGuidance,
+          order: 0,
+          enabled: true,
+          mode: 'override',
+          version: 1,
+          updatedAt: '2026-10-01T00:00:00Z',
+          updatedBy: 'owner',
+        },
+      ]),
+      category.id,
+    )
+    .run();
   return getCategory(env.DB, category.id);
 }
 beforeAll(async () => {
@@ -95,15 +112,14 @@ it('keeps original identities, returns public metadata without prompts, and vali
   ]);
   expect(await getCategory(env.DB, 'manager-notes')).toMatchObject({
     name: '主理人手札',
-    prompt: '',
     version: 1,
   });
   expect(await getCategory(env.DB, 'learning')).toMatchObject({ name: '每日手冲', version: 1 });
   const category = await create();
-  expect(category).toMatchObject({ ...input, prompt: legacyPrompt, version: 1 });
+  expect(category).toMatchObject({ ...input, version: 1 });
   const publicResponse = await worker.fetch(new Request(`${origin}/api/categories`), env);
   const data = await publicResponse.json();
-  expect(JSON.stringify(data)).not.toContain(legacyPrompt);
+  expect(JSON.stringify(data)).not.toContain(categoryGuidance);
   expect(JSON.stringify(data)).not.toContain('updatedBy');
   for (const patch of [
     { name: '' },
@@ -200,17 +216,37 @@ it('accepts new categories in productions, prevents deleting referenced categori
   await expect(
     routeProductions(request('POST', { ...brief, category: 'missing' }), env, '/productions', human),
   ).rejects.toMatchObject({ status: 404 });
-  const channel = {
-    version: 1,
-    content: 'GLOBAL-PROMPT',
-    prompts: defaultPrompts,
-    updatedAt: 'now',
-    updatedBy: 'owner',
-  };
-  const prompts = productionPrompts(production, channel, category);
+  await env.DB.prepare(`UPDATE channel_profile SET prompt_slots=?, prompt_slots_version=1 WHERE id=1`)
+    .bind(
+      JSON.stringify([
+        {
+          id: 'positioning',
+          title: '定位',
+          body: 'GLOBAL-PROMPT',
+          order: 0,
+          enabled: true,
+          mode: 'override',
+          version: 1,
+          updatedAt: '2026-10-01T00:00:00Z',
+          updatedBy: 'owner',
+        },
+      ]),
+    )
+    .run();
+  const channelSlots = JSON.parse(
+    (await env.DB.prepare('SELECT prompt_slots FROM channel_profile WHERE id=1').first<string>(
+      'prompt_slots',
+    )) ?? '[]',
+  );
+  const categorySlots = JSON.parse(
+    (await env.DB.prepare('SELECT prompt_slots FROM categories WHERE id=?')
+      .bind(category.id)
+      .first<string>('prompt_slots')) ?? '[]',
+  );
+  const prompts = productionPrompts(production, mergePromptSlots(channelSlots, categorySlots));
   for (const prompt of Object.values(prompts)) {
-    expect(prompt.indexOf('GLOBAL-PROMPT')).toBeLessThan(prompt.indexOf(legacyPrompt.split('\n')[0]));
-    expect(prompt).toContain('1. 全局提示词；2. 栏目提示词；3. 本期中心思想');
+    expect(prompt.indexOf('GLOBAL-PROMPT')).toBeLessThan(prompt.indexOf(categoryGuidance.split('\n')[0]));
+    expect(prompt).toContain('"intent"');
   }
   const changed = applyPatch(readyFixture(), { category: category.id }, human);
   expect(changed.stage).toBe('draft');
@@ -386,7 +422,6 @@ it('does not move episode or production references when rename uses a stale vers
       name: category.name,
       icon: category.icon,
       color: category.color,
-      prompt: category.prompt,
       seo: category.seo,
     }),
   ).rejects.toMatchObject({ status: 409 });
@@ -416,32 +451,34 @@ it('creates categories without prompts using only categories:write', async () =>
   );
   expect(response.status).toBe(201);
 });
-it('requires prompts:write when creating a category that includes a prompt', async () => {
+it('rejects legacy prompt fields when creating a category', async () => {
   await expect(
-    routeCategories(request('POST', { ...input, prompt: legacyPrompt }), env, {
+    routeCategories(request('POST', { ...input, prompt: categoryGuidance }), env, {
       kind: 'agent',
       name: 'categories-writer',
-      scopes: ['categories:write'],
+      scopes: ['categories:write', 'prompts:write'],
     }),
-  ).rejects.toMatchObject({ status: 403 });
+  ).rejects.toMatchObject({ status: 400 });
 });
-it('includes prompts on category detail when the actor has prompts:read', async () => {
+it('returns category metadata without legacy prompt fields', async () => {
   const created = await create();
   const response = await routeCategories(request(), env, reader, created.id);
-  const body = (await response.json()) as { category: Category };
-  expect(body.category.prompt).toBe(legacyPrompt);
+  const body = (await response.json()) as { category: Record<string, unknown> };
+  expect(body.category.id).toBe(created.id);
+  expect(body.category).not.toHaveProperty('prompt');
 });
-it('omits prompts from category list when the actor lacks prompts:read', async () => {
+it('lists categories without prompt guidance bodies', async () => {
   const created = await create();
   const response = await routeCategories(request(), env, {
     kind: 'agent',
     name: 'categories-only',
     scopes: ['categories:read'],
   });
-  const body = (await response.json()) as { categories: Category[] };
+  const body = (await response.json()) as { categories: Record<string, unknown>[] };
   const listed = body.categories.find((category) => category.id === created.id);
   expect(listed).toBeDefined();
   expect(listed).not.toHaveProperty('prompt');
+  expect(JSON.stringify(body)).not.toContain(categoryGuidance);
 });
 it('rejects legacy alias ids for new identifiers', async () => {
   await env.DB.prepare('INSERT INTO category_id_aliases (alias, category_id) VALUES (?, ?)')
@@ -564,7 +601,6 @@ it('maps duplicate nextId insert races to conflict responses', async () => {
       name: category.name,
       icon: category.icon,
       color: category.color,
-      prompt: category.prompt,
       seo: category.seo,
     }),
   ).rejects.toMatchObject({ status: 409 });

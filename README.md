@@ -93,7 +93,6 @@ flowchart LR
 | `GET/PUT/POST /categories/{id}/prompt-slots` | 栏目整张表 |
 | `PATCH/DELETE …/prompt-slots/{slotId}` | 单槽增量修改（仍带表 `version`） |
 | `GET …/prompt-slots?slot=editor,collector` | 合并后的 Markdown `body` 与版本信息 |
-| `GET …/migration/dry-run` · `POST …/migration/apply` | 从旧整段提示词显式迁移（只读预览 / 授权后写入） |
 
 仅具写权限、无读权限的客户端，成功写入后可能只收到 `{version}`。
 
@@ -199,9 +198,9 @@ Husky 对暂存区运行严格 lint、typecheck 与 95% 覆盖率门槛。更多
 
 ### API prompt slots
 
-Prompt slots use GET/PUT/POST /channel/prompt-slots and /categories/{id}/prompt-slots, plus PATCH/DELETE /{slotId}. Reads require prompts:read; all writes require prompts:write, independently of category metadata grants. Mutations use the collection version; write-only responses contain only version. Category append adds after the same channel ID; override replaces it. Disabled category slots do not mask channel. Enabled results sort by order then ID. GET /migration/dry-run below either table is read-only; POST /migration/apply with version and legacyVersion explicitly initializes slots with an atomic original-value backup. Nothing auto-applies on deploy; reapply is a no-op. Old channel.content, channel.prompts.* and category.prompt are read-only: stored values until apply, then enabled local slots concatenated as Markdown. New clients must use slots; compatibility removal requires a separately announced, verified consumer cutover.
+Prompt slots use GET/PUT/POST /channel/prompt-slots and /categories/{id}/prompt-slots, plus PATCH/DELETE /{slotId}. Reads require prompts:read; writes require prompts:write. Mutations use the collection version; write-only responses contain only version. Uninitialized tables are empty at version 0 until the first save. GET /channel returns editorial priority only. Legacy whole-prompt fields and migration endpoints were removed in 2.11.11.
 
-Paths are relative to `/api/agent`. Read [onboarding](docs/api-onboarding.md#prompt-slot-transition) and [prompt slots](docs/prompts.md) before migration. The studio keeps local drafts and saves a level's complete slot table atomically; `skills` accepts names only. The founding Chinese editorial policy lives in [docs/editorial-policy.md](docs/editorial-policy.md).
+Paths are relative to `/api/agent`. Read [onboarding](docs/api-onboarding.md#prompt-slots) and [prompt slots](docs/prompts.md) for slot limits. The studio keeps local drafts and saves a level's complete slot table atomically; `skills` accepts names only. The founding Chinese editorial policy lives in [docs/editorial-policy.md](docs/editorial-policy.md).
 
 ### API cover artwork
 

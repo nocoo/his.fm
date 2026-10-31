@@ -86,6 +86,13 @@ describe('production service contracts', () => {
       body: file,
       headers: { 'Content-Type': 'audio/wav' },
     });
+    const mp3 = new File(['mp3'], 'episode.mp3', { type: 'audio/mpeg' });
+    response({ production: fixture() });
+    await service.audio('a/b', 11, mp3);
+    expect(lastRequest()).toMatchObject({
+      url: '/admin/api/productions/a%2Fb/assets/audio?version=11',
+      headers: { 'Content-Type': 'audio/mpeg' },
+    });
     for (const asset of ['audio', 'cover'] as const) {
       response({ production: fixture() });
       await service.detach('a/b', 10, asset);

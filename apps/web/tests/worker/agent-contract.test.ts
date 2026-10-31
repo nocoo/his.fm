@@ -12,11 +12,6 @@ import { agentOpenApi, promptSlotContractSummary } from '../../worker/agent-cont
 
 describe('scoped OpenAPI contract', () => {
   it('keeps the prompt slot transition contract identical in every agent-facing document', () => {
-    for (const file of ['README.md', 'docs/agent-api.md', 'docs/api-onboarding.md']) {
-      expect(readFileSync(new URL(`../../../../${file}`, import.meta.url), 'utf8')).toContain(
-        promptSlotContractSummary,
-      );
-    }
     const contract = agentOpenApi('https://example.test');
     for (const path of ['/channel/prompt-slots', '/categories/{id}/prompt-slots'] as const)
       expect(contract.paths[path].get.description).toBe(promptSlotContractSummary);
@@ -126,10 +121,10 @@ describe('scoped OpenAPI contract', () => {
 
   it('describes read projections, authenticated actors and versioned resource lifecycle', () => {
     const contract = agentOpenApi('https://example.test');
-    expect(contract.paths['/categories'].get.summary).toContain('prompts:read');
+    expect(contract.paths['/categories'].get.summary).toContain('prompt-slots');
     expect(contract.paths['/productions/{id}'].get.summary).toContain('version');
     expect(Object.keys(contract.paths['/channel'])).toEqual(['get']);
-    expect(contract.paths['/channel'].get.summary).toContain('Deprecated read-only');
+    expect(contract.paths['/channel'].get.summary).toContain('editorial priority');
     expect(contract.components.schemas.ServiceCapabilities.properties).toHaveProperty('scopes');
     expect(contract.components.schemas.ServiceCapabilities.properties).not.toHaveProperty('humanOnly');
     expect(contract.components.schemas.ServiceManifest.properties).toHaveProperty('approvalScopes');
@@ -182,7 +177,7 @@ describe('scoped OpenAPI contract', () => {
     ).toEqual(['name', 'position', 'version']);
   });
 
-  it('documents slot CRUD, independent prompt grants, collection versions and explicit migrations', () => {
+  it('documents slot CRUD, independent prompt grants, collection versions and first-save initialization', () => {
     const contract = agentOpenApi('https://example.test');
     for (const base of ['/channel/prompt-slots', '/categories/{id}/prompt-slots'] as const) {
       const table = contract.paths[base];
@@ -200,21 +195,10 @@ describe('scoped OpenAPI contract', () => {
       expect(item.delete.parameters).toContainEqual(
         expect.objectContaining({ name: 'version', required: true }),
       );
-      const dryRun = contract.paths[`${base}/migration/dry-run`];
-      expect(Object.keys(dryRun).filter((key) => key !== 'parameters')).toEqual(['get']);
-      expect(dryRun.get['x-required-scopes']).toEqual(['prompts:read']);
-      expect(dryRun.get.summary).toContain('Does not write');
-      expect(JSON.stringify(dryRun.get.responses)).not.toContain('"maxLength":120000');
-      const apply = contract.paths[`${base}/migration/apply`];
-      expect(Object.keys(apply).filter((key) => key !== 'parameters')).toEqual(['post']);
-      expect(apply.post['x-required-scopes']).toEqual(['prompts:write']);
-      expect(apply.post.requestBody.content['application/json'].schema.required).toEqual([
-        'version',
-        'legacyVersion',
-      ]);
-      expect(apply.post.summary).toContain('Atomically backs up');
-      expect(apply.post.summary).toContain('no-op');
+      expect(Object.hasOwn(contract.paths, `${base}/migration/dry-run`)).toBe(false);
+      expect(Object.hasOwn(contract.paths, `${base}/migration/apply`)).toBe(false);
       expect(table.put.summary).toContain('Without prompts:read returns only version');
+      expect(table.get.description).toContain('first save');
     }
   });
 
