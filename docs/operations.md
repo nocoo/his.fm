@@ -130,4 +130,4 @@ Ordinary narration guidance lives in the current environment's versioned D1 prom
 
 ## Legacy prompt removal (2.11.11)
 
-Migration `0027_drop_legacy_prompts.sql` drops legacy whole-prompt columns and `prompt_slot_backups`. Release deploy applies D1 migrations before the Worker bundle (`apps/web` deploy script). Ensure the released Worker never references dropped columns. R2 cleanup scans `prompt_slots` JSON only.
+Migration `0027_drop_legacy_prompts.sql` drops legacy whole-prompt columns in place and removes `prompt_slot_backups` (it does not rebuild `categories`, avoiding foreign-key breakage from `episodes.category` and `category_id_aliases`). Release deploy applies D1 migrations before the Worker bundle (`apps/web` deploy script). Ensure the released Worker never references dropped columns. R2 cleanup scans `prompt_slots` JSON only.

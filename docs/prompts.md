@@ -29,4 +29,4 @@ Prompt edits never grant permissions, do not rewrite factual truth, and do not c
 
 ## Schema history
 
-Migration `0023_prompt_slots.sql` added slot columns. Migration `0027_drop_legacy_prompts.sql` removes legacy whole-prompt columns (`channel_profile.content`, `channel_profile.prompts`, `categories.prompt`) and the `prompt_slot_backups` table. Deploy applies D1 migrations before the Worker update (`apps/web` deploy script); the release Worker must not reference dropped columns.
+Migration `0023_prompt_slots.sql` added slot columns. Migration `0027_drop_legacy_prompts.sql` drops legacy whole-prompt columns in place (`channel_profile.content`, `channel_profile.prompts`, `categories.prompt`) and removes the `prompt_slot_backups` table (no `categories` table rebuild, so episode and alias foreign keys stay valid). Deploy applies D1 migrations before the Worker update (`apps/web` deploy script); the release Worker must not reference dropped columns.

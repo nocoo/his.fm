@@ -6,7 +6,7 @@ All notable changes to his.fm are documented here. The format follows [Keep a Ch
 
 ### Removed
 
-- Legacy whole-prompt storage and API projections (`channel.content`, `channel.prompts.*`, `category.prompt`), runtime migration dry-run/apply endpoints, `prompt_slot_backups`, and the studio migration/legacy read-only UI. Prompt slots are the only prompt model; empty tables initialize on first save. D1 migration `0027_drop_legacy_prompts.sql` drops the legacy columns after deploy applies migrations before the Worker update.
+- Legacy whole-prompt storage and API projections (`channel.content`, `channel.prompts.*`, `category.prompt`), runtime migration dry-run/apply endpoints, `prompt_slot_backups`, and the studio migration/legacy read-only UI. Prompt slots are the only prompt model; empty tables initialize on first save. D1 migration `0027_drop_legacy_prompts.sql` drops legacy columns in place (no `categories` table rebuild) and removes `prompt_slot_backups`.
 
 ## 2.11.10 - 2026-10-28
 
