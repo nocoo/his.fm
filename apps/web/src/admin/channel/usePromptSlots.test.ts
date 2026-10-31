@@ -5,7 +5,7 @@ import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { ApiError } from '../service';
 import { slotInputs } from './model';
-import { type MigrationPreview, promptSlotsService } from './service';
+import { promptSlotsService } from './service';
 import { usePromptSlots } from './usePromptSlots';
 
 vi.mock('../production/useUnsavedChanges', () => ({ useUnsavedChanges: vi.fn() }));
@@ -31,13 +31,6 @@ const initial: PromptSlotTable = {
     },
   ],
 };
-const preview: MigrationPreview = {
-  version: 0,
-  legacyVersion: 11,
-  initialized: false,
-  slots: slotInputs(initial),
-  unmappedHeadings: [],
-};
 const storageKey = 'hisfm-prompt-slots-draft:local:channel';
 
 function Host({ categoryId = null, active = true }: { categoryId?: string | null; active?: boolean }) {
@@ -53,8 +46,6 @@ beforeEach(() => {
   root = createRoot(container);
   vi.spyOn(promptSlotsService, 'get').mockResolvedValue(structuredClone(initial));
   vi.spyOn(promptSlotsService, 'save').mockResolvedValue({ ...initial, version: 4 });
-  vi.spyOn(promptSlotsService, 'dryRun').mockResolvedValue(preview);
-  vi.spyOn(promptSlotsService, 'apply').mockResolvedValue(initial);
 });
 afterEach(async () => {
   await act(async () => root.unmount());
@@ -70,11 +61,9 @@ const edit = async (body = 'draft') => {
   await act(async () => vm.setSlots(vm.slots.map((slot) => ({ ...slot, body }))));
 };
 
-it('loads a table without running or applying migration and saves all drafts at collection version', async () => {
+it('loads a table and saves all drafts at the current collection version', async () => {
   await mount();
   expect(vm.dirty).toBe(false);
-  expect(promptSlotsService.dryRun).not.toHaveBeenCalled();
-  expect(promptSlotsService.apply).not.toHaveBeenCalled();
   await edit();
   expect(JSON.parse(sessionStorage.getItem(storageKey) ?? '{}')).toMatchObject({
     version: 3,
@@ -133,7 +122,6 @@ it('retains edits made while an older save is in flight and advances their colle
   await edit('newer draft');
   await act(async () => {
     expect(await vm.save()).toBe(false);
-    await vm.dryRun();
     resolve({ ...initial, version: 4, slots: [{ ...initial.slots[0], body: 'first draft' }] });
     expect(await saving).toBe(true);
   });
@@ -144,7 +132,6 @@ it('retains edits made while an older save is in flight and advances their colle
     version: 4,
     slots: [{ body: 'newer draft' }],
   });
-  expect(promptSlotsService.dryRun).not.toHaveBeenCalled();
 });
 
 it('preserves failed writes and fetches a conflict after a race, including failed conflict refreshes', async () => {
@@ -207,50 +194,16 @@ it('keeps channel and a category named channel in distinct draft namespaces', as
   expect(sessionStorage.getItem(storageKey)).toContain('channel draft');
 });
 
-it('leaves uninitialized collections locked until an explicit preview and apply', async () => {
+it('allows saving an uninitialized empty table at version 0', async () => {
   vi.mocked(promptSlotsService.get).mockResolvedValue({ version: 0, initialized: false, slots: [] });
+  vi.mocked(promptSlotsService.save).mockResolvedValue({ ...initial, version: 1 });
   await mount();
+  await act(async () => vm.setSlots([{ ...slotInputs(initial)[0], body: 'first save' }]));
   await act(async () => {
-    expect(await vm.save()).toBe(false);
-    expect(await vm.apply()).toBe(false);
+    expect(await vm.save()).toBe(true);
   });
-  expect(promptSlotsService.apply).not.toHaveBeenCalled();
-  await act(async () => vm.dryRun());
-  expect(vm.preview).toEqual(preview);
-  await act(async () => {
-    expect(await vm.apply()).toBe(true);
-  });
-  expect(promptSlotsService.apply).toHaveBeenCalledWith(null, preview);
+  expect(promptSlotsService.save).toHaveBeenCalledWith(null, 0, expect.any(Array));
   expect(vm.table?.initialized).toBe(true);
-  expect(vm.preview).toBeNull();
-  expect(vm.dirty).toBe(false);
-});
-
-it('invalidates stale migration previews and retains errors without automatic retry or apply', async () => {
-  await mount();
-  vi.mocked(promptSlotsService.dryRun).mockRejectedValueOnce(new Error('preview failed'));
-  await act(async () => vm.dryRun());
-  expect(vm.error).toBe('preview failed');
-  await act(async () => vm.dryRun());
-  vi.mocked(promptSlotsService.apply).mockRejectedValueOnce(new ApiError('stale', 409));
-  await act(async () => {
-    expect(await vm.apply()).toBe(false);
-  });
-  expect(vm.preview).toBeNull();
-  expect(vm.error).toContain('迁移预览已过期');
-  await act(async () => vm.dryRun());
-  vi.mocked(promptSlotsService.apply).mockRejectedValueOnce(new Error('apply failed'));
-  await act(async () => {
-    expect(await vm.apply()).toBe(false);
-  });
-  expect(vm.preview).toEqual(preview);
-  expect(vm.error).toBe('apply failed');
-  vi.mocked(promptSlotsService.dryRun).mockResolvedValue({ ...preview, initialized: true });
-  await act(async () => vm.dryRun());
-  await act(async () => {
-    expect(await vm.apply()).toBe(false);
-  });
-  expect(promptSlotsService.apply).toHaveBeenCalledTimes(2);
 });
 
 it('saves only the active editor shortcut and never saves during composition', async () => {

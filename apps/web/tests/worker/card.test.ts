@@ -73,7 +73,6 @@ beforeEach(() => {
     name: '主理人手札',
     icon: 'book-open',
     color: 'slate',
-    prompt: '',
     seo: {},
     version: 1,
     updatedAt: '',

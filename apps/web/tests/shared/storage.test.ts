@@ -13,8 +13,12 @@ describe('storage helpers', () => {
     expect(storageKind('photo.jpeg', '')).toBe('image');
     expect(storageKind('clip.mp4', '')).toBe('video');
     expect(storageKind('take.mov', '')).toBe('video');
-    expect(storageKind('no-extension', 'audio/mpeg')).toBe('audio');
+    expect(storageKind('scene.m4v', 'application/octet-stream')).toBe('video');
+    expect(storageKind('theme.svg', 'application/octet-stream')).toBe('image');
+    expect(storageKind('voice.aac', 'application/octet-stream')).toBe('audio');
     expect(storageKind('clip.webm', 'video/webm')).toBe('video');
+    expect(storageKind('stream.webm', 'application/octet-stream')).toBe('video');
+    expect(storageKind('.hidden', 'application/octet-stream')).toBe('other');
   });
 
   it('formats byte sizes across units', () => {

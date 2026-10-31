@@ -4,7 +4,6 @@ import {
   mergePromptSlots,
   orderedPromptSlots,
   type PromptSlotInput,
-  promptSlotApplySchema,
   promptSlotCreateSchema,
   promptSlotIdSchema,
   promptSlotInputSchema,
@@ -152,7 +151,7 @@ describe('prompt slot schemas', () => {
     ).toBe(true);
   });
 
-  it('requires optimistic versions for replace, create, patch and explicit migration apply', () => {
+  it('requires optimistic versions for replace, create and patch', () => {
     expect(promptSlotReplaceSchema.parse({ version: 0, slots: [slot()] })).toEqual({
       version: 0,
       slots: [slot()],
@@ -180,15 +179,6 @@ describe('prompt slot schemas', () => {
     expect(promptSlotPatchSchema.safeParse({ body: 'Missing version' }).success).toBe(false);
     expect(promptSlotPatchSchema.safeParse({ version: 2, id: 'different' }).success).toBe(false);
     expect(promptSlotPatchSchema.safeParse({ version: -1, body: '' }).success).toBe(false);
-    expect(promptSlotApplySchema.parse({ version: 0, legacyVersion: 11 })).toEqual({
-      version: 0,
-      legacyVersion: 11,
-    });
-    expect(promptSlotApplySchema.safeParse({ version: 0 }).success).toBe(false);
-    expect(promptSlotApplySchema.safeParse({ version: 0, legacyVersion: -1 }).success).toBe(false);
-    expect(promptSlotApplySchema.safeParse({ version: 0, legacyVersion: 11, unexpected: true }).success).toBe(
-      false,
-    );
   });
 });
 

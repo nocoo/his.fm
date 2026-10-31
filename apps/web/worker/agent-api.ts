@@ -44,7 +44,7 @@ function manifest(origin: string) {
       instructions: `${base}/instructions`,
       capabilities: `${base}/capabilities`,
       productions: `${base}/productions`,
-      channel: `${base}/channel`,
+      channel: `${base}/channel/prompt-slots`,
       health: `${origin}/api/live`,
     },
     workflow: 'draft -> brief_review -> scripting -> script_review -> production -> final_review -> ready',
@@ -108,7 +108,7 @@ export function routeDiscovery(request: Request): Response | null {
   } else {
     const text =
       path === '/llms.txt'
-        ? `# his.fm\n\n> Chinese solo podcast production studio.\n\n## Editorial priority\n\nGlobal prompt > selected category prompt > episode intent > source material. Authenticated agents must read current guidance before every creative task. Read ${origin}/api/agent/channel/prompt-slots and ${origin}/api/agent/categories/:id/prompt-slots with prompts:read; use ?slot=editor,collector for merged enabled roles after both levels are initialized. Prompt-slot writes require prompts:write and the current collection version. Legacy channel content, channel.prompts.* and category.prompt are deprecated read-only projections; PUT /channel is retired. Migration is never automatic: GET each slot table's /migration/dry-run with prompts:read, inspect the split, then explicitly POST /migration/apply with prompts:write, version and legacyVersion. See onboarding for backups, idempotency and append/override semantics.\n\n## Agent API\n\n- [Service discovery](${origin}/api/agent): Scoped external REST content management.\n- [OpenAPI 3.1](${origin}/api/agent/openapi.json): Complete machine-readable contract.\n- [API onboarding](${origin}/api/agent/instructions): Authentication, scopes, versioned content operations.\n\n## Public discovery\n\n- [Sitemap](${origin}/sitemap.xml): Published routes, categories and episodes.\n- [Robots](${origin}/robots.txt): Crawler rules and sitemap reference.\n- [Site RSS](${origin}/feed.xml) and per-category feeds at ${origin}/feeds/{categoryId}.xml.\n- [LLM summary](${origin}/llms-full.txt): Expanded public catalogue for assistants.\n\nDiscovery is public; all production data requires a studio-issued bearer token. Public pages and /api/episodes never include episode transcripts; authenticated agent and admin APIs retain them. This service does not expose MCP or A2A.\n`
+        ? `# his.fm\n\n> Chinese solo podcast production studio.\n\n## Editorial priority\n\nGlobal prompt > selected category prompt > episode intent > source material. Authenticated agents must read current guidance before every creative task. Read ${origin}/api/agent/channel/prompt-slots and ${origin}/api/agent/categories/:id/prompt-slots with prompts:read; use ?slot=editor,collector for merged enabled roles. Prompt-slot writes require prompts:write and the current collection version. Uninitialized tables are empty at version 0 until the first save.\n\n## Agent API\n\n- [Service discovery](${origin}/api/agent): Scoped external REST content management.\n- [OpenAPI 3.1](${origin}/api/agent/openapi.json): Complete machine-readable contract.\n- [API onboarding](${origin}/api/agent/instructions): Authentication, scopes, versioned content operations.\n\n## Public discovery\n\n- [Sitemap](${origin}/sitemap.xml): Published routes, categories and episodes.\n- [Robots](${origin}/robots.txt): Crawler rules and sitemap reference.\n- [Site RSS](${origin}/feed.xml) and per-category feeds at ${origin}/feeds/{categoryId}.xml.\n- [LLM summary](${origin}/llms-full.txt): Expanded public catalogue for assistants.\n\nDiscovery is public; all production data requires a studio-issued bearer token. Public pages and /api/episodes never include episode transcripts; authenticated agent and admin APIs retain them. This service does not expose MCP or A2A.\n`
         : instructions.replaceAll('https://his.fm', origin);
     response = new Response(text, {
       headers: {
@@ -197,7 +197,7 @@ export async function routeAgent(request: Request, env: Env, ctx?: ExecutionCont
           authentication: 'Bearer',
           editorial: {
             priority: editorialPriority,
-            channelUrl: `${url.origin}/api/agent/channel`,
+            channelUrl: `${url.origin}/api/agent/channel/prompt-slots`,
             readBeforeEveryTask: true,
           },
           scopes: actor.scopes ?? [],

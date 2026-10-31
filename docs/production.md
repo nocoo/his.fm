@@ -38,4 +38,4 @@ An authorized publisher records a real platform URL and past publication time. T
 
 Read [API onboarding](api-onboarding.md) and [scopes](scoped-api.md) before connecting an external client. Prompts guide content; they cannot grant permissions or override facts.
 
-Channel and category [prompt slots](prompts.md) carry independent collection versions. Once both levels explicitly migrate, private production prompt reads compose enabled slots by stable ID with category `append`/`override`, before episode intent/materials. Until then the read-only legacy projections remain available. Prompt CRUD/migration does not change production versions, review state or publication snapshots.
+Channel and category [prompt slots](prompts.md) carry independent collection versions. Private production prompt reads compose enabled slots by stable ID with category `append`/`override`, before episode intent/materials. Prompt slot edits do not change production versions, review state or publication snapshots.

@@ -20,11 +20,6 @@ WHERE json_type(scopes) = 'array'
     WHERE type = 'text' GROUP BY value HAVING COUNT(*) > 1
   );
 
-UPDATE channel_profile
-SET prompts = json_set(prompts, '$.narration', '自然口语化的普通话旁白，平静温暖，咬字清晰，停顿舒缓。'),
-    version = version + 1
-WHERE prompts IS NOT NULL AND json_type(prompts, '$.narration') IS NULL;
-
 CREATE TABLE media_provenance (
   id TEXT PRIMARY KEY,
   data TEXT NOT NULL CHECK (json_valid(data))

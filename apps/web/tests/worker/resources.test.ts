@@ -3,11 +3,12 @@ import { type Principal, type Scope, wavHeader } from '@his-fm/contracts';
 import { Miniflare } from 'miniflare';
 import { afterAll, beforeAll, beforeEach, expect, it, vi } from 'vitest';
 import { tinyMp3Bytes } from '../../../../packages/contracts/src/mp3-fixtures.ts';
+import { editorialPriority } from '../../src/shared/channel';
 import type { Episode } from '../../src/shared/episode';
 import { routeAppearance } from '../../worker/appearance';
 import { routeBumpers } from '../../worker/bumpers';
 import { routeCategories } from '../../worker/categories';
-import { getChannel, routeChannel } from '../../worker/channel';
+import { routeChannel } from '../../worker/channel';
 import {
   getEpisode,
   listAllEpisodes,
@@ -129,18 +130,21 @@ it('rejects unsupported resource methods and unavailable profile storage', async
     } as unknown as D1Database,
   };
   await expect(routeAppearance(request(), unavailable, human)).rejects.toMatchObject({ status: 503 });
-  await expect(routeChannel(request(), unavailable, human)).rejects.toMatchObject({ status: 503 });
+  expect(await (await routeChannel(request(), unavailable, human)).json()).toEqual({
+    priority: [...editorialPriority],
+  });
   await expect(
     routeCategories(request('POST', { name: 'Name', icon: 'leaf', color: 'teal' }), unavailable, human),
   ).rejects.toMatchObject({ status: 503 });
 });
 
-it('keeps deprecated channel fields read-only and returns full profiles only with read grants', async () => {
-  const current = await getChannel(env.DB);
+it('keeps legacy channel writes rejected and returns editorial priority with read grants', async () => {
   await expect(
-    routeChannel(request('PUT', { version: current.version, prompts: current.prompts }), env, human),
+    routeChannel(request('PUT', { version: 1, content: 'Legacy body' }), env, human),
   ).rejects.toMatchObject({ status: 405 });
-  expect(await getChannel(env.DB)).toEqual(current);
+  expect(await (await routeChannel(request(), env, granted('prompts:read'))).json()).toEqual({
+    priority: [...editorialPriority],
+  });
   const created = await routeCategories(
     request('POST', { name: 'Metadata only', icon: 'leaf', color: 'teal' }),
     env,
@@ -298,12 +302,10 @@ it('bounds and validates episode bodies and preserves the original on slug confl
   ).rejects.toMatchObject({ status: 403 });
 });
 
-it('projects private category prompts independently and preserves omitted prompt fields', async () => {
-  const category = { name: 'Private', icon: 'leaf', color: 'teal', prompt: 'SECRET PROMPT' };
-  const { prompt: _prompt, ...fields } = category;
+it('rejects legacy category prompt fields and keeps metadata separate from prompt-slots', async () => {
+  const fields = { name: 'Private', icon: 'leaf', color: 'teal' };
   const create = await routeCategories(request('POST', fields), env, human);
   const { category: saved } = (await create.json()) as { category: { id: string } };
-  await env.DB.prepare('UPDATE categories SET prompt=? WHERE id=?').bind(category.prompt, saved.id).run();
   const metadata = granted('categories:read', 'categories:write');
   const response = await routeCategories(request(), env, metadata, saved.id);
   expect(await response.json()).toMatchObject({ category: { id: saved.id, version: 1 } });
@@ -320,13 +322,23 @@ it('projects private category prompts independently and preserves omitted prompt
     await (
       await routeCategories(request(), env, granted('categories:read', 'prompts:read'), saved.id)
     ).json(),
-  ).toMatchObject({ category: { name: 'Renamed', prompt: 'SECRET PROMPT', version: 2 } });
+  ).toMatchObject({ category: { name: 'Renamed', version: 2 } });
   await expect(
-    routeCategories(request('PUT', { ...category, prompt: '', version: 2 }), env, metadata, saved.id),
+    routeCategories(
+      request('PUT', { ...fields, prompt: 'SECRET PROMPT', version: 2 }),
+      env,
+      metadata,
+      saved.id,
+    ),
   ).rejects.toMatchObject({ status: 403 });
   await expect(
-    routeCategories(request('PUT', { ...category, version: 2 }), env, metadata, saved.id),
-  ).rejects.toMatchObject({ status: 403 });
+    routeCategories(
+      request('PUT', { ...fields, prompt: 'SECRET PROMPT', version: 2 }),
+      env,
+      granted('categories:write', 'prompts:write'),
+      saved.id,
+    ),
+  ).rejects.toMatchObject({ status: 400 });
   await expect(
     routeCategories(
       request('PUT', { prompt: 'New private prompt', version: 2 }),
@@ -335,34 +347,30 @@ it('projects private category prompts independently and preserves omitted prompt
       saved.id,
     ),
   ).rejects.toMatchObject({ status: 400 });
-  expect(
-    await env.DB.prepare('SELECT prompt, version FROM categories WHERE id=?').bind(saved.id).first(),
-  ).toEqual({ prompt: category.prompt, version: 2 });
   await expect(
     routeCategories(request('PUT', { version: 4 }), env, metadata, saved.id),
   ).rejects.toMatchObject({ status: 400 });
-  await expect(routeCategories(request('POST', category), env, metadata)).rejects.toMatchObject({
-    status: 403,
-  });
-  await expect(routeCategories(request('POST', category), env, human)).rejects.toMatchObject({
-    status: 400,
-  });
+  await expect(
+    routeCategories(request('POST', { ...fields, prompt: 'SECRET PROMPT' }), env, metadata),
+  ).rejects.toMatchObject({ status: 403 });
+  await expect(
+    routeCategories(request('POST', { ...fields, prompt: 'SECRET PROMPT' }), env, human),
+  ).rejects.toMatchObject({ status: 400 });
 });
 
 it('rejects legacy channel writes and authorizes versioned appearance writes', async () => {
-  const channel = await getChannel(env.DB);
   await expect(
     routeChannel(
-      request('PUT', { version: channel.version, content: 'Private updated prompt' }),
+      request('PUT', { version: 1, content: 'Private updated prompt' }),
       env,
       granted('prompts:write'),
     ),
   ).rejects.toMatchObject({ status: 405 });
   await expect(
-    routeChannel(request('PUT', { version: channel.version, content: 'Stale' }), env, human),
+    routeChannel(request('PUT', { version: 1, content: 'Stale' }), env, human),
   ).rejects.toMatchObject({ status: 405 });
-  expect(await (await routeChannel(request(), env, granted('prompts:read'))).json()).toMatchObject({
-    channel,
+  expect(await (await routeChannel(request(), env, granted('prompts:read'))).json()).toEqual({
+    priority: [...editorialPriority],
   });
   await expect(
     routeChannel(request('PUT', { version: 1, content: 'No grant' }), env, granted('prompts:read')),
@@ -553,8 +561,22 @@ it('revalidates private category and speech snapshot references before storage d
   const categoryObject = await env.MEDIA.put('uploads/category-reference.webp', 'fixture');
   const speechObject = await env.MEDIA.put('uploads/speech-reference.wav', 'fixture');
   if (!categoryObject || !speechObject) throw new Error('Fixture upload failed');
-  await env.DB.prepare("UPDATE categories SET prompt=? WHERE id='manager-notes'")
-    .bind(`![Reference](/media/${categoryObject.key})`)
+  await env.DB.prepare("UPDATE categories SET prompt_slots=? WHERE id='manager-notes'")
+    .bind(
+      JSON.stringify([
+        {
+          id: 'editor',
+          title: '编辑',
+          body: `![Reference](/media/${categoryObject.key})`,
+          order: 0,
+          enabled: true,
+          mode: 'override',
+          version: 1,
+          updatedAt: '2026-10-01T00:00:00Z',
+          updatedBy: 'owner',
+        },
+      ]),
+    )
     .run();
   await env.DB.prepare("INSERT INTO media_provenance VALUES ('reference',?)")
     .bind(JSON.stringify({ source: { key: speechObject.key } }))
@@ -583,6 +605,8 @@ it('revalidates private category and speech snapshot references before storage d
     expect(await env.MEDIA.head(categoryObject.key)).not.toBeNull();
     expect(await env.MEDIA.head(speechObject.key)).not.toBeNull();
   } finally {
-    await env.DB.prepare("UPDATE categories SET prompt='' WHERE id='manager-notes'").run();
+    await env.DB.prepare(
+      "UPDATE categories SET prompt_slots=NULL, prompt_slots_version=0 WHERE id='manager-notes'",
+    ).run();
   }
 });

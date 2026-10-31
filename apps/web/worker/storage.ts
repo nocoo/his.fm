@@ -48,9 +48,9 @@ async function references(db: D1Database): Promise<References> {
         credits, body FROM episodes`,
       ),
       db.prepare('SELECT data FROM media_provenance'),
-      db.prepare('SELECT content, prompts, prompt_slots FROM channel_profile'),
+      db.prepare('SELECT prompt_slots FROM channel_profile'),
       db.prepare('SELECT name, data FROM bumpers'),
-      db.prepare('SELECT name, prompt, prompt_slots, seo FROM categories'),
+      db.prepare('SELECT name, prompt_slots, seo FROM categories'),
       db.prepare('SELECT data FROM site_seo WHERE id = 1'),
       db.prepare('SELECT episode_id, title, detail, source_urls FROM episode_topics'),
       db.prepare('SELECT episode_id, name, description, url FROM episode_mentions'),
@@ -72,14 +72,8 @@ async function references(db: D1Database): Promise<References> {
   }
   for (const row of provenance.results) collect(JSON.parse(String(row.data)), '历史音频素材', refs.keys);
   for (const row of bumpers.results) collect(JSON.parse(String(row.data)), `贴片：${row.name}`, refs.keys);
-  for (const { prompts, prompt_slots, ...row } of channel.results)
-    collect(
-      { ...row, prompts: JSON.parse(String(prompts)), prompt_slots: JSON.parse(String(prompt_slots)) },
-      '频道定位',
-      refs.keys,
-    );
+  for (const row of channel.results) collect(JSON.parse(String(row.prompt_slots)), '频道定位', refs.keys);
   for (const row of categories.results) {
-    collect(row.prompt, `栏目：${row.name}`, refs.keys);
     collect(JSON.parse(String(row.prompt_slots)), `栏目：${row.name}`, refs.keys);
     collect(JSON.parse(String(row.seo)), `栏目 SEO：${row.name}`, refs.keys);
   }

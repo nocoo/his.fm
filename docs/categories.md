@@ -18,7 +18,7 @@ Published episode slugs are not renamed with display titles; the daily learning 
 | Operation | Required scope |
 | --- | --- |
 | `GET /api/categories` | Public ID/name/icon/color only |
-| `GET /api/agent/categories[/:id]` | `categories:read`; prompt additionally needs `prompts:read` |
+| `GET /api/agent/categories[/:id]` | `categories:read` (metadata only) |
 | `POST /api/agent/categories` | `categories:write`; legacy prompt input is rejected |
 | `PUT /api/agent/categories/:id` | `categories:write`; legacy prompt input is rejected |
 | `/api/agent/categories/:id/prompt-slots` | GET `prompts:read`; PUT/POST and child PATCH/DELETE `prompts:write`; independent collection version |
@@ -26,13 +26,13 @@ Published episode slugs are not renamed with display titles; the daily learning 
 
 The same controllers serve authenticated owner routes under `/admin/api`. Updates accept `version` and partial metadata; omitted fields are preserved. Optional `nextId` on `PUT` atomically renames the category ID, preserves prompt slots/versions and updates `episodes.category` plus `productions.data.category` references. Names allow 80 characters; shared validators bound icons/colors. Prompt fields never appear in public responses.
 
-Whole `prompt` is a read-only transitional projection: stored legacy text until explicit migration, then enabled local slots concatenated in order. Slot reads/writes require only prompt grants, not metadata grants. The central Prompts page edits local slot drafts with explicit atomic table saves. See [prompt slots](prompts.md) for runtime dry-run/apply paths, backup, merge semantics and deprecation plan. Category metadata changes do not change the slot-table version; a prompt slot write also updates the parent compatibility version.
+Prompt guidance uses `/api/agent/categories/:id/prompt-slots` with prompt grants only. The central Prompts page edits local slot drafts with explicit atomic table saves. See [prompt slots](prompts.md) for merge semantics. Category metadata changes do not change the slot-table version.
 
 Referenced categories cannot be deleted. Episode foreign keys and production category fences protect associations during writes. All updates/deletions check the optimistic version; concurrent changes return 409. The editor retains drafts and safe previews with explicit saving and conflict resolution.
 
 ## Editorial policy
 
-Priority is **global prompt -> category prompt -> episode intent -> sources**. The private production prompt endpoint includes current category guidance. Production detail projects `categoryProfile` separately from stored production content, with its prompt omitted unless authorized.
+Priority is **global prompt -> category prompt -> episode intent -> sources**. The private production prompt endpoint merges current channel and category slots. Production detail projects `categoryProfile` as metadata only.
 
 Changing a production's category reopens its brief when required by the state machine. Editing category guidance alone does not rewrite existing productions, approvals or publication snapshots. External clients should reread guidance before new work. Prompt text never grants API authority or changes factual truth.
 

@@ -101,7 +101,7 @@ beforeEach(async () => {
       'channel_profile',
     ].map((table) => env.DB.prepare(`DELETE FROM ${table}`)),
   );
-  await env.DB.prepare("UPDATE categories SET name='Life', prompt='' WHERE id='life'").run();
+  await env.DB.prepare("UPDATE categories SET name='Life' WHERE id='life'").run();
   const login = await call('/admin/api/dev-login', undefined, 'POST');
   expect(login.status).toBe(200);
   cookie = login.headers.get('Set-Cookie')?.split(';')[0] ?? '';
@@ -349,7 +349,23 @@ describe('grant-specific representations', () => {
 
   it('keeps private prompts out of metadata, unauthorized writes and every public projection', async () => {
     const secretPrompt = 'PRIVATE_SCOPED_PROMPT_SENTINEL';
-    await env.DB.prepare("UPDATE categories SET prompt=? WHERE id='life'").bind(secretPrompt).run();
+    await env.DB.prepare("UPDATE categories SET prompt_slots=?, prompt_slots_version=1 WHERE id='life'")
+      .bind(
+        JSON.stringify([
+          {
+            id: 'positioning',
+            title: '定位',
+            body: secretPrompt,
+            order: 0,
+            enabled: true,
+            mode: 'override',
+            version: 1,
+            updatedAt: '2026-01-01T00:00:00.000Z',
+            updatedBy: 'test',
+          },
+        ]),
+      )
+      .run();
     const production = await createProduction();
     const metadata = await issue(['productions:read', 'categories:read', 'categories:write']);
     const promptReader = await issue(['productions:read', 'categories:read', 'prompts:read']);
@@ -360,8 +376,8 @@ describe('grant-specific representations', () => {
       const response = await api(path, metadata);
       expect(response.status).toBe(200);
       expect(await response.text()).not.toContain(secretPrompt);
-      expect(await (await api(path, promptReader)).text()).toContain(secretPrompt);
     }
+    expect(await (await api('/categories/life/prompt-slots', promptReader)).text()).toContain(secretPrompt);
     expect((await api('/channel', metadata)).status).toBe(403);
     expect((await api(`/productions/${production.id}/prompts`, metadata)).status).toBe(403);
     expect(await (await api(`/productions/${production.id}/prompts`, promptReader)).text()).toContain(
@@ -381,9 +397,17 @@ describe('grant-specific representations', () => {
     });
     expect(changed.status).toBe(200);
     expect(await changed.text()).not.toContain(secretPrompt);
-    expect(await env.DB.prepare("SELECT prompt FROM categories WHERE id='life'").first()).toEqual({
-      prompt: secretPrompt,
-    });
+    expect(
+      JSON.parse(
+        String(
+          (
+            await env.DB.prepare("SELECT prompt_slots FROM categories WHERE id='life'").first<{
+              prompt_slots: string;
+            }>()
+          )?.prompt_slots,
+        ),
+      )[0].body,
+    ).toBe(secretPrompt);
     for (const path of [
       '/api/agent',
       '/api/agent/openapi.json',

@@ -8,27 +8,16 @@ import {
 } from '@his-fm/contracts';
 import { Miniflare } from 'miniflare';
 import { afterAll, beforeAll, beforeEach, expect, it, vi } from 'vitest';
-import { channelProfileSchema } from '../../src/shared/channel';
+import { editorialPriority } from '../../src/shared/channel';
 import type { AgentTokenRecord, Production } from '../../src/shared/production';
 import worker from '../../worker';
-import { defaultPrompts } from '../../worker/prompt-defaults';
 import { brief } from './production-fixture';
 
 vi.setConfig({ testTimeout: 30000, hookTimeout: 30000 });
 const origin = 'https://hisfm.dev.hexly.ai';
 const channelPath = '/channel/prompt-slots';
 const categoryPath = '/categories/learning/prompt-slots';
-const legacyCategory =
-  '# 旧栏目\n\n原始定位。\n\n## 编辑\n\n编辑原文。\n\n## 采集\n\n采集原文。\n\n## ②类时间口径\n\n保留时间口径原文。\n\n## 素材量与甄别分工\n\n保留素材分工原文。\n\n## 未知角色\n\n不能丢弃。';
-const legacyChannel = '# 旧频道\n\nGLOBAL_LEGACY_SENTINEL';
 type Secret = { token: string; record: AgentTokenRecord };
-type Migration = {
-  version: number;
-  legacyVersion: number;
-  initialized: boolean;
-  slots: PromptSlotInput[];
-  unmappedHeadings: string[];
-};
 let mf: Miniflare;
 let env: Env;
 let cookie = '';
@@ -79,21 +68,11 @@ const slot = (id: string, body = `BODY_${id}`, changes: Partial<PromptSlotInput>
   mode: 'override',
   ...changes,
 });
-async function preview(path = channelPath) {
-  return json<Migration>(await api(`${path}/migration/dry-run`));
-}
-async function apply(path = channelPath, secret = owner) {
-  const { version, legacyVersion } = await preview(path);
-  return json<PromptSlotTable>(
-    await api(`${path}/migration/apply`, 'POST', { version, legacyVersion }, secret),
-  );
-}
 async function replace(path: string, slots: PromptSlotInput[], version = 1) {
   return json<PromptSlotTable>(await api(path, 'PUT', { version, slots }));
 }
-async function backups() {
-  return (await env.DB.prepare('SELECT * FROM prompt_slot_backups ORDER BY level, resource_id').all())
-    .results;
+async function init(path: string, slots: PromptSlotInput[] = [slot('editor')]) {
+  return replace(path, slots, 0);
 }
 
 beforeAll(async () => {
@@ -138,21 +117,21 @@ beforeEach(async () => {
       'category_id_aliases',
       'agent_tokens',
       'local_sessions',
-      'prompt_slot_backups',
       'channel_profile',
     ].map((table) => env.DB.prepare(`DELETE FROM ${table}`)),
     env.DB.prepare(
       "DELETE FROM categories WHERE id NOT IN ('manager-notes','learning','life','conversations')",
     ),
     env.DB.prepare(
-      "INSERT OR IGNORE INTO categories (id,name,icon,color,prompt,updated_at,updated_by) VALUES ('learning','Learning','book-open','teal','','','')",
-    ),
+      `INSERT OR REPLACE INTO categories (id,name,icon,color,seo,version,updated_at,updated_by,rss_identity)
+       VALUES ('learning','每日手冲','book-open','teal','{}',1,?,?, 'learning')`,
+    ).bind('2026-10-01T00:00:00Z', 'Legacy owner'),
     env.DB.prepare(
-      'UPDATE categories SET prompt=?, version=11, prompt_slots=NULL, prompt_slots_version=0, updated_at=?, updated_by=?',
-    ).bind(legacyCategory, '2026-10-01T00:00:00Z', 'Legacy owner'),
+      "UPDATE categories SET prompt_slots=NULL, prompt_slots_version=0, updated_at=?, updated_by=? WHERE id='learning'",
+    ).bind('2026-10-01T00:00:00Z', 'Legacy owner'),
     env.DB.prepare(
-      'INSERT INTO channel_profile (id,version,content,prompts,updated_at,updated_by) VALUES (1,11,?,?,?,?)',
-    ).bind(legacyChannel, JSON.stringify(defaultPrompts), '2026-10-01T00:00:00Z', 'Legacy owner'),
+      'INSERT INTO channel_profile (id,version,updated_at,updated_by,prompt_slots_version) VALUES (1,1,?,?,0)',
+    ).bind('2026-10-01T00:00:00Z', 'Legacy owner'),
   ]);
   const login = await call('/admin/api/dev-login', 'POST');
   expect(login.status).toBe(200);
@@ -166,11 +145,10 @@ it('requires prompt grants independently from category metadata grants on every 
   const reader = await issue(['prompts:read']);
   const writer = await issue(['prompts:write']);
   for (const path of [channelPath, categoryPath]) {
-    for (const suffix of ['', '/migration/dry-run']) {
-      expect((await api(path + suffix, 'GET', undefined, metadata)).status).toBe(403);
-      expect((await api(path + suffix, 'GET', undefined, writer)).status).toBe(403);
-      expect((await api(path + suffix, 'GET', undefined, reader)).status).toBe(200);
-    }
+    expect((await api(path, 'GET', undefined, metadata)).status).toBe(403);
+    expect((await api(path, 'GET', undefined, writer)).status).toBe(403);
+    expect((await api(path, 'GET', undefined, reader)).status).toBe(200);
+    expect((await api(`${path}/migration/dry-run`, 'GET', undefined, reader)).status).toBe(404);
     for (const [suffix, method, data] of [
       ['', 'PUT', { version: 0, slots: [] }],
       ['', 'POST', { version: 0, ...slot('editor') }],
@@ -181,8 +159,7 @@ it('requires prompt grants independently from category metadata grants on every 
       for (const secret of [metadata, reader])
         expect((await api(path + suffix, method, data, secret)).status).toBe(403);
     }
-    const table = await apply(path);
-    expect(table.initialized).toBe(true);
+    await init(path);
     expect((await api(path)).status).toBe(200);
   }
 });
@@ -194,12 +171,9 @@ it('shares human controllers while enforcing same-origin only for human mutation
     expect(
       (
         await call(
-          `/admin/api${channelPath}/migration/apply`,
-          'POST',
-          {
-            version: 0,
-            legacyVersion: 11,
-          },
+          `/admin/api${channelPath}`,
+          'PUT',
+          { version: 0, slots: [slot('editor')] },
           undefined,
           unsafe,
         )
@@ -207,12 +181,9 @@ it('shares human controllers while enforcing same-origin only for human mutation
     ).toBe(403);
   }
   const result = await call(
-    `/api/agent${channelPath}/migration/apply`,
-    'POST',
-    {
-      version: 0,
-      legacyVersion: 11,
-    },
+    `/api/agent${channelPath}`,
+    'PUT',
+    { version: 0, slots: [slot('editor')] },
     owner,
     'https://external-client.example',
   );
@@ -223,206 +194,100 @@ it('shares human controllers while enforcing same-origin only for human mutation
       slots: [slot('editor')],
     }),
   );
-  expect(updated.slots[0].updatedBy).toBe('editor@his.fm');
+  expect(updated.version).toBe(2);
 });
 
-it('previews live v11 data without writes, preserves unknown headings and learning special sections', async () => {
-  const before = (await env.DB.prepare('SELECT * FROM categories ORDER BY id').all()).results;
-  const channelBefore = await env.DB.prepare('SELECT * FROM channel_profile').first();
-  for (const id of ['learning', 'manager-notes']) {
-    const report = await preview(`/categories/${id}/prompt-slots`);
-    expect(report).toMatchObject({ version: 0, legacyVersion: 11, initialized: false });
-    expect(report.unmappedHeadings).toContain('未知角色');
-    expect(report.slots.find((entry) => entry.id === 'editor')?.body).toContain('## 编辑\n\n编辑原文。');
-    if (id === 'learning') {
-      const collector = report.slots.find((entry) => entry.id === 'collector')?.body;
-      expect(collector).toContain('## ②类时间口径\n\n保留时间口径原文。');
-      expect(collector).toContain('## 素材量与甄别分工\n\n保留素材分工原文。');
-    }
-    expect(report.slots.map((entry) => entry.body).join('\n')).toContain('不能丢弃。');
-  }
-  const report = await preview();
-  expect(report.slots.find((entry) => entry.id === 'positioning')?.body).toContain(legacyChannel);
-  expect((await env.DB.prepare('SELECT * FROM categories ORDER BY id').all()).results).toEqual(before);
-  expect(await env.DB.prepare('SELECT * FROM channel_profile').first()).toEqual(channelBefore);
-  expect(await backups()).toEqual([]);
+it('initializes empty slot tables on the first save at version 0', async () => {
+  expect(await json(await api(channelPath))).toEqual({ version: 0, initialized: false, slots: [] });
   expect(await json(await api(categoryPath))).toEqual({ version: 0, initialized: false, slots: [] });
-  expect((await api(`${categoryPath}?slot=editor`)).status).toBe(409);
-  expect((await api(categoryPath, 'PUT', { version: 0, slots: [] })).status).toBe(409);
+  const channel = await init(channelPath, [slot('positioning', 'GLOBAL_FIRST_SAVE')]);
+  expect(channel).toMatchObject({ version: 1, initialized: true });
+  expect(channel.slots[0].body).toBe('GLOBAL_FIRST_SAVE');
+  expect(
+    await env.DB.prepare('SELECT prompt_slots, prompt_slots_version FROM channel_profile WHERE id=1').first(),
+  ).toMatchObject({ prompt_slots_version: 1 });
+  const category = await init(categoryPath, [slot('editor', 'CATEGORY_FIRST_SAVE')]);
+  expect(category).toMatchObject({ version: 1, initialized: true });
+  expect(category.slots[0].body).toBe('CATEGORY_FIRST_SAVE');
+  expect(
+    (await env.DB.prepare(
+      "SELECT prompt_slots, prompt_slots_version FROM categories WHERE id='learning'",
+    ).first()) as {
+      prompt_slots_version: number;
+    },
+  ).toMatchObject({ prompt_slots_version: 1 });
 });
 
-it.each(['learning', 'manager-notes'])(
-  'cleans %s skills and positioning in preview and apply while backing up original text',
-  async (id) => {
-    const positioning = '# 栏目名\n\n## 栏目定位\n保留栏目定位。\n\n';
-    const skills = 'hisfm-bumpers\nhisfm-episode-production\nhisfm-site-api\nhisfm-raw-archive';
-    const content = `${positioning}## 通用 skill\n跨栏目规则见 skill：\n${skills}\n- web-perf\nprompt skill\n再次使用 hisfm-bumpers。\n`;
-    await env.DB.prepare('UPDATE categories SET prompt = ? WHERE id = ?').bind(content, id).run();
-    const path = `/categories/${id}/prompt-slots`;
-    const before = await env.DB.prepare('SELECT * FROM categories WHERE id = ?').bind(id).first();
-    const report = await preview(path);
-    expect(report.unmappedHeadings).toEqual([]);
-    expect(report.slots.find((entry) => entry.id === 'skills')?.body).toBe(skills);
-    expect(report.slots.find((entry) => entry.id === 'positioning')?.body).toBe(positioning);
-    expect(await env.DB.prepare('SELECT * FROM categories WHERE id = ?').bind(id).first()).toEqual(before);
-    expect(await backups()).toEqual([]);
-    const applied = await apply(path);
-    expect(applied.slots.find((entry) => entry.id === 'skills')?.body).toBe(skills);
-    expect(applied.slots.find((entry) => entry.id === 'positioning')?.body).toBe(positioning);
-    const snapshot = await backups();
-    expect(snapshot).toHaveLength(1);
-    expect(JSON.parse(snapshot[0].data as string)).toMatchObject({ content });
-  },
-);
+it('returns 404 for removed migration endpoints', async () => {
+  for (const path of [channelPath, categoryPath]) {
+    expect((await api(`${path}/migration/dry-run`)).status).toBe(404);
+    expect((await api(`${path}/migration/apply`, 'POST', { version: 0, legacyVersion: 11 })).status).toBe(
+      404,
+    );
+    expect((await call(`/admin/api${path}/migration/dry-run`)).status).toBe(404);
+  }
+});
 
-it('fences migration snapshots against legacy and collection changes and keeps one immutable backup', async () => {
-  const stale = await preview(categoryPath);
+it('reads editorial priority from GET /channel without legacy prompt fields', async () => {
+  expect(await json(await api('/channel'))).toEqual({ priority: [...editorialPriority] });
+  const writer = await issue(['prompts:write']);
+  expect((await api('/channel', 'PUT', { version: 1, content: 'legacy' }, writer)).status).toBe(405);
+});
+
+it('initializes channel storage on first read when the profile row is missing', async () => {
+  await env.DB.prepare('DELETE FROM channel_profile').run();
+  const table = await json<PromptSlotTable>(await api(channelPath));
+  expect(table).toMatchObject({ version: 0, initialized: false, slots: [] });
+  const saved = await replace(channelPath, [slot('editor', 'BOOTSTRAP')], 0);
+  expect(saved.version).toBe(1);
+  expect(saved.slots[0]?.body).toBe('BOOTSTRAP');
+});
+
+it('initializes an empty category table through POST and PUT', async () => {
   await env.DB.prepare(
-    "UPDATE categories SET prompt=prompt || ' Added after preview.', version=12 WHERE id='learning'",
+    "UPDATE categories SET prompt_slots=NULL, prompt_slots_version=0 WHERE id='learning'",
   ).run();
+  const added = await json<PromptSlotTable>(
+    await api(`${categoryPath}`, 'POST', { version: 0, ...slot('bootstrap', 'BOOT', { order: 0 }) }),
+    201,
+  );
+  expect(added).toMatchObject({ version: 1, initialized: true });
+  expect(added.slots).toHaveLength(1);
+  const replaced = await replace(categoryPath, [slot('bootstrap', 'UPDATED')], 1);
+  expect(replaced.slots[0]?.body).toBe('UPDATED');
+});
+
+it('rejects invalid or duplicated slot role query parameters', async () => {
+  await init(channelPath, [slot('editor')]);
+  expect((await api(`${channelPath}?slot=Bad`)).status).toBe(400);
+  expect((await api(`${channelPath}?slot=editor&slot=collector`)).status).toBe(400);
   expect(
     (
-      await api(`${categoryPath}/migration/apply`, 'POST', {
-        version: stale.version,
-        legacyVersion: stale.legacyVersion,
+      await api(channelPath, 'PUT', {
+        version: 1,
+        slots: [{ ...slot('skills'), body: 'invalid skill name' }],
       })
     ).status,
-  ).toBe(409);
+  ).toBe(400);
+  expect((await api(`${channelPath}/migration/legacy`)).status).toBe(404);
+  expect((await api(`${channelPath}?slot=,editor`)).status).toBe(400);
   expect(
-    (await api(`${categoryPath}/migration/apply`, 'POST', { version: 1, legacyVersion: 12 })).status,
-  ).toBe(409);
-  expect(await backups()).toEqual([]);
-  const applied = await apply(categoryPath);
-  expect(applied.version).toBe(1);
-  for (const entry of applied.slots) {
-    expect(entry.version).toBe(1);
-    expect(entry.updatedBy).toContain('Prompt slots fixture');
-    expect(Number.isNaN(Date.parse(entry.updatedAt))).toBe(false);
-  }
-  const snapshot = await backups();
-  expect(snapshot).toHaveLength(1);
-  expect(snapshot[0]).toMatchObject({ level: 'category', resource_id: 'learning', legacy_version: 12 });
-  expect(JSON.parse(snapshot[0].data as string)).toMatchObject({
-    version: 12,
-    content: `${legacyCategory} Added after preview.`,
-    prompt_slots: null,
-    prompt_slots_version: 0,
-  });
-  expect(
-    await json(await api(`${categoryPath}/migration/apply`, 'POST', { version: 0, legacyVersion: 11 })),
-  ).toEqual(applied);
-  expect(await backups()).toEqual(snapshot);
-  const again = await preview(categoryPath);
-  expect(again).toMatchObject({ initialized: true, version: 1, unmappedHeadings: [] });
-  expect(again.slots).toEqual(
-    applied.slots.map(({ version: _version, updatedAt: _at, updatedBy: _by, ...input }) => input),
-  );
-  expect(again.slots.every((entry) => promptSlotInputSchema.safeParse(entry).success)).toBe(true);
-  const edited = await replace(categoryPath, [slot('custom', 'After migration')]);
-  expect(
-    await json(await api(`${categoryPath}/migration/apply`, 'POST', { version: 0, legacyVersion: 11 })),
-  ).toEqual(edited);
-  expect(await backups()).toEqual(snapshot);
-});
-
-it('fences a migration racing with a legacy edit at the database batch boundary', async () => {
-  const raceEnv = {
-    ...env,
-    DB: {
-      prepare: env.DB.prepare.bind(env.DB),
-      batch: async <T>(statements: D1PreparedStatement[]) => {
-        await env.DB.prepare(
-          "UPDATE categories SET version=12, prompt='Concurrent legacy edit' WHERE id='learning'",
-        ).run();
-        return env.DB.batch<T>(statements);
-      },
-    } as D1Database,
-  };
-  const response = await worker.fetch(
-    new Request(`${origin}/api/agent${categoryPath}/migration/apply`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${owner.token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ version: 0, legacyVersion: 11 }),
-    }),
-    raceEnv,
-  );
-  expect(response.status).toBe(409);
-  expect(await backups()).toEqual([]);
-  expect(await json(await api(categoryPath))).toEqual({ version: 0, initialized: false, slots: [] });
-  expect(await env.DB.prepare("SELECT version,prompt FROM categories WHERE id='learning'").first()).toEqual({
-    version: 12,
-    prompt: 'Concurrent legacy edit',
-  });
-});
-
-it('rejects oversized migration results without writing backups or initializing slots', async () => {
-  await env.DB.prepare('UPDATE channel_profile SET content=?').bind('x'.repeat(120001)).run();
-  const report = await preview();
-  expect(report.slots.find((entry) => entry.id === 'positioning')?.body.length).toBeGreaterThan(120000);
-  expect(report.slots.every((entry) => promptSlotProjectionSchema.safeParse(entry).success)).toBe(true);
-  expect(
-    (await api(`${channelPath}/migration/apply`, 'POST', { version: 0, legacyVersion: 11 })).status,
-  ).toBe(409);
-  expect(await backups()).toEqual([]);
-  expect(await json(await api(channelPath))).toEqual({ version: 0, initialized: false, slots: [] });
-});
-
-it('keeps NULL legacy prompts unchanged after explicit migration and subsequent reads', async () => {
-  await env.DB.prepare('UPDATE channel_profile SET prompts=NULL').run();
-  const report = await preview();
-  expect(report.slots.some((entry) => entry.body.includes(defaultPrompts.narration))).toBe(true);
-  await apply();
-  await api('/channel');
-  expect(await env.DB.prepare('SELECT prompts,version FROM channel_profile').first()).toEqual({
-    prompts: null,
-    version: 12,
-  });
-  const snapshot = await backups();
-  expect(JSON.parse(snapshot[0].data as string).prompts).toBeNull();
-});
-
-it('rolls back migration backups if applying the table fails', async () => {
-  await env.DB.prepare(
-    "CREATE TRIGGER reject_slot_apply BEFORE UPDATE OF prompt_slots ON categories WHEN NEW.id='learning' BEGIN SELECT RAISE(ABORT, 'Fixture apply failure'); END",
-  ).run();
-  try {
-    expect(
-      (await api(`${categoryPath}/migration/apply`, 'POST', { version: 0, legacyVersion: 11 })).status,
-    ).toBe(500);
-    expect(await backups()).toEqual([]);
-    expect(await json(await api(categoryPath))).toEqual({ version: 0, initialized: false, slots: [] });
-    expect(
-      await env.DB.prepare("SELECT version, prompt FROM categories WHERE id='learning'").first(),
-    ).toEqual({ version: 11, prompt: legacyCategory });
-  } finally {
-    await env.DB.prepare('DROP TRIGGER reject_slot_apply').run();
-  }
-});
-
-it('bootstraps a missing channel only on explicit apply and retains defaults in compatibility reads', async () => {
-  await env.DB.prepare('DELETE FROM channel_profile').run();
-  const report = await preview();
-  expect(report).toMatchObject({ version: 0, legacyVersion: 0, initialized: false });
-  expect(await env.DB.prepare('SELECT * FROM channel_profile').first()).toBeNull();
-  expect(await backups()).toEqual([]);
-  const table = await apply();
-  expect(table).toMatchObject({ version: 1, initialized: true });
-  expect(await env.DB.prepare('SELECT version,prompt_slots_version FROM channel_profile').first()).toEqual({
-    version: 1,
-    prompt_slots_version: 1,
-  });
-  expect(await backups()).toHaveLength(1);
-  await env.DB.prepare('DELETE FROM channel_profile').run();
-  await env.DB.prepare('DELETE FROM prompt_slot_backups').run();
-  const legacy = await json<{ channel: { prompts: typeof defaultPrompts } }>(await api('/channel'));
-  expect(legacy.channel.prompts).toEqual(defaultPrompts);
-  expect(await json(await api(channelPath))).toEqual({ version: 0, initialized: false, slots: [] });
+    (
+      await api(channelPath, 'PUT', {
+        version: 1,
+        slots: Array.from({ length: 65 }, (_, index) => ({
+          ...slot(`slot-${index}`),
+          order: index,
+        })),
+      })
+    ).status,
+  ).toBe(400);
 });
 
 it.each([channelPath, categoryPath])(
   'versions CRUD and individual slot audit fields independently at %s',
   async (path) => {
-    await apply(path);
+    await init(path, [slot('editor'), slot('collector', 'COLLECT', { order: 0 })]);
     const first = await replace(path, [slot('editor'), slot('collector', 'COLLECT', { order: 0 })]);
     expect(first.version).toBe(2);
     expect(first.slots.map((entry) => entry.id)).toEqual(['collector', 'editor']);
@@ -474,9 +339,9 @@ it.each([channelPath, categoryPath])(
 it('redacts every write response for write-only tokens without granting read authority', async () => {
   const writer = await issue(['prompts:write']);
   for (const path of [channelPath, categoryPath]) {
-    expect(
-      await json(await api(`${path}/migration/apply`, 'POST', { version: 0, legacyVersion: 11 }, writer)),
-    ).toEqual({ version: 1 });
+    expect(await json(await api(path, 'PUT', { version: 0, slots: [slot('editor')] }, writer))).toEqual({
+      version: 1,
+    });
     expect(await json(await api(path, 'PUT', { version: 1, slots: [] }, writer))).toEqual({ version: 2 });
     expect(
       await json(await api(path, 'POST', { version: 2, ...slot('editor', 'PRIVATE') }, writer), 201),
@@ -492,9 +357,8 @@ it('redacts every write response for write-only tokens without granting read aut
 });
 
 it('merges enabled slots by ID with override, append and deterministic role ordering', async () => {
-  await apply();
-  expect((await api(`${categoryPath}?slot=editor`)).status).toBe(409);
-  await apply(categoryPath);
+  await init(channelPath);
+  await init(categoryPath);
   await replace(channelPath, [
     slot('editor', 'GLOBAL_EDITOR', { order: 2 }),
     slot('collector', 'GLOBAL_COLLECTOR'),
@@ -530,69 +394,9 @@ it('merges enabled slots by ID with override, append and deterministic role orde
     expect((await api(`${categoryPath}?${query}`)).status).toBe(400);
 });
 
-it('synthesizes deprecated reads from enabled local slots without rewriting legacy stored fields', async () => {
-  const legacy = await json<{ channel: { content: string; prompts: typeof defaultPrompts } }>(
-    await api('/channel'),
-  );
-  expect(legacy.channel).toMatchObject({ content: legacyChannel, prompts: defaultPrompts });
-  const categoryReader = await issue(['categories:read', 'prompts:read']);
-  expect(await json(await api('/categories/learning', 'GET', undefined, categoryReader))).toMatchObject({
-    category: { prompt: legacyCategory },
-  });
-  await apply();
-  await apply(categoryPath);
-  for (const slots of [
-    [],
-    [slot('editor', 'DISABLED', { enabled: false })],
-    [slot('later', 'SECOND', { order: 2 }), slot('first', 'FIRST', { order: 0 })],
-    [
-      slot('later', 'SECOND', { order: 2 }),
-      slot('first', 'FIRST', { order: 0 }),
-      slot('hidden', 'DISABLED', { enabled: false }),
-    ],
-  ]) {
-    const current = await json<PromptSlotTable>(await api(channelPath));
-    await replace(channelPath, slots, current.version);
-    const local = await json<PromptSlotTable>(await api(categoryPath));
-    await replace(categoryPath, slots, local.version);
-    const expected = slots.length >= 2 ? '## first\n\nFIRST\n\n## later\n\nSECOND' : '';
-    const channel = await json<{ channel: { content: string; prompts: Record<string, string> } }>(
-      await api('/channel'),
-    );
-    expect(channel.channel.content).toBe(expected);
-    expect(channelProfileSchema.safeParse(channel.channel).success).toBe(true);
-    expect(Object.keys(channel.channel.prompts)).toEqual(Object.keys(defaultPrompts));
-    expect(Object.values(channel.channel.prompts).every((body) => body === expected)).toBe(true);
-    expect(await json(await api('/categories/learning', 'GET', undefined, categoryReader))).toMatchObject({
-      category: { prompt: expected },
-    });
-  }
-  expect(await env.DB.prepare('SELECT content,prompts FROM channel_profile').first()).toEqual({
-    content: legacyChannel,
-    prompts: JSON.stringify(defaultPrompts),
-  });
-  expect(await env.DB.prepare("SELECT prompt FROM categories WHERE id='learning'").first()).toEqual({
-    prompt: legacyCategory,
-  });
-});
-
-it('reads long synthesized channel bodies without legacy named-prompt length limits', async () => {
-  await apply();
-  const body = 'Long editable guidance.\n'.repeat(2000);
-  await replace(channelPath, [slot('editor', body)]);
-  const response = await json<{ channel: unknown }>(await api('/channel'));
-  const channel = channelProfileSchema.parse(response.channel);
-  expect(channel.content).toBe(`## editor\n\n${body}`);
-  expect(Object.values(channel.prompts).every((prompt) => prompt === channel.content)).toBe(true);
-  expect(await env.DB.prepare('SELECT content,prompts FROM channel_profile').first()).toEqual({
-    content: legacyChannel,
-    prompts: JSON.stringify(defaultPrompts),
-  });
-});
-
 it('returns full appended role bodies beyond individual write limits', async () => {
-  await apply();
-  await apply(categoryPath);
+  await init(channelPath);
+  await init(categoryPath);
   const channelBody = 'c'.repeat(120000);
   const categoryBody = 'k'.repeat(120000);
   await replace(channelPath, [slot('editor', channelBody)]);
@@ -607,7 +411,7 @@ it('returns full appended role bodies beyond individual write limits', async () 
 });
 
 it('validates bodies, skills, duplicates, versions, unknown IDs and unsupported methods without mutations', async () => {
-  await apply();
+  await init(channelPath);
   const baseline = await replace(channelPath, [slot('editor')]);
   for (const data of [
     { version: 2, slots: [slot('editor'), slot('editor')] },
@@ -638,12 +442,16 @@ it('validates bodies, skills, duplicates, versions, unknown IDs and unsupported 
     ['', 'PATCH'],
     ['/editor', 'GET'],
     ['/editor', 'PUT'],
+  ] as const)
+    expect((await api(channelPath + suffix, method)).status).toBe(405);
+  for (const [suffix, method] of [
     ['/migration/dry-run', 'POST'],
+    ['/migration/dry-run', 'GET'],
     ['/migration/apply', 'GET'],
     ['/migration/unknown', 'GET'],
   ] as const)
-    expect((await api(channelPath + suffix, method)).status).toBe(405);
-  expect((await api(`${channelPath}/migration/apply`, 'POST', { version: 2 })).status).toBe(400);
+    expect((await api(`${channelPath}${suffix}`, method)).status).toBe(404);
+  expect((await api(`${channelPath}/migration/apply`, 'POST', { version: 2 })).status).toBe(404);
   const malformed = await worker.fetch(
     new Request(`${origin}/api/agent${channelPath}`, {
       method: 'PUT',
@@ -679,7 +487,7 @@ it('validates bodies, skills, duplicates, versions, unknown IDs and unsupported 
 });
 
 it('rejects competing stale writes instead of losing the winning slot edit', async () => {
-  await apply();
+  await init(channelPath);
   await replace(channelPath, [slot('editor')]);
   const responses = await Promise.all(
     ['FIRST', 'SECOND'].map((body) => api(`${channelPath}/editor`, 'PATCH', { version: 2, body })),
@@ -690,38 +498,41 @@ it('rejects competing stale writes instead of losing the winning slot edit', asy
   );
   expect(await json(await api(channelPath))).toEqual(winner);
   expect(winner.version).toBe(3);
-  expect(await backups()).toHaveLength(1);
 });
 
-it('preserves slot data and immutable legacy backups across category rename and deletion', async () => {
-  const table = await apply(categoryPath);
-  const backup = await backups();
+it('preserves slot data across category rename and deletion', async () => {
+  const table = await init(categoryPath, [slot('editor', 'PERSISTED')]);
   const metadata = await issue(['categories:read', 'categories:write', 'categories:delete']);
+  const categoryVersion = (
+    await env.DB.prepare("SELECT version FROM categories WHERE id='learning'").first<{ version: number }>()
+  )?.version;
   const renamed = await json<{ category: { version: number } }>(
     await api(
       '/categories/learning',
       'PUT',
-      { version: 12, nextId: 'renamed-learning', name: 'Renamed' },
+      { version: categoryVersion, nextId: 'renamed-learning', name: 'Renamed' },
       metadata,
     ),
   );
-  expect(renamed.category.version).toBe(13);
+  expect(renamed.category.version).toBe((categoryVersion ?? 0) + 1);
   expect(await json(await api('/categories/renamed-learning/prompt-slots'))).toEqual(table);
-  expect(await backups()).toEqual(backup);
-  expect(await env.DB.prepare("SELECT prompt FROM categories WHERE id='renamed-learning'").first()).toEqual({
-    prompt: legacyCategory,
-  });
   expect((await api(categoryPath)).status).toBe(404);
-  expect((await api('/categories/renamed-learning?version=13', 'DELETE', undefined, metadata)).status).toBe(
-    204,
-  );
+  expect(
+    (
+      await api(
+        `/categories/renamed-learning?version=${renamed.category.version}`,
+        'DELETE',
+        undefined,
+        metadata,
+      )
+    ).status,
+  ).toBe(204);
   expect((await api('/categories/renamed-learning/prompt-slots')).status).toBe(404);
-  expect(await backups()).toEqual(backup);
 });
 
 it('uses category slot merge semantics in production prompts after both levels are initialized', async () => {
-  await apply();
-  await apply(categoryPath);
+  await init(channelPath);
+  await init(categoryPath);
   await replace(channelPath, [
     slot('editor', 'GLOBAL_EDITOR_MERGE'),
     slot('collector', 'GLOBAL_COLLECTOR_MERGE'),

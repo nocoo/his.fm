@@ -4,9 +4,9 @@ import { Miniflare } from 'miniflare';
 import { expect, it } from 'vitest';
 import { productionResponseSchema } from '../../worker/agent-contract';
 import { authenticateAgent } from '../../worker/agent-tokens';
-import { getChannel } from '../../worker/channel';
 import { requireFinalAssets } from '../../worker/production-model';
 import { defaultPrompts } from '../../worker/prompt-defaults';
+import { getPromptSlotTable } from '../../worker/prompt-slots';
 import { routeStorage } from '../../worker/storage';
 import { human, readyFixture } from './production-fixture';
 
@@ -51,9 +51,36 @@ it('retires native state without losing business grants, prompt bodies, publishe
       narration: undefined,
     };
     await env.DB.prepare(
-      'INSERT INTO channel_profile (id,version,content,prompts,updated_at,updated_by) VALUES (1,7,?,?,?,?)',
+      `INSERT INTO channel_profile (id,version,updated_at,updated_by,prompt_slots,prompt_slots_version) VALUES (1,7,?,?,?,1)`,
     )
-      .bind('Original global policy', JSON.stringify(legacyPrompts), 'before', 'owner')
+      .bind(
+        'before',
+        'owner',
+        JSON.stringify([
+          {
+            id: 'positioning',
+            title: '定位',
+            body: 'Original global policy',
+            order: 0,
+            enabled: true,
+            mode: 'override',
+            version: 1,
+            updatedAt: 'before',
+            updatedBy: 'owner',
+          },
+          {
+            id: 'coordinator',
+            title: '协调',
+            body: legacyPrompts.coordinator,
+            order: 1,
+            enabled: true,
+            mode: 'override',
+            version: 1,
+            updatedAt: 'before',
+            updatedBy: 'owner',
+          },
+        ]),
+      )
       .run();
     const completed = {
       ...readyFixture(),
@@ -190,16 +217,10 @@ it('retires native state without losing business grants, prompt bodies, publishe
     expect(productionResponseSchema.parse(production).events[0].actor.scopes).toContain('runtime:connect');
     requireFinalAssets(production);
     expect(await env.DB.prepare('SELECT * FROM episodes').first()).toEqual(beforeEpisode);
-    const channel = await getChannel(env.DB);
-    expect(channel).toMatchObject({
-      version: 8,
-      content: 'Original global policy',
-      updatedAt: 'before',
-      updatedBy: 'owner',
-      prompts: { coordinator: legacyPrompts.coordinator, narration: defaultPrompts.narration },
-    });
-    for (const [key, value] of Object.entries(legacyPrompts))
-      if (value !== undefined) expect(channel.prompts[key as keyof typeof defaultPrompts]).toBe(value);
+    const channel = await getPromptSlotTable(env.DB);
+    expect(channel).toMatchObject({ version: 1, initialized: true });
+    expect(channel.slots.find((slot) => slot.id === 'positioning')?.body).toBe('Original global policy');
+    expect(channel.slots.find((slot) => slot.id === 'coordinator')?.body).toBe(legacyPrompts.coordinator);
     const tokenRows = await env.DB.prepare('SELECT scopes FROM agent_tokens ORDER BY id').all<{
       scopes: string;
     }>();

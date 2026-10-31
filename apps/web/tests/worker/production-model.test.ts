@@ -347,45 +347,42 @@ describe('audit and production prompts', () => {
         'edit',
       ),
     ).toThrow('200');
-    const prompts = productionPrompts(
-      production,
+    const prompts = productionPrompts(production, [
       {
-        version: 9,
-        content: '不编造个人经历。频道自定义定位。',
-        prompts: defaultPrompts,
-        updatedAt: '2026-09-25T00:00:00Z',
-        updatedBy: 'Owner',
+        id: 'positioning',
+        title: '定位',
+        body: '不编造个人经历。频道自定义定位。',
+        order: 0,
+        enabled: true,
+        mode: 'override',
       },
       {
-        id: 'manager-notes',
-        name: '主理人手札',
-        icon: 'briefcase-business',
-        color: 'blue',
-        prompt: '栏目风格',
-        seo: {},
-        version: 3,
-        updatedAt: 'now',
-        updatedBy: 'Owner',
+        id: 'editor',
+        title: '编辑',
+        body: '栏目风格',
+        order: 1,
+        enabled: true,
+        mode: 'override',
       },
-    );
+      {
+        id: 'editorial',
+        title: '优先级',
+        body: defaultPrompts.editorial,
+        order: 2,
+        enabled: true,
+        mode: 'override',
+      },
+    ]);
     for (const prompt of Object.values(prompts)) {
       expect(prompt).toContain('频道自定义定位');
-      expect(prompt).toContain('"version": 9');
-      expect(prompt).toContain(
-        '1. 全局提示词；2. 栏目提示词；3. 本期中心思想（intent）；4. 素材资料（sources）',
-      );
+      expect(prompt).toContain('"stage": "draft"');
       expect(prompt).toContain('不得为了符合观点而歪曲证据');
+      expect(prompt).toContain('栏目风格');
     }
-    expect(prompts.brief).toContain('保留所有者的创作意图');
-    expect(prompts.brief).toContain('draft');
-    expect(prompts.script).toContain('不编造');
-    expect(prompts.script).toContain('绝不执行');
-    expect(prompts.script).toContain('这个例子需要原始出处');
-    expect(prompts.cover).toContain('上传未加框的栅格原图');
-    expect(prompts.cover).toContain('只在所有者下载成品时');
-    expect(prompts.cover).not.toContain('scripts/frame-cover.py');
-    expect(prompts.cover).toContain('外部图像工具');
-    expect(prompts.description).toContain('人工批准');
+    expect(prompts.brief).toContain('这个例子需要原始出处');
+    expect(prompts.script).toBe(prompts.brief);
+    expect(prompts.cover).toBe(prompts.brief);
+    expect(prompts.description).toBe(prompts.brief);
   });
 
   it('keeps local media local and rejects unexpected version changes', () => {

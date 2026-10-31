@@ -18,7 +18,6 @@ import {
 } from './audio';
 import { requireScope } from './authorization';
 import { categoryFence, getCategory } from './categories';
-import { getChannel } from './channel';
 import {
   assertEpisodeNumberAvailable,
   deleteHolderEpisodeNumberClaims,
@@ -559,11 +558,7 @@ export async function routeProductions(
             (event) => hasScope(actor, 'publications:read') || !event.action.includes('publication:'),
           ),
         },
-        await getChannel(env.DB),
-        await getCategory(env.DB, production.category),
-        channelSlots.initialized && categorySlots.initialized
-          ? mergePromptSlots(channelSlots.slots, categorySlots.slots)
-          : undefined,
+        mergePromptSlots(channelSlots.slots, categorySlots.slots),
       ),
     );
   }
@@ -571,11 +566,9 @@ export async function routeProductions(
   if (request.method === 'GET') {
     requireScope(actor, 'productions:read');
     const production = await getProduction(env.DB, id);
-    const categoryProfile = await getCategory(env.DB, production.category);
-    const { prompt: _prompt, ...categoryMetadata } = categoryProfile;
     return json({
       production: projectProduction(production, actor),
-      categoryProfile: hasScope(actor, 'prompts:read') ? categoryProfile : categoryMetadata,
+      categoryProfile: await getCategory(env.DB, production.category),
     });
   }
   if (request.method === 'PUT') {

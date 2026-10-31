@@ -8,11 +8,9 @@ import { Link, useSearchParams } from 'react-router';
 import { FramedCover } from '../../components/FramedCover';
 import { useCategories } from '../categories/useCategories';
 import { MarkdownEditor } from '../markdown/MarkdownEditor';
-import { errorMessage } from '../model';
 import { Choice, Confirm, CopyButton, Failure } from '../production/controls';
 import { ReadingText } from '../production/ReadingText';
 import { moveSlot } from './model';
-import { promptSlotsService } from './service';
 import { usePromptSlots } from './usePromptSlots';
 import './channel.css';
 
@@ -87,7 +85,7 @@ function SlotTable({
   const [selectedId, setSelectedId] = useState('');
   const [visited, setVisited] = useState<string[]>([]);
   const [adding, setAdding] = useState(false);
-  const [confirmation, setConfirmation] = useState<'reload' | 'overwrite' | 'remove' | 'apply' | null>(null);
+  const [confirmation, setConfirmation] = useState<'reload' | 'overwrite' | 'remove' | null>(null);
   const slots = orderedPromptSlots(vm.slots);
   const selected =
     slots.find((slot) => slot.id === requestedSlot) ??
@@ -110,7 +108,7 @@ function SlotTable({
   return (
     <div className="studio-stack">
       {actionsTarget &&
-        vm.table?.initialized &&
+        vm.table &&
         createPortal(
           <Button
             loading={vm.pending}
@@ -124,13 +122,7 @@ function SlotTable({
         )}
       <div className="channel-meta">
         <span role="status" className={vm.dirty ? 'channel-unsaved' : 'admin-muted'}>
-          {vm.table
-            ? vm.table.initialized
-              ? vm.dirty
-                ? '有未保存改动'
-                : `已保存 · v${vm.table.version}`
-              : '尚未迁移 · 旧版只读'
-            : '正在读取'}
+          {vm.table ? (vm.dirty ? '有未保存改动' : `已保存 · v${vm.table.version}`) : '正在读取'}
         </span>
         {categoryId === null ? (
           <span className="admin-muted">跨栏目创作依据 · 不改写已有内容</span>
@@ -142,51 +134,6 @@ function SlotTable({
       </div>
       {vm.error && <Failure error={vm.error} retry={!vm.table ? () => void vm.load() : undefined} />}
       {!vm.table && !vm.error && <LayerCard.Loading label="正在读取提示词槽位" />}
-      {vm.table && !vm.table.initialized && (
-        <LayerCard className="studio-stack">
-          <div className="studio-row">
-            <strong>显式迁移旧版提示词</strong>
-            <Button variant="outline" loading={vm.pending} onClick={() => void vm.dryRun()}>
-              只读迁移预演
-            </Button>
-          </div>
-          <p className="admin-muted">
-            预演只读取当前内容；检查拆分结果后，再明确应用。迁移前不能编辑槽位，旧版内容仍可只读查看。
-          </p>
-          {vm.preview && (
-            <>
-              <p className="admin-muted">
-                集合 v{vm.preview.version} · 旧版 v{vm.preview.legacyVersion} · {vm.preview.slots.length}{' '}
-                个槽位
-              </p>
-              {vm.preview.unmappedHeadings.length > 0 && (
-                <Failure error={`未匹配标题：${vm.preview.unmappedHeadings.join('、')}。请检查预演内容。`} />
-              )}
-              <section aria-label="迁移预演结果" className="studio-stack">
-                {orderedPromptSlots(vm.preview.slots).map((slot) => (
-                  <details key={slot.id}>
-                    <summary>
-                      {slot.title} · {slot.id}
-                    </summary>
-                    <ReadingText text={slot.body} />
-                  </details>
-                ))}
-              </section>
-              <Button
-                disabled={vm.pending || vm.preview.initialized}
-                onClick={() => setConfirmation('apply')}
-              >
-                应用已检查的迁移
-              </Button>
-              {vm.preview.initialized && (
-                <Button variant="outline" onClick={() => void vm.load()}>
-                  读取已迁移的槽位
-                </Button>
-              )}
-            </>
-          )}
-        </LayerCard>
-      )}
       {vm.conflict && (
         <LayerCard className="studio-stack">
           <strong>提示词槽位已有新版本 · v{vm.conflict.version}</strong>
@@ -210,16 +157,13 @@ function SlotTable({
             <Button variant="outline" onClick={() => setConfirmation('reload')}>
               采用最新集合
             </Button>
-            <Button
-              disabled={vm.pending || !vm.valid || !vm.conflict.initialized}
-              onClick={() => setConfirmation('overwrite')}
-            >
+            <Button disabled={vm.pending || !vm.valid} onClick={() => setConfirmation('overwrite')}>
               用我的全部草稿更新
             </Button>
           </div>
         </LayerCard>
       )}
-      {vm.table?.initialized && (
+      {vm.table && (
         <>
           <div className="channel-slot-toolbar">
             <div className="channel-slot-selector">
@@ -387,13 +331,6 @@ function SlotTable({
           </div>
         </>
       )}
-      {vm.table && <LegacyPrompts key={vm.table.version} categoryId={categoryId} />}
-      <details className="channel-help admin-muted">
-        <summary>提示词的生效范围</summary>
-        <p>
-          创作依据依次为频道、栏目、本期创作意图和素材。提示词不授予权限，不改写事实；保存不重写已有内容，也不改变人工审批。
-        </p>
-      </details>
       {confirmation && (
         <Confirm
           title={
@@ -401,7 +338,6 @@ function SlotTable({
               reload: '采用已保存的槽位集合',
               overwrite: '以全部草稿更新集合',
               remove: '从草稿删除槽位',
-              apply: '确认应用提示词迁移',
             }[confirmation]
           }
           description={
@@ -409,12 +345,10 @@ function SlotTable({
               reload: '全部未保存改动将被替换，需要保留的内容请先复制。',
               overwrite: '此范围的全部槽位将被当前草稿替换，包含删除、启停与排序。请确认已经对照最新集合。',
               remove: `删除「${selected?.title ?? ''}」仅更新本地草稿，保存全部提示词后生效。`,
-              apply: '将按已检查的预演拆分当前旧版内容并保存备份，不会自动改写已有节目。',
             }[confirmation]
           }
           onClose={() => setConfirmation(null)}
           onConfirm={async () => {
-            if (confirmation === 'apply') return vm.apply();
             if (confirmation === 'overwrite') return vm.save(vm.conflict?.version);
             if (confirmation === 'reload' && vm.table) vm.replace(vm.conflict ?? vm.table);
             if (confirmation === 'remove' && selected)
@@ -483,46 +417,5 @@ function NewSlot({
         </Button>
       </div>
     </LayerCard>
-  );
-}
-
-function LegacyPrompts({ categoryId }: { categoryId: string | null }) {
-  const [content, setContent] = useState<{ title: string; body: string }[] | null>(null);
-  const [pending, setPending] = useState(false);
-  const [error, setError] = useState('');
-  return (
-    <details className="channel-help">
-      <summary>旧版整段提示词（只读）</summary>
-      <div className="studio-stack">
-        <p className="admin-muted">
-          旧字段已停用编辑；迁移后按启用槽位顺序合成供旧客户端读取。请在槽位中维护内容。
-        </p>
-        <Button
-          variant="outline"
-          size="sm"
-          loading={pending}
-          onClick={async () => {
-            setPending(true);
-            setError('');
-            try {
-              setContent(await promptSlotsService.legacy(categoryId));
-            } catch (cause) {
-              setError(errorMessage(cause));
-            } finally {
-              setPending(false);
-            }
-          }}
-        >
-          读取旧版只读内容
-        </Button>
-        {error && <Failure error={error} />}
-        {content?.map((entry) => (
-          <details key={entry.title}>
-            <summary>{entry.title}</summary>
-            <ReadingText text={entry.body} />
-          </details>
-        ))}
-      </div>
-    </details>
   );
 }

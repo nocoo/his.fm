@@ -93,14 +93,9 @@ beforeAll(async () => {
 }, 30000);
 beforeEach(async () => {
   await env.DB.batch(
-    [
-      'media_provenance',
-      'episodes',
-      'productions',
-      'episode_number_claims',
-      'channel_profile',
-      'prompt_slot_backups',
-    ].map((table) => env.DB.prepare(`DELETE FROM ${table}`)),
+    ['media_provenance', 'episodes', 'productions', 'episode_number_claims', 'channel_profile'].map((table) =>
+      env.DB.prepare(`DELETE FROM ${table}`),
+    ),
   );
   await env.DB.batch([
     env.DB.prepare("UPDATE site_seo SET data = '{}' WHERE id = 1"),
@@ -366,7 +361,7 @@ describe('owner R2 inventory and cleanup', () => {
     ['https://his.fm/media/', '\n'],
     ['https://his.fm/media/', '\r\n'],
   ])(
-    'revalidates saved slot media at %s followed by %j while preserving legacy fields',
+    'revalidates saved slot media at %s followed by %j after first-save initialization',
     async (prefix, newline) => {
       const objects = await Promise.all([
         put('uploads/channel-slot-reference.webp'),
@@ -384,20 +379,21 @@ describe('owner R2 inventory and cleanup', () => {
           env,
         );
       for (const [index, path] of ['/channel/prompt-slots', '/categories/life/prompt-slots'].entries()) {
-        const preview = await promptRequest(`${path}/migration/dry-run`);
-        expect(preview.status).toBe(200);
-        const { version, legacyVersion } = (await preview.json()) as {
-          version: number;
-          legacyVersion: number;
-        };
-        expect(
-          (await promptRequest(`${path}/migration/apply`, 'POST', { version, legacyVersion })).status,
-        ).toBe(200);
-        const legacySql =
-          index === 0
-            ? 'SELECT content,prompts FROM channel_profile'
-            : "SELECT prompt FROM categories WHERE id='life'";
-        const legacy = await env.DB.prepare(legacySql).first();
+        expect((await promptRequest(`${path}/migration/dry-run`)).status).toBe(404);
+        const initialized = await promptRequest(path, 'PUT', {
+          version: 0,
+          slots: [
+            {
+              id: 'media-reference',
+              title: 'Media reference',
+              body: 'placeholder',
+              order: 0,
+              enabled: true,
+              mode: 'override',
+            },
+          ],
+        });
+        expect(initialized.status).toBe(200);
         const updated = await promptRequest(path, 'PUT', {
           version: 1,
           slots: [
@@ -412,7 +408,6 @@ describe('owner R2 inventory and cleanup', () => {
           ],
         });
         expect(updated.status).toBe(200);
-        expect(await env.DB.prepare(legacySql).first()).toEqual(legacy);
       }
       expect((await scan(aged())).objects.every((object) => object.state === 'referenced')).toBe(true);
       const results = await remove(staleScan.objects.map(({ key, version }) => ({ key, version })));
@@ -474,9 +469,23 @@ describe('owner R2 inventory and cleanup', () => {
       .bind(JSON.stringify({ intro: { key: 'bumper-current.wav' }, outro: null }))
       .run();
     await env.DB.prepare(
-      "INSERT INTO channel_profile (id, version, content, updated_at, updated_by) VALUES (1, 1, ?, 'now', 'owner')",
+      `INSERT INTO channel_profile (id, version, updated_at, updated_by, prompt_slots, prompt_slots_version) VALUES (1, 1, 'now', 'owner', ?, 1)`,
     )
-      .bind('https://f.no.mt/channel.webp')
+      .bind(
+        JSON.stringify([
+          {
+            id: 'positioning',
+            title: '定位',
+            body: 'https://f.no.mt/channel.webp',
+            order: 0,
+            enabled: true,
+            mode: 'override',
+            version: 1,
+            updatedAt: 'now',
+            updatedBy: 'owner',
+          },
+        ]),
+      )
       .run();
     await env.DB.prepare(`INSERT INTO episodes (id, slug, episode_number, title, summary, transcript, lead, cover_url, category, status, created_at, updated_at)
       VALUES ('episode', 'episode', 1, '目录标题', '', '/media/transcript.wav', 'https://his.fm/media/notes.wav', 'https://f.no.mt/published.webp', 'life', 'draft', 'now', 'now')`).run();
@@ -554,9 +563,23 @@ describe('owner R2 inventory and cleanup', () => {
     const imageKey = 'images/episode-01.webp';
     const uploadKey = 'uploads/cover.png';
     await env.DB.prepare(
-      "INSERT INTO channel_profile (id, version, content, updated_at, updated_by) VALUES (1, 1, ?, 'now', 'owner')",
+      `INSERT INTO channel_profile (id, version, updated_at, updated_by, prompt_slots, prompt_slots_version) VALUES (1, 1, 'now', 'owner', ?, 1)`,
     )
-      .bind(`封面参考：/${imageKey}，备用图：https://f.no.mt/${uploadKey}`)
+      .bind(
+        JSON.stringify([
+          {
+            id: 'positioning',
+            title: '定位',
+            body: `封面参考：/${imageKey}，备用图：https://f.no.mt/${uploadKey}`,
+            order: 0,
+            enabled: true,
+            mode: 'override',
+            version: 1,
+            updatedAt: 'now',
+            updatedBy: 'owner',
+          },
+        ]),
+      )
       .run();
     for (const key of [imageKey, uploadKey]) await put(key, 'image/png');
     const objects = (await scan(aged())).objects;
@@ -814,5 +837,39 @@ describe('authenticated streaming previews', () => {
     expect((await call('/object?key=changed.wav', {}, bindings)).status).toBe(409);
     bindings.MEDIA.get = async () => null;
     expect((await call('/object?key=changed.wav', {}, bindings)).status).toBe(409);
+  });
+
+  it('rejects storage uploads with unexpected query parameters', async () => {
+    expect(
+      (
+        await call('?unexpected=1', {
+          method: 'POST',
+          headers: { 'Content-Type': 'audio/wav' },
+          body: new Uint8Array(44),
+        })
+      ).status,
+    ).toBe(400);
+    expect(
+      (
+        await call('?key=bad%20key&extra=1', {
+          method: 'POST',
+          headers: { 'Content-Type': 'audio/mpeg' },
+          body: new Uint8Array(10),
+        })
+      ).status,
+    ).toBe(400);
+  });
+
+  it('scans references when prompt slot JSON is null', async () => {
+    await env.DB.prepare(
+      `INSERT INTO channel_profile (id, version, updated_at, updated_by, prompt_slots, prompt_slots_version)
+       VALUES (1, 1, 'now', 'owner', NULL, 0)`,
+    ).run();
+    await env.DB.prepare("UPDATE categories SET prompt_slots=NULL WHERE id='life'").run();
+    expect((await scan()).objects).toBeDefined();
+  });
+
+  it('rejects invalid storage scan cursors', async () => {
+    expect((await call(`?cursor=${'x'.repeat(4097)}`)).status).toBe(400);
   });
 });
