@@ -19,6 +19,10 @@ export function catalogueHref(searchParams: URLSearchParams, category: string) {
   return `/episodes${params ? `?${params}` : ''}`;
 }
 
+export function categoriesWithEpisodes(categories: PublicCategory[], episodes: PublicEpisodeSummary[]) {
+  return categories.filter((category) => episodes.some((episode) => episode.category === category.id));
+}
+
 export function filterEpisodes(episodes: PublicEpisodeSummary[], category: string, query: string) {
   const search = query.trim().toLocaleLowerCase();
   return episodes.filter(
