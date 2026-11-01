@@ -56,12 +56,16 @@ test('SSR catalogue data continues to resolve route metadata after revalidation 
     if (!populated) throw new Error('Local catalogue fixture needs a published episode');
     await expect(page.locator('.library-message[role="alert"]')).toBeVisible();
     const nav = page.getByRole('navigation', { name: '播客栏目' });
-    for (const [category, robots] of [
-      [populated, 'index, follow'],
-      [empty, 'noindex, follow'],
-      [populated, 'index, follow'],
-    ] as const) {
-      await nav.getByRole('link', { name: category.name, exact: true }).click();
+    for (const [category, robots, navigate] of [
+      [populated, 'index, follow', 'nav'] as const,
+      [empty, 'noindex, follow', 'url'] as const,
+      [populated, 'index, follow', 'nav'] as const,
+    ]) {
+      if (navigate === 'nav') {
+        await nav.getByRole('link', { name: category.name, exact: true }).click();
+      } else {
+        await page.goto(`/episodes?category=${category.id}&theme=stillwood`);
+      }
       await expect(page.getByRole('heading', { level: 1 })).toHaveText(category.name);
       await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', robots);
       await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
@@ -116,10 +120,7 @@ for (const width of [390, 1440]) {
       'aria-current',
       'page',
     );
-    await expect(nav.getByRole('link', { name: '尚未开播的栏目' })).toHaveAttribute(
-      'href',
-      '/episodes?category=empty&theme=stillwood',
-    );
+    await expect(nav.getByRole('link', { name: '尚未开播的栏目' })).toHaveCount(0);
     await expect(page.getByRole('link', { name: '订阅栏目 RSS' })).toHaveAttribute(
       'href',
       '/feeds/learning.xml',
@@ -129,7 +130,7 @@ for (const width of [390, 1440]) {
     await expect(page.locator('.episode-card')).toHaveCount(0);
     await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', 'index, follow');
     await page.getByRole('searchbox', { name: '搜索播客' }).clear();
-    await nav.getByRole('link', { name: '尚未开播的栏目' }).click();
+    await page.goto('/episodes?category=empty&theme=stillwood');
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('尚未开播的栏目');
     await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', 'noindex, follow');
     await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(

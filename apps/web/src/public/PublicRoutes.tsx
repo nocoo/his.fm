@@ -38,6 +38,7 @@ import {
   catalogueCategoryFromSearch,
   catalogueHref,
   catalogueSearchParamsForCategory,
+  categoriesWithEpisodes,
   dateLabel,
   durationLabel,
   episodeDisplayLabel,
@@ -286,12 +287,10 @@ function ProgrammeGroup({
 
 function ProgrammeSections() {
   const { episodes, categories } = useLibrary();
-  const groups = categories
-    .map((category) => ({
-      category,
-      episodes: episodes.filter((episode) => episode.category === category.id),
-    }))
-    .filter((group) => group.episodes.length > 0);
+  const groups = categoriesWithEpisodes(categories, episodes).map((category) => ({
+    category,
+    episodes: episodes.filter((episode) => episode.category === category.id),
+  }));
   return (
     <>
       {groups.map((group, index) => (
@@ -494,7 +493,7 @@ function Catalogue() {
           >
             全部 <span>{episodes.length.toString().padStart(2, '0')}</span>
           </Link>
-          {categories.map((item) => (
+          {categoriesWithEpisodes(categories, episodes).map((item) => (
             <Link
               key={item.id}
               to={catalogueHref(searchParams, item.id)}
@@ -758,12 +757,10 @@ function About() {
   const { episodes, categories } = useLibrary();
   const site = usePublicSiteSeo();
   const origin = usePublicOrigin();
-  const active = categories
-    .map((category) => ({
-      category,
-      episodes: episodes.filter((episode) => episode.category === category.id),
-    }))
-    .filter((group) => group.episodes.length > 0);
+  const active = categoriesWithEpisodes(categories, episodes).map((category) => ({
+    category,
+    episodes: episodes.filter((episode) => episode.category === category.id),
+  }));
   const durations = episodes.map((episode) => episode.durationSeconds).filter((value) => value > 0);
   const minutes = durations.length ? durations.map((value) => Math.round(value / 60)) : [];
   const latest = episodes[0];

@@ -2,6 +2,12 @@
 
 All notable changes to his.fm are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions use the owner’s patch-only deployment policy in `AGENTS.md`, with the authoritative version in `package.json`.
 
+## 2.11.12 - 2026-11-01
+
+### Changed
+
+- Public catalogue category filter chips now list only programmes with at least one published episode. Deep links to empty programmes still render the existing empty state and SEO rules.
+
 ## 2.11.11 - 2026-10-31
 
 ### Removed

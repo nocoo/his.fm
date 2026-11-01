@@ -4,6 +4,7 @@ import {
   catalogueCategoryFromSearch,
   catalogueHref,
   catalogueSearchParamsForCategory,
+  categoriesWithEpisodes,
   categoryLabel,
   dateLabel,
   durationLabel,
@@ -144,6 +145,19 @@ describe('listening room', () => {
       'category=manager-notes&q=1',
     );
     expect(catalogueSearchParamsForCategory(params, 'all').toString()).toBe('q=1');
+  });
+  it('lists only categories that have at least one published episode in the library', () => {
+    const categories = [
+      { id: 'manager-notes', name: '主理人手札', icon: 'briefcase-business', color: 'blue', seo: {} },
+      { id: 'life', name: '生活留白', icon: 'leaf', color: 'teal', seo: {} },
+      { id: 'conversations', name: '对谈', icon: 'messages-square', color: 'violet', seo: {} },
+    ] as const;
+    expect(categoriesWithEpisodes([...categories], summaries).map((item) => item.id)).toEqual([
+      'manager-notes',
+      'life',
+    ]);
+    expect(categoriesWithEpisodes([...categories], [])).toEqual([]);
+    expect(categoriesWithEpisodes([], summaries)).toEqual([]);
   });
   it('formats dates consistently in Shanghai and represents unfinished media honestly', () => {
     expect(dateLabel('2026-09-24T22:00:00Z')).toBe('2026.09.25');
