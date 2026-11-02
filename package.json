@@ -1,6 +1,6 @@
 {
   "name": "his-fm",
-  "version": "2.11.12",
+  "version": "2.11.13",
   "license": "MIT",
   "private": true,
   "type": "module",
@@ -30,7 +30,8 @@
     "prepare": "husky"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.6.2",
+    "@biomejs/biome": "2.6.4",
+    "@takumi-rs/wasm": "2.19.0",
     "husky": "9.1.7"
   },
   "overrides": {
