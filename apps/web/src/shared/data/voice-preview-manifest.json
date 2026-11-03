@@ -493,5 +493,44 @@
     "durationSeconds": 98.568,
     "objectKey": "reference/voices/mai-2.1-zh-CN-Mei.mp3",
     "gender": "female"
+  },
+  {
+    "provider": "doubao",
+    "voiceName": "大义",
+    "voiceId": "zh_male_dayi_uranus_bigtts",
+    "style": "male, 沉稳, 播讲",
+    "durationSeconds": 91.608,
+    "objectKey": "reference/voices/doubao-dayi.mp3",
+    "gender": "male",
+    "model": "Seed-TTS 2.0"
+  },
+  {
+    "provider": "doubao",
+    "voiceName": "刘飞",
+    "voiceId": "zh_male_liufei_uranus_bigtts",
+    "style": "male, 平实, 播讲",
+    "durationSeconds": 85.728,
+    "objectKey": "reference/voices/doubao-liufei.mp3",
+    "gender": "male",
+    "model": "Seed-TTS 2.0"
+  },
+  {
+    "provider": "doubao",
+    "voiceName": "爽快思思",
+    "voiceId": "zh_female_shuangkuaisisi_uranus_bigtts",
+    "style": "female, 爽快, 播讲",
+    "durationSeconds": 90.288,
+    "objectKey": "reference/voices/doubao-shuangkuaisisi.mp3",
+    "gender": "female",
+    "model": "Seed-TTS 2.0"
+  },
+  {
+    "provider": "fish",
+    "voiceName": "李征（本地克隆）",
+    "voiceId": "lizheng.wav sha256:24872a8a506d423944ca6a105b2590724570d0c3c556714e147b7087694fc3f8",
+    "style": "male, 参考音克隆, 播讲",
+    "durationSeconds": 86.856,
+    "objectKey": "reference/voices/fish-drama3-lizheng.mp3",
+    "gender": "male"
   }
 ]
