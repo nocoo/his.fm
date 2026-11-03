@@ -50,8 +50,8 @@ Current providers:
 | `gemini` | Gemini | 3.8 Flash TTS | 30 |
 | `elevenlabs` | ElevenLabs | Eleven v3 | 20 |
 | `mai` | MAI Voice | MAI-Voice-2.1 | 5 |
-| `doubao` | 豆包 | 豆包 语音合成 | 0 (reserved) |
-| `fish` | Fish Audio | Drama 3 | 0 (reserved) |
+| `doubao` | 豆包 | Seed-TTS 2.0 | 3 |
+| `fish` | Fish Audio | Drama 3 | 1 |
 
 ### Manifest and transcript
 

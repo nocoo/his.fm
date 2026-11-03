@@ -53,16 +53,16 @@ describe('voice preview registry and manifest', () => {
 });
 
 describe('voice preview catalog', () => {
-  it('lists all 55 real MP3 samples, including only high-fidelity MAI 2.1', () => {
-    expect(voicePreviewEntries).toHaveLength(55);
+  it('lists all 59 real MP3 samples, including only high-fidelity MAI 2.1', () => {
+    expect(voicePreviewEntries).toHaveLength(59);
     expect(voicePreviewResults(catalog, all).providerCounts).toEqual({
       gemini: 30,
       elevenlabs: 20,
       mai: 5,
-      doubao: 0,
-      fish: 0,
+      doubao: 3,
+      fish: 1,
     });
-    expect(new Set(catalog.map((entry) => entry.objectKey)).size).toBe(55);
+    expect(new Set(catalog.map((entry) => entry.objectKey)).size).toBe(59);
     expect(
       catalog.filter((entry) => entry.provider === 'mai').map((entry) => [entry.voiceName, entry.gender]),
     ).toEqual([
@@ -84,6 +84,8 @@ describe('voice preview catalog', () => {
     expect(voiceProviderInfo.gemini.model).toBe('3.8 Flash TTS');
     expect(voiceProviderInfo.elevenlabs.model).toBe('Eleven v3');
     expect(voiceProviderInfo.mai.model).toBe('MAI-Voice-2.1');
+    expect(voiceProviderInfo.doubao.model).toBe('Seed-TTS 2.0');
+    expect(voiceProviderInfo.fish.model).toBe('Drama 3');
   });
 
   it('interleaves alphabetized provider catalogs without empty cards or mutating the manifest', () => {
@@ -92,11 +94,11 @@ describe('voice preview catalog', () => {
       'Achernar',
       'Alice',
       'Bo',
+      '刘飞',
+      '李征（本地克隆）',
       'Achird',
-      'Aria',
-      'Grant',
     ]);
-    expect(catalog).toHaveLength(55);
+    expect(catalog).toHaveLength(59);
     expect(voicePreviewCatalog()).toEqual(catalog);
     expect(voicePreviewEntries).toEqual(before);
     expect(voicePreviewCatalog([])).toEqual([]);
@@ -194,6 +196,8 @@ describe('voice preview catalog', () => {
     ['zh-CN-Mei:MAI-Voice-2.1', 'Mei'],
     ['中文', 'Bo'],
     ['高保真', 'Harper'],
+    ['Seed-TTS 2.0', '刘飞'],
+    ['Drama 3', '李征（本地克隆）'],
   ])('searches all displayed metadata: %s', (query, voiceName) => {
     expect(
       voicePreviewResults(catalog, { ...all, query }).filtered.some((entry) => entry.voiceName === voiceName),

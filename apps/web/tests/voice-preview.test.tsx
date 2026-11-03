@@ -42,11 +42,13 @@ describe('admin voice preview', () => {
     vi.unstubAllGlobals();
   });
 
-  it('renders all 55 compact cards with accurate tags/models and collapsed disclosures', async () => {
+  it('renders all 59 compact cards with accurate tags/models and collapsed disclosures', async () => {
     await act(async () => root.render(<VoicePreviewContent />));
-    expect(container.querySelectorAll('.appearance-voice-card')).toHaveLength(55);
-    expect(container.querySelectorAll('.appearance-voice-card audio')).toHaveLength(55);
+    expect(container.querySelectorAll('.appearance-voice-card')).toHaveLength(59);
+    expect(container.querySelectorAll('.appearance-voice-card audio')).toHaveLength(59);
     expect(container.querySelectorAll('.appearance-voice-card[data-provider="mai"]')).toHaveLength(5);
+    expect(container.querySelectorAll('.appearance-voice-card[data-provider="doubao"]')).toHaveLength(3);
+    expect(container.querySelectorAll('.appearance-voice-card[data-provider="fish"]')).toHaveLength(1);
     expect(container.querySelector('[data-voice="River"]')?.getAttribute('data-gender')).toBe('non-binary');
     expect(container.querySelector('[data-voice="Bo"] .voice-sample-tags')?.textContent).toBe(
       '男声中文高保真',
@@ -58,6 +60,12 @@ describe('admin voice preview', () => {
     expect(container.querySelector('[data-voice="Mei"] .voice-model-label')?.textContent).toBe(
       'MAI-Voice-2.1',
     );
+    expect(container.querySelector('[data-voice="刘飞"] .voice-model-label')?.textContent).toBe(
+      'Seed-TTS 2.0',
+    );
+    expect(container.querySelector('[data-voice="李征（本地克隆）"] .voice-model-label')?.textContent).toBe(
+      'Drama 3',
+    );
     expect(
       container.querySelectorAll('.voice-provider-icon[data-provider="mai"] .voice-microsoft-mark'),
     ).not.toHaveLength(0);
@@ -68,8 +76,7 @@ describe('admin voice preview', () => {
     expect(container.textContent).not.toContain('准备好，慢慢听');
     expect(container.textContent).not.toContain('待生成');
     expect(container.querySelectorAll('[role="combobox"]')).toHaveLength(2);
-    expect(container.textContent).not.toContain('豆包');
-    expect(container.textContent).not.toContain('Fish Audio');
+    expect(container.querySelectorAll('[role="radiogroup"][aria-label="按厂商筛选"] button')).toHaveLength(6);
     expect(fetchSample).toHaveBeenCalledWith(expect.stringContaining('https://f.no.mt/reference/voices/'), {
       method: 'HEAD',
       mode: 'cors',
@@ -80,7 +87,7 @@ describe('admin voice preview', () => {
     expect(scriptButton?.getAttribute('aria-expanded')).toBe('true');
     expect(container.querySelector('.voice-script-body')?.textContent).toBe(voicePreviewSampleScript);
     await act(async () => container.querySelector<HTMLButtonElement>('[role="switch"]')?.click());
-    expect(container.querySelectorAll('.voice-technical')).toHaveLength(55);
+    expect(container.querySelectorAll('.voice-technical')).toHaveLength(59);
     expect(container.querySelector('[data-voice="Bo"] .voice-technical')?.textContent).toContain(
       'zh-CN-Bo:MAI-Voice-2.1',
     );
@@ -119,7 +126,7 @@ describe('admin voice preview', () => {
       (button) => button.textContent === '清除筛选',
     );
     await act(async () => clear?.click());
-    expect(container.querySelectorAll('.appearance-voice-card')).toHaveLength(55);
+    expect(container.querySelectorAll('.appearance-voice-card')).toHaveLength(59);
   });
 
   it('distinguishes checking, missing and failed probes, and retries without enabling missing audio', async () => {
