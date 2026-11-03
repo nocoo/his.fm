@@ -22,8 +22,9 @@ import {
   voicePreviewMediaUrl,
   voicePreviewResults,
   voicePreviewSampleScript,
+  voicePreviewTraitClass,
   voiceProviderInfo,
-  voiceProviders,
+  voiceProvidersWithSamples,
 } from '../../shared/voice-samples';
 import { ProviderMark } from './ProviderMark';
 import { useReferenceSample } from './useReferenceSample';
@@ -48,7 +49,7 @@ function VoiceSampleCard({ entry, technical }: { entry: VoicePreviewVoice; techn
             <ProviderMark provider={entry.provider} />
             {info.name}
           </span>
-          <span className="voice-model-label">{info.model}</span>
+          <span className="voice-model-label">{entry.model ?? info.model}</span>
         </div>
       </div>
       <div className="voice-sample-meta">
@@ -57,11 +58,7 @@ function VoiceSampleCard({ entry, technical }: { entry: VoicePreviewVoice; techn
             {voiceGenderLabels[entry.gender]}
           </Badge>
           {entry.traits.map((trait, index) => (
-            <Badge
-              key={trait}
-              variant={null}
-              className={`voice-tag ${entry.provider !== 'gemini' && index === 0 ? 'voice-locale-tag' : 'voice-style-tag'}`}
-            >
+            <Badge key={trait} variant={null} className={`voice-tag ${voicePreviewTraitClass(entry, index)}`}>
               {trait}
             </Badge>
           ))}
@@ -110,6 +107,7 @@ export function VoicePreviewContent() {
   const [scriptOpen, setScriptOpen] = useState(false);
   const [technical, setTechnical] = useState(false);
   const { filtered, matchingCount, providerCounts, genderOptions } = voicePreviewResults(catalog, filters);
+  const filterProviders = voiceProvidersWithSamples(providerCounts);
 
   function selectProvider(provider: string) {
     if (provider) setFilters((current) => ({ ...current, provider: provider as VoiceProvider | 'all' }));
@@ -164,7 +162,7 @@ export function VoicePreviewContent() {
             <ToggleGroupItem value="all">
               全部 <span className="voice-filter-count">{catalog.length}</span>
             </ToggleGroupItem>
-            {voiceProviders.map((provider) => (
+            {filterProviders.map((provider) => (
               <ToggleGroupItem key={provider} value={provider}>
                 <ProviderMark provider={provider} />
                 {voiceProviderInfo[provider].name}
@@ -197,7 +195,7 @@ export function VoicePreviewContent() {
             </SelectTrigger>
             <SelectContent className="voice-preview-options">
               <SelectItem value="all">全部厂商 · {catalog.length}</SelectItem>
-              {voiceProviders.map((provider) => (
+              {filterProviders.map((provider) => (
                 <SelectItem key={provider} value={provider}>
                   <span className="voice-filter-option">
                     <ProviderMark provider={provider} />

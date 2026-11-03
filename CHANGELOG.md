@@ -2,6 +2,12 @@
 
 All notable changes to his.fm are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions use the owner’s patch-only deployment policy in `AGENTS.md`, with the authoritative version in `package.json`.
 
+## 2.11.14 - 2026-11-03
+
+### Changed
+
+- Refactor studio **音色预览** into a data-driven provider registry plus manifest rows: register Gemini, ElevenLabs, MAI, 豆包 and Fish Audio (reserved empty providers stay out of filters), store explicit `gender` on each sample, and document how to add providers or voices without UI changes.
+
 ## 2.11.12 - 2026-11-01
 
 ### Changed
