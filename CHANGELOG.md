@@ -2,6 +2,12 @@
 
 All notable changes to his.fm are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions use the owner’s patch-only deployment policy in `AGENTS.md`, with the authoritative version in `package.json`.
 
+## 2.11.15 - 2026-11-03
+
+### Added
+
+- Register three 豆包 Seed-TTS 2.0 and one Fish Audio Drama 3 reference-clone voice previews in the studio catalogue manifest (59 samples total), with updated provider copy and documentation.
+
 ## 2.11.14 - 2026-11-03
 
 ### Changed
