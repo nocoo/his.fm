@@ -68,6 +68,8 @@ describe('admin voice preview', () => {
     expect(container.textContent).not.toContain('准备好，慢慢听');
     expect(container.textContent).not.toContain('待生成');
     expect(container.querySelectorAll('[role="combobox"]')).toHaveLength(2);
+    expect(container.textContent).not.toContain('豆包');
+    expect(container.textContent).not.toContain('Fish Audio');
     expect(fetchSample).toHaveBeenCalledWith(expect.stringContaining('https://f.no.mt/reference/voices/'), {
       method: 'HEAD',
       mode: 'cors',

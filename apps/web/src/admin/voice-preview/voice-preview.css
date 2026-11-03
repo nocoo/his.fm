@@ -244,6 +244,15 @@
 .voice-microsoft-mark i:nth-child(4) {
   background: var(--voice-ms-yellow);
 }
+.voice-provider-initials {
+  color: var(--voice-on-color);
+  font-size: 10px;
+  font-weight: 650;
+  line-height: 1;
+}
+.voice-provider-initials span {
+  transform: translateY(0.5px);
+}
 .voice-model-label {
   color: var(--voice-muted);
   font-size: 11px;

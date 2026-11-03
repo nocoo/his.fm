@@ -5,7 +5,8 @@
     "voiceId": "Xb7hH8MSUJpSbSDYk0k2",
     "style": "female, British, confident",
     "durationSeconds": 123.84,
-    "objectKey": "reference/voices/elevenlabs-Alice.mp3"
+    "objectKey": "reference/voices/elevenlabs-Alice.mp3",
+    "gender": "female"
   },
   {
     "provider": "elevenlabs",
@@ -13,7 +14,8 @@
     "voiceId": "9BWtsMINqrJLrRacOk9x",
     "style": "female, American, expressive",
     "durationSeconds": 97.28,
-    "objectKey": "reference/voices/elevenlabs-Aria.mp3"
+    "objectKey": "reference/voices/elevenlabs-Aria.mp3",
+    "gender": "female"
   },
   {
     "provider": "elevenlabs",
@@ -21,7 +23,8 @@
     "voiceId": "pqHfZKP75CvOlQylNhV4",
     "style": "male, American, trustworthy",
     "durationSeconds": 122.72,
-    "objectKey": "reference/voices/elevenlabs-Bill.mp3"
+    "objectKey": "reference/voices/elevenlabs-Bill.mp3",
+    "gender": "male"
   },
   {
     "provider": "elevenlabs",
@@ -29,7 +32,8 @@
     "voiceId": "nPczCjzI2devNBz1zQrb",
     "style": "male, American, deep",
     "durationSeconds": 100.16,
-    "objectKey": "reference/voices/elevenlabs-Brian.mp3"
+    "objectKey": "reference/voices/elevenlabs-Brian.mp3",
+    "gender": "male"
   },
   {
     "provider": "elevenlabs",
@@ -37,7 +41,8 @@
     "voiceId": "N2lVS1w4EtoT3dr4eOWO",
     "style": "male, transatlantic, intense",
     "durationSeconds": 116.48,
-    "objectKey": "reference/voices/elevenlabs-Callum.mp3"
+    "objectKey": "reference/voices/elevenlabs-Callum.mp3",
+    "gender": "male"
   },
   {
     "provider": "elevenlabs",
@@ -45,7 +50,8 @@
     "voiceId": "IKne3meq5aSn9XLyUdCD",
     "style": "male, Australian, natural",
     "durationSeconds": 99.84,
-    "objectKey": "reference/voices/elevenlabs-Charlie.mp3"
+    "objectKey": "reference/voices/elevenlabs-Charlie.mp3",
+    "gender": "male"
   },
   {
     "provider": "elevenlabs",
@@ -53,7 +59,8 @@
     "voiceId": "XB0fDUnXU5powFXDhCwa",
     "style": "female, Swedish, seductive",
     "durationSeconds": 118.96,
-    "objectKey": "reference/voices/elevenlabs-Charlotte.mp3"
+    "objectKey": "reference/voices/elevenlabs-Charlotte.mp3",
+    "gender": "female"
   },
   {
     "provider": "elevenlabs",
@@ -61,7 +68,8 @@
     "voiceId": "iP95p4xoKVk53GoZ742B",
     "style": "male, American, casual",
     "durationSeconds": 109.76,
-    "objectKey": "reference/voices/elevenlabs-Chris.mp3"
+    "objectKey": "reference/voices/elevenlabs-Chris.mp3",
+    "gender": "male"
   },
   {
     "provider": "elevenlabs",
@@ -69,7 +77,8 @@
     "voiceId": "onwK4e9ZLuTAKqWW03F9",
     "style": "male, British, authoritative",
     "durationSeconds": 113.76,
-    "objectKey": "reference/voices/elevenlabs-Daniel.mp3"
+    "objectKey": "reference/voices/elevenlabs-Daniel.mp3",
+    "gender": "male"
   },
   {
     "provider": "elevenlabs",
@@ -77,7 +86,8 @@
     "voiceId": "cjVigY5qzO86Huf0OWal",
     "style": "male, American, friendly",
     "durationSeconds": 98.56,
-    "objectKey": "reference/voices/elevenlabs-Eric.mp3"
+    "objectKey": "reference/voices/elevenlabs-Eric.mp3",
+    "gender": "male"
   },
   {
     "provider": "elevenlabs",
@@ -85,7 +95,8 @@
     "voiceId": "JBFqnCBsd6RMkjVDRZzb",
     "style": "male, British, warm storyteller",
     "durationSeconds": 123.92,
-    "objectKey": "reference/voices/elevenlabs-George.mp3"
+    "objectKey": "reference/voices/elevenlabs-George.mp3",
+    "gender": "male"
   },
   {
     "provider": "elevenlabs",
@@ -93,7 +104,8 @@
     "voiceId": "cgSgspJ2msm6clMCkdW9",
     "style": "female, American, expressive",
     "durationSeconds": 117.2,
-    "objectKey": "reference/voices/elevenlabs-Jessica.mp3"
+    "objectKey": "reference/voices/elevenlabs-Jessica.mp3",
+    "gender": "female"
   },
   {
     "provider": "elevenlabs",
@@ -101,7 +113,8 @@
     "voiceId": "FGY2WhTYpPnrIDTdsKH5",
     "style": "female, American, upbeat",
     "durationSeconds": 122,
-    "objectKey": "reference/voices/elevenlabs-Laura.mp3"
+    "objectKey": "reference/voices/elevenlabs-Laura.mp3",
+    "gender": "female"
   },
   {
     "provider": "elevenlabs",
@@ -109,7 +122,8 @@
     "voiceId": "TX3LPaxmHKxFdv7VOQHJ",
     "style": "male, American, articulate",
     "durationSeconds": 85.84,
-    "objectKey": "reference/voices/elevenlabs-Liam.mp3"
+    "objectKey": "reference/voices/elevenlabs-Liam.mp3",
+    "gender": "male"
   },
   {
     "provider": "elevenlabs",
@@ -117,7 +131,8 @@
     "voiceId": "pFZP5JQG7iQjIQuC4Bku",
     "style": "female, British, warm",
     "durationSeconds": 115.12,
-    "objectKey": "reference/voices/elevenlabs-Lily.mp3"
+    "objectKey": "reference/voices/elevenlabs-Lily.mp3",
+    "gender": "female"
   },
   {
     "provider": "elevenlabs",
@@ -125,7 +140,8 @@
     "voiceId": "XrExE9yKIg1WjnnlVkGX",
     "style": "female, American, friendly",
     "durationSeconds": 127.52,
-    "objectKey": "reference/voices/elevenlabs-Matilda.mp3"
+    "objectKey": "reference/voices/elevenlabs-Matilda.mp3",
+    "gender": "female"
   },
   {
     "provider": "elevenlabs",
@@ -133,7 +149,8 @@
     "voiceId": "SAz9YHcvj6GT2YYXdXww",
     "style": "non-binary, American, calm",
     "durationSeconds": 118.64,
-    "objectKey": "reference/voices/elevenlabs-River.mp3"
+    "objectKey": "reference/voices/elevenlabs-River.mp3",
+    "gender": "non-binary"
   },
   {
     "provider": "elevenlabs",
@@ -141,7 +158,8 @@
     "voiceId": "CwhRBWXzGAHq8TQ4Fs17",
     "style": "male, American, confident",
     "durationSeconds": 96.16,
-    "objectKey": "reference/voices/elevenlabs-Roger.mp3"
+    "objectKey": "reference/voices/elevenlabs-Roger.mp3",
+    "gender": "male"
   },
   {
     "provider": "elevenlabs",
@@ -149,7 +167,8 @@
     "voiceId": "EXAVITQu4vr4xnSDxMaL",
     "style": "female, American, soft news",
     "durationSeconds": 123.92,
-    "objectKey": "reference/voices/elevenlabs-Sarah.mp3"
+    "objectKey": "reference/voices/elevenlabs-Sarah.mp3",
+    "gender": "female"
   },
   {
     "provider": "elevenlabs",
@@ -157,7 +176,8 @@
     "voiceId": "bIHbv24MWmeRgasZH58o",
     "style": "male, American, friendly",
     "durationSeconds": 112.24,
-    "objectKey": "reference/voices/elevenlabs-Will.mp3"
+    "objectKey": "reference/voices/elevenlabs-Will.mp3",
+    "gender": "male"
   },
   {
     "provider": "gemini",
@@ -165,7 +185,8 @@
     "voiceId": "Achernar",
     "style": "Soft",
     "durationSeconds": 90.48,
-    "objectKey": "reference/voices/gemini-Achernar.mp3"
+    "objectKey": "reference/voices/gemini-Achernar.mp3",
+    "gender": "female"
   },
   {
     "provider": "gemini",
@@ -173,7 +194,8 @@
     "voiceId": "Achird",
     "style": "Friendly",
     "durationSeconds": 73.2,
-    "objectKey": "reference/voices/gemini-Achird.mp3"
+    "objectKey": "reference/voices/gemini-Achird.mp3",
+    "gender": "male"
   },
   {
     "provider": "gemini",
@@ -181,7 +203,8 @@
     "voiceId": "Algenib",
     "style": "Gravelly",
     "durationSeconds": 84.04,
-    "objectKey": "reference/voices/gemini-Algenib.mp3"
+    "objectKey": "reference/voices/gemini-Algenib.mp3",
+    "gender": "male"
   },
   {
     "provider": "gemini",
@@ -189,7 +212,8 @@
     "voiceId": "Algieba",
     "style": "Smooth",
     "durationSeconds": 90.32,
-    "objectKey": "reference/voices/gemini-Algieba.mp3"
+    "objectKey": "reference/voices/gemini-Algieba.mp3",
+    "gender": "male"
   },
   {
     "provider": "gemini",
@@ -197,7 +221,8 @@
     "voiceId": "Alnilam",
     "style": "Firm",
     "durationSeconds": 87.16,
-    "objectKey": "reference/voices/gemini-Alnilam.mp3"
+    "objectKey": "reference/voices/gemini-Alnilam.mp3",
+    "gender": "male"
   },
   {
     "provider": "gemini",
@@ -205,7 +230,8 @@
     "voiceId": "Aoede",
     "style": "Breezy",
     "durationSeconds": 85.24,
-    "objectKey": "reference/voices/gemini-Aoede.mp3"
+    "objectKey": "reference/voices/gemini-Aoede.mp3",
+    "gender": "female"
   },
   {
     "provider": "gemini",
@@ -213,7 +239,8 @@
     "voiceId": "Autonoe",
     "style": "Bright",
     "durationSeconds": 88.56,
-    "objectKey": "reference/voices/gemini-Autonoe.mp3"
+    "objectKey": "reference/voices/gemini-Autonoe.mp3",
+    "gender": "female"
   },
   {
     "provider": "gemini",
@@ -221,7 +248,8 @@
     "voiceId": "Callirrhoe",
     "style": "Easy-going",
     "durationSeconds": 93.04,
-    "objectKey": "reference/voices/gemini-Callirrhoe.mp3"
+    "objectKey": "reference/voices/gemini-Callirrhoe.mp3",
+    "gender": "female"
   },
   {
     "provider": "gemini",
@@ -229,7 +257,8 @@
     "voiceId": "Charon",
     "style": "Informative",
     "durationSeconds": 80.32,
-    "objectKey": "reference/voices/gemini-Charon.mp3"
+    "objectKey": "reference/voices/gemini-Charon.mp3",
+    "gender": "male"
   },
   {
     "provider": "gemini",
@@ -237,7 +266,8 @@
     "voiceId": "Despina",
     "style": "Smooth",
     "durationSeconds": 87.72,
-    "objectKey": "reference/voices/gemini-Despina.mp3"
+    "objectKey": "reference/voices/gemini-Despina.mp3",
+    "gender": "female"
   },
   {
     "provider": "gemini",
@@ -245,7 +275,8 @@
     "voiceId": "Enceladus",
     "style": "Breathy",
     "durationSeconds": 88.04,
-    "objectKey": "reference/voices/gemini-Enceladus.mp3"
+    "objectKey": "reference/voices/gemini-Enceladus.mp3",
+    "gender": "male"
   },
   {
     "provider": "gemini",
@@ -253,7 +284,8 @@
     "voiceId": "Erinome",
     "style": "Clear",
     "durationSeconds": 92.52,
-    "objectKey": "reference/voices/gemini-Erinome.mp3"
+    "objectKey": "reference/voices/gemini-Erinome.mp3",
+    "gender": "female"
   },
   {
     "provider": "gemini",
@@ -261,7 +293,8 @@
     "voiceId": "Fenrir",
     "style": "Excitable",
     "durationSeconds": 80.92,
-    "objectKey": "reference/voices/gemini-Fenrir.mp3"
+    "objectKey": "reference/voices/gemini-Fenrir.mp3",
+    "gender": "male"
   },
   {
     "provider": "gemini",
@@ -269,7 +302,8 @@
     "voiceId": "Gacrux",
     "style": "Mature",
     "durationSeconds": 92.12,
-    "objectKey": "reference/voices/gemini-Gacrux.mp3"
+    "objectKey": "reference/voices/gemini-Gacrux.mp3",
+    "gender": "female"
   },
   {
     "provider": "gemini",
@@ -277,7 +311,8 @@
     "voiceId": "Iapetus",
     "style": "Clear",
     "durationSeconds": 80.92,
-    "objectKey": "reference/voices/gemini-Iapetus.mp3"
+    "objectKey": "reference/voices/gemini-Iapetus.mp3",
+    "gender": "male"
   },
   {
     "provider": "gemini",
@@ -285,7 +320,8 @@
     "voiceId": "Kore",
     "style": "Firm",
     "durationSeconds": 90.6,
-    "objectKey": "reference/voices/gemini-Kore.mp3"
+    "objectKey": "reference/voices/gemini-Kore.mp3",
+    "gender": "female"
   },
   {
     "provider": "gemini",
@@ -293,7 +329,8 @@
     "voiceId": "Laomedeia",
     "style": "Upbeat",
     "durationSeconds": 92.52,
-    "objectKey": "reference/voices/gemini-Laomedeia.mp3"
+    "objectKey": "reference/voices/gemini-Laomedeia.mp3",
+    "gender": "female"
   },
   {
     "provider": "gemini",
@@ -301,7 +338,8 @@
     "voiceId": "Leda",
     "style": "Youthful",
     "durationSeconds": 90.16,
-    "objectKey": "reference/voices/gemini-Leda.mp3"
+    "objectKey": "reference/voices/gemini-Leda.mp3",
+    "gender": "female"
   },
   {
     "provider": "gemini",
@@ -309,7 +347,8 @@
     "voiceId": "Orus",
     "style": "Firm",
     "durationSeconds": 78,
-    "objectKey": "reference/voices/gemini-Orus.mp3"
+    "objectKey": "reference/voices/gemini-Orus.mp3",
+    "gender": "male"
   },
   {
     "provider": "gemini",
@@ -317,7 +356,8 @@
     "voiceId": "Puck",
     "style": "Upbeat",
     "durationSeconds": 82.48,
-    "objectKey": "reference/voices/gemini-Puck.mp3"
+    "objectKey": "reference/voices/gemini-Puck.mp3",
+    "gender": "male"
   },
   {
     "provider": "gemini",
@@ -325,7 +365,8 @@
     "voiceId": "Pulcherrima",
     "style": "Forward",
     "durationSeconds": 84.16,
-    "objectKey": "reference/voices/gemini-Pulcherrima.mp3"
+    "objectKey": "reference/voices/gemini-Pulcherrima.mp3",
+    "gender": "female"
   },
   {
     "provider": "gemini",
@@ -333,7 +374,8 @@
     "voiceId": "Rasalgethi",
     "style": "Informative",
     "durationSeconds": 81.96,
-    "objectKey": "reference/voices/gemini-Rasalgethi.mp3"
+    "objectKey": "reference/voices/gemini-Rasalgethi.mp3",
+    "gender": "male"
   },
   {
     "provider": "gemini",
@@ -341,7 +383,8 @@
     "voiceId": "Sadachbia",
     "style": "Lively",
     "durationSeconds": 81.32,
-    "objectKey": "reference/voices/gemini-Sadachbia.mp3"
+    "objectKey": "reference/voices/gemini-Sadachbia.mp3",
+    "gender": "male"
   },
   {
     "provider": "gemini",
@@ -349,7 +392,8 @@
     "voiceId": "Sadaltager",
     "style": "Knowledgeable",
     "durationSeconds": 88.04,
-    "objectKey": "reference/voices/gemini-Sadaltager.mp3"
+    "objectKey": "reference/voices/gemini-Sadaltager.mp3",
+    "gender": "male"
   },
   {
     "provider": "gemini",
@@ -357,7 +401,8 @@
     "voiceId": "Schedar",
     "style": "Even",
     "durationSeconds": 78.2,
-    "objectKey": "reference/voices/gemini-Schedar.mp3"
+    "objectKey": "reference/voices/gemini-Schedar.mp3",
+    "gender": "male"
   },
   {
     "provider": "gemini",
@@ -365,7 +410,8 @@
     "voiceId": "Sulafat",
     "style": "Warm",
     "durationSeconds": 85.88,
-    "objectKey": "reference/voices/gemini-Sulafat.mp3"
+    "objectKey": "reference/voices/gemini-Sulafat.mp3",
+    "gender": "female"
   },
   {
     "provider": "gemini",
@@ -373,7 +419,8 @@
     "voiceId": "Umbriel",
     "style": "Easy-going",
     "durationSeconds": 80.68,
-    "objectKey": "reference/voices/gemini-Umbriel.mp3"
+    "objectKey": "reference/voices/gemini-Umbriel.mp3",
+    "gender": "male"
   },
   {
     "provider": "gemini",
@@ -381,7 +428,8 @@
     "voiceId": "Vindemiatrix",
     "style": "Gentle",
     "durationSeconds": 84.28,
-    "objectKey": "reference/voices/gemini-Vindemiatrix.mp3"
+    "objectKey": "reference/voices/gemini-Vindemiatrix.mp3",
+    "gender": "female"
   },
   {
     "provider": "gemini",
@@ -389,7 +437,8 @@
     "voiceId": "Zephyr",
     "style": "Bright",
     "durationSeconds": 92,
-    "objectKey": "reference/voices/gemini-Zephyr.mp3"
+    "objectKey": "reference/voices/gemini-Zephyr.mp3",
+    "gender": "female"
   },
   {
     "provider": "gemini",
@@ -397,7 +446,8 @@
     "voiceId": "Zubenelgenubi",
     "style": "Casual",
     "durationSeconds": 85.12,
-    "objectKey": "reference/voices/gemini-Zubenelgenubi.mp3"
+    "objectKey": "reference/voices/gemini-Zubenelgenubi.mp3",
+    "gender": "male"
   },
   {
     "provider": "mai",
@@ -405,7 +455,8 @@
     "voiceId": "zh-CN-Bo:MAI-Voice-2.1",
     "style": "male",
     "durationSeconds": 97.248,
-    "objectKey": "reference/voices/mai-2.1-zh-CN-Bo.mp3"
+    "objectKey": "reference/voices/mai-2.1-zh-CN-Bo.mp3",
+    "gender": "male"
   },
   {
     "provider": "mai",
@@ -413,7 +464,8 @@
     "voiceId": "zh-CN-Grant:MAI-Voice-2.1",
     "style": "male",
     "durationSeconds": 100.296,
-    "objectKey": "reference/voices/mai-2.1-zh-CN-Grant.mp3"
+    "objectKey": "reference/voices/mai-2.1-zh-CN-Grant.mp3",
+    "gender": "male"
   },
   {
     "provider": "mai",
@@ -421,7 +473,8 @@
     "voiceId": "zh-CN-Harper:MAI-Voice-2.1",
     "style": "female",
     "durationSeconds": 99.144,
-    "objectKey": "reference/voices/mai-2.1-zh-CN-Harper.mp3"
+    "objectKey": "reference/voices/mai-2.1-zh-CN-Harper.mp3",
+    "gender": "female"
   },
   {
     "provider": "mai",
@@ -429,7 +482,8 @@
     "voiceId": "zh-CN-Lan:MAI-Voice-2.1",
     "style": "female",
     "durationSeconds": 122.448,
-    "objectKey": "reference/voices/mai-2.1-zh-CN-Lan.mp3"
+    "objectKey": "reference/voices/mai-2.1-zh-CN-Lan.mp3",
+    "gender": "female"
   },
   {
     "provider": "mai",
@@ -437,6 +491,7 @@
     "voiceId": "zh-CN-Mei:MAI-Voice-2.1",
     "style": "female",
     "durationSeconds": 98.568,
-    "objectKey": "reference/voices/mai-2.1-zh-CN-Mei.mp3"
+    "objectKey": "reference/voices/mai-2.1-zh-CN-Mei.mp3",
+    "gender": "female"
   }
 ]

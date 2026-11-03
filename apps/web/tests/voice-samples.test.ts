@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { voicePreviewStoragePrefix } from '../src/shared/voice-preview-prefix';
+import { parseVoicePreviewStorageKey, voicePreviewStoragePrefix } from '../src/shared/voice-preview-prefix';
 import {
   type VoicePreviewEntry,
   type VoicePreviewFilters,
@@ -10,6 +10,9 @@ import {
   voicePreviewResults,
   voicePreviewSampleScript,
   voiceProviderInfo,
+  voiceProviderRegistry,
+  voiceProviders,
+  voiceProvidersWithSamples,
 } from '../src/shared/voice-samples';
 
 const catalog = voicePreviewCatalog();
@@ -18,15 +21,47 @@ const fixture: VoicePreviewEntry = {
   provider: 'elevenlabs',
   voiceName: 'Test',
   voiceId: 'test-id',
+  gender: 'female',
   style: 'female, American, warm',
   durationSeconds: 120,
   objectKey: 'reference/voices/test.mp3',
 };
 
+describe('voice preview registry and manifest', () => {
+  it('keeps provider metadata in registry order with empty providers reserved for later samples', () => {
+    expect(voiceProviders).toEqual(['gemini', 'elevenlabs', 'mai', 'doubao', 'fish']);
+    expect(voiceProviderRegistry.map((entry) => entry.id)).toEqual(voiceProviders);
+    expect(voiceProvidersWithSamples({ gemini: 1, elevenlabs: 0, mai: 0, doubao: 0, fish: 0 })).toEqual([
+      'gemini',
+    ]);
+    expect(voiceProvidersWithSamples({ gemini: 0, elevenlabs: 0, mai: 0, doubao: 0, fish: 0 })).toEqual([]);
+  });
+
+  it('validates every manifest row against the registry and storage rules', () => {
+    const ids = new Set<string>();
+    const keys = new Set<string>();
+    for (const entry of voicePreviewEntries) {
+      expect(voiceProviderRegistry.some((provider) => provider.id === entry.provider)).toBe(true);
+      expect(entry.objectKey.startsWith(voicePreviewStoragePrefix)).toBe(true);
+      expect(parseVoicePreviewStorageKey(entry.objectKey)).toBe(entry.objectKey);
+      expect(ids.has(entry.voiceId)).toBe(false);
+      expect(keys.has(entry.objectKey)).toBe(false);
+      ids.add(entry.voiceId);
+      keys.add(entry.objectKey);
+    }
+  });
+});
+
 describe('voice preview catalog', () => {
   it('lists all 55 real MP3 samples, including only high-fidelity MAI 2.1', () => {
     expect(voicePreviewEntries).toHaveLength(55);
-    expect(voicePreviewResults(catalog, all).providerCounts).toEqual({ gemini: 30, elevenlabs: 20, mai: 5 });
+    expect(voicePreviewResults(catalog, all).providerCounts).toEqual({
+      gemini: 30,
+      elevenlabs: 20,
+      mai: 5,
+      doubao: 0,
+      fish: 0,
+    });
     expect(new Set(catalog.map((entry) => entry.objectKey)).size).toBe(55);
     expect(
       catalog.filter((entry) => entry.provider === 'mai').map((entry) => [entry.voiceName, entry.gender]),
@@ -67,7 +102,7 @@ describe('voice preview catalog', () => {
     expect(voicePreviewCatalog([])).toEqual([]);
   });
 
-  it('uses the official Gemini gender mapping rather than guessing from style or names', () => {
+  it('uses manifest gender values rather than guessing from style or names', () => {
     expect(
       catalog
         .filter((entry) => entry.provider === 'gemini' && entry.gender === 'female')
@@ -91,18 +126,29 @@ describe('voice preview catalog', () => {
     expect(catalog.filter((entry) => entry.provider === 'gemini' && entry.gender === 'male')).toHaveLength(
       16,
     );
-    expect(voicePreviewGender({ ...fixture, provider: 'gemini', voiceName: 'Unlisted', style: 'male' })).toBe(
-      'unknown',
-    );
+    expect(
+      voicePreviewGender({
+        ...fixture,
+        provider: 'gemini',
+        voiceName: 'Unlisted',
+        style: 'male',
+        gender: 'unknown',
+      }),
+    ).toBe('unknown');
   });
 
   it('parses only an exact first gender token and retains real traits', () => {
     expect(voicePreviewGender(fixture)).toBe('female');
-    expect(voicePreviewGender({ ...fixture, style: ' male , warm' })).toBe('male');
-    expect(voicePreviewGender({ ...fixture, style: 'non-binary, calm' })).toBe('non-binary');
-    expect(voicePreviewGender({ ...fixture, style: 'female-ish, male' })).toBe('unknown');
-    expect(voicePreviewGender({ ...fixture, style: 'warm, female' })).toBe('unknown');
-    expect(voicePreviewGender({ ...fixture, style: '' })).toBe('unknown');
+    expect(voicePreviewGender({ ...fixture, gender: 'invalid' as VoicePreviewEntry['gender'] })).toBe(
+      'unknown',
+    );
+    expect(voicePreviewGender({ ...fixture, gender: 'male', style: ' male , warm' })).toBe('male');
+    expect(voicePreviewGender({ ...fixture, gender: 'non-binary', style: 'non-binary, calm' })).toBe(
+      'non-binary',
+    );
+    expect(voicePreviewGender({ ...fixture, gender: 'unknown', style: 'female-ish, male' })).toBe('unknown');
+    expect(voicePreviewGender({ ...fixture, gender: 'unknown', style: 'warm, female' })).toBe('unknown');
+    expect(voicePreviewGender({ ...fixture, gender: 'unknown', style: '' })).toBe('unknown');
     expect(catalog.find((entry) => entry.voiceName === 'River')?.gender).toBe('non-binary');
     expect(voicePreviewCatalog([fixture])[0].traits).toEqual(['American', 'warm']);
     expect(voicePreviewCatalog([{ ...fixture, style: ' , warm, ' }])[0].traits).toEqual(['warm']);
@@ -131,9 +177,10 @@ describe('voice preview catalog', () => {
     ).toEqual(['River']);
     expect(voicePreviewResults(catalog, { ...all, query: 'does-not-exist' }).filtered).toEqual([]);
     expect(voicePreviewResults([], all).genderOptions).toEqual([]);
-    expect(voicePreviewResults(voicePreviewCatalog([{ ...fixture, style: '' }]), all).genderOptions).toEqual([
-      { gender: 'unknown', count: 1 },
-    ]);
+    expect(
+      voicePreviewResults(voicePreviewCatalog([{ ...fixture, style: '', gender: 'unknown' }]), all)
+        .genderOptions,
+    ).toEqual([{ gender: 'unknown', count: 1 }]);
   });
 
   it.each([

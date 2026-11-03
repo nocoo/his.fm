@@ -27,29 +27,56 @@ Content generation and audio composition happen outside his.fm. The site stores 
 
 ## Voice reference previews
 
-The studio `/admin/voice-preview` catalogue compares 55 recordings: 30 Gemini **3.8 Flash TTS**, 20 ElevenLabs **Eleven v3**, and five Microsoft **MAI-Voice-2.1** high-fidelity voices. Gemini's display label follows the owner's identification of the existing recordings; it is not a new API deployment identifier. Existing Gemini and ElevenLabs files are unchanged.
+The studio route `/admin/voice-preview` compares pre-generated MP3 samples for multiple TTS providers. Samples live in the `his-fm` R2 bucket and stream from `https://f.no.mt/reference/voices/`; the site does not synthesize audio.
 
-`apps/web/src/shared/data/voice-preview-manifest.json` owns voice IDs, durations and MP3 object keys; `voice-preview-sample.md` beside it owns the fixed comparison transcript. Samples use the `his-fm` R2 bucket and `https://f.no.mt/reference/voices/` CDN, with `gemini-<Voice>.mp3`, `elevenlabs-<Voice>.mp3`, and `mai-2.1-zh-CN-<Voice>.mp3` filenames. Keep new object keys immutable and check for collisions before uploading. Storage cleanup protects the entire `reference/` prefix.
+### Provider registry
 
-The unified grid has provider/gender filters, search, an expandable transcript and optional technical IDs/keys. Gender labels remain visible alongside subtle card tints; River retains ElevenLabs' non-binary classification. Gemini genders follow [Google's voice options](https://docs.cloud.google.com/text-to-speech/docs/gemini-tts#voice_options); ElevenLabs uses the exact first metadata token, and MAI uses the regional voice-list response. Each card probes the CDN with `HEAD`, uses its ETag for playback cache busting and retains missing/loading/error feedback. The condensed shared player retains seeking, mute, speed, retry and single-instance playback without duplicate titles, an idle slogan or a volume slider.
+`apps/web/src/shared/voice-preview-registry.ts` is the sole provider registry. Each entry declares:
 
-### MAI reference generation
+- `id` — stable provider key referenced by manifest rows
+- `name` — studio display name
+- `model` — default model label on cards and in search
+- `description` — short catalogue copy
+- `mark` — icon data for `ProviderMark` (`logo` with a bundled SVG asset, `microsoft` four-square mark, or `initials` with optional background colour)
+- optional `defaultTraits` — tags shown instead of parsing `style` (MAI uses `中文` and `高保真`)
+- optional `firstTraitIsLocale` — when true, the first trait badge uses the locale styling (ElevenLabs)
 
-On 2026-10-20, the owner authorized external synthesis and R2 uploads, not a website deployment. Azure Speech's `eastus2` voice-list endpoint exposed `zh-CN-Bo`, `zh-CN-Grant`, `zh-CN-Harper`, `zh-CN-Lan` and `zh-CN-Mei`, each with the `:MAI-Voice-2.1` suffix. Bo/Grant are male; Harper/Lan/Mei are female. No Flash samples, cloned voices, model switch or generation endpoints are included.
+Registry order drives provider filter chips and counts. Providers with zero manifest rows stay registered but are hidden from filter controls until samples exist.
 
-The [MAI REST contract](https://learn.microsoft.com/en-us/azure/ai-services/speech-service/mai-voices?pivots=programming-language-restkey&tabs=mai-voice-2-1) uses `POST https://eastus2.tts.speech.microsoft.com/cognitiveservices/v1`, a Speech resource key in `Ocp-Apim-Subscription-Key`, `Content-Type: application/ssml+xml`, and `X-Microsoft-OutputFormat: audio-24khz-160kbitrate-mono-mp3`. The XML-escaped canonical transcript (trailing whitespace removed, 680 characters) is the entire text of one `voice` element under `speak xml:lang="zh-CN"`; no style, prosody or text rewriting is applied. Keys remain outside this repository and the website.
+Current providers:
 
-All five files were checked with `ffprobe` for mono 24 kHz MP3 and measured duration, then uploaded with the pinned local `cf r2 objects put` command using `--bucket-name his-fm --content-type audio/mpeg --file <path>`. CDN bytes must match local SHA-256, with successful CORS and byte-range playback checks. Raw MP3/SSML and local execution receipts stay outside Git.
+| id | name | model | samples |
+| --- | --- | --- | ---: |
+| `gemini` | Gemini | 3.8 Flash TTS | 30 |
+| `elevenlabs` | ElevenLabs | Eleven v3 | 20 |
+| `mai` | MAI Voice | MAI-Voice-2.1 | 5 |
+| `doubao` | 豆包 | 豆包 语音合成 | 0 (reserved) |
+| `fish` | Fish Audio | Drama 3 | 0 (reserved) |
 
-Transcript SHA-256 (UTF-8 after trimming trailing whitespace): `eb9085f45475e3680f0b44e936db7f1a63d5e442150674a42014409e5a609ce4`.
+### Manifest and transcript
 
-| Voice | Seconds | Bytes | MP3 SHA-256 |
-| --- | ---: | ---: | --- |
-| Bo | 97.248 | 1944960 | `6119f8ed1226650b907bf3d851ad3248ebefbadb9874f573ef057bfe6e91e42b` |
-| Grant | 100.296 | 2005920 | `4e7747f654df81e3f665b1d79f1eb56eaeeeaa18ef4230a6fddd1b1117dce3ae` |
-| Harper | 99.144 | 1982880 | `94979acae5b7c1f1a7ede8a7245cf3b968ae987efbffe67c7e4cacc7c1a351cc` |
-| Lan | 122.448 | 2448960 | `e06960150955ffa8721fb0dd8a3ea7899e8c65d07ea80e853d2d559bffa2bdcd` |
-| Mei | 98.568 | 1971360 | `50e36d2f9cc3cdbc98f5043c22ddbe50d6cad246adb121280c7b5f3ebedf56d3` |
+`apps/web/src/shared/data/voice-preview-manifest.json` lists every sample with a uniform shape:
+
+- `provider`, `voiceName`, `voiceId`, `gender`, `style`, `durationSeconds`, `objectKey`
+- optional `model` when a row needs a label different from the registry default
+
+`voice-preview-sample.md` beside the manifest holds the fixed comparison transcript (`voice-preview-sample.md` content is unchanged). Gender is stored explicitly on each row (`male`, `female`, `non-binary`, or `unknown`).
+
+Object keys must stay under `reference/voices/`, pass `parseVoicePreviewStorageKey`, and remain unique. Filename convention: `<provider>-<voice>.mp3`, for example `gemini-Kore.mp3`, `elevenlabs-Alice.mp3`, `mai-2.1-zh-CN-Bo.mp3`, `doubao-liufei.mp3`, or `fish-drama3-lizheng.mp3`. Upload immutable keys and check for collisions before writing to R2. Storage cleanup protects the entire `reference/` prefix.
+
+Optional upload path for operators with `storage:write`: `POST /storage?key=reference/voices/<name>.mp3` with `Content-Type: audio/mpeg` (see [api-onboarding](api-onboarding.md)).
+
+### Studio behaviour
+
+The unified grid exposes provider and gender filters, search, an expandable transcript, and optional technical IDs/keys. Each card probes the CDN with `HEAD`, uses the response `ETag` for playback cache busting, and keeps missing/loading/error feedback. The shared compact player retains seeking, mute, speed, retry and single-instance playback.
+
+### Adding a provider or voice
+
+1. Append a provider object to `voice-preview-registry.ts` (or extend an existing one).
+2. Upload the MP3 to `reference/voices/<provider>-<voice>.mp3` on R2.
+3. Append a manifest row with accurate `gender`, `style`/traits source, `durationSeconds`, and `objectKey`.
+
+No React or Worker changes are required when the row validates against the registry and storage rules. Unit tests in `apps/web/tests/voice-samples.test.ts` enforce registry membership, key parsing, and uniqueness.
 
 ## Player
 
