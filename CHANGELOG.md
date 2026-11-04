@@ -2,6 +2,14 @@
 
 All notable changes to his.fm are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions use the owner’s patch-only deployment policy in `AGENTS.md`, with the authoritative version in `package.json`.
 
+## 2.11.23 - 2026-11-04
+
+### Fixed
+
+- Public pages load the full stylesheet again. Deferred `<link>` elements were promoted by an inline `onload` handler, which the production CSP (`script-src 'self' 'nonce-…'`) blocks, so only the inline critical CSS ever applied and every public page rendered with shell styles alone. Promotion now runs from a nonce-carrying script with a `noscript` fallback, and the critical block precedes the deferred links so the bundle wins the cascade.
+- Critical shell rules match `public.css`, and the public column keeps the footer at the viewport bottom so short pages such as 404 no longer leave it mid-page behind doubled hairlines.
+- `npm run dev` seeds local episodes with the structured `lead`, `research_note`, `credits`, `body` columns after migration 0026 dropped `show_notes`.
+
 ## 2.11.22 - 2026-11-04
 
 ### Fixed
