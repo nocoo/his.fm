@@ -678,13 +678,17 @@ html:has(.appearance-gate) body {
   flex-wrap: wrap;
   align-items: center;
   justify-content: flex-end;
-  gap: 4px 20px;
+  gap: 8px 12px;
   margin-left: auto;
 }
 .public-site .site-footer-links a {
   display: inline-flex;
   align-items: center;
-  min-height: 28px;
+  justify-content: center;
+  min-width: 24px;
+  min-height: 24px;
+  padding: 4px 6px;
+  margin: -4px -6px;
 }
 .public-site .site-footer-links a:hover {
   color: var(--ink);
@@ -700,8 +704,12 @@ html:has(.appearance-gate) body {
 .public-site .site-footer-bottom a {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
-  min-height: 28px;
+  min-width: 24px;
+  min-height: 24px;
+  padding: 4px 2px;
+  margin: -4px -2px;
 }
 .public-site .site-footer-bottom a:hover {
   color: var(--ink);
@@ -1590,7 +1598,7 @@ html:has(.appearance-gate) body {
     width: 100%;
   }
   .public-site .site-footer-links {
-    gap: 2px 16px;
+    gap: 8px 12px;
   }
   .public-site .subscribe-inner {
     grid-template-columns: minmax(0, 1fr);

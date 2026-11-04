@@ -590,6 +590,12 @@ describe('public podcast catalog', () => {
       const data = JSON.parse(bootstrap?.[1] ?? '{}');
       expect(data.site).not.toHaveProperty('updatedBy');
       expect(data.appearance).not.toHaveProperty('updatedBy');
+      const episodeCategories = new Set(
+        (data.episodes as Array<{ category: string }>).map((item) => item.category),
+      );
+      for (const category of data.categories as Array<{ id: string }>) {
+        expect(episodeCategories.has(category.id)).toBe(true);
+      }
       if (path.includes(episode.slug)) {
         expect(html).toContain('开场的一段导语。');
         expect(html).toContain('<h3>Listen closely</h3>');
@@ -599,6 +605,8 @@ describe('public podcast catalog', () => {
     expect(home).toContain('imageSrcSet=');
     expect(home).toContain('media="(max-width: 760px)"');
     expect(home).toContain('max(calc(100vw - 48px), 370px)');
+    const homeResponse = await call('/');
+    expect(homeResponse.headers.get('Server-Timing')).toMatch(/load;dur=/);
     expect(await (await call('/', { method: 'HEAD' })).text()).toBe('');
   });
 

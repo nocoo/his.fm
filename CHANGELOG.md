@@ -2,6 +2,17 @@
 
 All notable changes to his.fm are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions use the owner’s patch-only deployment policy in `AGENTS.md`, with the authoritative version in `package.json`.
 
+## 2.11.22 - 2026-11-04
+
+### Fixed
+
+- Episode grid `sizes` cap slot width to the public CSS breakpoints so Moto G–class viewports pick 320w/480w thumbnails instead of four 640w assets. Noto Sans SC shards and Space Grotesk use `font-display: optional` like the serif stack.
+- Public footer links meet 24×24px target spacing without changing the visual layout. SSR bootstrap `categories` lists only columns with indexable episodes, matching JSON-LD and sitemap rules.
+
+### Changed
+
+- Non-production public HTML responses include a `Server-Timing` breakdown (`load`, `render`, `total`) for origin TTFB profiling; production is unchanged.
+
 ## 2.11.21 - 2026-11-04
 
 ### Fixed
