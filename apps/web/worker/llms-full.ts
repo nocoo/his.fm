@@ -1,8 +1,8 @@
 import type { PublicEpisodeSummary } from '../src/shared/episode';
 import { projectPublicEpisodeSummary } from '../src/shared/episode';
 import { episodeCanonicalUrl } from '../src/shared/episode-url';
-import { programmeColumnDescription } from '../src/shared/public-copy';
-import { filterIndexableEpisodes } from '../src/shared/public-index';
+import { programmeColumnDescriptionForEpisodes } from '../src/shared/public-copy';
+import { categoriesWithIndexableEpisodes, filterIndexableEpisodes } from '../src/shared/public-index';
 import { listCategories } from './categories';
 import { readPublishedEpisodes } from './episodes';
 import { getSiteSeo } from './seo-store';
@@ -17,8 +17,9 @@ export async function buildLlmsFull(db: D1Database, origin: string) {
   const episodes = filterIndexableEpisodes(await readPublishedEpisodes(db), origin, site).map(
     projectPublicEpisodeSummary,
   );
-  const description = programmeColumnDescription(categories);
-  const sections = categories
+  const activeCategories = categoriesWithIndexableEpisodes(categories, episodes);
+  const description = programmeColumnDescriptionForEpisodes(categories, episodes);
+  const sections = activeCategories
     .map((category) => {
       const items = episodes.filter((episode) => episode.category === category.id);
       if (!items.length) return '';
@@ -48,9 +49,14 @@ ${sections || '_No published episodes yet._'}
 }
 
 export async function buildLlmsTxt(db: D1Database, origin: string) {
-  const [, categories] = await Promise.all([getSiteSeo(db), listCategories(db)]);
-  const description = programmeColumnDescription(categories);
-  const columnList = categories.map((category) => category.name).join('、') || '多个栏目';
+  const [siteRecord, categories] = await Promise.all([getSiteSeo(db), listCategories(db)]);
+  const { version: _version, updatedAt: _updatedAt, updatedBy: _updatedBy, ...site } = siteRecord;
+  const episodes = filterIndexableEpisodes(await readPublishedEpisodes(db), origin, site).map(
+    projectPublicEpisodeSummary,
+  );
+  const activeCategories = categoriesWithIndexableEpisodes(categories, episodes);
+  const description = programmeColumnDescriptionForEpisodes(categories, episodes);
+  const columnList = activeCategories.map((category) => category.name).join('、') || '多个栏目';
   return `# his.fm
 
 > ${description}

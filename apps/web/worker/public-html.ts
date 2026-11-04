@@ -9,7 +9,7 @@ import { type PublicEpisode, projectPublicEpisode, projectPublicEpisodeSummary }
 import { withShareArtwork } from '../src/shared/episode-art';
 import { episodePublicPath } from '../src/shared/episode-url';
 import { PUBLIC_HTML_CACHE_CONTROL } from '../src/shared/public-cache-policy';
-import { filterIndexableEpisodes } from '../src/shared/public-index';
+import { categoriesWithIndexableEpisodes, filterIndexableEpisodes } from '../src/shared/public-index';
 import { injectSeoIntoHtml } from '../src/shared/seo-head';
 import { episodeBreadcrumbs, podcastEpisodeJsonLd, podcastSeriesJsonLd } from '../src/shared/seo-jsonld';
 import { resolveAboutPageSeo, resolveCatalogueSeo, resolveSiteDefaults } from '../src/shared/seo-resolve';
@@ -101,31 +101,36 @@ export async function maybeServePublicHtml(request: Request, env: Env): Promise<
   const indexableRecords = filterIndexableEpisodes(records, origin, site);
   const names = new Map(categories.map((category) => [category.id, category.name]));
   const summaries = indexableRecords.map(projectPublicEpisodeSummary);
+  const activeCategories = categoriesWithIndexableEpisodes(categories, summaries);
   let seo = resolveSiteDefaults(site, origin);
-  let jsonLd: unknown[] = [podcastSeriesJsonLd(origin, site, categories)];
+  let jsonLd: unknown[] = [podcastSeriesJsonLd(origin, site, activeCategories)];
   let episode: PublicEpisode | undefined;
   let extraHead = '';
 
   if (path === '/about') {
     seo = resolveAboutPageSeo(site, origin);
-    jsonLd = [podcastSeriesJsonLd(origin, site, categories)];
+    jsonLd = [podcastSeriesJsonLd(origin, site, activeCategories)];
   } else if (path === '/episodes') {
     const rawCategory = url.searchParams.get('category');
+    let categoryQuery = rawCategory;
     if (rawCategory && rawCategory !== 'all') {
-      const resolvedCategory = await resolveCategoryAlias(env.DB, rawCategory);
-      if (resolvedCategory !== rawCategory) {
+      const canonicalId = await resolveCategoryAlias(env.DB, rawCategory);
+      if (canonicalId !== rawCategory) {
         const next = new URL(url);
-        next.searchParams.set('category', resolvedCategory);
+        next.searchParams.set('category', canonicalId);
         return redirect(`${next.pathname}${next.search}`);
       }
+      categoryQuery = canonicalId;
     }
-    const resolved = catalogueCategoryParam(categories, rawCategory);
+    const resolved = catalogueCategoryParam(categories, categoryQuery);
     if (resolved.status === 404) status = 404;
     const category = resolved.category;
     const page = parseCataloguePage(url.searchParams.get('page'));
-    const categoryEpisodes = summaries.filter(
-      (item) => !rawCategory || rawCategory === 'all' || item.category === rawCategory,
-    );
+    const categoryEpisodes =
+      categoryQuery && categoryQuery !== 'all'
+        ? summaries.filter((item) => item.category === categoryQuery)
+        : summaries;
+    if (category && categoryEpisodes.length === 0) status = 404;
     seo = resolveCatalogueSeo(site, origin, categoryEpisodes.length, category, category?.seo, page);
     extraHead = cataloguePaginationLinks(origin, category?.id ?? null, page, categoryEpisodes.length).join(
       '\n',
@@ -148,7 +153,7 @@ export async function maybeServePublicHtml(request: Request, env: Env): Promise<
       seo = episode.pageSeo;
       if (category) {
         jsonLd = [
-          podcastSeriesJsonLd(origin, site, categories),
+          podcastSeriesJsonLd(origin, site, activeCategories),
           podcastEpisodeJsonLd(
             origin,
             episode,

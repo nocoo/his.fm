@@ -2,6 +2,7 @@ import { publicAppearanceSchema, type ThemeId } from '../shared/appearance';
 import type { PublicCategory } from '../shared/category';
 import type { PublicEpisode, PublicEpisodeSummary } from '../shared/episode';
 import { formatEpisodeLabel } from '../shared/episode-display';
+import { categoriesWithIndexableEpisodes } from '../shared/public-index';
 
 export function relatedEpisodes(episodes: PublicEpisodeSummary[], current: PublicEpisodeSummary, limit = 3) {
   const sameColumn = episodes.filter(
@@ -40,7 +41,7 @@ export function catalogueHref(searchParams: URLSearchParams, category: string) {
 }
 
 export function categoriesWithEpisodes(categories: PublicCategory[], episodes: PublicEpisodeSummary[]) {
-  return categories.filter((category) => episodes.some((episode) => episode.category === category.id));
+  return categoriesWithIndexableEpisodes(categories, episodes);
 }
 
 export function filterEpisodes(episodes: PublicEpisodeSummary[], category: string, query: string) {

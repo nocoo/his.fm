@@ -1,3 +1,4 @@
+import type { PublicCategory } from './category';
 import type { Episode } from './episode';
 import type { SeoOverride, SiteSeo } from './seo';
 
@@ -18,4 +19,11 @@ export function isPublicEpisodeIndexable(episode: Episode, _origin: string, _sit
 
 export function filterIndexableEpisodes(episodes: Episode[], origin: string, site: SiteSeo): Episode[] {
   return episodes.filter((episode) => isPublicEpisodeIndexable(episode, origin, site));
+}
+
+export function categoriesWithIndexableEpisodes(
+  categories: PublicCategory[],
+  episodes: Array<{ category: string }>,
+): PublicCategory[] {
+  return categories.filter((category) => episodes.some((episode) => episode.category === category.id));
 }
