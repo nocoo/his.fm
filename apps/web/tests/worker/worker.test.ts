@@ -680,7 +680,7 @@ describe('public podcast catalog', () => {
     }
     expect(nonces.size).toBe(3);
     for (const [forwarded] of entrypoint.fetch.mock.calls) {
-      expect(forwarded.url).toBe('https://his.fm/?theme=interval');
+      expect(forwarded.url).toBe('https://his.fm/?theme=interval&_hisfm_r=test-revision');
       expect(forwarded.method).toBe('GET');
       expect([...forwarded.headers]).toEqual([]);
     }
@@ -855,6 +855,35 @@ describe('public podcast catalog', () => {
     expect(await conversationPage.text()).toContain(`/episodes/conversations/${episode.slug}`);
     await env.DB.prepare('DELETE FROM episodes WHERE id = ?').bind(episode.id).run();
     expect((await call('/episodes?category=conversations')).status).toBe(404);
+  });
+
+  it('redirects aliased catalogue URLs before a public cache HIT can return stale HTML', async () => {
+    const production = { ...env, ENVIRONMENT: 'production' };
+    const { entrypoint, context } = publicCache();
+    entrypoint.fetch.mockResolvedValue(
+      new Response('<html>stale</html>', { headers: { 'Content-Type': 'text/html; charset=utf-8' } }),
+    );
+    await env.DB.prepare(
+      "INSERT OR IGNORE INTO categories (id, name, icon, color, updated_at, updated_by) VALUES ('look-outside', '看看外面', 'compass', 'teal', datetime('now'), 'test')",
+    ).run();
+    await env.DB.prepare('INSERT OR IGNORE INTO category_id_aliases (alias, category_id) VALUES (?, ?)')
+      .bind('life', 'look-outside')
+      .run();
+    const response = await worker.fetch(request('/episodes?category=life'), production, context);
+    expect(response.status).toBe(301);
+    expect(entrypoint.fetch).not.toHaveBeenCalled();
+  });
+
+  it('keys public cache fetches by the deployed build revision', async () => {
+    const production = { ...env, ENVIRONMENT: 'production' };
+    const { entrypoint, context } = publicCache();
+    entrypoint.fetch.mockResolvedValue(
+      new Response('<html>fresh</html>', { headers: { 'Content-Type': 'text/html; charset=utf-8' } }),
+    );
+    await worker.fetch(new Request('https://his.fm/'), production, context);
+    expect(entrypoint.fetch).toHaveBeenCalledOnce();
+    const cacheRequest = entrypoint.fetch.mock.calls[0]?.[0] as Request;
+    expect(new URL(cacheRequest.url).searchParams.get('_hisfm_r')).toBe('test-revision');
   });
 
   it('includes mentions in RSS item descriptions', async () => {
