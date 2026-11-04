@@ -631,7 +631,9 @@ describe('public podcast catalog', () => {
     const csp = production.headers.get('Content-Security-Policy');
     const nonce = /'nonce-([^']+)'/.exec(csp ?? '')?.[1];
     expect(nonce).toBeTruthy();
-    expect(await production.text()).toContain(`<script nonce="${nonce}"`);
+    const productionHtml = await production.text();
+    expect(productionHtml).toContain(`<script nonce="${nonce}"`);
+    expect(productionHtml).not.toMatch(/\son[a-z]+=/);
     for (const url of ['http://his.fm/about?x=1', 'https://www.his.fm/about?x=1']) {
       const redirect = await worker.fetch(new Request(url), env);
       expect(redirect.status).toBe(308);

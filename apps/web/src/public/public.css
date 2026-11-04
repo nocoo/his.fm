@@ -76,6 +76,8 @@ html:has(.appearance-gate) body {
   --reveal-duration: 650ms;
   --reveal-ease: cubic-bezier(0.22, 1, 0.36, 1);
   --font: "Space Grotesk", "Noto Sans SC", "PingFang SC", sans-serif;
+  display: flex;
+  flex-direction: column;
   font-family: var(--font);
   background:
     linear-gradient(var(--public-chrome, var(--paper)), var(--public-chrome, var(--paper))) top / 100%
@@ -87,6 +89,9 @@ html:has(.appearance-gate) body {
   min-height: 100svh;
   padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom)
     env(safe-area-inset-left);
+}
+.public-site main {
+  flex: 1 0 auto;
 }
 .public-site *,
 .public-site *::before,
