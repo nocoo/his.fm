@@ -11,7 +11,7 @@ const transcript = readFileSync(
   new URL('../../../episodes/001-how-to-live-better/transcript.md', import.meta.url),
   'utf8',
 );
-const showNotes = readFileSync(
+const exampleResearchNote = readFileSync(
   new URL('../../../episodes/001-how-to-live-better/summary.md', import.meta.url),
   'utf8',
 );
@@ -25,7 +25,7 @@ const published = [
     tags: ['AI 学习', '工作节奏', '注意力'],
     duration: 600,
     transcript,
-    showNotes,
+    researchNote: exampleResearchNote,
   },
   {
     slug: 'a-walk-without-a-goal',
@@ -36,7 +36,8 @@ const published = [
     duration: 840,
     transcript:
       '这是一期本地预览样稿。\n\n下班以后，你习惯往哪个方向走？这次试着走一条没有目的地的路。经过熟悉的路口时，看看常去的店有没有开门，听听傍晚街道上的声音。\n\n这期准备聊聊散步中的小发现。没有必须完成的步数，也不用向谁证明今晚安排得很充实。等想回家的时候，就回家。',
-    showNotes: '本地预览选题：下班后的散步、熟悉街道里的新发现，以及不需要记录的日常。\n\n本期音频尚未制作。',
+    researchNote:
+      '本地预览选题：下班后的散步、熟悉街道里的新发现，以及不需要记录的日常。\n\n本期音频尚未制作。',
   },
   {
     slug: 'when-the-model-says-done',
@@ -48,7 +49,7 @@ const published = [
     duration: 1080,
     transcript:
       '这是一期本地预览样稿。\n\n模型在十几秒里交出一整页代码，光标停了下来，工作却还没有结束。你得看懂输入从哪里来，错误会怎样发生，以及同事明天是否能接着改。\n\n可以先挑一条最普通的用户路径，从头走一遍，再试一个空输入。把看不明白的地方留下来，一次问清一个问题。生成速度值得高兴，理解也值得安排时间。',
-    showNotes: '本地预览选题：AI 辅助开发里的验证过程、具体测试案例和团队代码沟通。\n\n本期音频尚未制作。',
+    researchNote: '本地预览选题：AI 辅助开发里的验证过程、具体测试案例和团队代码沟通。\n\n本期音频尚未制作。',
   },
   {
     slug: 'dinner-before-the-next-prompt',
@@ -59,7 +60,8 @@ const published = [
     duration: 780,
     transcript:
       '这是一期本地预览样稿。\n\n饭已经摆上桌，消息提醒还在闪。你想着回复最后一条，又顺手打开了另一个窗口。等再抬头，菜已经凉了。\n\n今晚试着给饭桌留出一点位置。把要继续的工作记在纸上，吃完再决定是否打开电脑。和一起吃饭的人聊聊今天发生的小事，也可以安静吃完。',
-    showNotes: '本地预览选题：结束工作的动作、饭桌上的注意力，以及下班之后的具体安排。\n\n本期音频尚未制作。',
+    researchNote:
+      '本地预览选题：结束工作的动作、饭桌上的注意力，以及下班之后的具体安排。\n\n本期音频尚未制作。',
   },
   {
     slug: 'the-question-in-code-review',
@@ -70,7 +72,7 @@ const published = [
     duration: 1320,
     transcript:
       '这是一期本地预览样稿，并非真实访谈记录。\n\n打开同事的提交，有一段逻辑你看了三遍。评论框已经点开，打了半句又删掉。担心的问题有很多：是不是只有我不懂，会不会耽误大家。\n\n或许可以从描述理解开始：我目前理解这段是在处理重复请求，但还没想清楚超时后会发生什么。这比一句“这里不对”更容易展开讨论，也给自己留下重新理解的余地。',
-    showNotes:
+    researchNote:
       '本地预览选题：开发者之间的日常沟通。尚未录制访谈，不使用虚构嘉宾或引语。\n\n本期音频尚未制作。',
   },
   {
@@ -82,7 +84,7 @@ const published = [
     duration: 660,
     transcript:
       '这是一期本地预览样稿。\n\n到了下班时间，问题还没完全解决。你可以留下几句话：现在看到了什么，已经试过哪些办法，下一步最想确认什么。\n\n明天打开项目的时候，这几句话会替你保存今天的思路。它不用写成完整报告，只要那个隔了一夜的自己还能读懂。今天的工作就先停在这里。',
-    showNotes: '本地预览选题：保存工作上下文的简短记录，以及可接续的个人工作习惯。\n\n本期音频尚未制作。',
+    researchNote: '本地预览选题：保存工作上下文的简短记录，以及可接续的个人工作习惯。\n\n本期音频尚未制作。',
   },
 ];
 
@@ -93,32 +95,30 @@ const nextEpisodeNumberInCategory = (category) =>
 const statements = published.flatMap((episode, index) => {
   const timestamp = `2026-09-${String(24 - index * 3).padStart(2, '0')}T08:00:00.000Z`;
   const id = `local-episode-${String(index + 1).padStart(2, '0')}`;
+  const cover = `https://f.no.mt/images/episode-${String((index % 3) + 1).padStart(2, '0')}.webp`;
   const values = [
-    id,
-    episode.slug,
+    quote(id),
+    quote(episode.slug),
     nextEpisodeNumberInCategory(episode.category),
-    episode.title,
-    episode.summary,
-    episode.transcript,
-    episode.showNotes,
-    `https://f.no.mt/images/episode-${String((index % 3) + 1).padStart(2, '0')}.webp`,
-    episode.category,
-    JSON.stringify(episode.tags),
+    quote(episode.title),
+    quote(episode.summary),
+    quote(episode.transcript),
+    quote(''),
+    quote(episode.researchNote),
+    quote(''),
+    quote(''),
+    quote(cover),
+    quote(episode.category),
+    quote(JSON.stringify(episode.tags)),
     episode.duration,
-    null,
-    'published',
+    'NULL',
+    quote('published'),
     index === 0 ? 1 : 0,
-    timestamp,
-    timestamp,
-    timestamp,
+    quote(timestamp),
+    quote(timestamp),
+    quote(timestamp),
   ];
-  const episodeInsert = `INSERT OR IGNORE INTO episodes (id, slug, episode_number, title, summary, transcript, show_notes, cover_url, category, tags, duration_seconds, audio_url, status, featured, published_at, created_at, updated_at, version, write_id) SELECT ${values
-    .slice(0, 2)
-    .map(quote)
-    .join(', ')}, ${values[2]}, ${values
-    .slice(3)
-    .map(quote)
-    .join(', ')}, 1, lower(hex(randomblob(16))) WHERE ${seedGuard};`;
+  const episodeInsert = `INSERT OR IGNORE INTO episodes (id, slug, episode_number, title, summary, transcript, lead, research_note, credits, body, cover_url, category, tags, duration_seconds, audio_url, status, featured, published_at, created_at, updated_at, version, write_id) SELECT ${values.join(', ')}, 1, lower(hex(randomblob(16))) WHERE ${seedGuard};`;
   const claimInsert = `INSERT INTO episode_number_claims (category, episode_number, holder_id, holder_kind)
    SELECT category, episode_number, id, 'episode' FROM episodes
    WHERE id = ${quote(id)} AND ${seedGuard}
