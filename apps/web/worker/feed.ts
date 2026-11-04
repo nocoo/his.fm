@@ -4,7 +4,7 @@ import type { PublicEpisode } from '../src/shared/episode';
 import { artLocation } from '../src/shared/episode-art';
 import { categoryFeedPath, episodePublicPath } from '../src/shared/episode-url';
 import type { Mention } from '../src/shared/mentions';
-import { programmeColumnDescription } from '../src/shared/public-copy';
+import { programmeColumnDescriptionForEpisodes } from '../src/shared/public-copy';
 import { isEpisodeSeoIndexable } from '../src/shared/public-index';
 import { parseSeoOverride } from '../src/shared/seo';
 import { getAppearance } from './appearance';
@@ -283,7 +283,7 @@ export async function buildRssFeed(
 ): Promise<string> {
   const [siteRecord, categories] = await Promise.all([getSiteSeo(db), listCategories(db)]);
   const episodes = await feedEpisodesForPublic(db, origin);
-  const description = programmeColumnDescription(categories);
+  const description = programmeColumnDescriptionForEpisodes(categories, episodes);
   return buildChannel(
     db,
     origin,
@@ -311,7 +311,7 @@ export async function buildCategoryRssFeed(
   categoryName: string,
   bucket?: R2Bucket,
 ): Promise<string> {
-  const [siteRecord, categories, episodes, identity] = await Promise.all([
+  const [siteRecord, categories, episodes, identity, allFeedEpisodes] = await Promise.all([
     getSiteSeo(db),
     listCategories(db),
     feedEpisodesForPublic(db, origin, categoryId),
@@ -319,10 +319,11 @@ export async function buildCategoryRssFeed(
       .prepare('SELECT rss_identity FROM categories WHERE id = ?')
       .bind(categoryId)
       .first<{ rss_identity: string | null }>(),
+    feedEpisodesForPublic(db, origin),
   ]);
   if (!identity?.rss_identity) throw new HttpError(503, '栏目订阅标识暂时不可用');
   if (!episodes.length) throw new HttpError(404, '这个栏目还没有已发布的节目');
-  const description = `${categoryName} · ${programmeColumnDescription(categories)}`;
+  const description = `${categoryName} · ${programmeColumnDescriptionForEpisodes(categories, allFeedEpisodes)}`;
   return buildChannel(
     db,
     origin,

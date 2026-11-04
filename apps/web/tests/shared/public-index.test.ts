@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import type { Episode } from '../../src/shared/episode';
-import { filterIndexableEpisodes, isPublicEpisodeIndexable } from '../../src/shared/public-index';
+import {
+  categoriesWithIndexableEpisodes,
+  filterIndexableEpisodes,
+  isPublicEpisodeIndexable,
+} from '../../src/shared/public-index';
 import { siteSeoSchema } from '../../src/shared/seo';
 
 const origin = 'https://his.fm.test';
@@ -56,5 +60,15 @@ describe('public episode indexability', () => {
       episode({ id: 'ep-3', slug: 'future', publishedAt: '2999-01-01T00:00:00.000Z' }),
     ];
     expect(filterIndexableEpisodes(list, origin, site).map((item) => item.slug)).toEqual(['one']);
+  });
+
+  it('keeps only categories referenced by indexable episodes', () => {
+    const categories = [
+      { id: 'learning', name: '每日手冲', icon: 'coffee', color: 'amber', seo: {} },
+      { id: 'life', name: '生活留白', icon: 'leaf', color: 'amber', seo: {} },
+    ] as const;
+    expect(
+      categoriesWithIndexableEpisodes([...categories], [{ category: 'learning' }]).map((item) => item.id),
+    ).toEqual(['learning']);
   });
 });

@@ -39,13 +39,16 @@ export async function buildSitemap(db: D1Database, origin: string) {
     { seo: resolveCatalogueSeo(site, origin, indexable.length), lastmod: homeLastmod },
     { seo: resolveAboutPageSeo(site, origin), lastmod: homeLastmod },
   ];
-  const categoryPages = categories.map((category) => {
-    const inCategory = indexable.filter((episode) => episode.category === category.id);
-    return {
-      seo: resolveCatalogueSeo(site, origin, inCategory.length, category),
-      lastmod: latestTimestamp(inCategory.map((episode) => episode.updatedAt)) || homeLastmod,
-    };
-  });
+  const categoryPages = categories
+    .map((category) => {
+      const inCategory = indexable.filter((episode) => episode.category === category.id);
+      if (!inCategory.length) return null;
+      return {
+        seo: resolveCatalogueSeo(site, origin, inCategory.length, category),
+        lastmod: latestTimestamp(inCategory.map((episode) => episode.updatedAt)) || homeLastmod,
+      };
+    })
+    .filter((page): page is NonNullable<typeof page> => page !== null);
   const episodePages = indexable.map((episode) =>
     urlEntry(`${origin}${episodePublicPath(episode.category, episode.slug)}`, episode.updatedAt),
   );
