@@ -6,6 +6,14 @@ import {
   episodeThumbnailWidths,
 } from './episode-thumbnail';
 
+function pickSrcsetWidth(slotCssPx: number, devicePixelRatio: number): number {
+  const target = slotCssPx * devicePixelRatio;
+  for (const width of episodeThumbnailWidths) {
+    if (width >= target) return width;
+  }
+  return episodeThumbnailWidths.at(-1) ?? 960;
+}
+
 describe('episode thumbnails', () => {
   it('accepts only configured R2 paths, including encoded keys and local media', () => {
     expect(episodeThumbnailKey('https://f.no.mt/productions/one/cover.png')).toBe(
@@ -62,18 +70,31 @@ describe('episode thumbnails', () => {
     }
   });
 
-  it('sizes lazy grid/list artwork with mobile-first width hints', () => {
-    const grid = episodeThumbnailSizes(0.875);
+  it('sizes lazy grid/list artwork with mobile-first width hints capped to the public grid', () => {
+    const scale = 0.875;
+    const grid = episodeThumbnailSizes(scale);
     expect(grid.startsWith('auto, ')).toBe(false);
-    expect(grid).toContain('(max-width: 480px) calc((100vw - 48px) * 0.875)');
-    expect(grid).toContain('(max-width: 760px) calc(((100vw - 68px) / 2) * 0.875)');
-    expect(grid).toContain('min(90.8vw, 1424px)');
+    expect(grid).toContain('(max-width: 480px) calc(min((100vw - 48px), 240px) * 0.875)');
+    expect(grid).toContain('(max-width: 760px) calc(min(((100vw - 68px) / 2), 170px) * 0.875)');
+    expect(grid).toContain('(max-width: 1100px) calc(min(((90.8vw - 48px) / 3), 200px) * 0.875)');
+    expect(grid).toContain('calc(min(((min(90.8vw, 1424px) - 64px) / 3), 240px) * 0.875)');
     expect(episodeThumbnailSizes(1, false, true)).toBe(
-      '(max-width: 760px) calc((160px) * 1), calc((260px) * 1)',
+      '(max-width: 760px) calc(min(160px, 160px) * 1), calc(min(260px, 260px) * 1)',
     );
     const detail = episodeThumbnailSizes(1, true);
     expect(detail).not.toContain('auto');
-    expect(detail).toContain('(max-width: 538px) calc((100vw - 48px) * 1)');
-    expect(detail).toContain('0.4185');
+    expect(detail).toContain('(max-width: 538px) calc(min((100vw - 48px), 274px) * 1)');
+    expect(detail).toContain('(max-width: 760px) calc(min(490px, 490px) * 1)');
+    expect(detail).toContain('calc(min(min(90.8vw, 1424px) * 0.4185, 640px) * 1)');
+  });
+
+  it('selects 320w/480w thumbnails on a Moto G–sized viewport instead of 640w', () => {
+    const scale = 0.875;
+    const viewport = 412;
+    const dpr = 1.75;
+    const singleColumnSlot = Math.min(viewport - 48, 240) * scale;
+    expect(pickSrcsetWidth(singleColumnSlot, dpr)).toBe(480);
+    const twoColumnSlot = Math.min((600 - 68) / 2, 170) * scale;
+    expect(pickSrcsetWidth(twoColumnSlot, dpr)).toBe(320);
   });
 });

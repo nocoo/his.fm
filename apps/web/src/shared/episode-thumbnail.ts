@@ -3,6 +3,18 @@ import type { PublicEpisode } from './episode';
 
 export const episodeThumbnailWidths = [160, 240, 320, 480, 640, 960] as const;
 
+/** Caps slot width in `sizes` so ~1.75–2× DPR picks 480w/320w, not 640w, on phone grids. */
+const gridCaps = {
+  singleColumn: 240,
+  twoColumn: 170,
+  threeColumnNarrow: 200,
+  threeColumnWide: 240,
+} as const;
+
+const listCaps = { narrow: 160, wide: 260 } as const;
+
+const detailCaps = { narrow: 274, rail: 490 } as const;
+
 export function episodeThumbnailKey(
   source: string,
   origin = 'https://his.fm',
@@ -53,11 +65,28 @@ export function episodeThumbnailProps(
   };
 }
 
+function cappedSlot(expression: string, capPx: number, artworkScale: number): string {
+  return `calc(min(${expression}, ${capPx}px) * ${artworkScale})`;
+}
+
 export function episodeThumbnailSizes(artworkScale: number, detail = false, list = false): string {
-  const size = (expression: string) => `calc((${expression}) * ${artworkScale})`;
   if (detail) {
-    return `(max-width: 538px) ${size('100vw - 48px')}, (max-width: 760px) ${size('490px')}, ${size('min(90.8vw, 1424px) * 0.4185')}`;
+    return [
+      `(max-width: 538px) ${cappedSlot('(100vw - 48px)', detailCaps.narrow, artworkScale)}`,
+      `(max-width: 760px) ${cappedSlot(`${detailCaps.rail}px`, detailCaps.rail, artworkScale)}`,
+      cappedSlot('min(90.8vw, 1424px) * 0.4185', 640, artworkScale),
+    ].join(', ');
   }
-  if (list) return `(max-width: 760px) ${size('160px')}, ${size('260px')}`;
-  return `(max-width: 480px) ${size('100vw - 48px')}, (max-width: 760px) ${size('(100vw - 68px) / 2')}, (max-width: 1100px) ${size('(90.8vw - 48px) / 3')}, ${size('(min(90.8vw, 1424px) - 64px) / 3')}`;
+  if (list) {
+    return [
+      `(max-width: 760px) ${cappedSlot(`${listCaps.narrow}px`, listCaps.narrow, artworkScale)}`,
+      cappedSlot(`${listCaps.wide}px`, listCaps.wide, artworkScale),
+    ].join(', ');
+  }
+  return [
+    `(max-width: 480px) ${cappedSlot('(100vw - 48px)', gridCaps.singleColumn, artworkScale)}`,
+    `(max-width: 760px) ${cappedSlot('((100vw - 68px) / 2)', gridCaps.twoColumn, artworkScale)}`,
+    `(max-width: 1100px) ${cappedSlot('((90.8vw - 48px) / 3)', gridCaps.threeColumnNarrow, artworkScale)}`,
+    cappedSlot('((min(90.8vw, 1424px) - 64px) / 3)', gridCaps.threeColumnWide, artworkScale),
+  ].join(', ');
 }
