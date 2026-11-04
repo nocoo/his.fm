@@ -30,7 +30,22 @@ describe('seo-jsonld', () => {
     expect(podcastSeriesJsonLd('https://his.fm', site)).toMatchObject({
       '@type': 'PodcastSeries',
       url: 'https://his.fm/',
+      webFeed: 'https://his.fm/feed.xml',
+      sameAs: ['https://podcasts.apple.com/us/podcast/his-fm/id6826007787'],
     });
+    expect(
+      podcastSeriesJsonLd('https://his.fm', { ...site, defaultOgImageUrl: 'images/hero.webp' }).image,
+    ).toBe('https://his.fm/images/hero.webp');
+    expect(
+      podcastSeriesJsonLd('https://his.fm', { ...site, defaultOgImageUrl: 'https://cdn.example/og.png' })
+        .image,
+    ).toBe('https://cdn.example/og.png');
+    expect(podcastSeriesJsonLd('https://his.fm', site, []).description).toBe(site.podcastDescription);
+    expect(
+      podcastSeriesJsonLd('https://his.fm', site, [
+        { id: 'learning', name: '每日手冲', icon: 'coffee', color: 'amber', seo: {} },
+      ]).description,
+    ).toContain('每日手冲');
     expect(breadcrumbJsonLd('https://his.fm', [{ name: '首页', path: '/' }])).toMatchObject({
       '@type': 'BreadcrumbList',
       itemListElement: [{ position: 1, name: '首页' }],
@@ -69,10 +84,27 @@ describe('seo-jsonld', () => {
       },
     } satisfies PublicEpisode;
     expect(podcastEpisodeJsonLd('https://his.fm', episode, site, 'https://f.no.mt/a.mp3')).toMatchObject({
-      associatedMedia: { contentUrl: 'https://f.no.mt/a.mp3' },
+      associatedMedia: {
+        contentUrl: 'https://f.no.mt/a.mp3',
+        encodingFormat: 'audio/mpeg',
+        duration: 'PT1S',
+      },
+      timeRequired: 'PT1S',
       author: { '@type': 'Organization', name: 'his.fm' },
       episodeNumber: episode.episodeNumber,
       image: `https://his.fm/episodes/${episode.id}/art.jpg`,
+    });
+    expect(
+      podcastEpisodeJsonLd(
+        'https://his.fm',
+        { ...episode, durationSeconds: 0 },
+        site,
+        'https://f.no.mt/a.mp3',
+      ).associatedMedia,
+    ).toEqual({
+      '@type': 'MediaObject',
+      contentUrl: 'https://f.no.mt/a.mp3',
+      encodingFormat: 'audio/mpeg',
     });
     expect(podcastEpisodeJsonLd('https://his.fm', episode, site)).not.toHaveProperty('associatedMedia');
     expect(
