@@ -2,6 +2,12 @@
 
 All notable changes to his.fm are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions use the owner’s patch-only deployment policy in `AGENTS.md`, with the authoritative version in `package.json`.
 
+## 2.11.24 - 2026-11-04
+
+### Fixed
+
+- The public header wordmark link carries visually hidden `his.fm` text, so it keeps an accessible name on viewports where the 「中文播客」 caption is hidden. The critical shell CSS includes the `sr-only` rule so hidden text never flashes before the full stylesheet loads.
+
 ## 2.11.23 - 2026-11-04
 
 ### Fixed
