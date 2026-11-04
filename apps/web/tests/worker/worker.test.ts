@@ -14,6 +14,7 @@ import {
   productionAudioMaxDurationSeconds,
   productionAudioMp3MaxBytes,
 } from '../../src/shared/production';
+import { PUBLIC_HTML_CACHE_CONTROL } from '../../src/shared/public-cache-policy';
 import worker from '../../worker';
 import { productionCapabilities } from '../../worker/agent-api';
 import {
@@ -673,7 +674,7 @@ describe('public podcast catalog', () => {
       );
       expect(response.status).toBe(200);
       expect(response.headers.get('X-Public-Cache')).toBe('HIT');
-      expect(response.headers.get('Cache-Control')).toBe('no-store');
+      expect(response.headers.get('Cache-Control')).toBe(PUBLIC_HTML_CACHE_CONTROL);
       const nonce = /'nonce-([^']+)'/.exec(response.headers.get('Content-Security-Policy') ?? '')?.[1];
       expect(nonce).toBeTruthy();
       nonces.add(nonce ?? '');
@@ -825,7 +826,7 @@ describe('public podcast catalog', () => {
     expect(categoryXml).toContain(`length="${bytes.byteLength}"`);
   });
 
-  it('does not 301 legacy category ids on feeds or the catalogue query string', async () => {
+  it('301 redirects legacy catalogue category aliases but keeps unknown feed ids as 404', async () => {
     await env.DB.prepare('INSERT INTO category_id_aliases (alias, category_id) VALUES (?, ?)')
       .bind('legacy-category-id', 'life')
       .run();
@@ -833,8 +834,12 @@ describe('public podcast catalog', () => {
     expect(feed.status).toBe(404);
     expect(feed.headers.get('Location')).toBeNull();
     const catalogue = await call('/episodes?category=legacy-category-id');
-    expect(catalogue.status).toBe(200);
-    expect(catalogue.headers.get('Location')).toBeNull();
+    expect(catalogue.status).toBe(301);
+    expect(catalogue.headers.get('Location')).toBe('/episodes?category=life');
+  });
+
+  it('returns 404 for unknown catalogue categories instead of noindex placeholders', async () => {
+    expect((await call('/episodes?category=bogus')).status).toBe(404);
   });
 
   it('includes mentions in RSS item descriptions', async () => {
@@ -845,6 +850,7 @@ describe('public podcast catalog', () => {
     const feed = await call('/feed.xml');
     expect(feed.status).toBe(200);
     expect(feed.headers.get('Content-Type')).toContain('application/rss+xml');
+    expect(feed.headers.get('X-Robots-Tag')).toBe('noindex');
     const xml = await feed.text();
     expect(xml).toContain('本期提到');
     expect(xml).toContain('his.fm — 这档播客的主站。');
@@ -869,6 +875,11 @@ describe('public podcast catalog', () => {
     const full = await call('/llms-full.txt');
     expect(full.status).toBe(200);
     expect(await full.text()).toContain('Episodes by category');
+    const llms = await call('/llms.txt');
+    expect(llms.status).toBe(200);
+    const llmsBody = await llms.text();
+    expect(llmsBody).toContain('## Agent API');
+    expect(llmsBody).toContain('李征');
     const seo = await call('/admin/api/seo');
     expect(seo.status).toBe(200);
     const current = (await seo.json()) as { seo: { version: number } };
@@ -1686,7 +1697,8 @@ describe('agent discovery and real bearer routing', () => {
     for (const fragment of [
       '/api/agent/channel/prompt-slots',
       '/api/agent/categories/:id/prompt-slots',
-      'Uninitialized tables are empty at version 0 until the first save',
+      '## Sister sites',
+      '李征',
     ])
       expect(summary).toContain(fragment);
     expect(summary).not.toContain('migration/dry-run');

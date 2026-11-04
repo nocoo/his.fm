@@ -12,21 +12,36 @@ vi.mock('../../worker/appearance', () => ({ getAppearance: vi.fn() }));
 const origin = 'https://his.fm';
 const mediaBase = 'https://f.no.mt';
 let rows: Record<string, unknown>[] = [];
+const categoryRows: Record<string, unknown>[] = [
+  { id: 'manager-notes', name: '管理手记', icon: 'briefcase-business', color: 'blue', seo: '{}' },
+  { id: 'learning', name: '每日手冲', icon: 'coffee', color: 'amber', seo: '{}' },
+  { id: 'look-outside', name: '看看外面', icon: 'compass', color: 'teal', seo: '{}' },
+];
 let querySuccess = true;
 let categoryIdentity: string | null = 'learning';
 const query = vi.fn();
 const db = {
   prepare(sql: string) {
-    return {
+    const resultsFor = (values: unknown[]) => {
+      query(sql, values);
+      return sql.includes('episode_mentions')
+        ? mentionRows
+        : sql.includes('FROM categories')
+          ? categoryRows
+          : rows;
+    };
+    const statement = {
       bind(...values: unknown[]) {
-        query(sql, values);
-        const results = sql.includes('episode_mentions') ? mentionRows : rows;
+        const results = resultsFor(values);
         return {
           all: async () => ({ success: querySuccess, results }),
           first: async () => (categoryIdentity === null ? null : { rss_identity: categoryIdentity }),
         };
       },
+      all: async () => ({ success: querySuccess, results: resultsFor([]) }),
+      first: async () => (categoryIdentity === null ? null : { rss_identity: categoryIdentity }),
     };
+    return statement;
   },
 } as unknown as D1Database;
 let site: SiteSeoRecord;
@@ -66,6 +81,7 @@ let mentionRows: Record<string, unknown>[] = [];
 function catalogue(...episodes: Episode[]) {
   rows = episodes.map((item) => ({
     ...item,
+    seoRaw: JSON.stringify(item.seo ?? {}),
     categoryName: '生活',
     guid: `https://his.fm/episodes/${item.category}/${item.slug}`,
   }));
@@ -375,7 +391,9 @@ describe('podcast feeds', () => {
       media().bucket,
     );
     expect(xml).toContain('<title>管理手记 · his.fm</title>');
-    expect(xml).toContain(`<description>管理手记 · ${site.podcastDescription}</description>`);
+    expect(xml).toContain('<description>管理手记 · his.fm 是一档给开发者的中文播客');
+    expect(xml).toContain('<itunes:episode>1</itunes:episode>');
+    expect(xml).toContain('<itunes:episodeType>full</itunes:episodeType>');
     expect(xml).toContain('href="https://his.fm/feeds/manager-notes.xml"');
     expect(xml).toContain('<itunes:category text="Technology" />');
     expect(xml).not.toContain('text="管理手记"');
@@ -384,8 +402,9 @@ describe('podcast feeds', () => {
     expect(xml).toContain('<itunes:image href="https://his.fm/brand/podcast.jpg" />');
     expect(xml).toContain(`<itunes:image href="${origin}${await artUrl()}" />`);
     expect(xml).not.toContain('/episodes/no-audio/art.jpg');
-    expect(query.mock.calls[0][0]).toContain('AND e.category = ?');
-    expect(query.mock.calls[0][1][1]).toBe('manager-notes');
+    expect(query.mock.calls.find(([sql]) => sql.includes('AND e.category = ?'))?.[1]?.[1]).toBe(
+      'manager-notes',
+    );
   });
 
   it('shares in-flight R2 lookups for the same trusted key', async () => {
@@ -396,9 +415,9 @@ describe('podcast feeds', () => {
     const { bucket, head } = media();
     await buildRssFeed(db, origin, mediaBase, bucket);
     expect(head).toHaveBeenCalledExactlyOnceWith('audio.mp3');
-    expect(query).toHaveBeenCalledTimes(2);
-    expect(query.mock.calls[0][0]).not.toContain('transcript');
-    expect(query.mock.calls[1][0]).toContain('episode_mentions');
+    expect(query.mock.calls.some(([sql]) => sql.includes('FROM categories'))).toBe(true);
+    expect(query.mock.calls.some(([sql]) => sql.includes('episode_mentions'))).toBe(true);
+    expect(query.mock.calls.every(([sql]) => !sql.includes('transcript'))).toBe(true);
   });
 });
 

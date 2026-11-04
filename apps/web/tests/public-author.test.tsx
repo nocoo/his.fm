@@ -41,6 +41,6 @@ describe('public author links', () => {
     const html = aboutMarkup(siteSeoSchema.parse({}));
     expect(html).not.toContain('的主页');
     expect(html).toContain('href="https://lizheng.blog"');
-    expect(html).not.toContain('lizheng.dev');
+    expect(html).not.toContain('rel="me noopener noreferrer"');
   });
 });

@@ -1,8 +1,15 @@
 import { themeChromeColor, themeFaviconPngSrc, themeFaviconSrc, themes } from '../src/brand/themes';
 import { themeIdSchema } from '../src/shared/appearance';
+import {
+  CATALOGUE_PAGE_SIZE,
+  cataloguePaginationLinks,
+  parseCataloguePage,
+} from '../src/shared/catalogue-pagination';
 import { type PublicEpisode, projectPublicEpisode, projectPublicEpisodeSummary } from '../src/shared/episode';
 import { withShareArtwork } from '../src/shared/episode-art';
 import { episodePublicPath } from '../src/shared/episode-url';
+import { PUBLIC_HTML_CACHE_CONTROL } from '../src/shared/public-cache-policy';
+import { filterIndexableEpisodes } from '../src/shared/public-index';
 import { injectSeoIntoHtml } from '../src/shared/seo-head';
 import { episodeBreadcrumbs, podcastEpisodeJsonLd, podcastSeriesJsonLd } from '../src/shared/seo-jsonld';
 import { resolveAboutPageSeo, resolveCatalogueSeo, resolveSiteDefaults } from '../src/shared/seo-resolve';
@@ -10,6 +17,7 @@ import { getAppearance } from './appearance';
 import { listCategories } from './categories';
 import { findPublishedEpisodeBySlug, redirect, resolveCategoryAlias } from './episode-public';
 import { readPublishedEpisodes } from './episodes';
+import { HttpError } from './http';
 import { renderHeroPreloads, renderPublicPage } from './public-render';
 import { getSiteSeo } from './seo-store';
 
@@ -18,7 +26,15 @@ const TRAKS_HEAD_SNIPPET = `<script>window.traks=window.traks||function(){(windo
 
 async function loadShell(request: Request, env: Env) {
   const asset = await env.ASSETS.fetch(new Request(new URL('/', request.url)));
+  if (!asset.ok) throw new HttpError(503, '页面暂时无法加载，请稍后重试。');
   return asset.text();
+}
+
+function catalogueCategoryParam(categories: Awaited<ReturnType<typeof listCategories>>, raw: string | null) {
+  if (!raw || raw === 'all') return { category: undefined, status: 200 as const };
+  return categories.some((item) => item.id === raw)
+    ? { category: categories.find((item) => item.id === raw), status: 200 as const }
+    : { category: undefined, status: 404 as const };
 }
 
 export async function maybeServePublicHtml(request: Request, env: Env): Promise<Response | null> {
@@ -57,33 +73,68 @@ export async function maybeServePublicHtml(request: Request, env: Env): Promise<
     status = 404;
   }
 
-  const [siteRecord, appearance, records, categories, shell] = await Promise.all([
-    getSiteSeo(env.DB),
-    getAppearance(env.DB),
-    readPublishedEpisodes(env.DB),
-    listCategories(env.DB),
-    loadShell(request, env),
-  ]);
+  let siteRecord: Awaited<ReturnType<typeof getSiteSeo>>;
+  let appearance: Awaited<ReturnType<typeof getAppearance>>;
+  let records: Awaited<ReturnType<typeof readPublishedEpisodes>>;
+  let categories: Awaited<ReturnType<typeof listCategories>>;
+  let shell: string;
+  try {
+    [siteRecord, appearance, records, categories, shell] = await Promise.all([
+      getSiteSeo(env.DB),
+      getAppearance(env.DB),
+      readPublishedEpisodes(env.DB),
+      listCategories(env.DB),
+      loadShell(request, env),
+    ]);
+  } catch (error) {
+    console.error(
+      JSON.stringify({
+        event: 'public_html_load_failed',
+        path,
+        message: error instanceof Error ? error.message : 'Unknown error',
+      }),
+    );
+    throw new HttpError(503, '页面暂时无法加载，请稍后重试。');
+  }
+
   const { version: _version, updatedAt: _updatedAt, updatedBy: _updatedBy, ...site } = siteRecord;
+  const indexableRecords = filterIndexableEpisodes(records, origin, site);
   const names = new Map(categories.map((category) => [category.id, category.name]));
-  const summaries = records.map(projectPublicEpisodeSummary);
+  const summaries = indexableRecords.map(projectPublicEpisodeSummary);
   let seo = resolveSiteDefaults(site, origin);
-  let jsonLd: unknown[] = [podcastSeriesJsonLd(origin, site)];
+  let jsonLd: unknown[] = [podcastSeriesJsonLd(origin, site, categories)];
   let episode: PublicEpisode | undefined;
+  let extraHead = '';
 
   if (path === '/about') {
     seo = resolveAboutPageSeo(site, origin);
-    jsonLd = [podcastSeriesJsonLd(origin, site)];
+    jsonLd = [podcastSeriesJsonLd(origin, site, categories)];
   } else if (path === '/episodes') {
-    const categoryId = url.searchParams.get('category');
-    const category = categories.find((item) => item.id === categoryId);
-    const count = records.filter(
-      (episode) => categoryId === null || categoryId === 'all' || episode.category === categoryId,
-    ).length;
-    seo = resolveCatalogueSeo(site, origin, count, category);
+    const rawCategory = url.searchParams.get('category');
+    if (rawCategory && rawCategory !== 'all') {
+      const resolvedCategory = await resolveCategoryAlias(env.DB, rawCategory);
+      if (resolvedCategory !== rawCategory) {
+        const next = new URL(url);
+        next.searchParams.set('category', resolvedCategory);
+        return redirect(`${next.pathname}${next.search}`);
+      }
+    }
+    const resolved = catalogueCategoryParam(categories, rawCategory);
+    if (resolved.status === 404) status = 404;
+    const category = resolved.category;
+    const page = parseCataloguePage(url.searchParams.get('page'));
+    const categoryEpisodes = summaries.filter(
+      (item) => !rawCategory || rawCategory === 'all' || item.category === rawCategory,
+    );
+    seo = resolveCatalogueSeo(site, origin, categoryEpisodes.length, category, category?.seo, page);
+    extraHead = cataloguePaginationLinks(origin, category?.id ?? null, page, categoryEpisodes.length).join(
+      '\n',
+    );
+    if (page > 1 && categoryEpisodes.length <= (page - 1) * CATALOGUE_PAGE_SIZE) status = 404;
   } else if (categoryEpisode) {
     const [, categoryId, slug] = categoryEpisode;
-    const record = records.find((item) => item.category === categoryId && item.slug === slug);
+    const resolvedCategory = await resolveCategoryAlias(env.DB, categoryId);
+    const record = indexableRecords.find((item) => item.category === resolvedCategory && item.slug === slug);
     if (!record) status = 404;
     else {
       episode = await withShareArtwork(
@@ -97,7 +148,7 @@ export async function maybeServePublicHtml(request: Request, env: Env): Promise<
       seo = episode.pageSeo;
       if (category) {
         jsonLd = [
-          podcastSeriesJsonLd(origin, site),
+          podcastSeriesJsonLd(origin, site, categories),
           podcastEpisodeJsonLd(
             origin,
             episode,
@@ -115,8 +166,9 @@ export async function maybeServePublicHtml(request: Request, env: Env): Promise<
   }
 
   if (status === 404) {
-    seo = { ...seo, title: '页面不存在 · his.fm', canonical: `${origin}${path}`, noindex: true };
+    seo = { ...seo, title: '页面不存在 · his.fm', canonical: `${origin}${path}${url.search}`, noindex: true };
     jsonLd = [];
+    extraHead = '';
   }
 
   const data = {
@@ -132,7 +184,7 @@ export async function maybeServePublicHtml(request: Request, env: Env): Promise<
   const chrome = themeChromeColor(theme, path, preview.success);
   const rendered = renderPublicPage(`${path}${url.search}`, data);
   const bootstrap = JSON.stringify(data).replace(/</g, '\\u003c');
-  let html = injectSeoIntoHtml(shell, seo, jsonLd).replace(
+  let html = injectSeoIntoHtml(shell, seo, jsonLd, origin, extraHead).replace(
     '<div id="root"></div>',
     () =>
       `<div id="root">${rendered}</div><script id="public-data" type="application/json">${bootstrap}</script>`,
@@ -155,7 +207,7 @@ export async function maybeServePublicHtml(request: Request, env: Env): Promise<
     status,
     headers: {
       'Content-Type': 'text/html; charset=utf-8',
-      'Cache-Control': status === 200 ? 'public, max-age=60' : 'no-store',
+      'Cache-Control': status === 200 ? PUBLIC_HTML_CACHE_CONTROL : 'no-store',
     },
   });
   return request.method === 'HEAD' ? new Response(null, response) : response;

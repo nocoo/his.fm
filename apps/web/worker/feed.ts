@@ -4,7 +4,11 @@ import type { PublicEpisode } from '../src/shared/episode';
 import { artLocation } from '../src/shared/episode-art';
 import { categoryFeedPath, episodePublicPath } from '../src/shared/episode-url';
 import type { Mention } from '../src/shared/mentions';
+import { programmeColumnDescription } from '../src/shared/public-copy';
+import { isEpisodeSeoIndexable } from '../src/shared/public-index';
+import { parseSeoOverride } from '../src/shared/seo';
 import { getAppearance } from './appearance';
+import { listCategories } from './categories';
 import { HttpError } from './http';
 import { getSiteSeo } from './seo-store';
 
@@ -26,7 +30,7 @@ type FeedEpisode = Pick<
 async function feedEpisodes(db: D1Database, category?: string): Promise<FeedEpisode[]> {
   const result = await db
     .prepare(
-      `SELECT e.id, e.title, e.slug, e.category, e.summary, e.audio_url AS audioUrl,
+      `SELECT e.id, e.title, e.slug, e.category, e.summary, e.seo AS seoRaw, e.audio_url AS audioUrl,
       e.duration_seconds AS durationSeconds, e.published_at AS publishedAt, e.cover_url AS coverUrl,
       e.episode_number AS episodeNumber, c.name AS categoryName,
       COALESCE(e.rss_guid, 'urn:his.fm:episode:' || e.id) AS guid
@@ -35,7 +39,7 @@ async function feedEpisodes(db: D1Database, category?: string): Promise<FeedEpis
     ORDER BY e.published_at DESC, e.episode_number DESC`,
     )
     .bind(new Date().toISOString(), ...(category ? [category] : []))
-    .all<Omit<FeedEpisode, 'mentions'>>();
+    .all<Omit<FeedEpisode, 'mentions'> & { seoRaw: string }>();
   if (!result.success) throw new HttpError(503, '播客订阅暂时无法读取');
   const ids = result.results.map((row) => row.id);
   const mentionsByEpisode = new Map<string, Mention[]>();
@@ -58,10 +62,12 @@ async function feedEpisodes(db: D1Database, category?: string): Promise<FeedEpis
       mentionsByEpisode.set(row.episode_id, entries);
     }
   }
-  return result.results.map((row) => ({
-    ...row,
-    mentions: mentionsByEpisode.get(row.id) ?? [],
-  }));
+  return result.results
+    .filter((row) => isEpisodeSeoIndexable(parseSeoOverride(String(row.seoRaw ?? '{}'))))
+    .map((row) => ({
+      ...row,
+      mentions: mentionsByEpisode.get(row.id) ?? [],
+    }));
 }
 
 export function podcastGuid(path: string) {
@@ -191,6 +197,8 @@ async function renderItem(
   <guid isPermaLink="${episode.guid.startsWith('https://')}">${escapeXml(episode.guid)}</guid>
   <pubDate>${publishedAt.toUTCString()}</pubDate>
   <description><![CDATA[${itemDescription(episode, link).replaceAll(']]>', ']]]]><![CDATA[>')}]]></description>
+  <itunes:episode>${episode.episodeNumber}</itunes:episode>
+  <itunes:episodeType>full</itunes:episodeType>
   <itunes:explicit>${explicit}</itunes:explicit>
   <itunes:image href="${escapeXml(absoluteUrl(origin, artUrl))}" />
   <enclosure url="${escapeXml(enclosure.url)}" length="${enclosure.length}" type="${escapeXml(enclosure.type)}" />${duration}
@@ -273,20 +281,26 @@ export async function buildRssFeed(
   mediaBase: string,
   bucket?: R2Bucket,
 ): Promise<string> {
-  const [site, episodes] = await Promise.all([getSiteSeo(db), feedEpisodes(db)]);
+  const [siteRecord, categories] = await Promise.all([getSiteSeo(db), listCategories(db)]);
+  const episodes = await feedEpisodesForPublic(db, origin);
+  const description = programmeColumnDescription(categories);
   return buildChannel(
     db,
     origin,
     mediaBase,
-    site.siteName,
-    site.podcastDescription,
+    siteRecord.siteName,
+    description,
     '/',
     absoluteUrl(origin, '/feed.xml'),
     '/feed.xml',
     episodes,
-    site,
+    siteRecord,
     bucket,
   );
+}
+
+async function feedEpisodesForPublic(db: D1Database, _origin: string, category?: string) {
+  return feedEpisodes(db, category);
 }
 
 export async function buildCategoryRssFeed(
@@ -297,9 +311,10 @@ export async function buildCategoryRssFeed(
   categoryName: string,
   bucket?: R2Bucket,
 ): Promise<string> {
-  const [site, episodes, identity] = await Promise.all([
+  const [siteRecord, categories, episodes, identity] = await Promise.all([
     getSiteSeo(db),
-    feedEpisodes(db, categoryId),
+    listCategories(db),
+    feedEpisodesForPublic(db, origin, categoryId),
     db
       .prepare('SELECT rss_identity FROM categories WHERE id = ?')
       .bind(categoryId)
@@ -307,17 +322,18 @@ export async function buildCategoryRssFeed(
   ]);
   if (!identity?.rss_identity) throw new HttpError(503, '栏目订阅标识暂时不可用');
   if (!episodes.length) throw new HttpError(404, '这个栏目还没有已发布的节目');
+  const description = `${categoryName} · ${programmeColumnDescription(categories)}`;
   return buildChannel(
     db,
     origin,
     mediaBase,
-    `${categoryName} · ${site.siteName}`,
-    `${categoryName} · ${site.podcastDescription}`,
+    `${categoryName} · ${siteRecord.siteName}`,
+    description,
     `/episodes?category=${categoryId}`,
     absoluteUrl(origin, categoryFeedPath(categoryId)),
     categoryFeedPath(identity.rss_identity),
     episodes,
-    site,
+    siteRecord,
     bucket,
   );
 }

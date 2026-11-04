@@ -1,7 +1,10 @@
 import type { PublicCategory } from './category';
+import { iso8601Duration } from './duration-iso8601';
 import type { PublicEpisode } from './episode';
 import { episodeCanonicalUrl, episodePublicPath } from './episode-url';
 import { podcastEpisodeMentionsJsonLd } from './mentions-format';
+import { APPLE_PODCASTS_URL } from './public-cache-policy';
+import { programmeColumnDescription } from './public-copy';
 import type { SiteSeo } from './seo';
 
 export function podcastAuthorJsonLd(site: SiteSeo) {
@@ -12,13 +15,20 @@ export function podcastAuthorJsonLd(site: SiteSeo) {
   };
 }
 
-export function podcastSeriesJsonLd(origin: string, site: SiteSeo) {
+export function podcastSeriesJsonLd(origin: string, site: SiteSeo, categories: PublicCategory[] = []) {
+  const description = categories.length ? programmeColumnDescription(categories) : site.podcastDescription;
+  const image = site.defaultOgImageUrl.startsWith('http')
+    ? site.defaultOgImageUrl
+    : `${origin}${site.defaultOgImageUrl.startsWith('/') ? site.defaultOgImageUrl : `/${site.defaultOgImageUrl}`}`;
   return {
     '@context': 'https://schema.org',
     '@type': 'PodcastSeries',
     name: site.siteName,
-    description: site.podcastDescription,
+    description,
     url: `${origin}/`,
+    image,
+    webFeed: `${origin}/feed.xml`,
+    sameAs: [APPLE_PODCASTS_URL],
     inLanguage: site.language,
     author: podcastAuthorJsonLd(site),
   };
@@ -41,7 +51,19 @@ export function podcastEpisodeJsonLd(
     datePublished: episode.publishedAt ?? episode.updatedAt,
     author: podcastAuthorJsonLd(site),
     ...(audioAbsoluteUrl
-      ? { associatedMedia: { '@type': 'MediaObject', contentUrl: audioAbsoluteUrl } }
+      ? {
+          associatedMedia: {
+            '@type': 'MediaObject',
+            contentUrl: audioAbsoluteUrl,
+            encodingFormat: 'audio/mpeg',
+            ...(iso8601Duration(episode.durationSeconds)
+              ? { duration: iso8601Duration(episode.durationSeconds) }
+              : {}),
+          },
+          ...(iso8601Duration(episode.durationSeconds)
+            ? { timeRequired: iso8601Duration(episode.durationSeconds) }
+            : {}),
+        }
       : {}),
     ...(episode.mentions.length ? { mentions: podcastEpisodeMentionsJsonLd(episode.mentions) } : {}),
     partOfSeries: { '@type': 'PodcastSeries', name: 'his.fm', url: `${origin}/` },

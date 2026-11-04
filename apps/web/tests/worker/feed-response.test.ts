@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { PUBLIC_FEED_CACHE_CONTROL, PUBLIC_RSS_ROBOTS } from '../../src/shared/public-cache-policy';
 import { getCategory } from '../../worker/categories';
 import { buildCategoryRssFeed, buildRssFeed } from '../../worker/feed';
 import { conditionalFeedResponse, feedResponse, feedRoute } from '../../worker/feed-response';
@@ -29,7 +30,8 @@ describe('feed HTTP responses', () => {
     const response = await feedResponse(request(), env);
     expect(await response.text()).toBe('<rss>channel</rss>');
     expect(response.headers.get('Content-Type')).toBe('application/rss+xml; charset=utf-8');
-    expect(response.headers.get('Cache-Control')).toBe('public, max-age=60');
+    expect(response.headers.get('Cache-Control')).toBe(PUBLIC_FEED_CACHE_CONTROL);
+    expect(response.headers.get('X-Robots-Tag')).toBe(PUBLIC_RSS_ROBOTS);
     expect(response.headers.get('ETag')).toMatch(/^"[a-f0-9]{64}"$/);
     expect(buildRssFeed).toHaveBeenCalledWith(env.DB, 'https://his.fm', 'https://f.no.mt', env.MEDIA);
     const previous = response.headers.get('ETag');

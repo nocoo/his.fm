@@ -18,6 +18,7 @@ type EpisodeUpdate = z.infer<typeof episodeUpdateSchema>;
 
 import { withShareArtwork } from '../src/shared/episode-art';
 import type { Actor } from '../src/shared/production';
+import { filterIndexableEpisodes } from '../src/shared/public-index';
 import { parseSeoOverride } from '../src/shared/seo';
 import { requireScope } from './authorization';
 import { getCategory } from './categories';
@@ -220,8 +221,14 @@ async function fetchPublishedRow(db: D1Database, lookup: EpisodeLookup) {
   return null;
 }
 
-export async function listPublishedEpisodeSummaries(db: D1Database): Promise<PublicEpisodeSummary[]> {
-  return (await readPublishedEpisodes(db)).map(projectPublicEpisodeSummary);
+export async function listPublishedEpisodeSummaries(
+  db: D1Database,
+  origin = 'https://his.fm',
+): Promise<PublicEpisodeSummary[]> {
+  const site = await getSiteSeo(db);
+  const { version: _version, updatedAt: _updatedAt, updatedBy: _updatedBy, ...seo } = site;
+  const episodes = filterIndexableEpisodes(await readPublishedEpisodes(db), origin, seo);
+  return episodes.map(projectPublicEpisodeSummary);
 }
 
 export async function listAllEpisodes(db: D1Database, actor?: Actor): Promise<Episode[]> {

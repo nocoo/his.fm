@@ -19,6 +19,12 @@ import { BrandSymbol } from '../brand/Brand';
 import { BrandLockup } from '../brand/BrandLockup';
 import { themeMedia } from '../brand/themes';
 import { AudioPlayer } from '../components/AudioPlayer';
+import {
+  cataloguePageCount,
+  cataloguePageHref,
+  paginateList,
+  parseCataloguePage,
+} from '../shared/catalogue-pagination';
 import type { PublicCategory } from '../shared/category';
 import { categoryIconComponents } from '../shared/category-icons';
 import { coverArtwork, coverDesignSize } from '../shared/cover-composition';
@@ -26,6 +32,7 @@ import type { PublicEpisodeSummary } from '../shared/episode';
 import { formatEpisodeNumber } from '../shared/episode-display';
 import { episodeThumbnailProps, episodeThumbnailSizes } from '../shared/episode-thumbnail';
 import { episodePublicPath } from '../shared/episode-url';
+import { APPLE_PODCASTS_URL } from '../shared/public-cache-policy';
 import { ReadingText } from '../shared/ReadingText';
 import { applyClientSeo } from '../shared/seo-client';
 import { episodeBreadcrumbs, podcastEpisodeJsonLd, podcastSeriesJsonLd } from '../shared/seo-jsonld';
@@ -35,6 +42,7 @@ import { EpisodeCover } from './EpisodeCover';
 import { EpisodeMentions } from './EpisodeMentions';
 import { Hero, ThemeImage } from './Hero';
 import {
+  adjacentEpisodesInColumn,
   catalogueCategoryFromSearch,
   catalogueHref,
   catalogueSearchParamsForCategory,
@@ -43,13 +51,14 @@ import {
   durationLabel,
   episodeDisplayLabel,
   filterEpisodes,
+  relatedEpisodes,
 } from './model';
 import { usePublicOrigin } from './PublicData';
 import { Reveal } from './Reveal';
 import { useEpisodeDetail, useEpisodes } from './useEpisodes';
 import { PublicSiteSeoProvider, usePublicSiteSeo } from './usePublicSiteSeo';
 
-const applePodcastsUrl = 'https://podcasts.apple.com/us/podcast/his-fm/id6826007787';
+const applePodcastsUrl = APPLE_PODCASTS_URL;
 
 function chineseCount(value: number) {
   return ['零', '一', '两', '三', '四', '五', '六', '七', '八', '九'][value] ?? String(value);
@@ -72,7 +81,7 @@ function Header() {
   }, [location.pathname]);
   return (
     <header className="site-header">
-      <Link to="/" className="wordmark" aria-label="his.fm 首页">
+      <Link to="/" className="wordmark">
         <BrandLockup />
         <span className="brand-caption">中文播客</span>
       </Link>
@@ -137,6 +146,18 @@ function Footer() {
             )}
             <a href="https://lizheng.blog" rel="noopener noreferrer" target="_blank">
               博客
+            </a>
+            <a href="https://lizheng.dev" rel="noopener noreferrer" target="_blank">
+              lizheng.dev
+            </a>
+            <a href="https://lizheng.me" rel="noopener noreferrer" target="_blank">
+              lizheng.me
+            </a>
+            <a href="https://hexly.ai" rel="noopener noreferrer" target="_blank">
+              hexly.ai
+            </a>
+            <a href="https://basaltui.com" rel="noopener noreferrer" target="_blank">
+              basaltui.com
             </a>
             <a href="/llms.txt" lang="en">
               llms.txt
@@ -365,8 +386,8 @@ function Home() {
   const featured = episodes.find((episode) => episode.featured) ?? episodes[0];
   const featuredLabel = featured ? episodeDisplayLabel(featured, categories) : undefined;
   useEffect(() => {
-    applyClientSeo(resolveSiteDefaults(site, origin), [podcastSeriesJsonLd(origin, site)]);
-  }, [site, origin]);
+    applyClientSeo(resolveSiteDefaults(site, origin), [podcastSeriesJsonLd(origin, site, categories)]);
+  }, [site, origin, categories]);
   return (
     <>
       <Hero featured={featured} episodeLabel={featuredLabel} />
@@ -442,19 +463,25 @@ function Catalogue() {
   const origin = usePublicOrigin();
   const [searchParams, setSearchParams] = useSearchParams();
   const category = catalogueCategoryFromSearch(searchParams.get('category'));
+  const page = parseCataloguePage(searchParams.get('page'));
   const [query, setQuery] = useState('');
   const setCategoryFilter = (next: string) => {
-    setSearchParams(catalogueSearchParamsForCategory(searchParams, next), { replace: true });
+    const params = catalogueSearchParamsForCategory(searchParams, next);
+    params.delete('page');
+    setSearchParams(params, { replace: true });
   };
   const categoryEpisodes = filterEpisodes(episodes, category, '');
   const filtered = filterEpisodes(categoryEpisodes, 'all', query);
+  const paged = query ? filtered : paginateList(filtered, page);
+  const totalPages = cataloguePageCount(filtered.length);
   const activeCategory = category === 'all' ? undefined : categories.find((item) => item.id === category);
   useEffect(() => {
     if (!hasData) return;
-    applyClientSeo(resolveCatalogueSeo(site, origin, categoryEpisodes.length, activeCategory), [
-      podcastSeriesJsonLd(origin, site),
-    ]);
-  }, [site, origin, activeCategory, categoryEpisodes.length, hasData]);
+    applyClientSeo(
+      resolveCatalogueSeo(site, origin, categoryEpisodes.length, activeCategory, activeCategory?.seo, page),
+      [podcastSeriesJsonLd(origin, site, categories)],
+    );
+  }, [site, origin, activeCategory, categoryEpisodes.length, hasData, page, categories]);
   return (
     <section className="catalogue wrap">
       <Reveal className="page-heading">
@@ -521,7 +548,7 @@ function Catalogue() {
         </p>
         {filtered.length ? (
           <div className="episode-grid">
-            {filtered.map((episode) => (
+            {paged.map((episode) => (
               <Reveal key={episode.id}>
                 <EpisodeCard episode={episode} />
               </Reveal>
@@ -542,6 +569,33 @@ function Catalogue() {
               查看全部 <ArrowRight size={18} />
             </button>
           </div>
+        )}
+        {!query && totalPages > 1 && (
+          <nav className="catalogue-pagination" aria-label="栏目分页">
+            {page > 1 ? (
+              <Link
+                to={cataloguePageHref(category === 'all' ? null : category, page - 1)}
+                className="text-link"
+              >
+                上一页
+              </Link>
+            ) : (
+              <span />
+            )}
+            <span>
+              第 {page} / {totalPages} 页
+            </span>
+            {page < totalPages ? (
+              <Link
+                to={cataloguePageHref(category === 'all' ? null : category, page + 1)}
+                className="text-link"
+              >
+                下一页
+              </Link>
+            ) : (
+              <span />
+            )}
+          </nav>
         )}
       </LibraryState>
     </section>
@@ -569,7 +623,7 @@ function EpisodeDetail() {
     applyClientSeo(episode.pageSeo, [
       podcastEpisodeJsonLd(origin, episode, site, episode.audioUrl),
       episodeBreadcrumbs(origin, category, episode),
-      podcastSeriesJsonLd(origin, site),
+      podcastSeriesJsonLd(origin, site, categories),
     ]);
   }, [episode, categories, origin, site]);
   // biome-ignore lint/correctness/useExhaustiveDependencies: Each episode resets share state on navigation.
@@ -610,11 +664,39 @@ function EpisodeDetail() {
       </div>
     );
   if (!episode) return <NotFound />;
+  const activeCategory = categories.find((item) => item.id === episode.category);
+  const { previous, next } = adjacentEpisodesInColumn(episodes, episode);
+  const suggestions = relatedEpisodes(episodes, episode);
   return (
     <div className="detail-page wrap">
       <Link to="/episodes" className="back-link">
         <ArrowLeft size={17} /> 全部播客
       </Link>
+      {activeCategory && (
+        <p className="episode-column-link">
+          <Link to={cataloguePageHref(activeCategory.id, 1)} className="text-link">
+            {activeCategory.name}
+          </Link>
+        </p>
+      )}
+      {(previous || next) && (
+        <nav className="episode-series-nav" aria-label="同栏目节目">
+          {previous ? (
+            <Link to={episodePublicPath(previous.category, previous.slug)} className="text-link">
+              <ArrowLeft size={16} aria-hidden="true" /> 上一期
+            </Link>
+          ) : (
+            <span />
+          )}
+          {next ? (
+            <Link to={episodePublicPath(next.category, next.slug)} className="text-link">
+              下一期 <ArrowRight size={16} aria-hidden="true" />
+            </Link>
+          ) : (
+            <span />
+          )}
+        </nav>
+      )}
       <div className="episode-layout">
         <Reveal className="detail-art">
           {episode.audioUrl ? (
@@ -741,12 +823,9 @@ function EpisodeDetail() {
           </Link>
         </div>
         <div className="episode-grid">
-          {episodes
-            .filter((item) => item.id !== episode.id)
-            .slice(0, 3)
-            .map((item) => (
-              <EpisodeCard key={item.id} episode={item} />
-            ))}
+          {suggestions.map((item) => (
+            <EpisodeCard key={item.id} episode={item} />
+          ))}
         </div>
       </section>
     </div>
@@ -765,8 +844,8 @@ function About() {
   const minutes = durations.length ? durations.map((value) => Math.round(value / 60)) : [];
   const latest = episodes[0];
   useEffect(() => {
-    applyClientSeo(resolveAboutPageSeo(site, origin), [podcastSeriesJsonLd(origin, site)]);
-  }, [site, origin]);
+    applyClientSeo(resolveAboutPageSeo(site, origin), [podcastSeriesJsonLd(origin, site, categories)]);
+  }, [site, origin, categories]);
   return (
     <div className="about-page">
       <section className="about-opening wrap">

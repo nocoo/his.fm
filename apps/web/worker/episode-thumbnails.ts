@@ -51,7 +51,7 @@ export async function routeEpisodeThumbnail(
   }
   const headers = {
     'Content-Type': 'image/webp',
-    'Cache-Control': 'public, max-age=3600',
+    'Cache-Control': 'public, max-age=31536000, immutable',
     'X-Content-Type-Options': 'nosniff',
   };
   if (request.method === 'HEAD') {

@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+  adjacentEpisodesInColumn,
   appearanceHref,
   catalogueCategoryFromSearch,
   catalogueHref,
@@ -15,6 +16,7 @@ import {
   getCategories,
   getEpisodeDetail,
   getEpisodes,
+  relatedEpisodes,
 } from '../src/public/model';
 import { type Episode, projectPublicEpisode, projectPublicEpisodeSummary } from '../src/shared/episode';
 
@@ -158,6 +160,33 @@ describe('listening room', () => {
     ]);
     expect(categoriesWithEpisodes([...categories], [])).toEqual([]);
     expect(categoriesWithEpisodes([], summaries)).toEqual([]);
+  });
+  it('prefers same-column episodes for related lists and adjacent navigation', () => {
+    const current = summaries[0];
+    const related = relatedEpisodes(summaries, current);
+    expect(related).toHaveLength(1);
+    expect(related[0]?.category).toBe('life');
+    const { previous, next } = adjacentEpisodesInColumn(
+      [...summaries, { ...summaries[0], id: '3', slug: 'note-two', episodeNumber: 2 }],
+      { ...summaries[0], id: '3', slug: 'note-two', episodeNumber: 2 },
+    );
+    expect(previous?.slug).toBe('after-work');
+    expect(next).toBeNull();
+    expect(adjacentEpisodesInColumn(summaries, summaries[0])).toEqual({
+      previous: null,
+      next: null,
+    });
+    expect(adjacentEpisodesInColumn(summaries, { ...summaries[0], id: 'not-in-list' })).toEqual({
+      previous: null,
+      next: null,
+    });
+    const mixed = [
+      { ...summaries[0], id: 'a', slug: 'a', category: 'manager-notes' as const },
+      { ...summaries[0], id: 'b', slug: 'b', category: 'life' as const },
+      { ...summaries[0], id: 'c', slug: 'c', category: 'manager-notes' as const },
+    ];
+    expect(relatedEpisodes(mixed, mixed[1]).map((item) => item.id)).toEqual(['a', 'c']);
+    expect(relatedEpisodes(mixed, mixed[0]).map((item) => item.id)).toEqual(['c', 'b']);
   });
   it('formats dates consistently in Shanghai and represents unfinished media honestly', () => {
     expect(dateLabel('2026-09-24T22:00:00Z')).toBe('2026.09.25');

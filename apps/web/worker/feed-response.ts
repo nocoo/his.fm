@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { PUBLIC_FEED_CACHE_CONTROL, PUBLIC_RSS_ROBOTS } from '../src/shared/public-cache-policy';
 import { getCategory } from './categories';
 import { buildCategoryRssFeed, buildRssFeed } from './feed';
 import { HttpError } from './http';
@@ -20,7 +21,8 @@ export async function feedResponse(request: Request, env: Env): Promise<Response
     new Response(body, {
       headers: {
         'Content-Type': 'application/rss+xml; charset=utf-8',
-        'Cache-Control': 'public, max-age=60',
+        'Cache-Control': PUBLIC_FEED_CACHE_CONTROL,
+        'X-Robots-Tag': PUBLIC_RSS_ROBOTS,
         ETag: etag,
       },
     }),
