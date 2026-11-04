@@ -106,6 +106,14 @@ describe('public cache boundary', () => {
     const response = await publicContentResponse(request('/'), env);
     expect(await response.text()).toBe('public');
     expect(response.headers.get('Cache-Control')).toBe(PUBLIC_HTML_CACHE_CONTROL);
+    mocks.html.mockResolvedValueOnce(new Response('{}', { headers: { 'Content-Type': 'application/json' } }));
+    expect((await publicContentResponse(request('/'), env)).headers.get('Cache-Control')).toBeNull();
+    mocks.html.mockResolvedValueOnce(
+      new Response('public', { headers: { 'Content-Type': 'text/html; charset=utf-8' } }),
+    );
+    expect((await publicContentResponse(request('/'), env)).headers.get('Cache-Control')).toBe(
+      PUBLIC_HTML_CACHE_CONTROL,
+    );
     for (const status of [301, 404]) {
       mocks.html.mockResolvedValueOnce(new Response(null, { status }));
       const missing = await publicContentResponse(request('/episodes/missing'), env);
@@ -142,6 +150,11 @@ describe('public cache boundary', () => {
   });
 
   it('keeps validation and infrastructure errors out of the cache', async () => {
+    mocks.html.mockRejectedValueOnce(new HttpError(503, '页面暂时无法加载，请稍后重试。'));
+    const unavailable = await publicContentResponse(request('/'), env);
+    expect(unavailable.status).toBe(503);
+    expect(unavailable.headers.get('Cache-Control')).toBe('no-store');
+    expect(await unavailable.text()).toBe('页面暂时无法加载，请稍后重试。');
     mocks.thumbnail.mockRejectedValueOnce(new HttpError(400, 'invalid width'));
     const invalid = await publicContentResponse(
       request('/media/episode-thumbnails/one/3/stillwood/999.webp'),
