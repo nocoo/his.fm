@@ -1,4 +1,5 @@
 import { themeIdSchema } from '../src/shared/appearance';
+import { PUBLIC_HTML_CACHE_CONTROL } from '../src/shared/public-cache-policy';
 import { episodeArtRoute } from './episode-art';
 import { routeEpisodeThumbnail } from './episode-thumbnails';
 import { feedResponse, feedRoute } from './feed-response';
@@ -24,6 +25,7 @@ export function cacheablePublicRequest(request: Request): boolean {
     seen.add(key);
     if (key === 'theme' && themeIdSchema.safeParse(value).success) continue;
     if (key === 'category' && url.pathname === '/episodes' && /^[a-z0-9-]{1,120}$/.test(value)) continue;
+    if (key === 'page' && url.pathname === '/episodes' && /^[1-9]\d*$/.test(value)) continue;
     return false;
   }
   return true;
@@ -53,9 +55,18 @@ export async function publicContentResponse(request: Request, env: Env): Promise
         : await maybeServePublicHtml(request, env);
     if (!response) return json({ error: '页面不存在' }, 404);
     if (response.status !== 200) response.headers.set('Cache-Control', 'no-store');
+    else if (response.headers.get('Content-Type')?.startsWith('text/html'))
+      response.headers.set('Cache-Control', PUBLIC_HTML_CACHE_CONTROL);
     return response;
   } catch (error) {
-    if (error instanceof HttpError) return json({ error: error.message }, error.status);
+    if (error instanceof HttpError) {
+      const headers = new Headers({ 'Cache-Control': 'no-store' });
+      if (error.status >= 500) {
+        headers.set('Content-Type', 'text/plain; charset=utf-8');
+        return new Response(error.message, { status: error.status, headers });
+      }
+      return json({ error: error.message }, error.status);
+    }
     throw error;
   }
 }
@@ -63,7 +74,7 @@ export async function publicContentResponse(request: Request, env: Env): Promise
 export async function freshPublicHtml(response: Response): Promise<Response> {
   const nonce = crypto.randomUUID();
   const headers = new Headers(response.headers);
-  headers.set('Cache-Control', 'no-store');
+  headers.set('Cache-Control', PUBLIC_HTML_CACHE_CONTROL);
   headers.delete('Content-Length');
   headers.delete('Content-Encoding');
   headers.delete('ETag');

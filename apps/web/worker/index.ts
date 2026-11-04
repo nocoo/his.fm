@@ -1,5 +1,6 @@
 import { version } from '../../../package.json';
 import { themeFaviconSrc } from '../src/brand/themes';
+import { PUBLIC_HTML_CACHE_CONTROL } from '../src/shared/public-cache-policy';
 import { discoveryLinks, routeAgent, routeDiscovery } from './agent-api';
 import { getAppearance } from './appearance';
 import { accessLogin, authenticate, isLocal, localLogin, logout } from './auth';
@@ -36,7 +37,8 @@ async function media(request: Request, env: Env) {
   headers.set('ETag', object.httpEtag);
   headers.set(
     'Cache-Control',
-    /^images\/(?:hero-retina-20260926-|identity\/.*-[a-f0-9]{16}\.webp$)/.test(key)
+    /^brand\/frames\/[^/]+\.svg$/.test(key) ||
+      /^images\/(?:hero-retina-20260926-|identity\/.*-[a-f0-9]{16}\.webp$)/.test(key)
       ? 'public, max-age=31536000, immutable'
       : 'public, max-age=3600',
   );
@@ -94,7 +96,7 @@ async function route(request: Request, env: Env, ctx?: ExecutionContext): Promis
     return response;
   }
   const shell = () => env.ASSETS.fetch(new Request(new URL('/', request.url), request));
-  const discovery = routeDiscovery(request);
+  const discovery = await routeDiscovery(request, env);
   if (discovery) return discovery;
   if (path.startsWith('/api/agent/')) return routeAgent(request, env, ctx);
   if (path === '/api/live') {
@@ -213,18 +215,46 @@ async function route(request: Request, env: Env, ctx?: ExecutionContext): Promis
   return env.ASSETS.fetch(request);
 }
 
+function isPublicDocumentPath(pathname: string) {
+  return (
+    pathname === '/' ||
+    pathname === '/about' ||
+    pathname === '/episodes' ||
+    /^\/episodes\/[^/]+(?:\/[^/]+)?$/.test(pathname)
+  );
+}
+
+function publicErrorResponse(status: number, message: string) {
+  return new Response(message, {
+    status,
+    headers: {
+      'Content-Type': 'text/plain; charset=utf-8',
+      'Cache-Control': 'no-store',
+    },
+  });
+}
+
 async function respond(request: Request, env: Env, ctx?: ExecutionContext): Promise<Response> {
+  const pathname = new URL(request.url).pathname;
   try {
     return await route(request, env, ctx);
   } catch (error) {
-    if (error instanceof HttpError) return json({ error: error.message }, error.status);
+    if (error instanceof HttpError) {
+      if (isPublicDocumentPath(pathname) && error.status >= 500) {
+        return publicErrorResponse(error.status, error.message);
+      }
+      return json({ error: error.message }, error.status);
+    }
     console.error(
       JSON.stringify({
         event: 'request_failed',
-        path: new URL(request.url).pathname,
+        path: pathname,
         message: error instanceof Error ? error.message : 'Unknown error',
       }),
     );
+    if (isPublicDocumentPath(pathname)) {
+      return publicErrorResponse(503, '页面暂时无法加载，请稍后重试。');
+    }
     return json(
       {
         error: '暂时无法完成操作，请稍后重试',
@@ -253,10 +283,14 @@ export default {
         response.headers.set('X-Public-Cache', 'invalidation-failed');
       }
     }
+    const pathname = new URL(request.url).pathname;
     const html = response.headers.get('Content-Type')?.startsWith('text/html');
     if (html && env.ENVIRONMENT !== 'local') response = await freshPublicHtml(response);
     const headers = new Headers(response.headers);
-    if (html) headers.set('Cache-Control', 'no-store');
+    const publicPage =
+      html && response.status === 200 && !pathname.startsWith('/admin') && !pathname.startsWith('/login');
+    if (publicPage) headers.set('Cache-Control', PUBLIC_HTML_CACHE_CONTROL);
+    else if (html) headers.set('Cache-Control', 'no-store');
     if (new URL(request.url).protocol === 'https:')
       headers.set('Strict-Transport-Security', 'max-age=31536000');
     headers.set('X-Content-Type-Options', 'nosniff');

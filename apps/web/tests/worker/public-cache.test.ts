@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { PUBLIC_HTML_CACHE_CONTROL } from '../../src/shared/public-cache-policy';
 import { HttpError } from '../../worker/http';
 import {
   cacheablePublicRequest,
@@ -30,7 +31,7 @@ describe('public cache boundary', () => {
       '/episodes',
       '/episodes/learning/one',
       '/?theme=stillwood',
-      '/episodes?category=learning&theme=interval',
+      '/episodes?category=learning&page=2',
       '/media/episode-thumbnails/one/3/stillwood/320.webp',
     ]) {
       expect(cacheablePublicRequest(request(path)), path).toBe(true);
@@ -100,11 +101,11 @@ describe('public cache boundary', () => {
 
   it('caches only successful public output, not redirects or missing pages', async () => {
     mocks.html.mockResolvedValueOnce(
-      new Response('public', { headers: { 'Cache-Control': 'public, max-age=60' } }),
+      new Response('public', { headers: { 'Cache-Control': PUBLIC_HTML_CACHE_CONTROL } }),
     );
     const response = await publicContentResponse(request('/'), env);
     expect(await response.text()).toBe('public');
-    expect(response.headers.get('Cache-Control')).toBe('public, max-age=60');
+    expect(response.headers.get('Cache-Control')).toBe(PUBLIC_HTML_CACHE_CONTROL);
     for (const status of [301, 404]) {
       mocks.html.mockResolvedValueOnce(new Response(null, { status }));
       const missing = await publicContentResponse(request('/episodes/missing'), env);
@@ -158,7 +159,7 @@ describe('public cache boundary', () => {
     const cached = new Response(template, {
       headers: {
         'Content-Type': 'text/html; charset=utf-8',
-        'Cache-Control': 'public, max-age=60',
+        'Cache-Control': PUBLIC_HTML_CACHE_CONTROL,
         'Content-Length': '100',
         'Content-Encoding': 'gzip',
         ETag: 'old',
@@ -176,7 +177,7 @@ describe('public cache boundary', () => {
       expect(csp).not.toContain('track-collect.nocoo.cloud');
       expect(await response.text()).toBe(template.replaceAll('<script', `<script nonce="${nonce}"`));
       nonces.add(nonce ?? '');
-      expect(response.headers.get('Cache-Control')).toBe('no-store');
+      expect(response.headers.get('Cache-Control')).toBe(PUBLIC_HTML_CACHE_CONTROL);
       for (const header of ['Content-Length', 'Content-Encoding', 'ETag', 'Age'])
         expect(response.headers.has(header)).toBe(false);
     }
