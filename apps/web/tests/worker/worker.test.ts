@@ -843,6 +843,10 @@ describe('public podcast catalog', () => {
       html.match(/<link rel="alternate" type="application\/rss\+xml" href="https:\/\/[^"]+\/feed\.xml"/g)
         ?.length,
     ).toBe(1);
+    expect(html).toContain('<style id="public-critical">');
+    const critical = html.match(/<style id="public-critical">([\s\S]*?)<\/style>/)?.[1] ?? '';
+    expect(critical.length).toBeGreaterThan(1000);
+    expect(critical).toContain('.site-header');
   });
 
   it('301 redirects aliased catalogue categories and keeps populated columns reachable', async () => {

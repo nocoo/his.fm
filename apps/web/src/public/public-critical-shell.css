@@ -1,0 +1,220 @@
+/* Above-the-fold public shell (no @font-face / theme-font imports). */
+:root {
+  --public-paper: #f5f4ee;
+  font-family: "Space Grotesk", "Noto Sans SC", "PingFang SC", sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+html[data-public-theme],
+html[data-public-theme] body {
+  background: var(--public-chrome);
+  color-scheme: light;
+}
+.brand-wordmark {
+  display: block;
+  width: 144px;
+  height: auto;
+  aspect-ratio: 60 / 17;
+  flex: none;
+}
+.brand-symbol {
+  display: block;
+  width: 28px;
+  height: 28px;
+  flex: none;
+}
+.brand-lockup {
+  --brand-wordmark-width: 116px;
+  --brand-symbol-size: calc(var(--brand-wordmark-width) * 17 / 60);
+  --brand-gap: calc(var(--brand-wordmark-width) * 8 / 116);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--brand-gap);
+  flex: none;
+  color: inherit;
+}
+.brand-lockup > .brand-wordmark {
+  width: var(--brand-wordmark-width);
+}
+.brand-lockup > .brand-symbol {
+  width: var(--brand-symbol-size);
+  height: var(--brand-symbol-size);
+}
+.public-site {
+  --muted: color-mix(in srgb, var(--ink) 82%, var(--paper));
+  --line: color-mix(in srgb, var(--ink) 21%, var(--paper));
+  --well: color-mix(in srgb, var(--paper) 75%, var(--accent));
+  --on-ink: #fff;
+  --space: clamp(24px, 4.6vw, 80px);
+  --radius: 2px;
+  --font: "Space Grotesk", "Noto Sans SC", "PingFang SC", sans-serif;
+  font-family: var(--font);
+  background:
+    linear-gradient(var(--public-chrome, var(--paper)), var(--public-chrome, var(--paper))) top / 100%
+    env(safe-area-inset-top, 0px) no-repeat var(--paper);
+  color: var(--ink);
+  font-size: 15px;
+  line-height: 1.7;
+  box-sizing: border-box;
+  min-height: 100svh;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom)
+    env(safe-area-inset-left);
+}
+.public-site *,
+.public-site *::before,
+.public-site *::after {
+  box-sizing: border-box;
+}
+.public-site a {
+  color: inherit;
+  text-decoration: none;
+}
+.public-site button,
+.public-site input {
+  font: inherit;
+  color: inherit;
+}
+.public-site button {
+  cursor: pointer;
+}
+.public-site :is(h1, h2, h3, p, figure) {
+  margin: 0;
+}
+.public-site img {
+  display: block;
+  max-width: 100%;
+  object-fit: cover;
+}
+.public-site .wrap {
+  width: calc(100% - var(--space) * 2);
+  max-width: 1424px;
+  margin-inline: auto;
+}
+.public-site .eyebrow {
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  font-weight: 500;
+  line-height: 1.7;
+}
+.public-site .site-header {
+  min-height: 88px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 30px;
+  padding: 20px var(--space);
+  position: relative;
+  z-index: 10;
+  border-bottom: 1px solid var(--line);
+}
+.public-site .wordmark {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex: none;
+}
+.public-site .brand-caption {
+  padding-left: 18px;
+  border-left: 1px solid var(--line);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+}
+.public-site .main-nav {
+  display: flex;
+  gap: 32px;
+  align-items: center;
+  font-size: 13px;
+}
+.public-site .header-listen {
+  display: flex;
+  align-items: center;
+  gap: 25px;
+  font-size: 12px;
+  padding: 9px 0;
+  border-bottom: 1px solid currentColor;
+}
+.public-site .menu-button {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+.public-site .pill-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 32px;
+  padding: 13px 22px;
+  border: 0;
+  border-radius: var(--radius);
+  background: var(--accent);
+  color: var(--ink);
+  font-size: 13px;
+  line-height: 1;
+}
+.public-site .pill-button.dark {
+  background: var(--ink);
+  color: var(--paper);
+}
+.public-site .text-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 18px;
+  font-size: 13px;
+}
+.public-site .page-heading h1 {
+  font-size: clamp(42px, 5.6vw, 72px);
+  line-height: 1.15;
+  font-weight: 600;
+  letter-spacing: -0.06em;
+}
+.public-site .catalogue-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 24px;
+  margin-top: 34px;
+}
+.public-site .episode-layout {
+  display: grid;
+  grid-template-columns: minmax(280px, 430px) minmax(0, 1fr);
+  gap: clamp(26px, 3.4vw, 62px);
+  align-items: start;
+}
+.public-site .detail-art {
+  min-width: 0;
+  position: sticky;
+  top: 24px;
+}
+.public-site .episode-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 32px;
+}
+.public-site .episode-art {
+  display: block;
+  position: relative;
+  overflow: hidden;
+}
+.public-site .site-footer {
+  margin-top: auto;
+  border-top: 1px solid var(--line);
+  font-size: 11px;
+}
+.public-site .site-footer-inner {
+  padding-block: 28px;
+}
+.public-site .site-footer-body {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px 32px;
+}
+.public-site .site-footer-bottom {
+  border-top: 1px solid var(--line);
+}

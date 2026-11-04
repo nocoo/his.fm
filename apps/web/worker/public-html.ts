@@ -19,7 +19,7 @@ import { findPublishedEpisodeBySlug, redirect, resolveCategoryAlias } from './ep
 import { readPublishedEpisodes } from './episodes';
 import { HttpError } from './http';
 import { renderHeroPreloads, renderPublicPage } from './public-render';
-import { deferPublicStylesheets } from './public-shell-head';
+import { preparePublicShellHead } from './public-shell-head';
 import { getSiteSeo } from './seo-store';
 
 const TRAKS_HEAD_SNIPPET = `<script>window.traks=window.traks||function(){(window.traks.q=window.traks.q||[]).push(arguments)}</script>
@@ -194,7 +194,7 @@ export async function maybeServePublicHtml(request: Request, env: Env): Promise<
   const chrome = themeChromeColor(theme, path, preview.success);
   const rendered = renderPublicPage(`${path}${url.search}`, data);
   const bootstrap = JSON.stringify(data).replace(/</g, '\\u003c');
-  let html = deferPublicStylesheets(injectSeoIntoHtml(shell, seo, jsonLd, origin, extraHead)).replace(
+  let html = preparePublicShellHead(injectSeoIntoHtml(shell, seo, jsonLd, origin, extraHead)).replace(
     '<div id="root"></div>',
     () =>
       `<div id="root">${rendered}</div><script id="public-data" type="application/json">${bootstrap}</script>`,

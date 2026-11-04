@@ -7,7 +7,7 @@ All notable changes to his.fm are documented here. The format follows [Keep a Ch
 ### Fixed
 
 - Public Workers Cache entries are scoped to the deployed git revision so a new release cannot serve HTML, feeds, or thumbnails cached by an older build. Catalogue and category-feed alias redirects run before the cache entrypoint, and redirect responses stay uncacheable.
-- Home and catalogue performance: episode thumbnails use mobile-first `sizes` (320w/480w candidates), only the first grid cover loads eagerly with high fetch priority, and bundled public CSS loads without blocking first paint. Theme Noto Serif SC shards use `font-display: optional`.
+- Home and catalogue performance: episode thumbnails use mobile-first `sizes` (320w/480w candidates), only the first grid cover loads eagerly with high fetch priority, production HTML inlines build-generated critical CSS then defer-loads the full bundle (avoiding FOUC), and theme Noto Serif SC shards use `font-display: optional`.
 - Public HTML emits a single absolute RSS alternate link, 404 responses omit self-referencing canonical tags, and SSR bootstrap supplies site SEO and appearance so hydrated pages skip redundant `/api/site-seo` and `/api/appearance` requests. Public SSR resolves category aliases in parallel with other D1 reads.
 
 ## 2.11.20 - 2026-11-04
