@@ -862,6 +862,33 @@ html:has(.appearance-gate) body {
   font-size: 12px;
   margin-bottom: 28px;
 }
+.public-site .episode-column-link {
+  margin: -12px 0 18px;
+  font-size: 13px;
+}
+.public-site .episode-series-nav {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 24px;
+  font-size: 13px;
+}
+.public-site .episode-series-nav a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.public-site .episode-series-nav a:last-child {
+  justify-self: end;
+}
+.public-site .catalogue-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 36px;
+  font-size: 13px;
+}
 .public-site .episode-layout {
   display: grid;
   grid-template-columns: minmax(280px, 430px) minmax(0, 1fr);

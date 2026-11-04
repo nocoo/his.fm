@@ -3,6 +3,26 @@ import type { PublicCategory } from '../shared/category';
 import type { PublicEpisode, PublicEpisodeSummary } from '../shared/episode';
 import { formatEpisodeLabel } from '../shared/episode-display';
 
+export function relatedEpisodes(episodes: PublicEpisodeSummary[], current: PublicEpisodeSummary, limit = 3) {
+  const sameColumn = episodes.filter(
+    (episode) => episode.id !== current.id && episode.category === current.category,
+  );
+  const fallback = episodes.filter(
+    (episode) => episode.id !== current.id && episode.category !== current.category,
+  );
+  return [...sameColumn, ...fallback].slice(0, limit);
+}
+
+export function adjacentEpisodesInColumn(episodes: PublicEpisodeSummary[], current: PublicEpisodeSummary) {
+  const column = episodes.filter((episode) => episode.category === current.category);
+  const index = column.findIndex((episode) => episode.id === current.id);
+  if (index < 0) return { previous: null, next: null };
+  return {
+    previous: index > 0 ? column[index - 1] : null,
+    next: index < column.length - 1 ? column[index + 1] : null,
+  };
+}
+
 export function catalogueCategoryFromSearch(category: string | null) {
   return category ?? 'all';
 }
