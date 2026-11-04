@@ -9,13 +9,14 @@ function escapeHtml(value: string) {
     .replace(/'/g, '&#39;');
 }
 
-export function seoHeadTags(seo: ResolvedPageSeo) {
+export function seoHeadTags(seo: ResolvedPageSeo, origin: string, extraHead = '') {
   const robots = seo.noindex ? 'noindex, follow' : 'index, follow';
   const tags = [
     `<title>${escapeHtml(seo.title)}</title>`,
     `<meta name="description" content="${escapeHtml(seo.description)}" />`,
     `<meta name="robots" content="${robots}" />`,
     `<link rel="canonical" href="${escapeHtml(seo.canonical)}" />`,
+    `<link rel="alternate" type="application/rss+xml" href="${escapeHtml(`${origin}/feed.xml`)}" />`,
     `<meta property="og:type" content="${escapeHtml(seo.ogType)}" />`,
     `<meta property="og:title" content="${escapeHtml(seo.title)}" />`,
     `<meta property="og:description" content="${escapeHtml(seo.description)}" />`,
@@ -26,7 +27,7 @@ export function seoHeadTags(seo: ResolvedPageSeo) {
     `<meta name="twitter:description" content="${escapeHtml(seo.description)}" />`,
     `<meta name="twitter:image" content="${escapeHtml(seo.ogImageUrl)}" />`,
   ];
-  return tags.join('\n');
+  return extraHead ? `${tags.join('\n')}\n${extraHead}` : tags.join('\n');
 }
 
 const managedHeadPatterns = [
@@ -43,8 +44,14 @@ function stripManagedHead(html: string) {
   return managedHeadPatterns.reduce((next, pattern) => next.replace(pattern, ''), html);
 }
 
-export function injectSeoIntoHtml(html: string, seo: ResolvedPageSeo, jsonLd?: unknown[]) {
-  const head = seoHeadTags(seo);
+export function injectSeoIntoHtml(
+  html: string,
+  seo: ResolvedPageSeo,
+  jsonLd?: unknown[],
+  origin?: string,
+  extraHead = '',
+) {
+  const head = seoHeadTags(seo, origin ?? new URL(seo.canonical).origin, extraHead);
   const jsonLdBlocks = jsonLd?.length
     ? jsonLd
         .map(
