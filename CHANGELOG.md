@@ -2,6 +2,12 @@
 
 All notable changes to his.fm are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions use the owner’s patch-only deployment policy in `AGENTS.md`, with the authoritative version in `package.json`.
 
+## 2.11.19 - 2026-11-04
+
+### Fixed
+
+- Public episode indexability, HTML edge caching, catalogue pagination, feed and JSON-LD metadata, legacy category redirects, and on-page discovery links align with the SEO audit. Unknown catalogue categories return 404; server failures on public pages return 5xx without edge caching. Public HTML uses stale-while-revalidate, the home catalogue renders from SSR bootstrap without refetching `/api/episodes`, feeds expose `X-Robots-Tag: noindex`, and sitemap, feeds, and llms listings share one indexability predicate.
+
 ## 2.11.18 - 2026-11-04
 
 ### Fixed
