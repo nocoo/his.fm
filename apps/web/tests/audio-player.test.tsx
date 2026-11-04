@@ -62,9 +62,9 @@ describe('shared audio player preview behavior', () => {
     expect(container.querySelector('.his-audio-speed')?.getAttribute('aria-label')).toContain('1.25 倍');
   });
 
-  it('omits only preview idle copy and retains loading, playback, errors and retry', async () => {
+  it('omits preview idle and playing copy and retains loading, errors and retry', async () => {
     await act(async () =>
-      root.render(<AudioPlayer src="/preview.mp3" title="Bo" compact hideIdleStatus preload="none" />),
+      root.render(<AudioPlayer src="/preview.mp3" title="Bo" compact quietStatus preload="none" />),
     );
     const audio = container.querySelector('audio');
     expect(audio).not.toBeNull();
@@ -73,7 +73,7 @@ describe('shared audio player preview behavior', () => {
     expect(container.querySelector('[aria-label="播放进度（秒）"]')).not.toBeNull();
     await act(async () => container.querySelector<HTMLButtonElement>('[aria-label="播放"]')?.click());
     expect(container.querySelector('[aria-label="暂停"]')).not.toBeNull();
-    expect(container.querySelector('[role="status"]')?.textContent).toBe('正在播放');
+    expect(container.querySelector('[role="status"]')?.textContent).toBe('');
     await act(async () => audio?.dispatchEvent(new Event('waiting')));
     expect(container.querySelector('[role="status"]')?.textContent).toBe('正在加载音频…');
     await act(async () => {
@@ -97,7 +97,7 @@ describe('shared audio player preview behavior', () => {
       root.render(
         <>
           <AudioPlayer src="/full.mp3" preload="none" />
-          <AudioPlayer src="/preview.mp3" title="Preview" compact hideIdleStatus preload="none" />
+          <AudioPlayer src="/preview.mp3" title="Preview" compact quietStatus preload="none" />
         </>,
       ),
     );
@@ -120,7 +120,7 @@ describe('shared audio player preview behavior', () => {
       players[1].querySelector<HTMLButtonElement>('.his-audio-speed')?.click();
     });
     expect(players[1].querySelector('.his-audio-times')?.textContent).toBe('0:352:00');
-    await act(async () => root.render(<AudioPlayer src="/new.mp3" compact hideIdleStatus preload="none" />));
+    await act(async () => root.render(<AudioPlayer src="/new.mp3" compact quietStatus preload="none" />));
     expect(second?.paused).toBe(true);
     expect(container.querySelector('audio')?.getAttribute('src')).toBe('/new.mp3');
     expect(container.querySelector('.his-audio-times')?.textContent).toBe('0:00—:——');
@@ -132,14 +132,12 @@ describe('shared audio player preview behavior', () => {
     vi.mocked(HTMLMediaElement.prototype.play).mockRejectedValueOnce(
       new DOMException('Blocked', 'NotAllowedError'),
     );
-    await act(async () =>
-      root.render(<AudioPlayer src="/preview.mp3" compact hideIdleStatus preload="none" />),
-    );
+    await act(async () => root.render(<AudioPlayer src="/preview.mp3" compact quietStatus preload="none" />));
     await act(async () => container.querySelector<HTMLButtonElement>('.his-audio-play')?.click());
     expect(container.querySelector('[role="status"]')?.textContent).toBe('播放未能开始，请再次点击播放。');
     expect(mediaSession.metadata).toBeNull();
     await act(async () => container.querySelector<HTMLButtonElement>('.his-audio-play')?.click());
-    expect(container.querySelector('[role="status"]')?.textContent).toBe('正在播放');
+    expect(container.querySelector('[role="status"]')?.textContent).toBe('');
   });
 
   it('publishes artwork only on play, retains it while paused and refreshes active details', async () => {
