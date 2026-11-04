@@ -2,6 +2,12 @@
 
 All notable changes to his.fm are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions use the owner’s patch-only deployment policy in `AGENTS.md`, with the authoritative version in `package.json`.
 
+## 2.11.18 - 2026-11-04
+
+### Fixed
+
+- Studio **音色预览** cards show audio loading as a spinner inside the play button; the loading text is announced to screen readers only, so the player keeps a fixed height.
+
 ## 2.11.17 - 2026-11-04
 
 ### Added
