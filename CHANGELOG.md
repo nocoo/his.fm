@@ -2,6 +2,12 @@
 
 All notable changes to his.fm are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions use the owner’s patch-only deployment policy in `AGENTS.md`, with the authoritative version in `package.json`.
 
+## 2.11.25 - 2026-11-04
+
+### Changed
+
+- Regression guards for the public head now fail the build when a stylesheet promotion relies on inline handlers, when public HTML carries a script without a CSP nonce, when the inlined critical CSS drifts from `public.css`, or when the shipped critical bundle is stale. `generate-public-critical.mjs --check` reports staleness without writing.
+
 ## 2.11.24 - 2026-11-04
 
 ### Fixed

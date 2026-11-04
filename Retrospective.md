@@ -1,5 +1,26 @@
 # Retrospective
 
+## 2026-11-04 - Verify head-level delivery changes under the production CSP
+
+2.11.21 deferred the public stylesheet with an inline `onload` handler and moved
+the critical `<style>` to the end of `<head>`. Local acceptance passed because
+`ENVIRONMENT=local` intentionally skips `freshPublicHtml`: no nonce is injected
+and no CSP header is sent, so the handler ran. Production sends
+`script-src 'self' 'nonce-…'`, which blocks inline event handlers, so the full
+bundle never applied and every public page rendered with the inline critical CSS
+only. It surfaced as a 404 layout report, not as an error. Because the critical
+block was also placed after the stylesheet links, its hand-copied rules won the
+cascade even once the bundle did apply, producing doubled footer hairlines and a
+footer stuck to the content.
+
+Promotion now runs from a nonce-carrying script with a `noscript` fallback, the
+critical block precedes the bundle, and the shell duplicates `public.css` values
+only. Guards: public HTML must carry a nonce on every script and no inline event
+attributes, the critical bundle must stay byte-identical to its sources, and the
+shell must not declare anything `public.css` does not. Any change to how the
+public `<head>` loads resources must be reviewed against the production CSP
+header, not only against a local page load.
+
 ## 2026-10-24 - Find the generator before replacing a committed asset
 
 I replaced `apps/web/public/brand/podcast.jpg` with the channel cover taken from
