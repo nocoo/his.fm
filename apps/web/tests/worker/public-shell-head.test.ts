@@ -27,7 +27,7 @@ describe('public shell head', () => {
       '<html><head><link rel="stylesheet" href="/assets/index.css" crossorigin></head><body></body></html>',
     );
     expect(html).toContain('data-defer-style');
-    expect(html).not.toContain('onload=');
+    expect(html.includes('onload=')).toBe(false);
     expect(html.match(/<link rel="stylesheet"/g)?.length).toBe(1);
     expect(html).toContain('crossorigin></noscript>');
     expect(html).toMatch(
@@ -44,7 +44,7 @@ describe('public shell head', () => {
     expect(html).toContain('rel="preload" as="style"');
     expect(html).toContain('data-defer-style');
     expect(html).not.toContain('<style id="public-critical">');
-    expect(html).not.toContain('onload=');
+    expect(html.includes('onload=')).toBe(false);
   });
 
   it('leaves documents without stylesheets untouched', () => {
