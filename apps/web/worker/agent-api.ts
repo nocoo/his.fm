@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { hasScope } from '@his-fm/contracts';
 import instructions from '../../../docs/api-onboarding.md?raw';
 import { version } from '../../../package.json';
@@ -120,6 +121,9 @@ export async function routeDiscovery(request: Request, env?: Env): Promise<Respo
         'Content-Type': 'text/markdown; charset=utf-8',
         'Cache-Control': path === '/llms.txt' ? PUBLIC_FEED_CACHE_CONTROL : 'no-store',
         'X-Content-Type-Options': 'nosniff',
+        ...(path === '/llms.txt'
+          ? { ETag: `"${createHash('sha256').update(__BUILD_REVISION__).update(text).digest('hex')}"` }
+          : {}),
       },
     });
   }

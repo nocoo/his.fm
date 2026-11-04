@@ -1,5 +1,6 @@
 import { themeIdSchema } from '../src/shared/appearance';
 import { PUBLIC_HTML_CACHE_CONTROL } from '../src/shared/public-cache-policy';
+import { PUBLIC_CACHE_REVISION_PARAM, publicContentRequestUrl } from '../src/shared/public-cache-revision';
 import { episodeArtRoute } from './episode-art';
 import { routeEpisodeThumbnail } from './episode-thumbnails';
 import { feedResponse, feedRoute } from './feed-response';
@@ -26,6 +27,7 @@ export function cacheablePublicRequest(request: Request): boolean {
     if (key === 'theme' && themeIdSchema.safeParse(value).success) continue;
     if (key === 'category' && url.pathname === '/episodes' && /^[a-z0-9-]{1,120}$/.test(value)) continue;
     if (key === 'page' && url.pathname === '/episodes' && /^[1-9]\d*$/.test(value)) continue;
+    if (key === PUBLIC_CACHE_REVISION_PARAM) continue;
     return false;
   }
   return true;
@@ -42,17 +44,26 @@ export function invalidatesPublicContent(request: Request, response: Response): 
 }
 
 export async function publicContentResponse(request: Request, env: Env): Promise<Response> {
-  const pathname = new URL(request.url).pathname;
+  const url = publicContentRequestUrl(request);
+  const pathname = url.pathname;
+  const canonicalRequest = new Request(url, request);
   // The legacy slug answers with a 301, so it never enters the cache but must still resolve here.
-  if (!cacheablePublicRequest(request) && !legacyEpisodePath.test(pathname))
+  if (!cacheablePublicRequest(canonicalRequest) && !legacyEpisodePath.test(pathname))
     return json({ error: '页面不存在' }, 404);
   try {
     const thumbnail = thumbnailRoute.exec(pathname);
     const response = feedRoute.test(pathname)
-      ? await feedResponse(request, env)
+      ? await feedResponse(canonicalRequest, env)
       : thumbnail
-        ? await routeEpisodeThumbnail(request, env, thumbnail[1], thumbnail[2], thumbnail[3], thumbnail[4])
-        : await maybeServePublicHtml(request, env);
+        ? await routeEpisodeThumbnail(
+            canonicalRequest,
+            env,
+            thumbnail[1],
+            thumbnail[2],
+            thumbnail[3],
+            thumbnail[4],
+          )
+        : await maybeServePublicHtml(canonicalRequest, env);
     if (!response) return json({ error: '页面不存在' }, 404);
     if (response.status !== 200) response.headers.set('Cache-Control', 'no-store');
     else if (response.headers.get('Content-Type')?.startsWith('text/html'))

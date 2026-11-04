@@ -45,6 +45,7 @@ export function ThemeImage({
         alt={themes[id].imageAlt}
         loading={priority ? 'eager' : 'lazy'}
         fetchPriority={priority ? 'high' : 'auto'}
+        decoding={priority ? 'sync' : 'async'}
       />
     </picture>
   );

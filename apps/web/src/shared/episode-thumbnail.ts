@@ -48,7 +48,7 @@ export function episodeThumbnailProps(
   }
   const path = `/media/episode-thumbnails/${encodeURIComponent(episode.id)}/${episode.version}/${theme}`;
   return {
-    src: `${path}/480.webp`,
+    src: `${path}/320.webp`,
     srcSet: episodeThumbnailWidths.map((width) => `${path}/${width}.webp ${width}w`).join(', '),
   };
 }
@@ -58,6 +58,6 @@ export function episodeThumbnailSizes(artworkScale: number, detail = false, list
   if (detail) {
     return `(max-width: 538px) ${size('100vw - 48px')}, (max-width: 760px) ${size('490px')}, ${size('min(90.8vw, 1424px) * 0.4185')}`;
   }
-  if (list) return `auto, (max-width: 760px) ${size('160px')}, ${size('260px')}`;
-  return `auto, (max-width: 480px) ${size('100vw - 48px')}, (max-width: 760px) ${size('(100vw - 68px) / 2')}, (max-width: 1100px) ${size('(90.8vw - 48px) / 3')}, ${size('(min(90.8vw, 1424px) - 64px) / 3')}`;
+  if (list) return `(max-width: 760px) ${size('160px')}, ${size('260px')}`;
+  return `(max-width: 480px) ${size('100vw - 48px')}, (max-width: 760px) ${size('(100vw - 68px) / 2')}, (max-width: 1100px) ${size('(90.8vw - 48px) / 3')}, ${size('(min(90.8vw, 1424px) - 64px) / 3')}`;
 }

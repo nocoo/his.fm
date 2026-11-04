@@ -33,6 +33,7 @@ describe('public cache boundary', () => {
       '/?theme=stillwood',
       '/episodes?category=learning&page=2',
       '/media/episode-thumbnails/one/3/stillwood/320.webp',
+      '/?_hisfm_r=test-revision',
     ]) {
       expect(cacheablePublicRequest(request(path)), path).toBe(true);
       expect(cacheablePublicRequest(request(path, 'HEAD')), path).toBe(true);
@@ -130,7 +131,14 @@ describe('public cache boundary', () => {
       new Response('webp', { headers: { 'Cache-Control': 'public, max-age=3600' } }),
     );
     const response = await publicContentResponse(input, env);
-    expect(mocks.thumbnail).toHaveBeenCalledWith(input, env, 'one', '3', 'stillwood', '320');
+    expect(mocks.thumbnail).toHaveBeenCalledWith(
+      expect.objectContaining({ url: input.url }),
+      env,
+      'one',
+      '3',
+      'stillwood',
+      '320',
+    );
     expect(response.headers.get('Cache-Control')).toBe('public, max-age=3600');
     expect(mocks.html).not.toHaveBeenCalled();
   });
@@ -143,7 +151,7 @@ describe('public cache boundary', () => {
     );
     const input = request('/feed.xml');
     const response = await publicContentResponse(input, env);
-    expect(mocks.feed).toHaveBeenCalledWith(input, env);
+    expect(mocks.feed).toHaveBeenCalledWith(expect.objectContaining({ url: input.url }), env);
     expect(await response.text()).toBe('<rss/>');
     expect(response.headers.get('Cache-Control')).toBe('public, max-age=60');
     expect(mocks.html).not.toHaveBeenCalled();

@@ -19,6 +19,7 @@ import { findPublishedEpisodeBySlug, redirect, resolveCategoryAlias } from './ep
 import { readPublishedEpisodes } from './episodes';
 import { HttpError } from './http';
 import { renderHeroPreloads, renderPublicPage } from './public-render';
+import { preparePublicShellHead } from './public-shell-head';
 import { getSiteSeo } from './seo-store';
 
 const TRAKS_HEAD_SNIPPET = `<script>window.traks=window.traks||function(){(window.traks.q=window.traks.q||[]).push(arguments)}</script>
@@ -54,13 +55,13 @@ export async function maybeServePublicHtml(request: Request, env: Env): Promise<
   }
 
   const categoryEpisode = /^\/episodes\/([^/]+)\/([^/]+)$/.exec(path);
-  if (categoryEpisode) {
-    const [, categoryId, slug] = categoryEpisode;
-    const resolvedCategory = await resolveCategoryAlias(env.DB, categoryId);
-    if (resolvedCategory !== categoryId) {
-      return redirect(`${origin}${episodePublicPath(resolvedCategory, slug)}`);
-    }
-  }
+  const rawCatalogueCategory = path === '/episodes' ? url.searchParams.get('category') : null;
+  const aliasTarget =
+    categoryEpisode?.[1] ??
+    (rawCatalogueCategory && rawCatalogueCategory !== 'all' ? rawCatalogueCategory : null);
+  const aliasPromise = aliasTarget
+    ? resolveCategoryAlias(env.DB, aliasTarget)
+    : Promise.resolve<string | null>(null);
 
   const needsHtml =
     path === '/' ||
@@ -78,13 +79,15 @@ export async function maybeServePublicHtml(request: Request, env: Env): Promise<
   let records: Awaited<ReturnType<typeof readPublishedEpisodes>>;
   let categories: Awaited<ReturnType<typeof listCategories>>;
   let shell: string;
+  let resolvedAlias: string | null = null;
   try {
-    [siteRecord, appearance, records, categories, shell] = await Promise.all([
+    [siteRecord, appearance, records, categories, shell, resolvedAlias] = await Promise.all([
       getSiteSeo(env.DB),
       getAppearance(env.DB),
       readPublishedEpisodes(env.DB),
       listCategories(env.DB),
       loadShell(request, env),
+      aliasPromise,
     ]);
   } catch (error) {
     console.error(
@@ -111,16 +114,15 @@ export async function maybeServePublicHtml(request: Request, env: Env): Promise<
     seo = resolveAboutPageSeo(site, origin);
     jsonLd = [podcastSeriesJsonLd(origin, site, activeCategories)];
   } else if (path === '/episodes') {
-    const rawCategory = url.searchParams.get('category');
+    const rawCategory = rawCatalogueCategory;
     let categoryQuery = rawCategory;
     if (rawCategory && rawCategory !== 'all') {
-      const canonicalId = await resolveCategoryAlias(env.DB, rawCategory);
-      if (canonicalId !== rawCategory) {
+      if (resolvedAlias && resolvedAlias !== rawCategory) {
         const next = new URL(url);
-        next.searchParams.set('category', canonicalId);
+        next.searchParams.set('category', resolvedAlias);
         return redirect(`${next.pathname}${next.search}`);
       }
-      categoryQuery = canonicalId;
+      categoryQuery = resolvedAlias ?? rawCategory;
     }
     const resolved = catalogueCategoryParam(categories, categoryQuery);
     if (resolved.status === 404) status = 404;
@@ -138,7 +140,10 @@ export async function maybeServePublicHtml(request: Request, env: Env): Promise<
     if (page > 1 && categoryEpisodes.length <= (page - 1) * CATALOGUE_PAGE_SIZE) status = 404;
   } else if (categoryEpisode) {
     const [, categoryId, slug] = categoryEpisode;
-    const resolvedCategory = await resolveCategoryAlias(env.DB, categoryId);
+    const resolvedCategory = resolvedAlias ?? categoryId;
+    if (resolvedAlias && resolvedAlias !== categoryId) {
+      return redirect(`${origin}${episodePublicPath(resolvedAlias, slug)}`);
+    }
     const record = indexableRecords.find((item) => item.category === resolvedCategory && item.slug === slug);
     if (!record) status = 404;
     else {
@@ -171,7 +176,7 @@ export async function maybeServePublicHtml(request: Request, env: Env): Promise<
   }
 
   if (status === 404) {
-    seo = { ...seo, title: '页面不存在 · his.fm', canonical: `${origin}${path}${url.search}`, noindex: true };
+    seo = { ...seo, title: '页面不存在 · his.fm', canonical: '', noindex: true };
     jsonLd = [];
     extraHead = '';
   }
@@ -189,7 +194,7 @@ export async function maybeServePublicHtml(request: Request, env: Env): Promise<
   const chrome = themeChromeColor(theme, path, preview.success);
   const rendered = renderPublicPage(`${path}${url.search}`, data);
   const bootstrap = JSON.stringify(data).replace(/</g, '\\u003c');
-  let html = injectSeoIntoHtml(shell, seo, jsonLd, origin, extraHead).replace(
+  let html = preparePublicShellHead(injectSeoIntoHtml(shell, seo, jsonLd, origin, extraHead)).replace(
     '<div id="root"></div>',
     () =>
       `<div id="root">${rendered}</div><script id="public-data" type="application/json">${bootstrap}</script>`,

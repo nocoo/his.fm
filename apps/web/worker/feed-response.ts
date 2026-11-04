@@ -24,7 +24,7 @@ export async function feedResponse(request: Request, env: Env): Promise<Response
   const body = category
     ? await buildCategoryRssFeed(env.DB, url.origin, mediaBase, category.id, category.name, env.MEDIA)
     : await buildRssFeed(env.DB, url.origin, mediaBase, env.MEDIA);
-  const etag = `"${createHash('sha256').update(body).digest('hex')}"`;
+  const etag = `"${createHash('sha256').update(__BUILD_REVISION__).update(body).digest('hex')}"`;
   return conditionalFeedResponse(
     request,
     new Response(body, {

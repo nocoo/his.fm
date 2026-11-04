@@ -1,6 +1,7 @@
 import { version } from '../../../package.json';
 import { themeFaviconSrc } from '../src/brand/themes';
 import { PUBLIC_HTML_CACHE_CONTROL } from '../src/shared/public-cache-policy';
+import { withPublicCacheRevision } from '../src/shared/public-cache-revision';
 import { discoveryLinks, routeAgent, routeDiscovery } from './agent-api';
 import { getAppearance } from './appearance';
 import { accessLogin, authenticate, isLocal, localLogin, logout } from './auth';
@@ -20,6 +21,10 @@ import {
   invalidatesPublicContent,
   thumbnailRoute,
 } from './public-cache';
+import {
+  maybeRedirectCatalogueCategoryRequest,
+  maybeRedirectCategoryFeedRequest,
+} from './public-cache-redirects';
 import { maybeServePublicHtml } from './public-html';
 import { buildRobotsTxt } from './robots';
 import { getSiteSeo } from './seo-store';
@@ -84,8 +89,15 @@ async function route(request: Request, env: Env, ctx?: ExecutionContext): Promis
   }
   const episodeArt = episodeArtRoute.exec(path);
   if (episodeArt) return routeEpisodeArt(request, env, episodeArt[1], episodeArt[2] as 'art' | 'share', ctx);
+  if (env.ENVIRONMENT !== 'local') {
+    const catalogueRedirect = await maybeRedirectCatalogueCategoryRequest(request, env.DB);
+    if (catalogueRedirect) return catalogueRedirect;
+    const feedRedirect = await maybeRedirectCategoryFeedRequest(request, env.DB);
+    if (feedRedirect) return feedRedirect;
+  }
   if (ctx && env.ENVIRONMENT !== 'local' && cacheablePublicRequest(request)) {
-    const cached = await ctx.exports.PublicContent.fetch(new Request(url, { method: 'GET' }));
+    const cacheUrl = withPublicCacheRevision(url, __BUILD_REVISION__);
+    const cached = await ctx.exports.PublicContent.fetch(new Request(cacheUrl, { method: 'GET' }));
     const response = new Response(cached.body, cached);
     response.headers.set('X-Public-Cache', cached.headers.get('CF-Cache-Status') ?? 'UNKNOWN');
     if (feedRoute.test(path)) return conditionalFeedResponse(request, response);
@@ -291,6 +303,7 @@ export default {
       html && response.status === 200 && !pathname.startsWith('/admin') && !pathname.startsWith('/login');
     if (publicPage) headers.set('Cache-Control', PUBLIC_HTML_CACHE_CONTROL);
     else if (html) headers.set('Cache-Control', 'no-store');
+    if (response.status >= 300 && response.status < 400) headers.set('Cache-Control', 'no-store');
     if (new URL(request.url).protocol === 'https:')
       headers.set('Strict-Transport-Security', 'max-age=31536000');
     headers.set('X-Content-Type-Options', 'nosniff');

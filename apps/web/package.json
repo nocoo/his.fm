@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "node scripts/dev.mjs",
     "dev:remote": "vite --mode production",
-    "build": "cf build",
+    "build": "npm run generate:critical && cf build",
+    "generate:critical": "node scripts/generate-public-critical.mjs",
     "preview": "vite preview --host 127.0.0.1 --port 7056",
     "typecheck": "npm run cf:typegen && tsc --noEmit",
     "lint": "biome check . --error-on-warnings",

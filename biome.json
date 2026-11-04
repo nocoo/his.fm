@@ -33,6 +33,11 @@
   },
   "overrides": [
     {
+      "includes": ["**/public-critical.generated.ts"],
+      "linter": { "enabled": false },
+      "formatter": { "enabled": false }
+    },
+    {
       "includes": ["apps/web/tests/e2e/**"],
       "linter": {
         "domains": {
