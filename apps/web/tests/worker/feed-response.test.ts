@@ -6,6 +6,10 @@ import { conditionalFeedResponse, feedResponse, feedRoute } from '../../worker/f
 
 vi.mock('../../worker/categories', () => ({ getCategory: vi.fn() }));
 vi.mock('../../worker/feed', () => ({ buildCategoryRssFeed: vi.fn(), buildRssFeed: vi.fn() }));
+vi.mock('../../worker/episode-public', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../worker/episode-public')>()),
+  resolveCategoryAlias: vi.fn(async (_db: D1Database, categoryId: string) => categoryId),
+}));
 
 const env = { DB: {}, MEDIA: {}, MEDIA_BASE_URL: 'https://f.no.mt' } as Env;
 const request = (path = '/feed.xml', init?: RequestInit) => new Request(`https://his.fm${path}`, init);

@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { PUBLIC_FEED_CACHE_CONTROL, PUBLIC_RSS_ROBOTS } from '../src/shared/public-cache-policy';
 import { getCategory } from './categories';
+import { redirect, resolveCategoryAlias } from './episode-public';
 import { buildCategoryRssFeed, buildRssFeed } from './feed';
 import { HttpError } from './http';
 
@@ -11,6 +12,14 @@ export async function feedResponse(request: Request, env: Env): Promise<Response
   const url = new URL(request.url);
   const mediaBase = env.MEDIA_BASE_URL ?? 'https://f.no.mt';
   const categoryId = /^\/feeds\/([a-z0-9-]+)\.xml$/.exec(url.pathname)?.[1];
+  if (categoryId) {
+    const canonicalId = await resolveCategoryAlias(env.DB, categoryId);
+    if (canonicalId !== categoryId) {
+      const next = new URL(url);
+      next.pathname = `/feeds/${canonicalId}.xml`;
+      return redirect(`${next.pathname}${next.search}`);
+    }
+  }
   const category = categoryId ? await getCategory(env.DB, categoryId) : null;
   const body = category
     ? await buildCategoryRssFeed(env.DB, url.origin, mediaBase, category.id, category.name, env.MEDIA)

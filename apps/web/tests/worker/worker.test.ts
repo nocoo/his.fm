@@ -526,13 +526,9 @@ describe('public podcast catalog', () => {
         slug: 'future-only',
         publishedAt: '2999-01-01T00:00:00Z',
       });
-      const empty = await (await call('/episodes?category=learning')).text();
-      expect(empty).toContain('<h1>Programme title</h1>');
-      expect(empty).toContain('Public programme introduction');
-      expect(empty).not.toContain('INTERNAL PROMPT SLOT SECRET');
-      expect(empty).toContain('<meta name="robots" content="noindex, follow"');
-      expect(empty).toContain(`rel="canonical" href="${origin}/episodes?category=learning"`);
-      expect(empty).toContain('href="/feeds/learning.xml"');
+      const emptyResponse = await call('/episodes?category=learning');
+      expect(emptyResponse.status).toBe(404);
+      expect(await emptyResponse.text()).toContain('<meta name="robots" content="noindex, follow"');
       const emptySitemap = await (await call('/sitemap.xml')).text();
       expect(emptySitemap).not.toContain(`<loc>${origin}/episodes</loc>`);
       expect(emptySitemap).not.toContain('category=learning');
@@ -831,8 +827,8 @@ describe('public podcast catalog', () => {
       .bind('legacy-category-id', 'life')
       .run();
     const feed = await call('/feeds/legacy-category-id.xml');
-    expect(feed.status).toBe(404);
-    expect(feed.headers.get('Location')).toBeNull();
+    expect(feed.status).toBe(301);
+    expect(feed.headers.get('Location')).toBe('/feeds/life.xml');
     const catalogue = await call('/episodes?category=legacy-category-id');
     expect(catalogue.status).toBe(301);
     expect(catalogue.headers.get('Location')).toBe('/episodes?category=life');
@@ -840,6 +836,25 @@ describe('public podcast catalog', () => {
 
   it('returns 404 for unknown catalogue categories instead of noindex placeholders', async () => {
     expect((await call('/episodes?category=bogus')).status).toBe(404);
+  });
+
+  it('301 redirects aliased catalogue categories and keeps populated columns reachable', async () => {
+    await env.DB.prepare(
+      "INSERT OR IGNORE INTO categories (id, name, icon, color, updated_at, updated_by) VALUES ('look-outside', '看看外面', 'compass', 'teal', datetime('now'), 'test')",
+    ).run();
+    await env.DB.prepare('INSERT OR IGNORE INTO category_id_aliases (alias, category_id) VALUES (?, ?)')
+      .bind('life', 'look-outside')
+      .run();
+    const redirected = await call('/episodes?category=life&page=2');
+    expect(redirected.status).toBe(301);
+    expect(redirected.headers.get('Location')).toBe('/episodes?category=look-outside&page=2');
+    expect((await call('/episodes?category=life')).status).toBe(301);
+    const episode = await create({ category: 'conversations', slug: 'first-conversation', episodeNumber: 1 });
+    const conversationPage = await call('/episodes?category=conversations');
+    expect(conversationPage.status).toBe(200);
+    expect(await conversationPage.text()).toContain(`/episodes/conversations/${episode.slug}`);
+    await env.DB.prepare('DELETE FROM episodes WHERE id = ?').bind(episode.id).run();
+    expect((await call('/episodes?category=conversations')).status).toBe(404);
   });
 
   it('includes mentions in RSS item descriptions', async () => {
@@ -877,6 +892,7 @@ describe('public podcast catalog', () => {
     expect(await full.text()).toContain('Episodes by category');
     const llms = await call('/llms.txt');
     expect(llms.status).toBe(200);
+    expect(llms.headers.get('Cache-Control')).toContain('stale-while-revalidate');
     const llmsBody = await llms.text();
     expect(llmsBody).toContain('## Agent API');
     expect(llmsBody).toContain('李征');

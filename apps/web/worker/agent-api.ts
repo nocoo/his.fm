@@ -13,6 +13,7 @@ import {
   productionAudioMp3MaxBytes,
   productionPatchSchema,
 } from '../src/shared/production';
+import { PUBLIC_FEED_CACHE_CONTROL } from '../src/shared/public-cache-policy';
 import { agentOpenApi } from './agent-contract';
 import { authenticateAgent } from './agent-tokens';
 import { requireScope } from './authorization';
@@ -117,7 +118,7 @@ export async function routeDiscovery(request: Request, env?: Env): Promise<Respo
       headers: {
         ...headers,
         'Content-Type': 'text/markdown; charset=utf-8',
-        'Cache-Control': 'no-store',
+        'Cache-Control': path === '/llms.txt' ? PUBLIC_FEED_CACHE_CONTROL : 'no-store',
         'X-Content-Type-Options': 'nosniff',
       },
     });
