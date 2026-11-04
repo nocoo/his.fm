@@ -43,4 +43,9 @@ describe('public author links', () => {
     expect(html).toContain('href="https://lizheng.blog"');
     expect(html).not.toContain('rel="me noopener noreferrer"');
   });
+
+  it('gives the header wordmark link a text name that does not depend on the hidden caption', () => {
+    const html = aboutMarkup(siteSeoSchema.parse({}));
+    expect(html).toMatch(/<a[^>]*class="wordmark"[^>]*><span class="sr-only" lang="en">his\.fm<\/span>/);
+  });
 });

@@ -82,6 +82,9 @@ function Header() {
   return (
     <header className="site-header">
       <Link to="/" className="wordmark">
+        <span className="sr-only" lang="en">
+          his.fm
+        </span>
         <BrandLockup />
         <span className="brand-caption">中文播客</span>
       </Link>
