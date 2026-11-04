@@ -532,5 +532,23 @@
     "durationSeconds": 86.856,
     "objectKey": "reference/voices/fish-drama3-lizheng.mp3",
     "gender": "male"
+  },
+  {
+    "provider": "fish",
+    "voiceName": "刘飞（Fish 本地）",
+    "voiceId": "liufei.wav sha256:816d6827d2c8831baed128322e814f419db234d1292064c1d4bec9ca09e69226",
+    "style": "male, 参考音克隆, 播讲",
+    "durationSeconds": 83.976,
+    "objectKey": "reference/voices/fish-drama3-liufei.mp3",
+    "gender": "male"
+  },
+  {
+    "provider": "fish",
+    "voiceName": "爽快思思（Fish 本地）",
+    "voiceId": "shuangkuaisisi.wav sha256:61a79e387e19e2032e288ee28a6f9576f322c2a125226daf0c9b6c254235feac",
+    "style": "female, 参考音克隆, 播讲",
+    "durationSeconds": 89.52,
+    "objectKey": "reference/voices/fish-drama3-shuangkuaisisi.mp3",
+    "gender": "female"
   }
 ]

@@ -16,8 +16,8 @@ async function openPreview(page: Page) {
     }),
   );
   await page.goto('/admin/voice-preview');
-  await expect(page.locator('.appearance-voice-card')).toHaveCount(59);
-  await expect(page.locator('.appearance-voice-card audio')).toHaveCount(59);
+  await expect(page.locator('.appearance-voice-card')).toHaveCount(61);
+  await expect(page.locator('.appearance-voice-card audio')).toHaveCount(61);
 }
 
 async function selectFilter(page: Page, label: string, option: RegExp) {
@@ -59,7 +59,7 @@ test('voice filters survive responsive controls and preserve exact model metadat
   await page.getByRole('textbox', { name: '搜索音色' }).fill('not-a-voice');
   await expect(page.getByText('没有匹配的音色')).toBeVisible();
   await page.getByRole('button', { name: '清除筛选' }).click();
-  await expect(cards).toHaveCount(59);
+  await expect(cards).toHaveCount(61);
   await selectFilter(page, '按性别筛选', /^非二元/);
   await expect(cards).toHaveCount(1);
   await expect(cards.first()).toHaveAttribute('data-voice', 'River');

@@ -42,13 +42,13 @@ describe('admin voice preview', () => {
     vi.unstubAllGlobals();
   });
 
-  it('renders all 59 compact cards with accurate tags/models and collapsed disclosures', async () => {
+  it('renders all 61 compact cards with accurate tags/models and collapsed disclosures', async () => {
     await act(async () => root.render(<VoicePreviewContent />));
-    expect(container.querySelectorAll('.appearance-voice-card')).toHaveLength(59);
-    expect(container.querySelectorAll('.appearance-voice-card audio')).toHaveLength(59);
+    expect(container.querySelectorAll('.appearance-voice-card')).toHaveLength(61);
+    expect(container.querySelectorAll('.appearance-voice-card audio')).toHaveLength(61);
     expect(container.querySelectorAll('.appearance-voice-card[data-provider="mai"]')).toHaveLength(5);
     expect(container.querySelectorAll('.appearance-voice-card[data-provider="doubao"]')).toHaveLength(3);
-    expect(container.querySelectorAll('.appearance-voice-card[data-provider="fish"]')).toHaveLength(1);
+    expect(container.querySelectorAll('.appearance-voice-card[data-provider="fish"]')).toHaveLength(3);
     expect(container.querySelector('[data-voice="River"]')?.getAttribute('data-gender')).toBe('non-binary');
     expect(container.querySelector('[data-voice="Bo"] .voice-sample-tags')?.textContent).toBe(
       '男声中文高保真',
@@ -87,7 +87,7 @@ describe('admin voice preview', () => {
     expect(scriptButton?.getAttribute('aria-expanded')).toBe('true');
     expect(container.querySelector('.voice-script-body')?.textContent).toBe(voicePreviewSampleScript);
     await act(async () => container.querySelector<HTMLButtonElement>('[role="switch"]')?.click());
-    expect(container.querySelectorAll('.voice-technical')).toHaveLength(59);
+    expect(container.querySelectorAll('.voice-technical')).toHaveLength(61);
     expect(container.querySelector('[data-voice="Bo"] .voice-technical')?.textContent).toContain(
       'zh-CN-Bo:MAI-Voice-2.1',
     );
@@ -126,7 +126,7 @@ describe('admin voice preview', () => {
       (button) => button.textContent === '清除筛选',
     );
     await act(async () => clear?.click());
-    expect(container.querySelectorAll('.appearance-voice-card')).toHaveLength(59);
+    expect(container.querySelectorAll('.appearance-voice-card')).toHaveLength(61);
   });
 
   it('distinguishes checking, missing and failed probes, and retries without enabling missing audio', async () => {
