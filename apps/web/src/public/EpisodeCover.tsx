@@ -34,6 +34,8 @@ export function EpisodeCover({
       width={1600}
       height={1600}
       loading={priority ? 'eager' : 'lazy'}
+      fetchPriority={priority ? 'high' : 'auto'}
+      decoding={priority ? 'sync' : 'async'}
     />
   );
 }

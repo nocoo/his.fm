@@ -234,7 +234,7 @@ function LibraryState({ children }: { children: ReactNode }) {
   return children;
 }
 
-function EpisodeCard({ episode }: { episode: PublicEpisodeSummary }) {
+function EpisodeCard({ episode, priority = false }: { episode: PublicEpisodeSummary; priority?: boolean }) {
   const { categories } = useLibrary();
   const label = episodeDisplayLabel(episode, categories);
   return (
@@ -248,6 +248,7 @@ function EpisodeCard({ episode }: { episode: PublicEpisodeSummary }) {
         <EpisodeCover
           episode={episode}
           categoryName={categories.find((item) => item.id === episode.category)?.name ?? ''}
+          priority={priority}
         />
         <span className="art-arrow">
           <ArrowUpRight size={25} />
@@ -276,10 +277,12 @@ function ProgrammeGroup({
   category,
   episodes,
   anchor,
+  priorityEpisodeId,
 }: {
   category: PublicCategory;
   episodes: PublicEpisodeSummary[];
   anchor?: string;
+  priorityEpisodeId?: string;
 }) {
   const Icon = categoryIconComponents[category.icon];
   return (
@@ -298,7 +301,7 @@ function ProgrammeGroup({
       <div className="episode-grid">
         {episodes.slice(0, 3).map((episode) => (
           <Reveal key={episode.id}>
-            <EpisodeCard episode={episode} />
+            <EpisodeCard episode={episode} priority={episode.id === priorityEpisodeId} />
           </Reveal>
         ))}
       </div>
@@ -312,6 +315,7 @@ function ProgrammeSections() {
     category,
     episodes: episodes.filter((episode) => episode.category === category.id),
   }));
+  const priorityEpisodeId = groups[0]?.episodes[0]?.id;
   return (
     <>
       {groups.map((group, index) => (
@@ -320,6 +324,7 @@ function ProgrammeSections() {
           category={group.category}
           episodes={group.episodes}
           anchor={index === 0 ? 'episodes' : undefined}
+          priorityEpisodeId={index === 0 ? priorityEpisodeId : undefined}
         />
       ))}
     </>
@@ -548,9 +553,9 @@ function Catalogue() {
         </p>
         {filtered.length ? (
           <div className="episode-grid">
-            {paged.map((episode) => (
+            {paged.map((episode, index) => (
               <Reveal key={episode.id}>
-                <EpisodeCard episode={episode} />
+                <EpisodeCard episode={episode} priority={index === 0} />
               </Reveal>
             ))}
           </div>

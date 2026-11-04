@@ -45,7 +45,7 @@ describe('episode thumbnails', () => {
       { id: 'episode/one', version: 7, coverUrl: 'https://f.no.mt/cover.png' },
       'stillwood',
     );
-    expect(props.src).toBe('/media/episode-thumbnails/episode%2Fone/7/stillwood/480.webp');
+    expect(props.src).toBe('/media/episode-thumbnails/episode%2Fone/7/stillwood/320.webp');
     expect(props.srcSet?.split(', ')).toEqual(
       episodeThumbnailWidths.map(
         (width) => `/media/episode-thumbnails/episode%2Fone/7/stillwood/${width}.webp ${width}w`,
@@ -62,14 +62,14 @@ describe('episode thumbnails', () => {
     }
   });
 
-  it('sizes lazy grid/list artwork automatically with layout fallbacks and sizes eager detail explicitly', () => {
+  it('sizes lazy grid/list artwork with mobile-first width hints', () => {
     const grid = episodeThumbnailSizes(0.875);
-    expect(grid.startsWith('auto, ')).toBe(true);
+    expect(grid.startsWith('auto, ')).toBe(false);
     expect(grid).toContain('(max-width: 480px) calc((100vw - 48px) * 0.875)');
     expect(grid).toContain('(max-width: 760px) calc(((100vw - 68px) / 2) * 0.875)');
     expect(grid).toContain('min(90.8vw, 1424px)');
     expect(episodeThumbnailSizes(1, false, true)).toBe(
-      'auto, (max-width: 760px) calc((160px) * 1), calc((260px) * 1)',
+      '(max-width: 760px) calc((160px) * 1), calc((260px) * 1)',
     );
     const detail = episodeThumbnailSizes(1, true);
     expect(detail).not.toContain('auto');
