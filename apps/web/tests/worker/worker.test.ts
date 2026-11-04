@@ -633,7 +633,8 @@ describe('public podcast catalog', () => {
     expect(nonce).toBeTruthy();
     const productionHtml = await production.text();
     expect(productionHtml).toContain(`<script nonce="${nonce}"`);
-    expect(productionHtml).not.toMatch(/\son[a-z]+=/);
+    expect(productionHtml.match(/<script(?![^>]*\bnonce=)/g)).toBeNull();
+    expect(productionHtml.match(/\son[a-z]+=/g)).toBeNull();
     for (const url of ['http://his.fm/about?x=1', 'https://www.his.fm/about?x=1']) {
       const redirect = await worker.fetch(new Request(url), env);
       expect(redirect.status).toBe(308);
