@@ -33,7 +33,7 @@ describe('public author links', () => {
       }),
     );
     expect(html.match(/href="https:\/\/author\.example\.test"/g)).toHaveLength(2);
-    expect(html.match(/href="https:\/\/lizheng\.blog"/g)).toHaveLength(2);
+    expect(html.match(/href="https:\/\/lizheng\.blog"/g)).toHaveLength(1);
     expect(html).toContain('Confirmed host');
   });
 

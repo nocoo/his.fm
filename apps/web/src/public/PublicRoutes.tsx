@@ -147,20 +147,11 @@ function Footer() {
                 {site.podcastAuthor}的主页
               </a>
             )}
-            <a href="https://lizheng.blog" rel="noopener noreferrer" target="_blank">
-              博客
-            </a>
             <a href="https://lizheng.dev" rel="noopener noreferrer" target="_blank">
-              lizheng.dev
-            </a>
-            <a href="https://lizheng.me" rel="noopener noreferrer" target="_blank">
-              lizheng.me
+              关于李征
             </a>
             <a href="https://hexly.ai" rel="noopener noreferrer" target="_blank">
-              hexly.ai
-            </a>
-            <a href="https://basaltui.com" rel="noopener noreferrer" target="_blank">
-              basaltui.com
+              hexly family
             </a>
             <a href="/llms.txt" lang="en">
               llms.txt
