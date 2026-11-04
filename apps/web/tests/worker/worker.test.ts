@@ -132,9 +132,12 @@ beforeAll(async () => {
             ASSETS: {
               type: 'fetcher',
               handler: () =>
-                new MiniflareResponse('<html><head></head><body><div id="root"></div></body></html>', {
-                  headers: { 'Content-Type': 'text/html' },
-                }),
+                new MiniflareResponse(
+                  '<html><head><link rel="stylesheet" href="/assets/index-test.css" crossorigin></head><body><div id="root"></div></body></html>',
+                  {
+                    headers: { 'Content-Type': 'text/html' },
+                  },
+                ),
             },
           },
         },
@@ -635,6 +638,11 @@ describe('public podcast catalog', () => {
     expect(productionHtml).toContain(`<script nonce="${nonce}"`);
     expect(productionHtml.match(/<script(?![^>]*\bnonce=)/g)).toBeNull();
     expect(productionHtml.match(/\son[a-z]+=/g)).toBeNull();
+    expect(productionHtml).toMatch(/<link rel="stylesheet" href="\/assets\/[^"]+\.css"/);
+    expect(productionHtml).not.toContain('data-defer-style');
+    expect(productionHtml.indexOf('<style id="public-critical">')).toBeLessThan(
+      productionHtml.indexOf('<link rel="stylesheet"'),
+    );
     for (const url of ['http://his.fm/about?x=1', 'https://www.his.fm/about?x=1']) {
       const redirect = await worker.fetch(new Request(url), env);
       expect(redirect.status).toBe(308);

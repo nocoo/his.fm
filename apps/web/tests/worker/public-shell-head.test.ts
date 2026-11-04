@@ -1,12 +1,15 @@
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import {
-  deferPublicStylesheets,
-  preparePublicShellHead,
-  publicCriticalCssForTests,
-} from '../../worker/public-shell-head';
+import { preparePublicShellHead, publicCriticalCssForTests } from '../../worker/public-shell-head';
+
+const shellHeadSource = readFileSync(
+  fileURLToPath(new URL('../../worker/public-shell-head.ts', import.meta.url)),
+  'utf8',
+);
 
 describe('public shell head', () => {
-  it('inlines critical CSS before the deferred stylesheet so the full bundle wins', () => {
+  it('inlines critical CSS before the blocking stylesheet so the full bundle wins', () => {
     const html = preparePublicShellHead(
       '<html><head><meta charset="UTF-8" /><link rel="stylesheet" href="/assets/index.css" crossorigin></head><body></body></html>',
     );
@@ -17,46 +20,37 @@ describe('public shell head', () => {
     expect(critical).toContain('grid-template-columns:1fr');
     expect(critical).toBe(publicCriticalCssForTests());
     expect(html.indexOf('<meta charset')).toBeLessThan(html.indexOf('<style id="public-critical">'));
-    expect(html.indexOf('<style id="public-critical">')).toBeLessThan(
-      html.indexOf('<link rel="preload" as="style"'),
-    );
+    expect(html.indexOf('<style id="public-critical">')).toBeLessThan(html.indexOf('<link rel="stylesheet"'));
   });
 
-  it('promotes preloaded stylesheets without inline event handlers', () => {
+  it('keeps the full public stylesheet render-blocking without preload promotion', () => {
     const html = preparePublicShellHead(
       '<html><head><link rel="stylesheet" href="/assets/index.css" crossorigin></head><body></body></html>',
     );
-    expect(html).toContain('data-defer-style');
+    expect(html).toContain('<link rel="stylesheet" href="/assets/index.css" crossorigin>');
+    expect(html).not.toContain('data-defer-style');
+    expect(html).not.toContain('rel="preload" as="style"');
     expect(html.includes('onload=')).toBe(false);
     expect(html.match(/<link rel="stylesheet"/g)?.length).toBe(1);
-    expect(html).toContain('crossorigin></noscript>');
-    expect(html).toMatch(
+    expect(html).not.toMatch(
       /<script>\(function\(\)\{var links=document\.querySelectorAll\("link\[data-defer-style\]"\)/,
     );
-    expect(html.indexOf('data-defer-style')).toBeLessThan(html.indexOf('<script>(function()'));
-    expect(html.indexOf('<script>(function()')).toBeLessThan(html.indexOf('</head>'));
   });
 
-  it('defers stylesheets alone when critical CSS is not involved', () => {
-    const html = deferPublicStylesheets(
-      '<html><head><link rel="stylesheet" href="/assets/index.css" crossorigin></head></html>',
-    );
-    expect(html).toContain('rel="preload" as="style"');
-    expect(html).toContain('data-defer-style');
-    expect(html).not.toContain('<style id="public-critical">');
-    expect(html.includes('onload=')).toBe(false);
+  it('leaves documents without stylesheets untouched aside from critical CSS', () => {
+    const html = preparePublicShellHead('<html><head></head></html>');
+    expect(html).toContain('<style id="public-critical">');
+    expect(html).not.toContain('<link rel="stylesheet"');
   });
 
-  it('leaves documents without stylesheets untouched', () => {
-    expect(deferPublicStylesheets('<html><head></head></html>')).toBe('<html><head></head></html>');
-    expect(deferPublicStylesheets('<link rel="stylesheet">')).toBe('<link rel="stylesheet">');
-  });
-
-  it('adds the promotion script when the shell template has no closing head tag', () => {
+  it('inlines critical CSS when the shell template has no closing head tag', () => {
     const html = preparePublicShellHead('<html><link rel="stylesheet" href="/assets/index.css"></html>');
-    expect(html.indexOf('<style id="public-critical">')).toBeLessThan(
-      html.indexOf('<link rel="preload" as="style"'),
-    );
-    expect(html).toContain('<script>(function()');
+    expect(html.indexOf('<style id="public-critical">')).toBeLessThan(html.indexOf('<link rel="stylesheet"'));
+  });
+
+  it('does not defer stylesheets with preload promotion or inline handlers', () => {
+    expect(shellHeadSource).not.toContain('data-defer-style');
+    expect(shellHeadSource).not.toContain('onload=');
+    expect(shellHeadSource).not.toMatch(/promoteDeferredStyles/);
   });
 });
