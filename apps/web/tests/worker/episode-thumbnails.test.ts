@@ -67,7 +67,7 @@ describe('published episode thumbnails', () => {
       const response = await call('GET', '3', String(width));
       expect(response.status).toBe(200);
       expect(response.headers.get('Content-Type')).toBe('image/webp');
-      expect(response.headers.get('Cache-Control')).toBe('public, max-age=3600');
+      expect(response.headers.get('Cache-Control')).toBe('public, max-age=31536000, immutable');
       expect(response.headers.get('X-Content-Type-Options')).toBe('nosniff');
       expect(response.headers.has('Vary')).toBe(false);
       const output = new Uint8Array(await response.arrayBuffer());
