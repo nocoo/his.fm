@@ -8,6 +8,10 @@ export function PublicSiteSeoProvider({ children }: { children: ReactNode }) {
   const initial = usePublicData();
   const [site, setSite] = useState<SiteSeo>(() => initial?.site ?? siteSeoSchema.parse({}));
   useEffect(() => {
+    if (initial?.site) {
+      setSite(initial.site);
+      return;
+    }
     const controller = new AbortController();
     fetch('/api/site-seo', { signal: controller.signal })
       .then((response) => (response.ok ? response.json() : null))
@@ -17,7 +21,7 @@ export function PublicSiteSeoProvider({ children }: { children: ReactNode }) {
       })
       .catch(() => {});
     return () => controller.abort();
-  }, []);
+  }, [initial?.site]);
   return <SiteSeoContext.Provider value={site}>{children}</SiteSeoContext.Provider>;
 }
 

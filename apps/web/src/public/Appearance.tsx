@@ -39,9 +39,13 @@ export function SiteAppearance({ children }: { children: ReactNode }) {
   const [attempt, setAttempt] = useState(0);
   const id = preview ?? appearance?.theme;
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: Retry and focus explicitly revalidate saved appearance.
   useEffect(() => {
     if (preview) return;
+    if (initial?.appearance && attempt === 0) {
+      setAppearance(initial.appearance);
+      setError('');
+      return;
+    }
     const controller = new AbortController();
     setError('');
     getAppearance(controller.signal)
@@ -52,7 +56,7 @@ export function SiteAppearance({ children }: { children: ReactNode }) {
         if (!controller.signal.aborted) setError('网站外观暂时无法加载，请重试。');
       });
     return () => controller.abort();
-  }, [attempt, preview]);
+  }, [attempt, preview, initial?.appearance]);
 
   useEffect(() => {
     const refresh = () => setAttempt((value) => value + 1);

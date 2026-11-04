@@ -29,6 +29,23 @@ describe('seo-head', () => {
     expect(injectSeoIntoHtml('<html></html>', seo)).toContain('<title>');
   });
 
+  it('omits canonical and og:url when canonical is empty', () => {
+    const tags = seoHeadTags(
+      {
+        title: '页面不存在 · his.fm',
+        description: 'missing',
+        canonical: '',
+        ogImageUrl: 'https://his.fm/brand/share.jpg',
+        noindex: true,
+        ogType: 'website',
+      },
+      'https://his.fm',
+    );
+    expect(tags).not.toContain('rel="canonical"');
+    expect(tags).not.toContain('property="og:url"');
+    expect(tags).toContain('https://his.fm/feed.xml');
+  });
+
   it('replaces managed head tags instead of appending duplicates', () => {
     const seo = resolveSiteDefaults(siteSeoSchema.parse({ defaultTitle: 'First' }), 'https://his.fm');
     const shell =

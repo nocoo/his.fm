@@ -835,7 +835,14 @@ describe('public podcast catalog', () => {
   });
 
   it('returns 404 for unknown catalogue categories instead of noindex placeholders', async () => {
-    expect((await call('/episodes?category=bogus')).status).toBe(404);
+    const response = await call('/episodes?category=bogus');
+    expect(response.status).toBe(404);
+    const html = await response.text();
+    expect(html).not.toContain('rel="canonical"');
+    expect(
+      html.match(/<link rel="alternate" type="application\/rss\+xml" href="https:\/\/[^"]+\/feed\.xml"/g)
+        ?.length,
+    ).toBe(1);
   });
 
   it('301 redirects aliased catalogue categories and keeps populated columns reachable', async () => {
