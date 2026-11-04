@@ -1,5 +1,5 @@
-import { projectPublicEpisode } from '../src/shared/episode';
 import { episodePublicPath } from '../src/shared/episode-url';
+import { filterIndexableEpisodes } from '../src/shared/public-index';
 import { resolveAboutPageSeo, resolveCatalogueSeo, resolveSiteDefaults } from '../src/shared/seo-resolve';
 import { listCategories } from './categories';
 import { readPublishedEpisodes } from './episodes';
@@ -19,34 +19,40 @@ function urlEntry(loc: string, lastmod?: string) {
   return `  <url>\n    <loc>${escapeXml(loc)}</loc>${modified}\n  </url>`;
 }
 
+function latestTimestamp(values: string[]) {
+  // biome-ignore lint/complexity/useMathMinMax: ISO timestamps compare lexicographically.
+  return values.reduce((latest, value) => (value > latest ? value : latest), '');
+}
+
 export async function buildSitemap(db: D1Database, origin: string) {
-  const [records, categories, site] = await Promise.all([
+  const [records, categories, siteRecord] = await Promise.all([
     readPublishedEpisodes(db),
     listCategories(db),
     getSiteSeo(db),
   ]);
+  const { version: _version, updatedAt: siteUpdatedAt, updatedBy: _updatedBy, ...site } = siteRecord;
+  const indexable = filterIndexableEpisodes(records, origin, site);
+  const latestEpisodeUpdate = latestTimestamp(indexable.map((episode) => episode.updatedAt));
+  const homeLastmod = latestTimestamp([siteUpdatedAt, latestEpisodeUpdate]);
   const staticPages = [
-    resolveSiteDefaults(site, origin),
-    resolveCatalogueSeo(site, origin, records.length),
-    resolveAboutPageSeo(site, origin),
+    { seo: resolveSiteDefaults(site, origin), lastmod: homeLastmod },
+    { seo: resolveCatalogueSeo(site, origin, indexable.length), lastmod: homeLastmod },
+    { seo: resolveAboutPageSeo(site, origin), lastmod: homeLastmod },
   ];
-  const categoryPages = categories.map((category) =>
-    resolveCatalogueSeo(
-      site,
-      origin,
-      records.filter((episode) => episode.category === category.id).length,
-      category,
-    ),
+  const categoryPages = categories.map((category) => {
+    const inCategory = indexable.filter((episode) => episode.category === category.id);
+    return {
+      seo: resolveCatalogueSeo(site, origin, inCategory.length, category),
+      lastmod: latestTimestamp(inCategory.map((episode) => episode.updatedAt)) || homeLastmod,
+    };
+  });
+  const episodePages = indexable.map((episode) =>
+    urlEntry(`${origin}${episodePublicPath(episode.category, episode.slug)}`, episode.updatedAt),
   );
-  const episodePages = records
-    .filter((episode) => !projectPublicEpisode(episode, origin, { site }).pageSeo.noindex)
-    .map((episode) =>
-      urlEntry(`${origin}${episodePublicPath(episode.category, episode.slug)}`, episode.updatedAt),
-    );
   const entries = [
     ...[...staticPages, ...categoryPages]
-      .filter((page) => !page.noindex)
-      .map((page) => urlEntry(page.canonical)),
+      .filter((page) => !page.seo.noindex)
+      .map((page) => urlEntry(page.seo.canonical, page.lastmod)),
     ...episodePages,
   ].join('\n');
   return `<?xml version="1.0" encoding="UTF-8"?>

@@ -1,3 +1,4 @@
+import { CATALOGUE_PAGE_SIZE, catalogueCanonical } from './catalogue-pagination';
 import type { PublicCategory } from './category';
 import type { PublicEpisode } from './episode';
 import { episodeCanonicalUrl } from './episode-url';
@@ -57,16 +58,19 @@ export function resolveCatalogueSeo(
   episodeCount: number,
   category?: PublicCategory,
   override: SeoOverride | undefined = category?.seo,
+  page = 1,
+  pageSize = CATALOGUE_PAGE_SIZE,
 ): ResolvedPageSeo {
   const base = resolveSiteDefaults(site, origin);
   const merged = mergeOverride({}, site.overrides, override);
+  const categoryId = category?.id ?? null;
   if (category) {
     return {
       ...base,
       title: merged.title ?? `${category.name} · 全部播客${site.titleSuffix}`,
       description:
         merged.description ?? `在「${category.name}」收听已发布的节目，浏览每期摘要、话题与参考资料。`,
-      canonical: `${origin}/episodes?category=${encodeURIComponent(category.id)}`,
+      canonical: catalogueCanonical(origin, categoryId, page, pageSize, episodeCount),
       ogImageUrl: override?.ogImageUrl ? absoluteAsset(origin, override.ogImageUrl) : base.ogImageUrl,
       noindex: episodeCount === 0 || (merged.noindex ?? false),
     };
@@ -75,7 +79,7 @@ export function resolveCatalogueSeo(
     ...base,
     title: merged.title ?? `全部播客${site.titleSuffix}`,
     description: merged.description ?? '浏览 his.fm 全部已发布节目。',
-    canonical: `${origin}/episodes`,
+    canonical: catalogueCanonical(origin, categoryId, page, pageSize, episodeCount),
     ogImageUrl: override?.ogImageUrl ? absoluteAsset(origin, override.ogImageUrl) : base.ogImageUrl,
     noindex: episodeCount === 0 || (merged.noindex ?? false),
   };
