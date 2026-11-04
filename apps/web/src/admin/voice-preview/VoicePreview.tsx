@@ -66,7 +66,7 @@ function VoiceSampleCard({ entry, technical }: { entry: VoicePreviewVoice; techn
         <span className="voice-sample-duration">{entry.durationSeconds.toFixed(1)} 秒</span>
       </div>
       {sample.status === 'available' ? (
-        <AudioPlayer src={sample.playbackUrl} title={entry.voiceName} compact hideIdleStatus preload="none" />
+        <AudioPlayer src={sample.playbackUrl} title={entry.voiceName} compact quietStatus preload="none" />
       ) : (
         <div className="voice-reference-state">
           {sample.status === 'loading' ? (

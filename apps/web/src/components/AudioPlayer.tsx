@@ -17,7 +17,7 @@ export type AudioPlayerProps = {
   categoryName?: string;
   subtitle?: string;
   compact?: boolean;
-  hideIdleStatus?: boolean;
+  quietStatus?: boolean;
   className?: string;
   preload?: 'none' | 'metadata' | 'auto';
 };
@@ -40,7 +40,7 @@ function Player({
   categoryName,
   subtitle,
   compact = false,
-  hideIdleStatus = false,
+  quietStatus = false,
   className = '',
   preload = 'metadata',
 }: AudioPlayerProps) {
@@ -261,10 +261,10 @@ function Player({
                 ? '无法播放'
                 : loading
                   ? '正在加载音频…'
-                  : playing
-                    ? '正在播放'
-                    : hideIdleStatus
-                      ? ''
+                  : quietStatus
+                    ? ''
+                    : playing
+                      ? '正在播放'
                       : '准备好，慢慢听')}
             {loading && !error && <LoaderCircle size={12} aria-hidden="true" />}
           </span>
