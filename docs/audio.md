@@ -51,7 +51,7 @@ Current providers:
 | `elevenlabs` | ElevenLabs | Eleven v3 | 20 |
 | `mai` | MAI Voice | MAI-Voice-2.1 | 5 |
 | `doubao` | 豆包 | Seed-TTS 2.0 | 3 |
-| `fish` | Fish Audio | Drama 3 | 1 |
+| `fish` | Fish Audio | Drama 3 | 3 |
 
 ### Manifest and transcript
 

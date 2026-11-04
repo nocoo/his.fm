@@ -53,16 +53,16 @@ describe('voice preview registry and manifest', () => {
 });
 
 describe('voice preview catalog', () => {
-  it('lists all 59 real MP3 samples, including only high-fidelity MAI 2.1', () => {
-    expect(voicePreviewEntries).toHaveLength(59);
+  it('lists all 61 real MP3 samples, including only high-fidelity MAI 2.1', () => {
+    expect(voicePreviewEntries).toHaveLength(61);
     expect(voicePreviewResults(catalog, all).providerCounts).toEqual({
       gemini: 30,
       elevenlabs: 20,
       mai: 5,
       doubao: 3,
-      fish: 1,
+      fish: 3,
     });
-    expect(new Set(catalog.map((entry) => entry.objectKey)).size).toBe(59);
+    expect(new Set(catalog.map((entry) => entry.objectKey)).size).toBe(61);
     expect(
       catalog.filter((entry) => entry.provider === 'mai').map((entry) => [entry.voiceName, entry.gender]),
     ).toEqual([
@@ -95,10 +95,10 @@ describe('voice preview catalog', () => {
       'Alice',
       'Bo',
       '刘飞',
-      '李征（本地克隆）',
+      '刘飞（Fish 本地）',
       'Achird',
     ]);
-    expect(catalog).toHaveLength(59);
+    expect(catalog).toHaveLength(61);
     expect(voicePreviewCatalog()).toEqual(catalog);
     expect(voicePreviewEntries).toEqual(before);
     expect(voicePreviewCatalog([])).toEqual([]);
