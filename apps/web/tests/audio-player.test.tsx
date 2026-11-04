@@ -76,6 +76,8 @@ describe('shared audio player preview behavior', () => {
     expect(container.querySelector('[role="status"]')?.textContent).toBe('');
     await act(async () => audio?.dispatchEvent(new Event('waiting')));
     expect(container.querySelector('[role="status"]')?.textContent).toBe('正在加载音频…');
+    expect(container.querySelector('[role="status"]')?.classList.contains('is-visually-hidden')).toBe(true);
+    expect(container.querySelector('.his-audio-play .his-audio-play-spinner')).not.toBeNull();
     await act(async () => {
       if (audio) Object.defineProperty(audio, 'error', { configurable: true, value: { code: 2 } });
       audio?.dispatchEvent(new Event('error'));
@@ -135,6 +137,7 @@ describe('shared audio player preview behavior', () => {
     await act(async () => root.render(<AudioPlayer src="/preview.mp3" compact quietStatus preload="none" />));
     await act(async () => container.querySelector<HTMLButtonElement>('.his-audio-play')?.click());
     expect(container.querySelector('[role="status"]')?.textContent).toBe('播放未能开始，请再次点击播放。');
+    expect(container.querySelector('[role="status"]')?.classList.contains('is-visually-hidden')).toBe(false);
     expect(mediaSession.metadata).toBeNull();
     await act(async () => container.querySelector<HTMLButtonElement>('.his-audio-play')?.click());
     expect(container.querySelector('[role="status"]')?.textContent).toBe('');
