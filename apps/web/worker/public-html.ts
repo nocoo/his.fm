@@ -80,7 +80,10 @@ export async function maybeServePublicHtml(request: Request, env: Env): Promise<
   let categories: Awaited<ReturnType<typeof listCategories>>;
   let shell: string;
   let resolvedAlias: string | null = null;
+  const htmlStartedAt = performance.now();
+  let loadMs = 0;
   try {
+    const loadStartedAt = performance.now();
     [siteRecord, appearance, records, categories, shell, resolvedAlias] = await Promise.all([
       getSiteSeo(env.DB),
       getAppearance(env.DB),
@@ -89,6 +92,7 @@ export async function maybeServePublicHtml(request: Request, env: Env): Promise<
       loadShell(request, env),
       aliasPromise,
     ]);
+    loadMs = performance.now() - loadStartedAt;
   } catch (error) {
     console.error(
       JSON.stringify({
@@ -187,12 +191,14 @@ export async function maybeServePublicHtml(request: Request, env: Env): Promise<
     appearance: { theme: appearance.theme },
     episodes: summaries,
     episode,
-    categories,
+    categories: activeCategories,
   };
   const preview = themeIdSchema.safeParse(url.searchParams.get('theme'));
   const theme = preview.success ? preview.data : appearance.theme;
   const chrome = themeChromeColor(theme, path, preview.success);
+  const renderStartedAt = performance.now();
   const rendered = renderPublicPage(`${path}${url.search}`, data);
+  const renderMs = performance.now() - renderStartedAt;
   const bootstrap = JSON.stringify(data).replace(/</g, '\\u003c');
   let html = preparePublicShellHead(injectSeoIntoHtml(shell, seo, jsonLd, origin, extraHead)).replace(
     '<div id="root"></div>',
@@ -213,12 +219,18 @@ export async function maybeServePublicHtml(request: Request, env: Env): Promise<
   if (path === '/') {
     html = html.replace('</head>', `${renderHeroPreloads(theme)}</head>`);
   }
+  const headers: Record<string, string> = {
+    'Content-Type': 'text/html; charset=utf-8',
+    'Cache-Control': status === 200 ? PUBLIC_HTML_CACHE_CONTROL : 'no-store',
+  };
+  if (env.ENVIRONMENT !== 'production') {
+    const totalMs = performance.now() - htmlStartedAt;
+    headers['Server-Timing'] =
+      `load;dur=${loadMs.toFixed(1)}, render;dur=${renderMs.toFixed(1)}, total;dur=${totalMs.toFixed(1)}`;
+  }
   const response = new Response(html, {
     status,
-    headers: {
-      'Content-Type': 'text/html; charset=utf-8',
-      'Cache-Control': status === 200 ? PUBLIC_HTML_CACHE_CONTROL : 'no-store',
-    },
+    headers,
   });
   return request.method === 'HEAD' ? new Response(null, response) : response;
 }
