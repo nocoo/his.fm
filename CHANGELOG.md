@@ -2,6 +2,12 @@
 
 All notable changes to his.fm are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions use the owner’s patch-only deployment policy in `AGENTS.md`, with the authoritative version in `package.json`.
 
+## 2.11.20 - 2026-11-04
+
+### Fixed
+
+- Programme column descriptions, sitemap column URLs, and JSON-LD list only columns with at least one indexable episode. Legacy catalogue aliases redirect with 301 to the canonical column id (preserving pagination); empty columns without aliases return 404 with noindex. `/llms.txt` uses the same cache policy as public feeds.
+
 ## 2.11.19 - 2026-11-04
 
 ### Fixed
