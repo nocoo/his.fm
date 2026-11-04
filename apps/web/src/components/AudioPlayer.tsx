@@ -192,7 +192,13 @@ function Player({
             disabled={Boolean(error)}
             onClick={() => void togglePlayback()}
           >
-            {playing ? <Pause aria-hidden="true" /> : <Play aria-hidden="true" />}
+            {quietStatus && loading && !error ? (
+              <LoaderCircle className="his-audio-play-spinner" aria-hidden="true" />
+            ) : playing ? (
+              <Pause aria-hidden="true" />
+            ) : (
+              <Play aria-hidden="true" />
+            )}
           </Button>
           <div className="his-audio-timeline">
             <Slider
@@ -255,7 +261,11 @@ function Player({
               }}
             />
           </div>
-          <span className="his-audio-status" role="status" aria-live="polite">
+          <span
+            className={`his-audio-status${quietStatus && !playNotice ? ' is-visually-hidden' : ''}`}
+            role="status"
+            aria-live="polite"
+          >
             {playNotice ||
               (error
                 ? '无法播放'
@@ -266,7 +276,7 @@ function Player({
                     : playing
                       ? '正在播放'
                       : '准备好，慢慢听')}
-            {loading && !error && <LoaderCircle size={12} aria-hidden="true" />}
+            {loading && !error && !quietStatus && <LoaderCircle size={12} aria-hidden="true" />}
           </span>
           <Button
             className="his-audio-tool his-audio-speed"

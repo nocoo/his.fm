@@ -202,6 +202,20 @@
   text-align: center;
   overflow-wrap: anywhere;
 }
+.his-audio-player .his-audio-status.is-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+.his-audio-player .his-audio-play .his-audio-play-spinner {
+  animation: his-audio-spin 1.4s linear infinite;
+}
 .his-audio-player .his-audio-status svg {
   flex: none;
   animation: his-audio-spin 1.4s linear infinite;
