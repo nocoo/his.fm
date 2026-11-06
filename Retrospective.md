@@ -1,5 +1,17 @@
 # Retrospective
 
+## 2026-11-06 - Publish the release only after CI on the same SHA succeeds
+
+The 2.11.27 release was published seconds after pushing the version commit, while
+its `ci.yml` run was still in flight. The `release: published` workflow failed its
+own `release-source` check with "No successful .github/workflows/ci.yml run on
+main for <sha>", and the deploy only happened after a manual
+`workflow_dispatch` with `tag=v2.11.27` once CI finished. Nothing was redeployed
+wrongly, but the first release run is permanent red noise in the history. Wait for
+the CI run on the tag commit to conclude `success`, then publish the Release; if
+it already failed this way, re-dispatch the existing workflow for the same tag
+rather than moving the tag or the Release.
+
 ## 2026-11-04 - Verify head-level delivery changes under the production CSP
 
 2.11.21 deferred the public stylesheet with an inline `onload` handler and moved
