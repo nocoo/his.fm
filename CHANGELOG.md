@@ -2,6 +2,12 @@
 
 All notable changes to his.fm are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions use the owner’s patch-only deployment policy in `AGENTS.md`, with the authoritative version in `package.json`.
 
+## 2.11.27 - 2026-11-06
+
+### Changed
+
+- The public footer navigation now lists only site-relevant destinations. The `lizheng.blog`, `lizheng.me` and `basaltui.com` links were removed, `lizheng.dev` is now labelled 关于李征, and `hexly.ai` is now labelled hexly family.
+
 ## 2.11.26 - 2026-11-04
 
 ### Fixed
