@@ -103,6 +103,16 @@ try {
       const code = await run(['run', step], snapshot, env);
       if (code !== 0 && status === 0) status = code;
     }
+    if (status === 0) {
+      try {
+        const helper = join(snapshot, 'scripts/l1-snapshot.mjs');
+        const { validateCoverageReports } = await import(pathToFileURL(helper).href);
+        validateCoverageReports(snapshot);
+      } catch (error) {
+        fail(error instanceof Error ? error.message : 'coverage validation failed');
+        status = process.exitCode || 1;
+      }
+    }
     process.exitCode = status;
   }
 } catch (error) {
