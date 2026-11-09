@@ -25,6 +25,7 @@
     "check:cover-frames": "python3 scripts/export-theme-cover-frames.py --check",
     "ci:ensure-native-binaries": "node scripts/ensure-native-binaries.mjs",
     "ci:build": "npm run ci:ensure-native-binaries && npm run build",
+    "test:gate": "node scripts/verify-gate.mjs",
     "lint": "biome check . --error-on-warnings",
     "format": "biome check . --write",
     "prepare": "husky"
