@@ -359,6 +359,11 @@ jobs:
           echo "Running unit tests: $CMD"
           bash -euo pipefail -c "$CMD"
 
+      - name: L1 pre-commit gate self-test
+        shell: bash
+        working-directory: ${{ inputs.working-directory }}
+        run: node scripts/verify-gate.mjs
+
       - name: Upload coverage
         if: inputs.unit && inputs.coverage-path != '' && !cancelled()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

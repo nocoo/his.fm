@@ -66,7 +66,7 @@ npm run test:coverage
 npm run test:e2e
 npm run build
 npm run cf:typegen
-node scripts/verify-gate.mjs
+npm run test:gate
 ```
 
 Install through an allowed registry; never retry blocked `registry.npmjs.org`. `npm install` runs `prepare`; `npm run prepare` reinstalls Husky if needed.
@@ -76,6 +76,8 @@ Install through an allowed registry; never retry blocked `registry.npmjs.org`. `
 - Every subsequent deployment increments only the patch version: `X.Y.Z` → `X.Y.(Z+1)`. Change the major or minor version only when the owner explicitly requests it.
 - Features, database migrations, authentication changes, diff size and elapsed time must not trigger automatic major/minor bumps. This project rule overrides generic release-skill version selection.
 - L1 checks meaningful Worker, shared contracts, model and service behavior with Vitest across all workspaces. All four coverage floors are 95%; React views and generated platform declarations are excluded from unit coverage.
+- Pre-commit invocation: `sh .husky/pre-commit` (Husky `core.hooksPath=.husky/_`) runs the staged `scripts/check-staged.mjs` snapshot in order `test:coverage`, `lint`, `typecheck`, then validates staged `coverage-summary.json` floors (95% per statements/branches/functions/lines). Repeatable rejection probes: `npm run test:gate` (`node scripts/verify-gate.mjs`), also run in CI after unit tests.
+- Measured on this repository (cloud agent, npm install, Node 22.23.4, 2026-11-09): full-tree hook exit `0` with web workspace coverage statements 97.74%, branches 95.05%, functions 98.62%, lines 98.6%; contracts statements 97.52%, branches 95.61%, functions 100%, lines 99.68%; cold wall time ~82800ms, warm ~79300ms (above the 30s design target; `HISFM_GATE_TIMEOUT_MS` default remains 180000). Self-test covers healthy fixture, UT failure, per-metric coverage shortfall (statements/branches/functions/lines), lint error, lint warning via Husky commit, type error, `.only`, skip-only, empty suite, staged-vs-worktree mismatch, timeout, interrupt, missing npm, missing coverage report/script, and staged `l1-snapshot.mjs` selection.
 - The web suite caps Vitest at four workers to bound concurrent isolated Miniflare runtimes. Preserve test isolation, deadlines and coverage thresholds when tuning concurrency.
 - Large R2 test fixtures use `apps/web/tests/worker/r2-fixtures.ts` and its local fixture Worker: raw byte arguments to binding proxies synchronously serialize as Base64/JSON, while arbitrary streams lack R2's required length. Read stored bodies as streams, consume responses promptly and compare bytes with native `Buffer.equals`, not deep equality.
 - Biome uses its maintained recommended preset and rejects warnings. TypeScript is strict.
