@@ -1,3 +1,5 @@
+# CI slot standard v1 (nocoo/base-ci docs/slots.md): impl S1, S2, S3, G1, G2, B1, L1, Z1 via quality.yml;
+# na L1.5, L2, P1; todo L3 in slot-status. nocoo/base-ci v2026.12: top-level slot jobs, workflow-lint inlined.
 name: CI
 
 on:
@@ -12,27 +14,35 @@ permissions:
 
 jobs:
   quality:
-    uses: ./.github/workflows/quality-hisfm.yml # setup-js-hisfm retries npm ci on ECONNRESET
+    uses: nocoo/base-ci/.github/workflows/quality.yml@1ea10ecab22b72512399485391603fe03a161016 # v2026.12
     with:
       package-manager: npm
-      runtime-version: '11.19.1'
-      node-version: '26.12.1'
+      runtime-version: "11.19.1"
+      node-version: "26.12.1"
       install-policy: project
       env-json: '{"NPM_CONFIG_FETCH_RETRIES":"10","NPM_CONFIG_FETCH_RETRY_MINTIMEOUT":"20000","NPM_CONFIG_FETCH_RETRY_MAXTIMEOUT":"120000","NPM_CONFIG_FETCH_TIMEOUT":"300000","NPM_CONFIG_INCLUDE":"optional","NPM_CONFIG_MAXSOCKETS":"8"}'
       prepare-command: npm run ci:ensure-native-binaries
-      lockfiles: 'package-lock.json'
+      lockfiles: package-lock.json
+      gitleaks-config: .gitleaks.toml
+      test-command: npm run test:coverage && npm run test:gate
       coverage-path: |
         apps/web/coverage
         packages/contracts/coverage
       build: true
       build-command: npm run build
-
-  # Satisfies workflow-lint immutable pin check; real gate is quality-hisfm.yml above.
-  base-ci-quality-pin:
-    if: ${{ vars.CI_QUALITY_PIN == 'run' }}
-    uses: nocoo/base-ci/.github/workflows/quality.yml@633a5545fcfec91b688840650d4edf3e9cc1abbd # v2026.10
-
-  workflow-lint:
-    uses: nocoo/base-ci/.github/workflows/workflow-lint.yml@633a5545fcfec91b688840650d4edf3e9cc1abbd # v2026.10
-    with:
-      required-reusable-workflow: nocoo/base-ci/.github/workflows/quality.yml
+      workflow-lint: true
+      workflow-lint-required-workflow: nocoo/base-ci/.github/workflows/deploy-worker.yml
+      workflow-lint-yamllint: true
+      slot-status: >-
+        {"S1": {"status": "impl"},
+        "S2": {"status": "impl"},
+        "S3": {"status": "impl"},
+        "G1": {"status": "impl"},
+        "G2": {"status": "impl"},
+        "B1": {"status": "impl"},
+        "L1": {"status": "impl"},
+        "L1.5": {"status": "na", "reason": "无独立 L1.5 套件；Miniflare/Worker 绑定在 L1 Vitest 单测中覆盖"},
+        "L2": {"status": "na", "reason": "无 test:api 或对外 HTTP 集成 E2E 命令"},
+        "L3": {"status": "todo", "reason": "Playwright 用例尚未接入 CI（依赖 loopback dev 与 Chrome channel，默认 base URL 为 hisfm.dev.hexly.ai）"},
+        "P1": {"status": "na", "reason": "根 package.json 与 workspace 均为 private，不发布 npm 包"},
+        "Z1": {"status": "impl"}}

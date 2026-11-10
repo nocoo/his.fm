@@ -1,15 +1,18 @@
 # CI/CD
 
-Shared workflows come from [nocoo/base-ci](https://github.com/nocoo/base-ci), pinned to the immutable commit `ac635753a869cb85fad1f52aae4ccbd6119f3cae` (`main 2026-10-22`). Upgrade by updating the full SHA after a reviewed base-ci release.
+Shared workflows come from [nocoo/base-ci](https://github.com/nocoo/base-ci), pinned to the immutable commit `1ea10ecab22b72512399485391603fe03a161016` (`v2026.12`). Upgrade by updating the full SHA after a reviewed base-ci release.
 
 ## CI (`.github/workflows/ci.yml`)
 
-Runs on every push to `main`, pull requests against `main`, and manual dispatch. Two reusable gates:
+Runs on every push to `main`, pull requests against `main`, and manual dispatch. A single job calls base-ci `quality.yml` with **strict** `slot-status` (CI slot standard v1 in base-ci `docs/slots.md`).
 
-- `quality-hisfm.yml` — vendored from base-ci `quality.yml` with `setup-js-hisfm` (retries frozen `npm ci` on transient `ECONNRESET`) and `prepare-command: npm run ci:ensure-native-binaries`. Otherwise the same L1 stack: typecheck, lint, unit coverage, security, and build. Security and optional test-job paths still call pinned base-ci reusable workflows.
-- `workflow-lint.yml` — actionlint syntax validation of both workflow files and enforcement of full-SHA base-ci references.
+Enabled slots: **S1** typecheck, **S2** lint (Biome), **S3** workflow lint (actionlint + immutable base-ci SHA pins + required `deploy-worker.yml` reference), **G1** secret scan (Gitleaks + `.gitleaks.toml`), **G2** dependency scan (OSV on `package-lock.json`), **B1** build (`npm run build` after native-binary prep), **L1** unit tests with 95% coverage floors plus `npm run test:gate` (Husky L1 snapshot self-test), and **Z1** gate aggregate.
 
-Runtime is pinned to Node `26.12.1` and npm `11.19.1` (`packageManager` in root `package.json`) with frozen `npm ci` (`install-policy: project`). CI applies `env-json` npm retry settings before install; `.npmrc` mirrors them for local installs. After install, `ci:ensure-native-binaries` installs any missing lockfile platform optional packages, rebuilds `workerd`, and smoke-checks Biome, workerd, TypeScript, and Vite. Root `allowScripts` approves pinned `workerd` postinstalls.
+Runtime is pinned to Node `26.12.1` and npm `11.19.1` (`packageManager` in root `package.json`) with frozen `npm ci` (`install-policy: project`). CI applies `env-json` npm retry settings before install; `.npmrc` mirrors them for local installs. `prepare-command` runs `ci:ensure-native-binaries` (lockfile optional native packages, `workerd` rebuild, toolchain smoke). Root `allowScripts` approves pinned `workerd` postinstalls.
+
+**L1.5**, **L2**, and **P1** are declared `na` in `slot-status` (Worker binding coverage lives in L1 Vitest; no API E2E command; private packages). **L3** Playwright suites exist locally but are `todo` until CI can start the loopback dev stack and set `HISFM_E2E_BASE_URL`.
+
+Coverage artifacts: `apps/web/coverage` and `packages/contracts/coverage`. Branch protection should require only the Z1 check name reported on a real CI run (typically `quality / Z1: Gate` under workflow **CI**).
 
 ## Release (`.github/workflows/release.yml`)
 
@@ -44,4 +47,4 @@ The website accepts no provider credentials and performs no generation. CI/CD ha
 
 ## Local verification
 
-Workflow files are validated in CI by `workflow-lint.yml` (actionlint plus immutable-pin checks); no local helper is required. `scripts/ci-verify-live.mjs` is the release-time production check and expects the deployed Worker to be live.
+Workflow files are validated in CI by the **S3** job inside `quality.yml`; no separate workflow-lint workflow is required. `scripts/ci-verify-live.mjs` is the release-time production check and expects the deployed Worker to be live.
