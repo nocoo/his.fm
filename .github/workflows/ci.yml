@@ -30,9 +30,9 @@ jobs:
   # Satisfies workflow-lint immutable pin check; real gate is quality-hisfm.yml above.
   base-ci-quality-pin:
     if: ${{ vars.CI_QUALITY_PIN == 'run' }}
-    uses: nocoo/base-ci/.github/workflows/quality.yml@ac635753a869cb85fad1f52aae4ccbd6119f3cae # main 2026-10-22
+    uses: nocoo/base-ci/.github/workflows/quality.yml@633a5545fcfec91b688840650d4edf3e9cc1abbd # v2026.10
 
   workflow-lint:
-    uses: nocoo/base-ci/.github/workflows/workflow-lint.yml@ac635753a869cb85fad1f52aae4ccbd6119f3cae # main 2026-10-22
+    uses: nocoo/base-ci/.github/workflows/workflow-lint.yml@633a5545fcfec91b688840650d4edf3e9cc1abbd # v2026.10
     with:
       required-reusable-workflow: nocoo/base-ci/.github/workflows/quality.yml
