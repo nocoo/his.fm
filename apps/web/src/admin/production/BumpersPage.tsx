@@ -28,8 +28,10 @@ export function BumpersPage() {
   }, []);
   return (
     <div className="admin-page">
-      <PageHeader title="贴片库" />
-      <p className="admin-muted">维护多套片头与片尾，制作节目时分别选择组合。正文默认不附加贴片。</p>
+      <PageHeader
+        title="贴片库"
+        description="维护多套片头与片尾，制作节目时分别选择组合。正文默认不附加贴片。"
+      />
       {error && <Failure error={error} />}
       <form
         className="studio-stack"
