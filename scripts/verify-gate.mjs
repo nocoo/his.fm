@@ -53,6 +53,31 @@ function rootHooks() {
 const indexBefore = rootIndex();
 const hooksBefore = rootHooks();
 
+const workspaceNestedRoots = ['apps/web/node_modules', 'packages/contracts/node_modules'];
+
+/** Overlay workspace-local installs (e.g. vitest) onto a fixture node_modules tree. */
+function linkWorkspaceNestedModules(fixtureModules, root) {
+  for (const nested of workspaceNestedRoots) {
+    const liveNested = join(root, nested);
+    if (!existsSync(liveNested)) continue;
+    for (const entry of readdirSync(liveNested)) {
+      if (entry === '.bin') {
+        const fixtureBin = join(fixtureModules, '.bin');
+        mkdirSync(fixtureBin, { recursive: true });
+        for (const binEntry of readdirSync(join(liveNested, '.bin'))) {
+          const target = join(fixtureBin, binEntry);
+          if (existsSync(target)) continue;
+          symlinkSync(join(liveNested, '.bin', binEntry), target);
+        }
+        continue;
+      }
+      const target = join(fixtureModules, entry);
+      if (existsSync(target)) continue;
+      symlinkSync(join(liveNested, entry), target);
+    }
+  }
+}
+
 function fixture(name, extra = {}) {
   const dir = join(owned, name);
   mkdirSync(join(dir, 'src/admin'), { recursive: true });
@@ -112,7 +137,13 @@ function fixture(name, extra = {}) {
     writeFileSync(join(dir, 'src/shared/extra.test.ts'), extra.extraTest);
   }
   writeFileSync(join(dir, '.gitignore'), 'node_modules\ncoverage\n.cloudflare\n');
-  symlinkSync(join(repo, 'node_modules'), join(dir, 'node_modules'));
+  const fixtureModules = join(dir, 'node_modules');
+  mkdirSync(fixtureModules);
+  for (const entry of readdirSync(join(repo, 'node_modules'))) {
+    if (entry === '@his-fm') continue;
+    symlinkSync(join(repo, 'node_modules', entry), join(fixtureModules, entry));
+  }
+  linkWorkspaceNestedModules(fixtureModules, repo);
   execFileSync(
     'git',
     [
