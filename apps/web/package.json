@@ -30,7 +30,7 @@
     "@takumi-rs/wasm": "2.19.0",
     "@uiw/react-codemirror": "4.25.12",
     "jose": "^6.2.14",
-    "lucide-react": "1.61.0",
+    "lucide-react": "^1.70.0",
     "marked": "18.1.2",
     "react": "19.3.1",
     "react-dom": "19.3.1",
