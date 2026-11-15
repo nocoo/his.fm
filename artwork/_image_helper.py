@@ -5,12 +5,19 @@ from pathlib import Path
 
 def resolve_image_helper() -> Path:
     raw = os.environ.get("HISFM_IMAGE_HELPER", "").strip()
-    if not raw:
-        sys.exit(
-            "Set HISFM_IMAGE_HELPER to the absolute path of your Workflow "
-            "agi-image-generation helper (generate.py). See artwork/README.md."
-        )
-    helper = Path(raw).expanduser()
+    helper = (
+        Path(raw).expanduser()
+        if raw
+        else (
+            Path.home() / ".agents/skills/image-generation-gpt/scripts/generate.py"
+        ).resolve()
+    )
     if not helper.is_file():
-        sys.exit(f"HISFM_IMAGE_HELPER does not point to a file: {helper}")
+        if raw:
+            sys.exit(f"HISFM_IMAGE_HELPER does not point to a file: {helper}")
+        sys.exit(
+            "system0 image-generation-gpt helper not found at "
+            "~/.agents/skills/image-generation-gpt/scripts/generate.py; "
+            "set HISFM_IMAGE_HELPER or install system0 skills. See artwork/README.md."
+        )
     return helper
