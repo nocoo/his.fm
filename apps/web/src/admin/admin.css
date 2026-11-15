@@ -425,36 +425,31 @@ html.dark .admin-app a.admin-rail-mark {
   width: 24px;
   height: 24px;
 }
-.admin-rail-lockup {
+.admin-rail-wordmark {
   --brand-wordmark-width: 92px;
   display: inline-flex;
   flex: none;
   color: inherit;
 }
-.admin-rail-lockup > .brand-lockup {
-  --brand-wordmark-width: 92px;
-}
-.admin-rail-lockup .brand-wordmark {
+.admin-rail-wordmark .brand-wordmark {
   width: 92px;
   height: calc(92px * 170 / 600);
 }
-.admin-rail-lockup .brand-symbol {
-  width: calc(92px * 17 / 60);
-  height: calc(92px * 17 / 60);
-}
-.admin-rail-lockup .brand-lockup {
-  gap: calc(92px * 8 / 116);
-}
 .admin-rail-header [data-slot="sidebar-brand-logo"] {
-  width: 126px;
-  height: 27px;
+  width: 24px;
+  height: 24px;
   margin-inline-start: 0;
 }
+.admin-rail-header [data-slot="sidebar-brand-name"] {
+  overflow: visible;
+}
 .admin-rail-header[data-narrow-brand] {
+  position: relative;
   height: 88px;
   align-items: flex-start;
 }
 .admin-rail-header[data-narrow-brand] [data-slot="sidebar-brand"] {
+  position: static;
   height: 27px;
 }
 .admin-rail-header[data-narrow-brand] [data-slot="sidebar-brand-copy"] {

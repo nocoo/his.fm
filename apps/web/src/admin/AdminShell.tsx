@@ -40,8 +40,7 @@ import {
 import { type ReactNode, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
 import { version } from '../../../../package.json';
-import { BrandSymbol } from '../brand/Brand';
-import { BrandLockup } from '../brand/BrandLockup';
+import { BrandSymbol, Wordmark } from '../brand/Brand';
 import { ThemeFavicon } from '../brand/ThemeFavicon';
 import { themeStyle, themes } from '../brand/themes';
 import { useResolvedThemeId } from '../shared/useResolvedThemeId';
@@ -144,31 +143,29 @@ function AdminRail({ variant, session, onSignOut, onNavigate, onDismiss }: Admin
       <SidebarHeader className="admin-rail-header" data-narrow-brand={narrowBrand ? '' : undefined}>
         <SidebarBrand
           logo={
-            railCollapsed ? (
-              <Link
-                className="admin-rail-mark"
-                style={resolved ? themeStyle(themeId) : undefined}
-                to="/"
-                aria-label="his.fm 首页"
-              >
-                <BrandSymbol />
-              </Link>
-            ) : (
-              <Link
-                className="admin-rail-lockup"
-                style={
-                  resolved
-                    ? { ...themeStyle(themeId), color: basaltDark ? '#fff' : themes[themeId].palette[1] }
-                    : undefined
-                }
-                to="/"
-                aria-label="his.fm 首页"
-              >
-                <BrandLockup />
-              </Link>
-            )
+            <Link
+              className="admin-rail-mark"
+              style={resolved ? themeStyle(themeId) : undefined}
+              to="/"
+              aria-label="his.fm 首页"
+            >
+              <BrandSymbol />
+            </Link>
           }
-          name={<span className="sr-only">his.fm</span>}
+          name={
+            <Link
+              className="admin-rail-wordmark"
+              style={
+                resolved
+                  ? { ...themeStyle(themeId), color: basaltDark ? '#fff' : themes[themeId].palette[1] }
+                  : undefined
+              }
+              to="/"
+              aria-label="his.fm"
+            >
+              <Wordmark />
+            </Link>
+          }
           version={`v${version}`}
           action={
             variant === 'drawer' ? (
