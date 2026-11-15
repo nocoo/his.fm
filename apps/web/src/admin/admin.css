@@ -70,7 +70,7 @@ html:has(.admin-app) {
 .admin-header > div:first-child {
   flex: 1;
 }
-.admin-header nav[aria-label="Breadcrumb"] {
+.admin-header nav[aria-label="面包屑导航"] {
   white-space: nowrap;
   overflow-x: auto;
   scrollbar-width: thin;
@@ -78,7 +78,7 @@ html:has(.admin-app) {
   padding-block: var(--admin-space-3);
   padding-inline-end: var(--admin-space-1);
 }
-:where(.admin-header nav[aria-label="Breadcrumb"]) > span {
+:where(.admin-header nav[aria-label="面包屑导航"]) > span {
   flex-shrink: 0;
 }
 .admin-page {
@@ -86,14 +86,7 @@ html:has(.admin-app) {
   flex-direction: column;
   gap: var(--admin-space-4);
 }
-.admin-rail-header {
-  flex-wrap: wrap;
-  gap: var(--admin-space-1);
-  height: auto;
-  min-height: var(--basalt-space-14);
-  padding-block: var(--admin-space-2);
-}
-.admin-app a.admin-rail-mark {
+html:has(.admin-app) .admin-app a.admin-rail-mark {
   display: inline-flex;
   align-items: center;
   flex: none;
@@ -101,29 +94,6 @@ html:has(.admin-app) {
 }
 html.dark .admin-app a.admin-rail-mark {
   color: #fff;
-}
-.admin-rail-meta {
-  display: flex;
-  align-items: center;
-  gap: var(--admin-space-1);
-  margin-left: auto;
-  flex-shrink: 0;
-}
-.admin-version {
-  flex-shrink: 0;
-  font-size: 11px;
-  padding: 2px 5px;
-  border-radius: var(--basalt-radius);
-  color: hsl(var(--basalt-muted-foreground));
-  background: hsl(var(--basalt-secondary));
-}
-.admin-collapse {
-  width: 28px;
-  height: 28px;
-}
-.admin-expand {
-  align-self: center;
-  margin-bottom: var(--admin-space-1);
 }
 .admin-site-action {
   display: flex;
@@ -145,15 +115,6 @@ html.dark .admin-app a.admin-rail-mark {
   place-items: center;
   font-weight: 700;
   font-size: 11px;
-}
-.admin-sidebar-footer-compact {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--admin-space-2);
-}
-.admin-sidebar-avatar-only {
-  display: inline-flex;
 }
 .admin-user-avatar {
   width: 30px;
@@ -460,8 +421,9 @@ html.dark .admin-app a.admin-rail-mark {
   }
 }
 
-.admin-rail-mark > .brand-lockup {
+[data-slot="sidebar-brand-copy"] > .brand-lockup {
   --brand-wordmark-width: 92px;
+  color: var(--ink, hsl(var(--basalt-foreground)));
 }
 .admin-rail-mark > .brand-symbol {
   width: 24px;

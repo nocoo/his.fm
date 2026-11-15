@@ -906,7 +906,7 @@ test('sidebar separates content, brand and settings with a highlighted website s
   await page.goto('/admin');
   const sidebar = page.locator('[data-basalt-sidebar]');
   const website = sidebar.getByRole('link', { name: '访问网站', exact: true });
-  const github = page.getByRole('link', { name: 'GitHub 仓库', exact: true });
+  const github = page.getByRole('link', { name: /^GitHub 仓库/ });
   const groups = [
     ['内容制作', ['节目库', '栏目管理', '提示词', '贴片库']],
     ['品牌外观', ['品牌外观', '搜索与分享', '音色预览']],
@@ -963,9 +963,10 @@ test('sidebar separates content, brand and settings with a highlighted website s
   await expect(sidebar.getByRole('button', { name: '新建节目', exact: true })).toHaveCount(0);
   await sidebar.getByRole('button', { name: '节目库', exact: true }).click();
   await expect(page).toHaveURL(/\/admin\/?$/);
-  await expect(sidebar.getByRole('link', { name: 'GitHub 仓库', exact: true })).toHaveCount(0);
+  await expect(sidebar.getByRole('link', { name: /^GitHub 仓库/ })).toHaveCount(0);
   await expect(page.getByRole('link', { name: '访问网站', exact: true })).toHaveCount(1);
-  const logo = sidebar.locator('.admin-rail-mark');
+  const logo = sidebar.locator('[data-slot="sidebar-brand-logo"]');
+  const brandCopy = sidebar.locator('[data-slot="sidebar-brand-copy"]');
   const original = await logo.evaluate((element) => element.getBoundingClientRect().toJSON());
   const collapse = sidebar
     .locator('.admin-rail-header')
@@ -979,7 +980,7 @@ test('sidebar separates content, brand and settings with a highlighted website s
   await expect(sidebar.getByRole('button', { name: '展开导航', exact: true })).toBeFocused();
   await expectGroups(true);
   await expect(website).toHaveText('');
-  await expect(logo.locator('.brand-wordmark')).toHaveCount(0);
+  await expect(brandCopy).toBeHidden();
   await expect(logo.locator('.brand-symbol')).toBeVisible();
   await expect
     .poll(() =>
@@ -999,6 +1000,7 @@ test('sidebar separates content, brand and settings with a highlighted website s
   await expect(sidebar).not.toHaveAttribute('data-collapsed');
   await expect(collapse).toBeFocused();
   await expect(website).toHaveText('访问网站');
+  await expect(brandCopy).toBeVisible();
   await expect.poll(() => logo.evaluate((element) => element.getBoundingClientRect().x)).toBe(original.x);
   for (const width of [1440, 393]) {
     await page.setViewportSize({ width, height: 900 });
@@ -1006,8 +1008,7 @@ test('sidebar separates content, brand and settings with a highlighted website s
     await expect(github).toHaveAttribute('href', 'https://github.com/nocoo/his.fm');
     await expect(github).toHaveAttribute('target', '_blank');
     await expect(github).toHaveAttribute('rel', 'noopener noreferrer');
-    await expect(github).toHaveText('');
-    await expect(github.locator('svg.lucide-github')).toHaveCount(1);
+    await expect(github.locator('svg')).toHaveCount(1);
     await page.getByRole('button', { name: '切换主题', exact: true }).focus();
     await page.keyboard.press('Shift+Tab');
     await expect(github).toBeFocused();
@@ -1130,7 +1131,7 @@ test('sidebar collapse remains reachable at the minimum resized width', async ({
   await page.goto('/admin');
   const sidebar = page.locator('[data-basalt-sidebar]');
   const resize = sidebar.getByRole('separator', { name: 'Resize sidebar' });
-  const header = sidebar.locator('.admin-rail-header');
+  const header = sidebar.locator('[data-slot="sidebar-header"]');
   for (let step = 0; step < 10; step++) {
     await resize.press('ArrowLeft');
     await expect(resize).toHaveAttribute('aria-valuenow', String(260 - (step + 1) * 8));

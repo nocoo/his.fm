@@ -71,11 +71,11 @@ test('all theme cards and studio headers share the canonical ID in light and dar
       );
       if (width === 1440) {
         await expectLockup(
-          page.locator('.admin-rail-mark .brand-lockup'),
+          page.locator('[data-slot="sidebar-brand-copy"] .brand-lockup'),
           mode === 'dark' ? 'rgb(255, 255, 255)' : rgb(themes.interval.palette[1]),
           92,
         );
-        const header = page.locator('.admin-rail-header');
+        const header = page.locator('[data-slot="sidebar-header"]');
         expect(await header.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
       }
       for (const id of themeIds) {
@@ -197,11 +197,19 @@ test('studio favicon changes only after a successful apply, independently of the
     'href',
     themeFaviconSrc('stillwood'),
   );
-  await expectLockup(page.locator('.admin-rail-mark .brand-lockup'), rgb(themes.stillwood.palette[1]), 92);
+  await expectLockup(
+    page.locator('[data-slot="sidebar-brand-copy"] .brand-lockup'),
+    rgb(themes.stillwood.palette[1]),
+    92,
+  );
   await page.getByRole('button', { name: '切换主题', exact: true }).click();
   await page.getByRole('button', { name: '切换主题', exact: true }).click();
   await expect(page.locator('html')).toHaveClass(/dark/);
-  await expectLockup(page.locator('.admin-rail-mark .brand-lockup'), 'rgb(255, 255, 255)', 92);
+  await expectLockup(
+    page.locator('[data-slot="sidebar-brand-copy"] .brand-lockup'),
+    'rgb(255, 255, 255)',
+    92,
+  );
   await expect(page.locator('link[rel="icon"][type="image/svg+xml"]')).toHaveAttribute(
     'href',
     themeFaviconSrc('stillwood'),

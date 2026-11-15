@@ -49,7 +49,7 @@ test('editor can create, edit, publish, delete and log out', async ({ page, brow
     await page
       .getByLabel('逐字稿', { exact: true })
       .fill('你好，欢迎收听 his.fm。这是自动化验收专用的测试文稿。');
-    await page.getByLabel('节目笔记', { exact: true }).fill('测试来源：本地浏览器验收。');
+    await page.getByLabel('研究边界', { exact: true }).fill('测试来源：本地浏览器验收。');
     await page.getByLabel('期数', { exact: true }).fill('99001');
     await page.getByLabel('链接名称', { exact: true }).fill(slug);
     const creation = page.waitForResponse(
