@@ -40,7 +40,8 @@ import {
 import { type ReactNode, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
 import { version } from '../../../../package.json';
-import { BrandSymbol, Wordmark } from '../brand/Brand';
+import { BrandSymbol } from '../brand/Brand';
+import { BrandLockup } from '../brand/BrandLockup';
 import { ThemeFavicon } from '../brand/ThemeFavicon';
 import { themeStyle, themes } from '../brand/themes';
 import { useResolvedThemeId } from '../shared/useResolvedThemeId';
@@ -62,8 +63,9 @@ interface AdminRailProps {
 function AdminRail({ variant, session, onSignOut, onNavigate, onDismiss }: AdminRailProps) {
   const { themeId, resolved } = useResolvedThemeId();
   const { pathname } = useLocation();
-  const { collapsed, peek, peeking } = useSidebar();
+  const { collapsed, peek, peeking, width } = useSidebar();
   const railCollapsed = collapsed && !(peek && peeking);
+  const narrowBrand = !railCollapsed && width < 220;
   const [basaltDark, setBasaltDark] = useState(() => document.documentElement.classList.contains('dark'));
   useEffect(() => {
     const sync = () => setBasaltDark(document.documentElement.classList.contains('dark'));
@@ -139,26 +141,34 @@ function AdminRail({ variant, session, onSignOut, onNavigate, onDismiss }: Admin
   );
   return (
     <Sidebar resizable={variant === 'desktop'}>
-      <SidebarHeader className="admin-rail-header">
+      <SidebarHeader className="admin-rail-header" data-narrow-brand={narrowBrand ? '' : undefined}>
         <SidebarBrand
           logo={
-            <Link
-              className="admin-rail-mark"
-              style={resolved ? themeStyle(themeId) : undefined}
-              to="/"
-              aria-label="his.fm 首页"
-            >
-              <BrandSymbol />
-            </Link>
+            railCollapsed ? (
+              <Link
+                className="admin-rail-mark"
+                style={resolved ? themeStyle(themeId) : undefined}
+                to="/"
+                aria-label="his.fm 首页"
+              >
+                <BrandSymbol />
+              </Link>
+            ) : (
+              <Link
+                className="admin-rail-lockup"
+                style={
+                  resolved
+                    ? { ...themeStyle(themeId), color: basaltDark ? '#fff' : themes[themeId].palette[1] }
+                    : undefined
+                }
+                to="/"
+                aria-label="his.fm 首页"
+              >
+                <BrandLockup />
+              </Link>
+            )
           }
-          name={
-            <span
-              className="admin-rail-wordmark"
-              style={resolved ? { color: basaltDark ? '#fff' : themes[themeId].palette[1] } : undefined}
-            >
-              <Wordmark />
-            </span>
-          }
+          name={<span className="sr-only">his.fm</span>}
           version={`v${version}`}
           action={
             variant === 'drawer' ? (

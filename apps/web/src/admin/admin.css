@@ -425,15 +425,60 @@ html.dark .admin-app a.admin-rail-mark {
   width: 24px;
   height: 24px;
 }
-.admin-rail-wordmark,
-.admin-rail-wordmark > .brand-wordmark {
+.admin-rail-lockup {
+  --brand-wordmark-width: 92px;
   display: inline-flex;
   flex: none;
-  width: 92px;
-  height: 24px;
+  color: inherit;
 }
-[data-basalt-sidebar]:not([data-collapsed]) .admin-rail-wordmark {
-  transform: translateY(2.5px);
+.admin-rail-lockup > .brand-lockup {
+  --brand-wordmark-width: 92px;
+}
+.admin-rail-lockup .brand-wordmark {
+  width: 92px;
+  height: calc(92px * 170 / 600);
+}
+.admin-rail-lockup .brand-symbol {
+  width: calc(92px * 17 / 60);
+  height: calc(92px * 17 / 60);
+}
+.admin-rail-lockup .brand-lockup {
+  gap: calc(92px * 8 / 116);
+}
+.admin-rail-header [data-slot="sidebar-brand-logo"] {
+  width: 126px;
+  height: 27px;
+  margin-inline-start: 0;
+}
+.admin-rail-header[data-narrow-brand] {
+  height: 88px;
+  align-items: flex-start;
+}
+.admin-rail-header[data-narrow-brand] [data-slot="sidebar-brand"] {
+  height: 27px;
+}
+.admin-rail-header[data-narrow-brand] [data-slot="sidebar-brand-copy"] {
+  display: none;
+}
+.admin-rail-header[data-narrow-brand] [data-slot="sidebar-brand-action"] {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  margin: 0;
+}
+[data-basalt-sidebar][data-collapsed] [data-slot="sidebar-brand-copy"] {
+  display: none;
+}
+[data-basalt-sidebar][data-collapsed] .admin-rail-header {
+  position: relative;
+}
+[data-basalt-sidebar][data-collapsed] .admin-rail-header [data-slot="sidebar-brand-logo"] {
+  position: absolute;
+  top: 16px;
+  left: -2px;
+  width: 24px;
+  height: 24px;
+  margin: 0;
 }
 .admin-badge-strip .brand-wordmark {
   width: 92px;

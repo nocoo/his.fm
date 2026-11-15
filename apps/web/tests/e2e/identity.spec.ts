@@ -15,29 +15,46 @@ function rgb(hex: string) {
 }
 
 async function expectStudioBrand(sidebar: Locator, color: string) {
-  const word = sidebar.locator('[data-slot="sidebar-brand-copy"] .brand-wordmark');
+  const word = sidebar.locator('[data-slot="sidebar-brand-logo"] .brand-wordmark');
   const mark = sidebar.locator('[data-slot="sidebar-brand-logo"] .brand-symbol');
   await expect(word).toHaveCSS('color', color);
   await expect(mark).toHaveCSS('color', color);
   const geometry = await sidebar.evaluate((element) => {
-    const word = element
-      .querySelector('[data-slot="sidebar-brand-copy"] .brand-wordmark')
-      ?.getBoundingClientRect();
+    const wordElement = element.querySelector('[data-slot="sidebar-brand-logo"] .brand-wordmark');
+    const word = wordElement?.getBoundingClientRect();
     const mark = element
       .querySelector('[data-slot="sidebar-brand-logo"] .brand-symbol')
       ?.getBoundingClientRect();
     if (!word || !mark) throw new Error('Missing canonical studio ID');
+    const rail = element.getBoundingClientRect();
+    const header = element.querySelector('[data-slot="sidebar-header"]')?.getBoundingClientRect();
+    let clipped = false;
+    let ancestor = wordElement?.parentElement;
+    while (ancestor) {
+      const style = getComputedStyle(ancestor);
+      if (['hidden', 'clip', 'auto', 'scroll'].includes(style.overflowX)) {
+        const bounds = ancestor.getBoundingClientRect();
+        if (word.left < bounds.left || word.right > bounds.right) clipped = true;
+      }
+      ancestor = ancestor.parentElement;
+    }
     return {
       word: word.width,
       mark: mark.width,
-      gap: word.left - mark.right,
+      gap: mark.left - word.right,
       center: Math.abs(mark.top + mark.height / 2 - word.top - word.height / 2),
+      clipped,
+      withinRail: word.left >= rail.left && word.right <= rail.right,
+      withinHeader: header ? word.left >= header.left && word.right <= header.right : false,
     };
   });
   expect(geometry.word).toBeCloseTo(92, 1);
-  expect(geometry.mark).toBeCloseTo(24, 1);
-  expect(geometry.gap).toBeCloseTo(8, 1);
+  expect(geometry.mark).toBeCloseTo(26.067, 1);
+  expect(geometry.gap).toBeGreaterThan(0);
   expect(geometry.center).toBeLessThan(1);
+  expect(geometry.clipped).toBe(false);
+  expect(geometry.withinRail).toBe(true);
+  expect(geometry.withinHeader).toBe(true);
 }
 
 async function expectLockup(lockup: Locator, color: string, wordWidth = 116) {

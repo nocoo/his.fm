@@ -1144,6 +1144,29 @@ test('sidebar collapse remains reachable at the minimum resized width', async ({
     await expect(header.locator('.brand-wordmark')).toHaveCSS('width', '92px');
   }
   await expect(resize).toHaveAttribute('aria-valuenow', '180');
+  const visibleBounds = await header.evaluate((element) => {
+    const word = element.querySelector('[data-slot="sidebar-brand-logo"] .brand-wordmark');
+    if (!(word instanceof Element)) throw new Error('Missing sidebar brand wordmark');
+    const wordRect = word.getBoundingClientRect();
+    const railRect = element.closest('[data-basalt-sidebar]')?.getBoundingClientRect();
+    if (!railRect) throw new Error('Missing sidebar rail');
+    let clipped = false;
+    let ancestor: Element | null = word;
+    while (ancestor) {
+      const style = getComputedStyle(ancestor);
+      if (['hidden', 'clip', 'auto', 'scroll'].includes(style.overflowX)) {
+        const bounds = ancestor.getBoundingClientRect();
+        if (wordRect.left < bounds.left || wordRect.right > bounds.right) clipped = true;
+      }
+      ancestor = ancestor.parentElement;
+    }
+    return {
+      clipped,
+      leftInsideRail: wordRect.left >= railRect.left,
+      rightInsideRail: wordRect.right <= railRect.right,
+    };
+  });
+  expect(visibleBounds).toEqual({ clipped: false, leftInsideRail: true, rightInsideRail: true });
   const collapse = sidebar.getByRole('button', { name: '收起导航', exact: true });
   const railRight = await sidebar.evaluate((element) => element.getBoundingClientRect().right);
   expect(await collapse.evaluate((element) => element.getBoundingClientRect().right)).toBeLessThanOrEqual(
