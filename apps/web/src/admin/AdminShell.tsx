@@ -37,19 +37,10 @@ import {
   Search,
   Tags,
 } from 'lucide-react';
-import {
-  type CSSProperties,
-  type ReactNode,
-  useEffect,
-  useId,
-  useLayoutEffect,
-  useRef,
-  useState,
-} from 'react';
+import { type ReactNode, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
 import { version } from '../../../../package.json';
-import { BrandSymbol } from '../brand/Brand';
-import { BrandLockup } from '../brand/BrandLockup';
+import { BrandSymbol, Wordmark } from '../brand/Brand';
 import { ThemeFavicon } from '../brand/ThemeFavicon';
 import { themeStyle, themes } from '../brand/themes';
 import { useResolvedThemeId } from '../shared/useResolvedThemeId';
@@ -161,18 +152,12 @@ function AdminRail({ variant, session, onSignOut, onNavigate, onDismiss }: Admin
             </Link>
           }
           name={
-            <BrandLockup
-              className="admin-brand-lockup"
-              style={
-                {
-                  ...(resolved ? themeStyle(themeId) : {}),
-                  ...(resolved ? { color: basaltDark ? '#fff' : themes[themeId].palette[1] } : {}),
-                  '--brand-wordmark-width': '92px',
-                  '--brand-symbol-size': '26.066667px',
-                  '--brand-gap': '6.344828px',
-                } as CSSProperties
-              }
-            />
+            <span
+              className="admin-rail-wordmark"
+              style={resolved ? { color: basaltDark ? '#fff' : themes[themeId].palette[1] } : undefined}
+            >
+              <Wordmark />
+            </span>
           }
           version={`v${version}`}
           action={

@@ -421,13 +421,19 @@ html.dark .admin-app a.admin-rail-mark {
   }
 }
 
-[data-slot="sidebar-brand-copy"] > .brand-lockup {
-  --brand-wordmark-width: 92px;
-  color: var(--ink, hsl(var(--basalt-foreground)));
-}
 .admin-rail-mark > .brand-symbol {
   width: 24px;
   height: 24px;
+}
+.admin-rail-wordmark,
+.admin-rail-wordmark > .brand-wordmark {
+  display: inline-flex;
+  flex: none;
+  width: 92px;
+  height: 24px;
+}
+[data-basalt-sidebar]:not([data-collapsed]) .admin-rail-wordmark {
+  transform: translateY(2.5px);
 }
 .admin-badge-strip .brand-wordmark {
   width: 92px;

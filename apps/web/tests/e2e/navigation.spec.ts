@@ -26,7 +26,7 @@ test('studio breadcrumbs and address paths follow navigation, reload and browser
   page,
 }) => {
   await page.goto('/admin');
-  const crumbs = page.getByRole('navigation', { name: 'Breadcrumb', exact: true });
+  const crumbs = page.getByRole('navigation', { name: '面包屑导航', exact: true });
   await expect(crumbs.locator('[aria-current="page"]')).toHaveText('节目库');
   await page.locator('[data-basalt-sidebar] [data-sidebar-row]').filter({ hasText: '品牌外观' }).click();
   await expect(page).toHaveURL(/\/admin\/appearance$/);
@@ -52,7 +52,7 @@ test('studio breadcrumbs and address paths follow navigation, reload and browser
 test('production paths and breadcrumb ancestors preserve drafts and fit phone headers', async ({ page }) => {
   await page.setViewportSize({ width: 393, height: 852 });
   await page.goto('/admin/productions/production-test?section=metadata');
-  const crumbs = page.getByRole('navigation', { name: 'Breadcrumb', exact: true });
+  const crumbs = page.getByRole('navigation', { name: '面包屑导航', exact: true });
   await expect(crumbs.locator('[aria-current="page"]')).toHaveText('资料与素材');
   await page.getByLabel('节目标题', { exact: true }).fill('Unsaved navigation draft');
   await page.getByRole('tab', { name: '逐字稿', exact: true }).click();

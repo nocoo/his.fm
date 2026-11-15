@@ -14,6 +14,32 @@ function rgb(hex: string) {
     .join(', ')})`;
 }
 
+async function expectStudioBrand(sidebar: Locator, color: string) {
+  const word = sidebar.locator('[data-slot="sidebar-brand-copy"] .brand-wordmark');
+  const mark = sidebar.locator('[data-slot="sidebar-brand-logo"] .brand-symbol');
+  await expect(word).toHaveCSS('color', color);
+  await expect(mark).toHaveCSS('color', color);
+  const geometry = await sidebar.evaluate((element) => {
+    const word = element
+      .querySelector('[data-slot="sidebar-brand-copy"] .brand-wordmark')
+      ?.getBoundingClientRect();
+    const mark = element
+      .querySelector('[data-slot="sidebar-brand-logo"] .brand-symbol')
+      ?.getBoundingClientRect();
+    if (!word || !mark) throw new Error('Missing canonical studio ID');
+    return {
+      word: word.width,
+      mark: mark.width,
+      gap: word.left - mark.right,
+      center: Math.abs(mark.top + mark.height / 2 - word.top - word.height / 2),
+    };
+  });
+  expect(geometry.word).toBeCloseTo(92, 1);
+  expect(geometry.mark).toBeCloseTo(24, 1);
+  expect(geometry.gap).toBeCloseTo(8, 1);
+  expect(geometry.center).toBeLessThan(1);
+}
+
 async function expectLockup(lockup: Locator, color: string, wordWidth = 116) {
   await expect(lockup.locator('> svg').nth(0)).toHaveClass(/brand-wordmark/);
   await expect(lockup.locator('> svg').nth(1)).toHaveClass(/brand-symbol/);
@@ -70,10 +96,9 @@ test('all theme cards and studio headers share the canonical ID in light and dar
         mode === 'dark' ? 'rgb(255, 255, 255)' : rgb(themes.interval.palette[1]),
       );
       if (width === 1440) {
-        await expectLockup(
-          page.locator('[data-slot="sidebar-brand-copy"] .brand-lockup'),
+        await expectStudioBrand(
+          page.locator('[data-basalt-sidebar]'),
           mode === 'dark' ? 'rgb(255, 255, 255)' : rgb(themes.interval.palette[1]),
-          92,
         );
         const header = page.locator('[data-slot="sidebar-header"]');
         expect(await header.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
@@ -197,19 +222,11 @@ test('studio favicon changes only after a successful apply, independently of the
     'href',
     themeFaviconSrc('stillwood'),
   );
-  await expectLockup(
-    page.locator('[data-slot="sidebar-brand-copy"] .brand-lockup'),
-    rgb(themes.stillwood.palette[1]),
-    92,
-  );
+  await expectStudioBrand(page.locator('[data-basalt-sidebar]'), rgb(themes.stillwood.palette[1]));
   await page.getByRole('button', { name: '切换主题', exact: true }).click();
   await page.getByRole('button', { name: '切换主题', exact: true }).click();
   await expect(page.locator('html')).toHaveClass(/dark/);
-  await expectLockup(
-    page.locator('[data-slot="sidebar-brand-copy"] .brand-lockup'),
-    'rgb(255, 255, 255)',
-    92,
-  );
+  await expectStudioBrand(page.locator('[data-basalt-sidebar]'), 'rgb(255, 255, 255)');
   await expect(page.locator('link[rel="icon"][type="image/svg+xml"]')).toHaveAttribute(
     'href',
     themeFaviconSrc('stillwood'),

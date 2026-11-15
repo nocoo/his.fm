@@ -1,9 +1,8 @@
-import type { CSSProperties } from 'react';
 import { BrandSymbol, Wordmark } from './Brand';
 
-export function BrandLockup({ className = '', style }: { className?: string; style?: CSSProperties }) {
+export function BrandLockup() {
   return (
-    <span className={`brand-lockup ${className}`.trim()} style={style}>
+    <span className="brand-lockup">
       <Wordmark />
       <BrandSymbol />
     </span>
