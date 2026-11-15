@@ -82,7 +82,7 @@ Install through an allowed registry; never retry blocked `registry.npmjs.org`. `
 - Large R2 test fixtures use `apps/web/tests/worker/r2-fixtures.ts` and its local fixture Worker: raw byte arguments to binding proxies synchronously serialize as Base64/JSON, while arbitrary streams lack R2's required length. Read stored bodies as streams, consume responses promptly and compare bytes with native `Buffer.equals`, not deep equality.
 - Biome uses its maintained recommended preset and rejects warnings. TypeScript is strict.
 - Husky runs checks against the Git index snapshot, without changing the working tree or restaging fixes. Stage explicit paths, then commit through the normal hook.
-- Audit evidence belongs in nmem, using `6dq-audit-github.com-nocoo-his.fm-l1`; no full 6DQ certification is implied by L1.
+- Quality follows System1 v1.3.0 Native Mode (`nocoo/base-ci v2026.15`) in `.github/workflows/quality-slots.yml` (`S1` typecheck, `S2` lint, `S3` workflow, `G1` gitleaks, `G2` osv-scanner, `B1` build, `L1` `test:coverage` + `test:gate`, `Z1` Gate required on `main`; `L2`/`L3`/`P1` `N/A`; `L4` `planned`).
 - Keep `.env`, `.dev.vars`, generated audio/video, local Cloudflare state, test screenshots and coverage out of Git. Image-generation originals and prompts are intentionally archived in `artwork/`.
 - Record corrected mistakes in `Retrospective.md`. Preserve other agents' edits; only the coordinator stages and commits.
 
