@@ -1,7 +1,7 @@
 import { Button, LinkProvider, ThemeProvider, Toaster, TooltipProvider } from '@nocoo/basalt';
 import { LoadingScreen } from '@nocoo/basalt/components/loading-screen';
 import { AccentProvider } from '@nocoo/basalt/providers/accent';
-import type { ReactNode } from 'react';
+import type { AnchorHTMLAttributes, ReactNode } from 'react';
 import { lazy, Suspense, useEffect, useLayoutEffect, useState } from 'react';
 import { Link, Navigate, Route, Routes } from 'react-router';
 import { BrandSymbol } from '../brand/Brand';
@@ -30,23 +30,21 @@ function StudioLoading({ label }: { label: string }) {
   return <LoadingScreen label={label} mark={<BrandSymbol className="admin-loading-mark" />} />;
 }
 
-function RouterLink({
-  href,
-  className,
-  children,
-}: {
-  href: string;
-  className?: string;
-  children?: ReactNode;
-}) {
+function StudioPageLoading({ label }: { label: string }) {
+  return (
+    <LoadingScreen
+      className="admin-route-loading"
+      label={label}
+      mark={<BrandSymbol className="admin-loading-mark" />}
+    />
+  );
+}
+
+function RouterLink({ href, ...props }: AnchorHTMLAttributes<HTMLAnchorElement> & { href: string }) {
   return /^(?:https?:|\/\/|mailto:|tel:)/.test(href) ? (
-    <a href={href} className={className} target="_blank" rel="noopener noreferrer">
-      {children}
-    </a>
+    <a {...props} href={href} target="_blank" rel="noopener noreferrer" />
   ) : (
-    <Link to={href} className={className}>
-      {children}
-    </Link>
+    <Link {...props} to={href} />
   );
 }
 
@@ -135,7 +133,7 @@ function SessionGate() {
         <Route
           path="categories/:id?"
           element={
-            <Suspense fallback={<StudioLoading label="正在打开栏目管理" />}>
+            <Suspense fallback={<StudioPageLoading label="正在打开栏目管理" />}>
               <CategoryPage />
             </Suspense>
           }
@@ -145,7 +143,7 @@ function SessionGate() {
         <Route
           path="channel"
           element={
-            <Suspense fallback={<StudioLoading label="正在打开提示词" />}>
+            <Suspense fallback={<StudioPageLoading label="正在打开提示词" />}>
               <ChannelPage />
             </Suspense>
           }
@@ -153,7 +151,7 @@ function SessionGate() {
         <Route
           path="appearance"
           element={
-            <Suspense fallback={<StudioLoading label="正在打开品牌外观" />}>
+            <Suspense fallback={<StudioPageLoading label="正在打开品牌外观" />}>
               <AppearancePage />
             </Suspense>
           }
@@ -161,7 +159,7 @@ function SessionGate() {
         <Route
           path="seo"
           element={
-            <Suspense fallback={<StudioLoading label="正在打开搜索与分享" />}>
+            <Suspense fallback={<StudioPageLoading label="正在打开搜索与分享" />}>
               <SeoPage />
             </Suspense>
           }
@@ -169,7 +167,7 @@ function SessionGate() {
         <Route
           path="voice-preview"
           element={
-            <Suspense fallback={<StudioLoading label="正在打开音色预览" />}>
+            <Suspense fallback={<StudioPageLoading label="正在打开音色预览" />}>
               <VoicePreviewPage />
             </Suspense>
           }
@@ -177,7 +175,7 @@ function SessionGate() {
         <Route
           path="storage"
           element={
-            <Suspense fallback={<StudioLoading label="正在打开资源管理" />}>
+            <Suspense fallback={<StudioPageLoading label="正在打开资源管理" />}>
               <StoragePage />
             </Suspense>
           }

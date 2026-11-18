@@ -49,6 +49,54 @@ test('studio breadcrumbs and address paths follow navigation, reload and browser
   await expect(page).toHaveURL(/\/admin$/);
 });
 
+test('studio shell stays mounted while a lazy route loads', async ({ page }) => {
+  let releasePage = () => {};
+  const pendingPage = new Promise<void>((resolve) => {
+    releasePage = resolve;
+  });
+  await page.route(
+    /\/(?:src\/admin\/appearance\/AppearancePage\.tsx|assets\/AppearancePage-[^/]+\.js)(?:\?|$)/,
+    async (route) => {
+      await pendingPage;
+      await route.continue();
+    },
+  );
+  await page.goto('/admin');
+  const shell = page.locator('.admin-shell');
+  await expect(shell).toBeVisible();
+  const shellIdentity = await shell.evaluate((element) => {
+    element.setAttribute('data-shell-identity', 'mounted');
+    return element.getAttribute('data-shell-identity');
+  });
+  await page.locator('[data-basalt-sidebar] [data-sidebar-row]').filter({ hasText: '品牌外观' }).click();
+  await expect(page).toHaveURL(/\/admin\/appearance$/);
+  const loading = page.locator('.admin-route-loading');
+  await expect(loading).toHaveCSS('position', 'absolute');
+  await expect(shell).toHaveAttribute('data-shell-identity', shellIdentity ?? '');
+  await expect(page.getByRole('navigation', { name: '工作室导航' })).toBeVisible();
+  releasePage();
+  await expect(page.getByRole('heading', { name: '品牌外观' })).toBeVisible();
+  await expect(shell).toHaveAttribute('data-shell-identity', shellIdentity ?? '');
+});
+
+test('visit site uses the first full-width sidebar row in both rail states', async ({ page }) => {
+  await page.goto('/admin');
+  const nav = page.getByRole('navigation', { name: '工作室导航' });
+  const firstRow = nav.locator('[data-sidebar-row]').first();
+  await expect(firstRow).toContainText('访问网站');
+  await expect(firstRow).toHaveAttribute('href', '/');
+  await expect(firstRow).toHaveClass(/bg-basalt-primary/);
+  await expect(firstRow).toHaveClass(/text-basalt-primary-foreground/);
+  await page.getByRole('button', { name: '收起导航' }).click();
+  const iconLink = nav.getByRole('link', { name: '访问网站' });
+  await expect(iconLink).toHaveAttribute('href', '/');
+  const toggleBox = await page.getByRole('button', { name: '展开导航' }).boundingBox();
+  const siteBox = await iconLink.boundingBox();
+  expect(toggleBox).not.toBeNull();
+  expect(siteBox).not.toBeNull();
+  expect(siteBox?.y).toBeGreaterThanOrEqual((toggleBox?.y ?? 0) + (toggleBox?.height ?? 0));
+});
+
 test('production paths and breadcrumb ancestors preserve drafts and fit phone headers', async ({ page }) => {
   await page.setViewportSize({ width: 393, height: 852 });
   await page.goto('/admin/productions/production-test?section=metadata');

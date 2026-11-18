@@ -2,6 +2,13 @@
 
 All notable changes to his.fm are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions use the owner’s patch-only deployment policy in `AGENTS.md`, with the authoritative version in `package.json`.
 
+## 2.11.30 - 2026-11-18
+
+### Fixed
+
+- Keep the studio shell mounted while lazy admin pages load, confining loading feedback to the content island instead of covering the full page.
+- Align the accented 访问网站 action with the sidebar navigation rows and render it as a non-overlapping icon link when the rail is collapsed.
+
 ## 2.11.29 - 2026-11-18
 
 ### Changed

@@ -2,7 +2,6 @@ import {
   Avatar,
   AvatarFallback,
   AvatarImage,
-  Button,
   ContentIsland,
   Sidebar,
   SidebarBrand,
@@ -176,24 +175,26 @@ function AdminRail({ variant, session, onSignOut, onNavigate, onDismiss }: Admin
           }
         />
       </SidebarHeader>
-      <div className="admin-site-action">
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              size={railCollapsed ? 'icon' : 'default'}
-              className={railCollapsed ? undefined : 'admin-site-link'}
-              asChild
-            >
-              <Link to="/" aria-label="访问网站">
-                <Globe size={16} strokeWidth={1.5} aria-hidden="true" />
-                {!railCollapsed && <span>访问网站</span>}
-              </Link>
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent side="right">访问网站</TooltipContent>
-        </Tooltip>
-      </div>
       <SidebarNav aria-label="工作室导航">
+        {railCollapsed ? (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <SidebarIconItem
+                className="admin-site-entry bg-basalt-primary text-basalt-primary-foreground"
+                aria-label="访问网站"
+                href="/"
+              >
+                <Globe size={16} strokeWidth={1.5} aria-hidden="true" />
+              </SidebarIconItem>
+            </TooltipTrigger>
+            <TooltipContent side="right">访问网站</TooltipContent>
+          </Tooltip>
+        ) : (
+          <SidebarItem className="admin-site-entry bg-basalt-primary text-basalt-primary-foreground" href="/">
+            <Globe size={16} strokeWidth={1.5} aria-hidden="true" />
+            <span>访问网站</span>
+          </SidebarItem>
+        )}
         {railCollapsed
           ? groups.flatMap((group) =>
               group.items.map(({ href, label, icon: Icon, active }) => (

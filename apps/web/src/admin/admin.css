@@ -67,6 +67,11 @@ html:has(.admin-app) {
   height: var(--basalt-space-8);
   color: hsl(var(--basalt-foreground));
 }
+.admin-route-loading {
+  position: absolute;
+  z-index: 0;
+  border-radius: inherit;
+}
 .admin-header > div:first-child {
   flex: 1;
 }
@@ -95,15 +100,13 @@ html:has(.admin-app) .admin-app a.admin-rail-mark {
 html.dark .admin-app a.admin-rail-mark {
   color: #fff;
 }
-.admin-site-action {
-  display: flex;
-  justify-content: center;
-  flex-shrink: 0;
-  padding-inline: var(--basalt-space-nav-inset);
+.admin-site-entry.admin-site-entry {
+  background-color: hsl(var(--basalt-primary));
+  color: hsl(var(--basalt-primary-foreground));
 }
-.admin-site-link {
-  width: 100%;
-  justify-content: flex-start;
+.admin-site-entry.admin-site-entry:is(:hover, :focus-visible) {
+  background-color: hsl(var(--basalt-primary-hover));
+  color: hsl(var(--basalt-primary-foreground));
 }
 .admin-avatar {
   width: 30px;
