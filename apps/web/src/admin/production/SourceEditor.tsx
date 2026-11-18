@@ -1,7 +1,7 @@
 import { Button, Field, Input, LayerCard } from '@nocoo/basalt';
 import { InputArea } from '@nocoo/basalt/components/input-area';
 import { PageHeader } from '@nocoo/basalt/components/page-header';
-import { ArrowLeft, ChevronRight, FileText, GitBranch, Link2, Trash2 } from 'lucide-react';
+import { ArrowLeft, ChevronRight, FileText, GitBranch, Link2, Trash2 } from '@nocoo/basalt/icons';
 import { useState } from 'react';
 import { type ProductionBrief, sourceSchema } from '../../shared/production';
 import { MarkdownEditor } from '../markdown/MarkdownEditor';

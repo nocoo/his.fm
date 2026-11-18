@@ -11,7 +11,7 @@ import {
   MessagesSquare,
   Mic,
   Sparkles,
-} from 'lucide-react';
+} from '@nocoo/basalt/icons';
 
 export const categoryIconComponents = {
   'briefcase-business': BriefcaseBusiness,

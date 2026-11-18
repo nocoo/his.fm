@@ -34,7 +34,11 @@ export function PublicationSocialPreview({ production }: { production: Productio
   }, [production.id, production.version, attempt]);
   if (error) return <Failure error={error} retry={() => setAttempt((value) => value + 1)} />;
   if (!result || result.productionId !== production.id) {
-    return <LayerCard.Loading label="正在读取节目分享快照" />;
+    return (
+      <LayerCard padding="none">
+        <LayerCard.Loading label="正在读取节目分享快照" />
+      </LayerCard>
+    );
   }
   const episode = result.episode ?? productionPreviewEpisode(production);
   return (

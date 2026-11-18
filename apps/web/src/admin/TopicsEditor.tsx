@@ -1,5 +1,5 @@
 import { Button, Field, Input, LayerCard } from '@nocoo/basalt';
-import { ArrowDown, ArrowUp, Plus, Trash2 } from 'lucide-react';
+import { ArrowDown, ArrowUp, Plus, Trash2 } from '@nocoo/basalt/icons';
 import { useEffect, useRef, useState } from 'react';
 import type { EpisodeTopic } from '../shared/episode';
 

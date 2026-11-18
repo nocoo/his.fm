@@ -1,7 +1,7 @@
 import { orderedPromptSlots, type PromptSlotInput, promptSlotInputSchema } from '@his-fm/contracts';
 import { Button, Field, Input, LayerCard, Switch } from '@nocoo/basalt';
 import { PageHeader } from '@nocoo/basalt/components/page-header';
-import { ArrowDown, ArrowUp, Plus, Save, Trash2 } from 'lucide-react';
+import { ArrowDown, ArrowUp, Plus, Save, Trash2 } from '@nocoo/basalt/icons';
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, useSearchParams } from 'react-router';
@@ -133,7 +133,11 @@ function SlotTable({
         )}
       </div>
       {vm.error && <Failure error={vm.error} retry={!vm.table ? () => void vm.load() : undefined} />}
-      {!vm.table && !vm.error && <LayerCard.Loading label="正在读取提示词槽位" />}
+      {!vm.table && !vm.error && (
+        <LayerCard padding="none">
+          <LayerCard.Loading label="正在读取提示词槽位" />
+        </LayerCard>
+      )}
       {vm.conflict && (
         <LayerCard className="studio-stack">
           <strong>提示词槽位已有新版本 · v{vm.conflict.version}</strong>
@@ -232,10 +236,12 @@ function SlotTable({
             />
           )}
           {!slots.length && (
-            <LayerCard.Empty
-              title="还没有提示词槽位"
-              description="添加所需角色，ID 可自由定义；最后一个槽位也可以删除。所有改动在保存全部提示词后生效。"
-            />
+            <LayerCard padding="none">
+              <LayerCard.Empty
+                title="还没有提示词槽位"
+                description="添加所需角色，ID 可自由定义；最后一个槽位也可以删除。所有改动在保存全部提示词后生效。"
+              />
+            </LayerCard>
           )}
           {selected && (
             <>

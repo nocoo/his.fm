@@ -1,7 +1,7 @@
 import { Button, LayerCard, toast } from '@nocoo/basalt';
 import { PageHeader } from '@nocoo/basalt/components/page-header';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@nocoo/basalt/components/tabs';
-import { ArrowLeft, Trash2 } from 'lucide-react';
+import { ArrowLeft, Trash2 } from '@nocoo/basalt/icons';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 import type { Episode } from '../../shared/episode';
@@ -75,7 +75,9 @@ function Editor({ id }: { id: string }) {
         {vm.error ? (
           <Failure error={vm.error} retry={() => void vm.reload()} />
         ) : (
-          <LayerCard.Loading label="正在加载节目" />
+          <LayerCard padding="none">
+            <LayerCard.Loading label="正在加载节目" />
+          </LayerCard>
         )}
       </div>
     );

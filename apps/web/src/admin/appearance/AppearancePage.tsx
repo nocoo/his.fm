@@ -1,7 +1,7 @@
 import { Badge, Button, LayerCard } from '@nocoo/basalt';
 import { PageHeader } from '@nocoo/basalt/components/page-header';
 import { Radio, RadioGroup } from '@nocoo/basalt/components/radio';
-import { ArrowUpRight, Check, Eye, RefreshCw } from 'lucide-react';
+import { ArrowUpRight, Check, Eye, RefreshCw } from '@nocoo/basalt/icons';
 import { BrandLockup } from '../../brand/BrandLockup';
 import { themeCoverFrameSrc, themeMedia, themeStyle, themes } from '../../brand/themes';
 import { themeIdSchema, themeIds } from '../../shared/appearance';
@@ -38,7 +38,11 @@ export default function AppearancePage() {
         }
       />
       {vm.error && <Failure error={vm.error} retry={!vm.saved ? () => void vm.load() : undefined} />}
-      {!vm.saved && !vm.error && <LayerCard.Loading label="正在读取品牌外观" />}
+      {!vm.saved && !vm.error && (
+        <LayerCard padding="none">
+          <LayerCard.Loading label="正在读取品牌外观" />
+        </LayerCard>
+      )}
       {vm.saved && (
         <>
           <LayerCard className="appearance-identity" padding="md">

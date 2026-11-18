@@ -11,7 +11,7 @@ import {
 } from '@nocoo/basalt';
 import { FileDropzone } from '@nocoo/basalt/components/file-dropzone';
 import { InputArea } from '@nocoo/basalt/components/input-area';
-import { CircleHelp, ExternalLink, Link2Off, Replace } from 'lucide-react';
+import { CircleHelp, ExternalLink, Link2Off, Replace } from '@nocoo/basalt/icons';
 import { useEffect, useState } from 'react';
 import { AudioPlayer } from '../../components/AudioPlayer';
 import { FramedCover } from '../../components/FramedCover';

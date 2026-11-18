@@ -7,7 +7,6 @@ import { EditorView, keymap } from '@codemirror/view';
 import { tags } from '@lezer/highlight';
 import { Button } from '@nocoo/basalt';
 import { SegmentControl } from '@nocoo/basalt/components/segment-control';
-import CodeMirror, { type ReactCodeMirrorRef } from '@uiw/react-codemirror';
 import {
   Bold,
   Code,
@@ -20,7 +19,8 @@ import {
   Redo2,
   Search,
   Undo2,
-} from 'lucide-react';
+} from '@nocoo/basalt/icons';
+import CodeMirror, { type ReactCodeMirrorRef } from '@uiw/react-codemirror';
 import { useDeferredValue, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { CopyButton } from '../production/controls';
 import { ReadingText } from '../production/ReadingText';

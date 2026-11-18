@@ -15,12 +15,12 @@ function rgb(hex: string) {
 }
 
 async function expectStudioBrand(sidebar: Locator, color: string) {
-  const word = sidebar.locator('[data-slot="sidebar-brand-logo"] .brand-wordmark');
+  const word = sidebar.locator('[data-slot="sidebar-brand-name"] .brand-wordmark');
   const mark = sidebar.locator('[data-slot="sidebar-brand-logo"] .brand-symbol');
   await expect(word).toHaveCSS('color', color);
   await expect(mark).toHaveCSS('color', color);
   const geometry = await sidebar.evaluate((element) => {
-    const wordElement = element.querySelector('[data-slot="sidebar-brand-logo"] .brand-wordmark');
+    const wordElement = element.querySelector('[data-slot="sidebar-brand-name"] .brand-wordmark');
     const word = wordElement?.getBoundingClientRect();
     const mark = element
       .querySelector('[data-slot="sidebar-brand-logo"] .brand-symbol')
@@ -41,7 +41,7 @@ async function expectStudioBrand(sidebar: Locator, color: string) {
     return {
       word: word.width,
       mark: mark.width,
-      gap: mark.left - word.right,
+      gap: word.left - mark.right,
       center: Math.abs(mark.top + mark.height / 2 - word.top - word.height / 2),
       clipped,
       withinRail: word.left >= rail.left && word.right <= rail.right,
@@ -49,8 +49,8 @@ async function expectStudioBrand(sidebar: Locator, color: string) {
     };
   });
   expect(geometry.word).toBeCloseTo(92, 1);
-  expect(geometry.mark).toBeCloseTo(26.067, 1);
-  expect(geometry.gap).toBeGreaterThan(0);
+  expect(geometry.mark).toBeCloseTo(24, 1);
+  expect(geometry.gap).toBeCloseTo(8, 1);
   expect(geometry.center).toBeLessThan(1);
   expect(geometry.clipped).toBe(false);
   expect(geometry.withinRail).toBe(true);

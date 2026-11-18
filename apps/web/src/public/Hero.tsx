@@ -1,4 +1,4 @@
-import { ArrowDown, ArrowUpRight, Headphones } from 'lucide-react';
+import { ArrowDown, ArrowUpRight, Headphones } from '@nocoo/basalt/icons';
 import { BrandSymbol, Wordmark } from '../brand/Brand';
 import { themeMedia, themes } from '../brand/themes';
 import type { PublicEpisodeSummary } from '../shared/episode';

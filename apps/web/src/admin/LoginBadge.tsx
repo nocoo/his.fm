@@ -1,5 +1,5 @@
 import { Button, ThemeToggle } from '@nocoo/basalt';
-import { ArrowLeft, ArrowUpRight, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, ArrowUpRight, ShieldCheck } from '@nocoo/basalt/icons';
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { BrandSymbol, Wordmark } from '../brand/Brand';

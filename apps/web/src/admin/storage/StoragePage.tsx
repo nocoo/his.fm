@@ -8,10 +8,10 @@ import {
   Input,
   LayerCard,
 } from '@nocoo/basalt';
-import { StatCard, StatGrid } from '@nocoo/basalt/charts/stat-card';
 import { PageHeader } from '@nocoo/basalt/components/page-header';
+import { StatCard, StatGrid } from '@nocoo/basalt/components/stat-card';
 import { TagBadge } from '@nocoo/basalt/components/tag-badge';
-import { AudioLines, File, Image as ImageIcon, Play, RefreshCw, Trash2, Video } from 'lucide-react';
+import { AudioLines, File, Image as ImageIcon, Play, RefreshCw, Trash2, Video } from '@nocoo/basalt/icons';
 import { useState } from 'react';
 import { AudioPlayer } from '../../components/AudioPlayer';
 import { formatBytes, type StorageObject, storageKindLabels, storageKinds } from '../../shared/storage';

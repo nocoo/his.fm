@@ -1,5 +1,5 @@
 import { Button } from '@nocoo/basalt';
-import { Download } from 'lucide-react';
+import { Download } from '@nocoo/basalt/icons';
 import { useState } from 'react';
 import { useResolvedThemeId } from '../../shared/useResolvedThemeId';
 import { errorMessage } from '../model';

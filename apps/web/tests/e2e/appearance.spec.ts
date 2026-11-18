@@ -410,7 +410,7 @@ test('theme choices align padded content and retain selection and keyboard focus
     await expect(next).toBeFocused();
     await page.keyboard.up('ArrowDown');
     expect(await next.evaluate((element) => element.matches(':focus-visible'))).toBe(true);
-    await expect(next).not.toHaveCSS('box-shadow', 'none');
+    await expect(next).not.toHaveCSS('outline-style', 'none');
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await page.screenshot({ path: testInfo.outputPath(`appearance-${width}.png`), animations: 'disabled' });
   }

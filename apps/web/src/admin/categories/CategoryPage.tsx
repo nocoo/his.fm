@@ -2,7 +2,7 @@ import { Button, Field, Input, LayerCard, toast } from '@nocoo/basalt';
 import { IconPicker } from '@nocoo/basalt/components/icon-picker';
 import { PageHeader } from '@nocoo/basalt/components/page-header';
 import { TagColorPicker } from '@nocoo/basalt/components/tag-color-picker';
-import { ArrowLeft, Pencil, Plus, Save, Trash2 } from 'lucide-react';
+import { ArrowLeft, Pencil, Plus, Save, Trash2 } from '@nocoo/basalt/icons';
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { type Category, categoryColors, categoryIcons, type PublicCategory } from '../../shared/category';
@@ -38,7 +38,9 @@ function CategoryList() {
       />
       {vm.error && <Failure error={vm.error} retry={() => void vm.load()} />}
       {vm.loading ? (
-        <LayerCard.Loading label="正在读取栏目" />
+        <LayerCard padding="none">
+          <LayerCard.Loading label="正在读取栏目" />
+        </LayerCard>
       ) : vm.categories.length ? (
         <div className="category-list">
           {vm.categories.map((category) => (
@@ -63,7 +65,9 @@ function CategoryList() {
           ))}
         </div>
       ) : (
-        <LayerCard.Empty title="还没有栏目" description="创建栏目后，可在节目选题里选择。" />
+        <LayerCard padding="none">
+          <LayerCard.Empty title="还没有栏目" description="创建栏目后，可在节目选题里选择。" />
+        </LayerCard>
       )}
       {deleting && (
         <Confirm
@@ -121,7 +125,9 @@ function CategoryEditor({ id }: { id: string }) {
         <Failure error={vm.error} retry={!vm.saved && id !== 'new' ? () => void vm.load() : undefined} />
       )}
       {vm.loading ? (
-        <LayerCard.Loading label="正在读取栏目" />
+        <LayerCard padding="none">
+          <LayerCard.Loading label="正在读取栏目" />
+        </LayerCard>
       ) : (
         <>
           <LayerCard className="studio-stack">

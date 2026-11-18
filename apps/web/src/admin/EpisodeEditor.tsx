@@ -8,7 +8,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@nocoo/basalt/components/select';
-import { ArrowLeft, ArrowUpRight, Save, Trash2 } from 'lucide-react';
+import { ArrowLeft, ArrowUpRight, Save, Trash2 } from '@nocoo/basalt/icons';
 import { type FormEvent, useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { FramedCover } from '../components/FramedCover';

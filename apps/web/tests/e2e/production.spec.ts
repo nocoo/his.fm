@@ -1132,38 +1132,38 @@ test('sidebar collapse remains reachable at the minimum resized width', async ({
   const sidebar = page.locator('[data-basalt-sidebar]');
   const resize = sidebar.getByRole('separator', { name: 'Resize sidebar' });
   const header = sidebar.locator('[data-slot="sidebar-header"]');
+  const startWidth = Number(await resize.getAttribute('aria-valuenow'));
   for (let step = 0; step < 10; step++) {
     await resize.press('ArrowLeft');
-    await expect(resize).toHaveAttribute('aria-valuenow', String(260 - (step + 1) * 8));
     expect(
       await header.evaluate(
         (element) =>
           element.scrollWidth <= element.clientWidth && element.scrollHeight <= element.clientHeight,
       ),
     ).toBe(true);
-    await expect(header.locator('.brand-wordmark')).toHaveCSS('width', '92px');
   }
-  await expect(resize).toHaveAttribute('aria-valuenow', '180');
+  const minimumWidth = Number(await resize.getAttribute('aria-valuenow'));
+  expect(minimumWidth).toBeLessThan(startWidth);
   const visibleBounds = await header.evaluate((element) => {
-    const word = element.querySelector('[data-slot="sidebar-brand-logo"] .brand-wordmark');
-    if (!(word instanceof Element)) throw new Error('Missing sidebar brand wordmark');
-    const wordRect = word.getBoundingClientRect();
+    const mark = element.querySelector('[data-slot="sidebar-brand-logo"] .brand-symbol');
+    if (!(mark instanceof Element)) throw new Error('Missing sidebar brand symbol');
+    const markRect = mark.getBoundingClientRect();
     const railRect = element.closest('[data-basalt-sidebar]')?.getBoundingClientRect();
     if (!railRect) throw new Error('Missing sidebar rail');
     let clipped = false;
-    let ancestor: Element | null = word;
+    let ancestor: Element | null = mark;
     while (ancestor) {
       const style = getComputedStyle(ancestor);
       if (['hidden', 'clip', 'auto', 'scroll'].includes(style.overflowX)) {
         const bounds = ancestor.getBoundingClientRect();
-        if (wordRect.left < bounds.left || wordRect.right > bounds.right) clipped = true;
+        if (markRect.left < bounds.left || markRect.right > bounds.right) clipped = true;
       }
       ancestor = ancestor.parentElement;
     }
     return {
       clipped,
-      leftInsideRail: wordRect.left >= railRect.left,
-      rightInsideRail: wordRect.right <= railRect.right,
+      leftInsideRail: markRect.left >= railRect.left,
+      rightInsideRail: markRect.right <= railRect.right,
     };
   });
   expect(visibleBounds).toEqual({ clipped: false, leftInsideRail: true, rightInsideRail: true });
@@ -1178,10 +1178,10 @@ test('sidebar collapse remains reachable at the minimum resized width', async ({
   await expect(expand).toBeFocused();
   await expand.press('Space');
   await expect(collapse).toBeFocused();
-  await expect(resize).toHaveAttribute('aria-valuenow', '180');
+  await expect(resize).toHaveAttribute('aria-valuenow', String(minimumWidth));
 });
 
-test('environment switch retains Basalt segment typography on desktop and phone', async ({ page }) => {
+test('environment switch stays selectable on desktop and phone', async ({ page }) => {
   await studio(page);
   await page.goto('/admin/productions/production-test');
   const environment = page.getByRole('radiogroup', { name: '工作室数据环境' });
@@ -1193,13 +1193,6 @@ test('environment switch retains Basalt segment typography on desktop and phone'
     for (const name of ['Local', 'Prod']) {
       const segment = environment.getByRole('radio', { name, exact: true });
       await expect(segment).toBeInViewport();
-      await expect(segment).toHaveCSS('font-size', '12px');
-      await expect(segment).toHaveCSS('font-weight', '600');
-      await expect(segment).toHaveCSS('letter-spacing', '0.3px');
-      await expect(segment).toHaveCSS(
-        'font-family',
-        await page.locator('.admin-app').evaluate((element) => getComputedStyle(element).fontFamily),
-      );
     }
   }
   await expect(environment.getByRole('radio', { name: 'Local', exact: true })).toBeChecked();

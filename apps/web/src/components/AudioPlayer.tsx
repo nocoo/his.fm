@@ -1,6 +1,6 @@
 import { Button } from '@nocoo/basalt';
 import { Slider } from '@nocoo/basalt/components/slider';
-import { Headphones, LoaderCircle, Pause, Play, RotateCcw, Volume2, VolumeX } from 'lucide-react';
+import { Headphones, LoaderCircle, Pause, Play, RotateCcw, Volume2, VolumeX } from '@nocoo/basalt/icons';
 import { useEffect, useRef, useState } from 'react';
 import { audioErrorMessage, formatAudioTime } from './AudioPlayer.model';
 import { FramedCover } from './FramedCover';

@@ -2,6 +2,14 @@
 
 All notable changes to his.fm are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions use the owner’s patch-only deployment policy in `AGENTS.md`, with the authoritative version in `package.json`.
 
+## 2.11.29 - 2026-11-18
+
+### Changed
+
+- Upgrade the studio and public UI to `@nocoo/basalt` 3.5.1. Icons now use Basalt's supported export, card states share the package surface treatment, and sidebar collapse, identity alignment, focus styling and loading colors follow the current component contract.
+- Remove redundant direct UI dependencies and brittle E2E assumptions about Basalt geometry; keep the application-owned navigation, branding and responsive behavior.
+- Move release quality checks to System1 v1.3.0 Native Mode and let successful `main` quality runs trigger the existing Worker deployment workflow.
+
 ## 2.11.27 - 2026-11-06
 
 ### Changed

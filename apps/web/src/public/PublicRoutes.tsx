@@ -12,7 +12,7 @@ import {
   Rss,
   Search,
   X,
-} from 'lucide-react';
+} from '@nocoo/basalt/icons';
 import { createContext, type ReactNode, useContext, useEffect, useState } from 'react';
 import { Outlet, Route, Routes, useLocation, useParams, useSearchParams } from 'react-router';
 import { BrandSymbol } from '../brand/Brand';

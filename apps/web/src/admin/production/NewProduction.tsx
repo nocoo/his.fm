@@ -1,6 +1,6 @@
 import { Button } from '@nocoo/basalt';
 import { PageHeader } from '@nocoo/basalt/components/page-header';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft } from '@nocoo/basalt/icons';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router';
 import type { Episode } from '../../shared/episode';

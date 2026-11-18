@@ -3,7 +3,16 @@ import { DataTable, type DataTableColumn } from '@nocoo/basalt/components/data-t
 import { PageHeader } from '@nocoo/basalt/components/page-header';
 import { TagBadge } from '@nocoo/basalt/components/tag-badge';
 import { ToggleGroup, ToggleGroupItem } from '@nocoo/basalt/components/toggle-group';
-import { ArrowUpRight, Headphones, LayoutGrid, List, Music2, Plus, RefreshCw, Trash2 } from 'lucide-react';
+import {
+  ArrowUpRight,
+  Headphones,
+  LayoutGrid,
+  List,
+  Music2,
+  Plus,
+  RefreshCw,
+  Trash2,
+} from '@nocoo/basalt/icons';
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { FramedCover } from '../../components/FramedCover';

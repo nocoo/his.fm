@@ -9,7 +9,7 @@ import {
   SelectValue,
 } from '@nocoo/basalt/components/select';
 import { ToggleGroup, ToggleGroupItem } from '@nocoo/basalt/components/toggle-group';
-import { BookOpen, ChevronDown, ChevronUp, LoaderCircle, RotateCcw, Search } from 'lucide-react';
+import { BookOpen, ChevronDown, ChevronUp, LoaderCircle, RotateCcw, Search } from '@nocoo/basalt/icons';
 import { useState } from 'react';
 import { AudioPlayer } from '../../components/AudioPlayer';
 import {

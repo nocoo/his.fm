@@ -50,7 +50,7 @@ for (const scenario of scenarios) {
     try {
       await page.goto(scenario.path, { waitUntil: 'commit' });
       const root = page.locator('html');
-      const background = scenario.expected === 'dark' ? 'rgb(23, 23, 23)' : 'rgb(238, 239, 242)';
+      const background = scenario.expected === 'dark' ? 'rgb(23, 23, 23)' : 'rgb(244, 244, 244)';
       await expect(root).toHaveAttribute('data-mode', scenario.expected);
       await expect(root).toHaveCSS('color-scheme', scenario.expected);
       await expect(root).toHaveCSS('background-color', background);
@@ -64,7 +64,7 @@ for (const scenario of scenarios) {
       await expect(root).toHaveCSS('background-color', background);
       await expect(loading).toHaveCSS(
         'color',
-        scenario.expected === 'dark' ? 'rgb(237, 237, 237)' : 'rgb(31, 31, 31)',
+        scenario.expected === 'dark' ? 'rgb(237, 237, 237)' : 'rgb(26, 26, 26)',
       );
 
       releaseAdmin();

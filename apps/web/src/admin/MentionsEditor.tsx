@@ -1,5 +1,5 @@
 import { Button, Field, Input, LayerCard } from '@nocoo/basalt';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2 } from '@nocoo/basalt/icons';
 import { useEffect, useRef, useState } from 'react';
 import type { Mention } from '../shared/mentions';
 

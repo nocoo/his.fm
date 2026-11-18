@@ -441,6 +441,8 @@ html.dark .admin-app a.admin-rail-mark {
   margin-inline-start: 0;
 }
 .admin-rail-header [data-slot="sidebar-brand-name"] {
+  display: flex;
+  align-items: center;
   overflow: visible;
 }
 .admin-rail-header[data-narrow-brand] {

@@ -2,7 +2,7 @@ import { Button, LayerCard, Popover, PopoverContent, PopoverTrigger, toast } fro
 import { DataTable, type DataTableColumn } from '@nocoo/basalt/components/data-table';
 import { PageHeader } from '@nocoo/basalt/components/page-header';
 import { TagBadge } from '@nocoo/basalt/components/tag-badge';
-import { RefreshCw } from 'lucide-react';
+import { RefreshCw } from '@nocoo/basalt/icons';
 import { useCallback, useEffect, useState } from 'react';
 import type { AgentTokenRecord } from '../../shared/production';
 import { getEnvironment } from '../environment';

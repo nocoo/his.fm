@@ -9,7 +9,7 @@ import {
   DialogTrigger,
   ScrollArea,
 } from '@nocoo/basalt';
-import { ImageOff, X } from 'lucide-react';
+import { ImageOff, X } from '@nocoo/basalt/icons';
 import { useRef, useState } from 'react';
 import { FramedCover } from '../../components/FramedCover';
 import type { ThemeId } from '../../shared/appearance';

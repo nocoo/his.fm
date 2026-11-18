@@ -16,7 +16,7 @@ import {
   toast,
 } from '@nocoo/basalt';
 import { InputArea } from '@nocoo/basalt/components/input-area';
-import { Plus } from 'lucide-react';
+import { Plus } from '@nocoo/basalt/icons';
 import { useState } from 'react';
 import type { AgentTokenRecord } from '../../shared/production';
 import { errorMessage } from '../model';

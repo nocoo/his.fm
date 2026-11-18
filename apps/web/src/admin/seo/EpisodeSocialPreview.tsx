@@ -64,10 +64,20 @@ export function EpisodeSocialPreview({
   }, [attempt]);
   if (error) return <Failure error={error} retry={() => setAttempt((value) => value + 1)} />;
   if (categoryError) return <Failure error={categoryError} retry={() => void load()} />;
-  if (!site || loading) return <LayerCard.Loading label="正在读取分享预览元数据" />;
+  if (!site || loading)
+    return (
+      <LayerCard padding="none">
+        <LayerCard.Loading label="正在读取分享预览元数据" />
+      </LayerCard>
+    );
   if (!categoryName)
     return <Failure error="请先选择有效栏目，再重新加载分享预览" retry={() => void load()} />;
-  if (!preview) return <LayerCard.Loading label="正在读取分享预览元数据" />;
+  if (!preview)
+    return (
+      <LayerCard padding="none">
+        <LayerCard.Loading label="正在读取分享预览元数据" />
+      </LayerCard>
+    );
   return (
     <SocialPreview
       {...preview.value}

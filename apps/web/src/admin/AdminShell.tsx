@@ -36,7 +36,7 @@ import {
   Plug,
   Search,
   Tags,
-} from 'lucide-react';
+} from '@nocoo/basalt/icons';
 import { type ReactNode, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
 import { version } from '../../../../package.json';
@@ -199,8 +199,9 @@ function AdminRail({ variant, session, onSignOut, onNavigate, onDismiss }: Admin
               group.items.map(({ href, label, icon: Icon, active }) => (
                 <Tooltip key={href}>
                   <TooltipTrigger asChild>
-                    <SidebarIconItem active={active} aria-label={label} onClick={() => onNavigate(href)}>
-                      <Icon size={16} strokeWidth={1.5} />
+                    <SidebarIconItem active={active} onClick={() => onNavigate(href)}>
+                      <Icon size={16} strokeWidth={1.5} aria-hidden="true" />
+                      <span className="sr-only">{label}</span>
                     </SidebarIconItem>
                   </TooltipTrigger>
                   <TooltipContent side="right">{label}</TooltipContent>

@@ -1,0 +1,6 @@
+# picomatch 4.0.7 is a dev-only transitive dependency of vitest and vite, and no upstream fix exists yet.
+# The waiver expires on 2026-12-18; re-check for a fixed release before then.
+[[IgnoredVulns]]
+id = "GHSA-fc5q-39xc-vjpf"
+ignoreUntil = 2026-12-18
+reason = "dev-only picomatch 4.0.7 via vitest/vite test tooling; no upstream fix"

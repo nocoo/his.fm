@@ -8,7 +8,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@nocoo/basalt/components/select';
-import { Check } from 'lucide-react';
+import { Check } from '@nocoo/basalt/icons';
 import type { SiteSeo } from '../../shared/seo';
 import { getEnvironment } from '../environment';
 import { Failure } from '../production/controls';
@@ -243,7 +243,11 @@ export default function SeoPage() {
         }
       />
       {vm.error && <Failure error={vm.error} retry={!vm.saved ? () => void vm.load() : undefined} />}
-      {!vm.value && !vm.error && <LayerCard.Loading label="正在读取 SEO 设置" />}
+      {!vm.value && !vm.error && (
+        <LayerCard padding="none">
+          <LayerCard.Loading label="正在读取 SEO 设置" />
+        </LayerCard>
+      )}
       {vm.value && (
         <>
           {vm.conflict && (
