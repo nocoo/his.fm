@@ -21,7 +21,7 @@ export function adminBreadcrumbs(pathname: string, search = ''): { label: string
   const query = new URLSearchParams(search);
   const studio = { label: '工作室', href: '/admin' };
   const library = { label: '节目库', href: '/admin' };
-  if (path === '/admin') return [{ label: '节目库' }];
+  if (path === '/admin') return [studio, { label: '节目库' }];
   if (path === '/admin/productions/new' || path === '/admin/episodes/new')
     return [library, { label: '新建节目' }];
   if (path.startsWith('/admin/productions/')) {

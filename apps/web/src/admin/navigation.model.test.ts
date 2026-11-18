@@ -2,7 +2,7 @@ import { expect, it } from 'vitest';
 import { adminBreadcrumbs, productionSections } from './navigation.model';
 
 it('gives every studio page a real parent link and one nonlinked current page', () => {
-  expect(adminBreadcrumbs('/admin/')).toEqual([{ label: '节目库' }]);
+  expect(adminBreadcrumbs('/admin/')).toEqual([{ label: '工作室', href: '/admin' }, { label: '节目库' }]);
   for (const [path, label] of Object.entries({
     categories: '栏目管理',
     channel: '提示词',

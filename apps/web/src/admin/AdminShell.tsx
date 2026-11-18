@@ -38,7 +38,6 @@ import {
 } from '@nocoo/basalt/icons';
 import { type ReactNode, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
-import { version } from '../../../../package.json';
 import { BrandSymbol, Wordmark } from '../brand/Brand';
 import { ThemeFavicon } from '../brand/ThemeFavicon';
 import { themeStyle, themes } from '../brand/themes';
@@ -165,7 +164,6 @@ function AdminRail({ variant, session, onSignOut, onNavigate, onDismiss }: Admin
               <Wordmark />
             </Link>
           }
-          version={`v${version}`}
           action={
             variant === 'drawer' ? (
               <SidebarToggle mode="dismiss" onDismiss={onDismiss} dismissLabel="关闭导航" />

@@ -46,10 +46,6 @@ html:has(.admin-app) {
 .admin-shell {
   position: relative;
   height: 100dvh;
-  padding: max(env(safe-area-inset-top), var(--admin-space-2))
-    max(env(safe-area-inset-right), var(--admin-space-2))
-    max(env(safe-area-inset-bottom), var(--admin-space-2))
-    max(env(safe-area-inset-left), var(--admin-space-2));
 }
 .admin-island-wrap {
   min-width: 0;
@@ -57,7 +53,7 @@ html:has(.admin-app) {
   flex: 1;
   display: flex;
   flex-direction: column;
-  padding: var(--admin-space-4) var(--admin-space-5) var(--admin-space-5);
+  padding: 0 var(--basalt-layout-sm, 0.75rem) var(--basalt-layout-sm, 0.75rem);
 }
 .admin-content-island {
   position: relative;
@@ -406,7 +402,7 @@ html.dark .admin-app a.admin-rail-mark {
 }
 @media (max-width: 767px) {
   .admin-island-wrap {
-    padding: var(--admin-space-3) var(--admin-space-3) var(--admin-space-4);
+    padding: 0 var(--basalt-space-lg, 0.5rem) var(--basalt-space-lg, 0.5rem);
   }
   .admin-page {
     gap: var(--admin-space-5);
