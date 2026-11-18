@@ -2,6 +2,14 @@
 
 All notable changes to his.fm are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions use the owner’s patch-only deployment policy in `AGENTS.md`, with the authoritative version in `package.json`.
 
+## 2.11.31 - 2026-11-18
+
+### Fixed
+
+- Remove extra outer padding on `.admin-shell` and align `.admin-island-wrap` spacing with Basalt's `ContentIsland` layout contract.
+- Include the `工作室` parent crumb on `/admin` (`节目库`) so its breadcrumb depth matches the other studio pages.
+- Remove the overlapping version badge from `SidebarBrand` in the studio rail header.
+
 ## 2.11.30 - 2026-11-18
 
 ### Fixed
