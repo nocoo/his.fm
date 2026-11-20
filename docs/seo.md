@@ -66,7 +66,7 @@ indexing. A record can have useful public notes before its audio is ready, so
 audio availability is not the criterion. Client loading or fetch failures must
 not be mistaken for an empty collection or overwrite the server's metadata.
 
-The sitemap includes only currently indexable canonical pages, respecting
+`robots.txt` keeps crawlers out of `/admin`, `/login` and `/api/`. The sitemap includes only currently indexable canonical pages, respecting
 resolved site, category and episode `noindex` settings. Drafts, future episodes,
 empty categories and explicitly excluded pages are omitted. Category indexing
 and individual episode indexing remain separate decisions; hiding a category

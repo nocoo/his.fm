@@ -49,7 +49,7 @@ Current providers:
 | --- | --- | --- | ---: |
 | `gemini` | Gemini | 3.8 Flash TTS | 30 |
 | `elevenlabs` | ElevenLabs | Eleven v3 | 20 |
-| `mai` | MAI Voice | MAI-Voice-2.1 | 5 |
+| `mai` | MAI Voice | MAI-Voice-2.1 (never Flash) | 5 |
 | `doubao` | 豆包 | Seed-TTS 2.0 | 3 |
 | `fish` | Fish Audio | Drama 3 | 3 |
 

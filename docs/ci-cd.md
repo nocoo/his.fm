@@ -1,26 +1,33 @@
 # CI/CD
 
-Shared workflows come from [nocoo/base-ci](https://github.com/nocoo/base-ci), pinned to the immutable commit `1ea10ecab22b72512399485391603fe03a161016` (`v2026.12`). Upgrade by updating the full SHA after a reviewed base-ci release.
+Shared actions and deployment workflows come from [nocoo/base-ci](https://github.com/nocoo/base-ci), pinned by full commit SHA in `.github/workflows/quality-slots.yml` and `.github/workflows/release.yml` (currently `v2026.15`). Upgrade by updating the full SHA after a reviewed base-ci release.
 
-## CI (`.github/workflows/ci.yml`)
+## CI (`.github/workflows/ci.yml` & `.github/workflows/quality-slots.yml`)
 
-Runs on every push to `main`, pull requests against `main`, and manual dispatch. A single job calls base-ci `quality.yml` with **strict** `slot-status` (CI slot standard v1 in base-ci `docs/slots.md`).
+Runs on every push to `main`, pull requests against `main`, and manual dispatch. `ci.yml` delegates to `.github/workflows/quality-slots.yml` (System1 Native Mode).
 
-Enabled slots: **S1** typecheck, **S2** lint (Biome), **S3** workflow lint (actionlint + immutable base-ci SHA pins + required `deploy-worker.yml` reference), **G1** secret scan (Gitleaks + `.gitleaks.toml`), **G2** dependency scan (OSV on `package-lock.json`), **B1** build (`npm run build` after native-binary prep), **L1** unit tests with 95% coverage floors plus `npm run test:gate` (Husky L1 snapshot self-test), and **Z1** gate aggregate.
+Enforced slots: **S1** typecheck, **S2** lint (Biome `--error-on-warnings`), **S3** workflow SHA-pin verification, **G1** secret scan (Gitleaks + `.gitleaks.toml`), **G2** dependency scan (OSV on `package-lock.json`), **B1** build (`ci:ensure-native-binaries && npm run build`), **L1** unit tests with 95% coverage floors (`apps/web` and `packages/contracts`; React views and generated platform declarations excluded) plus `npm run test:gate` (Husky L1 snapshot self-test), and **Z1** gate aggregate.
 
-Runtime is pinned to Node `26.12.1` and npm `11.19.1` (`packageManager` in root `package.json`) with frozen `npm ci` (`install-policy: project`). CI applies `env-json` npm retry settings before install; `.npmrc` mirrors them for local installs. `prepare-command` runs `ci:ensure-native-binaries` (lockfile optional native packages, `workerd` rebuild, toolchain smoke). Root `allowScripts` approves pinned `workerd` postinstalls.
+Runtime is pinned to Node `26.12.1` and npm `11.19.1` (`packageManager` in root `package.json`) with frozen `npm ci` (`install-policy: project`). CI sets npm retry env vars before install; `.npmrc` mirrors them for local installs. `ci:ensure-native-binaries` verifies lockfile optional native packages, rebuilds `workerd`, and smoke-tests the toolchain. Root `allowScripts` approves pinned `workerd` postinstalls.
 
-**L1.5**, **L2**, and **P1** are declared `na` in `slot-status` (Worker binding coverage lives in L1 Vitest; no API E2E command; private packages). **L3** Playwright suites exist locally but are `todo` until CI can start the loopback dev stack and set `HISFM_E2E_BASE_URL`.
+**L2** (`Runtime`), **L3** (`Integration`), and **P1** (`Package`) are `N/A` (Miniflare/Worker bindings are covered in L1 Vitest; no standalone HTTP API E2E suite; private monorepo not published to npm). **L4** (`E2E`) is `planned` — Playwright suites exist locally (`npm run test:e2e`) but are not yet wired in CI.
 
-Coverage artifacts: `apps/web/coverage` and `packages/contracts/coverage`. Branch protection should require only the Z1 check name reported on a real CI run (typically `quality / Z1: Gate` under workflow **CI**).
+Coverage artifacts: `apps/web/coverage` and `packages/contracts/coverage`. Branch protection requires `quality / Z1: Gate` under workflow **CI**.
+
+## Pre-commit staged gate
+
+`sh .husky/pre-commit` (Husky `core.hooksPath=.husky/_`) runs the staged `scripts/check-staged.mjs` snapshot in order `test:coverage`, `lint`, `typecheck`, then validates staged `coverage-summary.json` floors (95% per statements, branches, functions, and lines) without changing the working tree or restaging fixes. `HISFM_GATE_TIMEOUT_MS` defaults to `180000`. Repeatable rejection probes live in `npm run test:gate` (`node scripts/verify-gate.mjs`), also run in CI after unit tests.
+
+Measured baseline (cloud agent, npm install, Node 22.23.4, 2026-11-09): full-tree hook exit `0` with `@his-fm/web` coverage statements 97.74%, branches 95.05%, functions 98.62%, lines 98.6%; `@his-fm/contracts` statements 97.52%, branches 95.61%, functions 100%, lines 99.68%; cold wall time ~82800ms, warm ~79300ms (above the 30s design target). Self-test probes cover healthy fixture, UT failure, per-metric coverage shortfall (statements/branches/functions/lines), lint error, lint warning via Husky commit, type error, `.only`, skip-only, empty suite, staged-vs-worktree mismatch, timeout, interrupt, missing npm, missing coverage report/script, and staged `l1-snapshot.mjs` selection.
 
 ## Release (`.github/workflows/release.yml`)
 
-Deployment is release-driven; nothing deploys automatically from a bare push to `main`:
+Deployment triggers on:
 
 | Trigger | Behavior |
 | --- | --- |
-| GitHub Release published | deploy the release tag |
+| CI `workflow_run` (`success` on `push` to `main`) | auto-deploy proven `main` commit |
+| GitHub Release published | deploy the release tag (verifies `vX.Y.Z` matches `package.json`) |
 | Manual `workflow_dispatch` with tag input | redeploy an existing release tag (retry path) |
 
 The deploy job uses base-ci `deploy-worker.yml`, which proves the release source before touching production:
@@ -34,7 +41,9 @@ Production deploys hold a non-cancelling lock (`deploy-worker-production`) on th
 
 The locked `cf` CLI (`1.0.0-beta.12`) and Cloudflare Vite plugin (`2.0.0-beta.sha-52b0dc0e9`) produce `apps/web/.cloudflare/output/v0`. Prebuilt deployment must use its recorded `production` mode. The shared workflow's script path avoids requiring a second lockfile inside `apps/web`. `scripts/deploy.mjs` retains exact CLI version verification before calling the web workspace; shared D1 migration steps are disabled because migrations must execute inside that workspace. The CLI comes from the hoisted root installation, resolved through package metadata rather than a hard-coded `node_modules` path. No Wrangler installation is needed, directly or transitively. Coverage artifacts come from `apps/web/coverage` and `packages/contracts/coverage`; root typecheck and test commands include every workspace, each with enforced 95% floors; root `package.json` remains the release-version authority.
 
-Release procedure follows `system1-github-versioning`: bump `package.json`, maintain `CHANGELOG.md`, commit, push, tag `vX.Y.Z`, publish the GitHub Release with the changelog as What's New. Publishing the Release triggers this workflow; CI must have passed on the tagged commit first.
+### Versioning policy
+
+Release procedure follows `system1-github-versioning` with one project override: every subsequent deployment increments **only the patch version** (`X.Y.Z` → `X.Y.(Z+1)`). Change the major or minor version only when the owner explicitly requests it. Features, database migrations, authentication changes, diff size and elapsed time must not trigger automatic major/minor bumps. Bump root `package.json`, update `CHANGELOG.md`, commit, push, wait for CI to pass on the commit, then tag `vX.Y.Z` and publish the GitHub Release with the changelog as What's New.
 
 ## Required repository secrets
 
@@ -47,4 +56,4 @@ The website accepts no provider credentials and performs no generation. CI/CD ha
 
 ## Local verification
 
-Workflow files are validated in CI by the **S3** job inside `quality.yml`; no separate workflow-lint workflow is required. `scripts/ci-verify-live.mjs` is the release-time production check and expects the deployed Worker to be live.
+Workflow files are validated in CI by the **S3** job inside `.github/workflows/quality-slots.yml`; no separate workflow-lint workflow is required. `scripts/ci-verify-live.mjs` is the release-time production check and expects the deployed Worker to be live.

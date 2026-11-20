@@ -1,6 +1,8 @@
 # Architecture
 
-his.fm has one React application and one Cloudflare Worker. Public pages use the Open Interval identity; the separately loaded studio uses Basalt 3.2.0. Frontend models/services own view state and HTTP calls. Shared validators define editable business fields; Worker controllers own D1, R2 and authorization.
+his.fm has one React application and one Cloudflare Worker. Public views in `apps/web/src/public/` use the Open Interval identity; separately loaded studio views in `apps/web/src/admin/` use `@nocoo/basalt` with standalone CSS and granular shell imports. Keep editable episode validation in `apps/web/src/shared/episode.ts`, production contracts in `apps/web/src/shared/production.ts`, view logic in models/services, and D1/Access/R2 logic in `apps/web/worker/`.
+
+Public routes are `/`, `/episodes`, `/episodes/:categoryId/:slug` and `/about` (legacy `/episodes/:slug` redirects to the category path). `/login` is the studio entry and no public surface links it. Studio settings are Appearance, Connections, Prompts, Categories, Bumpers and Storage; narration is ordinary prompt-slot text, not a provider setting.
 
 Public section reveals use IntersectionObserver and CSS transitions, not an animation dependency. Each mounted section reveals once; reduced-motion preferences and keyboard focus expose content without waiting for viewport entry. React ref cleanup disconnects observers and removes event listeners on unmount.
 
@@ -16,7 +18,7 @@ Public section reveals use IntersectionObserver and CSS transitions, not an anim
 | `/api/site-seo` | Public site/author/podcast metadata, without settings audit fields |
 | `/admin/api/session` | Verified owner identity |
 | `/admin/api/*` | Owner management through shared controllers |
-| `/api/agent`, `/.well-known/api-catalog`, `/llms.txt` | Public API discovery, no private content |
+| `/api/agent`, `/.well-known/api-catalog`, `/llms.txt`, `/api/card` | Public API discovery and read-only card protocol v1 ([card-api](card-api.md)), no private content |
 | `/api/agent/*` business routes | Explicitly scoped bearer management |
 | `/media/*` | R2 streaming with HEAD, validators and single byte ranges |
 | `/media/episode-thumbnails/:id/:version/:theme/:width.webp` | Fixed artwork-only WebP derivatives of current published R2 covers |
@@ -53,7 +55,9 @@ Channel and category prompt-slot JSON arrays use independent collection counters
 ## Interface and verification
 
 - `/admin` is a unified cover-grid library with a list alternative. Production snapshots are deduplicated by explicit `sourceProductionId`, never by slug/title guesses.
-- Studio navigation uses browser paths, with a complete breadcrumb trail derived from the same pathname and query. Ancestors are real router links; the current item is not a link. Production sections/sources and prompt scopes/slots appear in the trail. Appearance theme selection uses a query parameter, without saving settings; cover previews automatically use recent library entries. Refresh and browser back/forward restore URL-driven selections; narrow headers scroll the breadcrumb strip instead of the application shell.
+- Studio navigation sections use native `SidebarGroup` disclosures so Basalt owns their spacing and the single navigation gutter; collapsed rails render the same destinations as centered `SidebarIconItem` rows without custom group wrappers.
+- Studio breadcrumbs derive from the current pathname and query in `admin/navigation.model.ts`, ending with one nonlinked current item. Ancestors are real router links and detail selections live in the address bar (production sections/sources, prompt scopes/slots, appearance theme preview) so refresh and browser back/forward restore selections; narrow headers scroll only the breadcrumb strip, never the shell.
+- Keep `.admin-content-island` positioned for absolute descendants; section navigation resets only its scroll without scrolling the overflow-hidden shell or hiding its header. Keep headers compact with actions alongside titles; secondary back controls belong left of the title.
 - Production details have four non-linear sections: information, manuscript, assets and publication. Viewing a section does not mutate workflow state. Visited editors retain drafts and undo; approvals and saves are explicit.
 - One custom `AudioPlayer` serves public and admin views. A hidden HTML audio element handles decoding; Basalt controls handle keyboard, pointer and touch seeking, volume, speed and errors.
 - The active player supplies native Media Session metadata. Public episodes use the published 1400-square `/episodes/{id}/art.jpg` composition, not the favicon or responsive artwork crop. Metadata survives pauses, updates with active details, and clears on source replacement, unmount or media failure without clearing another player's session. Unillustrated admin previews replace previous artwork. Native media transport remains browser-owned; iOS lock-screen layout and effects are not website CSS.

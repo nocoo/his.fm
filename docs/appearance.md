@@ -31,6 +31,11 @@ Each direction changes palette, imagery and hero composition while sharing navig
 
 `docs/design/index.html` indexes the eight archived design studies. The implementation preserves their distinct hero proportions, artwork windows, decorative marks and typographic hierarchy rather than replacing them with palette variants of one layout. The four quieter directions use a left-copy/right-image reflection section that stacks on phones. Public navigation, footer identity and real editorial content remain shared intentionally.
 
+### Shared public layout
+
+- **Two-layer footer**: Public pages close with the shared two-layer footer: a `zheng li.` mark, copyright and site links above a hairline, then location, motto and back-to-top below it. Preserve that structure and its 11px scale; the dot matrix and location dot take the current theme accent, never a fixed brand hue.
+- **Episode detail layout**: Episode pages use one two-column layout: a sticky rail holding the cover and player, and a scrolling column with the lead, topics, body, research note, credits and two-column mention list. Keep the rail sticky so playback controls stay visible; collapse to one column below 760px.
+
 ### Theme catalogue
 
 The studio chooser shows two columns on desktop and one on phones. Each card includes the original study name, direction label, slogan, full design rationale and five named palette colors from `docs/design/index.html`. The hero uses the existing fingerprinted artwork, with a small hover zoom disabled for reduced motion. Study descriptions remain archival copy, including references to earlier symbols; card IDs follow the current canonical lockup instead.
@@ -43,7 +48,7 @@ The address bar records the unsaved theme as `/admin/appearance?theme=<id>`. Ref
 
 ## Artwork, fonts and caching
 
-`artwork/identity/manifest.json` records image/font source, SHA-256, byte size and native dimensions. Images use immutable `images/identity/<name>-<hash>.webp` keys on R2, delivered through `https://f.no.mt` with one-year immutable caching. The existing Grove retains its native 3504×2336 hero and dedicated retina mobile crops. The seven newer directions retain the approved 1536×1024 originals and 1024-square mobile crops; these are not enlarged into pretend higher-resolution images. Responsive `sizes` includes the image's cover-cropped height.
+`artwork/identity/manifest.json` records image/font source, SHA-256, byte size and native dimensions. Images use immutable `images/identity/<name>-<hash>.webp` keys on R2, delivered through `https://f.no.mt` with one-year immutable caching. Active hero assets use immutable `images/hero-retina-20260926-*.webp` keys with original artwork and derivative provenance in `artwork/manifest.json`. Mobile `picture` crops place the subject at 61.8%; responsive `sizes` must account for the full rendered image under `object-fit: cover`, including its height. Seed episode images use `images/episode-01.webp` through `episode-03.webp`. The existing Grove retains its native 3504×2336 hero and dedicated retina mobile crops. The seven newer directions retain the approved 1536×1024 originals and 1024-square mobile crops; these are not enlarged into pretend higher-resolution images.
 
 Browser fonts ship with the application through Vite's fingerprinted `/assets/*.woff2` URLs and Cloudflare static-asset CDN; small subsets are inlined into the generated CSS. This keeps deployment atomic with the CSS and avoids partially uploaded or negatively cached R2 font URLs. Noto Sans SC has 101 unicode-range subsets and its actual 100-900 weight range; Noto Serif SC has complete Unicode-sharded coverage from the verified full source, not just the characters in the studies. The browser requests subsets needed for visible text. Instrument Serif includes its real italic face, and Syne supplies the Human Sample Latin hierarchy. All use `font-display: swap`. OFL licenses and source hashes are archived beside the files; there are no runtime requests to Google Fonts. `/assets/*` has one-year immutable caching. Stable `/brand/*` downloads revalidate.
 

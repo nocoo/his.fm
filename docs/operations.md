@@ -11,7 +11,9 @@ If the preferred mirror does not contain a verified release, use the authorized 
 
 Open `https://hisfm.dev.hexly.ai`. Choose the studio link or visit `/login`, then select the local studio button. The local database has six preview episodes; episode 001 imports the manuscript from `episodes/001-how-to-live-better/`.
 
-The dev script listens on 127.0.0.1:7056 and defaults to local D1/R2 bindings. It reads Worker secrets from ignored `apps/web/.dev.vars`, not the original generation `.env` file. Restarting preserves local records. Local D1 and R2 data live in `apps/web/.cloudflare/state`; do not delete it to resolve unrelated issues. CLI commands run from `apps/web` with `--local --persist-to .cloudflare/state`. The local-only UUID is `00000000-0000-4000-8000-000000007056`. Existing state was copied and byte-verified before the legacy directory was removed. Never substitute the production UUID when accessing local data.
+The dev script listens on `127.0.0.1:7056` and defaults to local D1/R2 bindings. Caddy proxies `https://hisfm.dev.hexly.ai` to `127.0.0.1:7056` for loopback clients only. Reserved local ports are `7056` (dev), `17056` (integration), `27056` (browser), and `37056` (inspector). Mock content exists only in `apps/web/scripts/seed-local.mjs`; schema migrations contain no episode content. It reads Worker secrets from ignored `apps/web/.dev.vars`, not the original generation `.env` file. Restarting preserves local records. Local D1 and R2 data live in `apps/web/.cloudflare/state`; do not delete it to resolve unrelated issues. CLI commands run from `apps/web` with `--local --persist-to .cloudflare/state`. The local-only UUID is `00000000-0000-4000-8000-000000007056`. Existing state was copied and byte-verified before the legacy directory was removed. Never substitute the production UUID when accessing local data.
+
+For read-only acceptance against production D1, R2 and Images bindings on the same local port, run `npm run dev:remote --workspace @his-fm/web` (`vite --mode production`). Studio login stays disabled in that mode because `ENVIRONMENT=production` requires Cloudflare Access.
 
 Website styles are selected in `/admin/appearance`. Previewing is read-only; applying saves to the selected environment. See [appearance](appearance.md) for identity assets, R2 delivery, font caching and original-cover/export separation.
 
@@ -29,6 +31,8 @@ node scripts/verify-gate.mjs
 `npm run prepare` installs the Husky launcher. The pre-commit hook reads the staged gate implementation and checks an isolated snapshot of the index. It runs coverage, lint and typecheck without auto-fixing or restaging files. Generated outputs stay in temporary directories.
 
 `npm run cf:typegen` regenerates ignored `apps/web/.cloudflare/types/index.d.ts` without loading `.env`; typecheck runs this first, including in isolated staged snapshots. Update the compatibility date only to a date supported by the installed Workerd runtime.
+
+The web Vitest suite caps concurrency at four workers to bound concurrent isolated Miniflare runtimes; preserve test isolation, deadlines and 95% coverage thresholds when tuning concurrency. Large R2 test fixtures use `apps/web/tests/worker/r2-fixtures.ts` and its local fixture Worker: raw byte arguments to binding proxies synchronously serialize as Base64/JSON, while arbitrary streams lack R2's required length. Read stored bodies as streams, consume responses promptly and compare bytes with native `Buffer.equals`, not deep equality.
 
 ## Production preparation
 
