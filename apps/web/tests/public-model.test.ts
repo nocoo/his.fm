@@ -128,11 +128,14 @@ describe('website appearance', () => {
 
 describe('listening room', () => {
   it('builds real category links without losing preview or other query parameters', () => {
-    const params = new URLSearchParams('theme=stillwood&category=life');
+    const params = new URLSearchParams('theme=stillwood&category=life&page=2');
     expect(catalogueHref(params, 'manager-notes')).toBe('/episodes?theme=stillwood&category=manager-notes');
     expect(catalogueHref(params, 'all')).toBe('/episodes?theme=stillwood');
+    expect(catalogueHref(new URLSearchParams('page=2'), 'learning')).toBe('/episodes?category=learning');
+    expect(catalogueHref(new URLSearchParams('page=2'), 'all')).toBe('/episodes');
     expect(catalogueHref(new URLSearchParams(), 'all')).toBe('/episodes');
     expect(params.get('category')).toBe('life');
+    expect(params.get('page')).toBe('2');
   });
   it('combines category and case-insensitive title, summary and tag search', () => {
     expect(filterEpisodes(summaries, 'all', '')).toHaveLength(2);

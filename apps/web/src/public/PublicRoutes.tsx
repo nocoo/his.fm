@@ -465,9 +465,7 @@ function Catalogue() {
   const page = parseCataloguePage(searchParams.get('page'));
   const [query, setQuery] = useState('');
   const setCategoryFilter = (next: string) => {
-    const params = catalogueSearchParamsForCategory(searchParams, next);
-    params.delete('page');
-    setSearchParams(params, { replace: true });
+    setSearchParams(catalogueSearchParamsForCategory(searchParams, next), { replace: true });
   };
   const categoryEpisodes = filterEpisodes(episodes, category, '');
   const filtered = filterEpisodes(categoryEpisodes, 'all', query);

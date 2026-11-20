@@ -30,6 +30,7 @@ export function catalogueCategoryFromSearch(category: string | null) {
 
 export function catalogueSearchParamsForCategory(searchParams: URLSearchParams, next: string) {
   const params = new URLSearchParams(searchParams);
+  params.delete('page');
   if (next === 'all') params.delete('category');
   else params.set('category', next);
   return params;
