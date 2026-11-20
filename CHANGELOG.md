@@ -2,6 +2,12 @@
 
 All notable changes to his.fm are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions use the owner’s patch-only deployment policy in `AGENTS.md`, with the authoritative version in `package.json`.
 
+## 2.11.32 - 2026-11-21
+
+### Fixed
+
+- Clear the `page` query parameter when switching programme categories on `/episodes`, preventing paginated filter links from pointing to non-existent category pages (404) or non-canonical query orderings.
+
 ## 2.11.31 - 2026-11-18
 
 ### Fixed
