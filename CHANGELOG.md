@@ -2,6 +2,12 @@
 
 All notable changes to his.fm are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions use the owner’s patch-only deployment policy in `AGENTS.md`, with the authoritative version in `package.json`.
 
+## 2.11.33 - 2026-11-21
+
+### Changed
+
+- Upgrade `@takumi-rs/wasm` to `2.22.1` alongside recent dependency updates (`react-router` `8.5.2`, `marked` `18.2.1`, `vitest` `5.1.1`).
+
 ## 2.11.32 - 2026-11-21
 
 ### Fixed
