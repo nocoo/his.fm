@@ -295,11 +295,17 @@
   }
 }
 .admin-app .studio-autosize {
-  field-sizing: content;
   min-height: 160px;
-  max-height: none;
-  overflow: hidden;
-  resize: none;
+  overflow: auto;
+  resize: vertical;
+}
+@supports (field-sizing: content) {
+  .admin-app .studio-autosize {
+    field-sizing: content;
+    max-height: none;
+    overflow: hidden;
+    resize: none;
+  }
 }
 .studio-records {
   color: hsl(var(--basalt-muted-foreground));

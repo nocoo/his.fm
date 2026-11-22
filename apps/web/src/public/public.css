@@ -562,14 +562,18 @@ html:has(.appearance-gate) body {
   gap: 16px;
   padding: 16px 4px;
   border-bottom: 1px solid color-mix(in srgb, var(--paper) 26%, var(--ink));
-  transition:
-    padding-left 0.2s ease,
-    background-color 0.2s ease;
+  transition: background-color 0.2s ease;
+}
+.public-site .subscribe-option > * {
+  transition: transform 0.2s ease;
 }
 .public-site .subscribe-option:hover,
 .public-site .subscribe-option:focus-visible {
-  padding-left: 14px;
   background-color: color-mix(in srgb, var(--paper) 7%, transparent);
+}
+.public-site .subscribe-option:hover > *,
+.public-site .subscribe-option:focus-visible > * {
+  transform: translateX(10px);
 }
 .public-site .subscribe-mark {
   display: grid;
@@ -1057,7 +1061,7 @@ html:has(.appearance-gate) body {
   padding-top: 18px;
   border-top: 1px solid var(--line);
   font-size: 0.92rem;
-  color: hsl(var(--public-muted-foreground, 42% 8% / 0.72));
+  color: var(--muted);
 }
 
 .public-site .detail-meta {
@@ -1069,6 +1073,14 @@ html:has(.appearance-gate) body {
 .public-site .detail-meta > span + span::before {
   content: "·";
   margin-right: 14px;
+}
+@supports (content: "·" / "") {
+  .public-site .episode-topics > li::before {
+    content: counter(topic, decimal-leading-zero) / "";
+  }
+  .public-site .detail-meta > span + span::before {
+    content: "·" / "";
+  }
 }
 .public-site .detail-intro .episode-lead {
   margin-block: 18px 0;
@@ -1991,8 +2003,16 @@ html:has(.appearance-gate) body {
 @media (prefers-reduced-motion: reduce) {
   .public-site .episode-skeleton,
   .public-site .pill-button,
-  .public-site .art-arrow {
+  .public-site .art-arrow,
+  .public-site .location-dot::after,
+  .public-site .subscribe-option > * {
     animation: none;
     transition: none;
+  }
+}
+@media (forced-colors: active) {
+  .public-site .category-filters a.selected {
+    border-color: Highlight;
+    outline: 1px solid Highlight;
   }
 }

@@ -144,6 +144,11 @@
     justify-content: flex-start;
     gap: 0;
   }
+  @media (prefers-contrast: more) {
+    .markdown-tools {
+      scrollbar-width: auto;
+    }
+  }
   .markdown-source .cm-content,
   .markdown-preview {
     padding: var(--admin-space-4);

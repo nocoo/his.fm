@@ -63,6 +63,11 @@
   margin: calc(-1 * var(--voice-space-1));
   scrollbar-width: thin;
 }
+@media (prefers-contrast: more) {
+  .voice-catalog-pills {
+    scrollbar-width: auto;
+  }
+}
 .voice-catalog-pills [role="radiogroup"] {
   flex-shrink: 0;
   white-space: nowrap;

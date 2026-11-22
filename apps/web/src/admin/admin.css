@@ -79,6 +79,11 @@ html:has(.admin-app) {
   padding-block: var(--admin-space-3);
   padding-inline-end: var(--admin-space-1);
 }
+@media (prefers-contrast: more) {
+  .admin-header nav[aria-label="面包屑导航"] {
+    scrollbar-width: auto;
+  }
+}
 :where(.admin-header nav[aria-label="面包屑导航"]) > span {
   flex-shrink: 0;
 }
