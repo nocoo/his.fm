@@ -33,8 +33,8 @@ export function EpisodeCover({
       alt={`${episode.title}的节目封面`}
       width={1600}
       height={1600}
-      loading={priority ? 'eager' : 'lazy'}
-      fetchPriority={priority ? 'high' : 'auto'}
+      loading={priority ? undefined : 'lazy'}
+      fetchPriority={priority ? 'high' : undefined}
       decoding={priority ? 'sync' : 'async'}
     />
   );

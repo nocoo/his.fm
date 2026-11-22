@@ -284,12 +284,10 @@ function ProgrammeGroup({
   category,
   episodes,
   anchor,
-  priorityEpisodeId,
 }: {
   category: PublicCategory;
   episodes: PublicEpisodeSummary[];
   anchor?: string;
-  priorityEpisodeId?: string;
 }) {
   const Icon = categoryIconComponents[category.icon];
   return (
@@ -302,13 +300,13 @@ function ProgrammeGroup({
           {category.name}
         </h3>
         <Link to={catalogueHref(new URLSearchParams(), category.id)} className="text-link">
-          全部 {episodes.length} 期 <ArrowUpRight size={18} />
+          全部 {episodes.length} 期 <ArrowUpRight size={18} aria-hidden="true" />
         </Link>
       </Reveal>
       <div className="episode-grid">
         {episodes.slice(0, 3).map((episode) => (
           <Reveal key={episode.id}>
-            <EpisodeCard episode={episode} priority={episode.id === priorityEpisodeId} />
+            <EpisodeCard episode={episode} />
           </Reveal>
         ))}
       </div>
@@ -322,7 +320,6 @@ function ProgrammeSections() {
     category,
     episodes: episodes.filter((episode) => episode.category === category.id),
   }));
-  const priorityEpisodeId = groups[0]?.episodes[0]?.id;
   return (
     <>
       {groups.map((group, index) => (
@@ -331,7 +328,6 @@ function ProgrammeSections() {
           category={group.category}
           episodes={group.episodes}
           anchor={index === 0 ? 'episodes' : undefined}
-          priorityEpisodeId={index === 0 ? priorityEpisodeId : undefined}
         />
       ))}
     </>
@@ -541,16 +537,17 @@ function Catalogue() {
             </Link>
           ))}
         </nav>
-        <label className="episode-search">
-          <Search size={18} />
+        <search className="episode-search">
+          <Search size={18} aria-hidden="true" />
           <input
             type="search"
+            enterKeyHint="search"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="找个话题…"
             aria-label="搜索播客"
           />
-        </label>
+        </search>
       </div>
       <LibraryState>
         <p className="result-count" aria-live="polite">
@@ -620,6 +617,8 @@ function EpisodeDetail() {
   const site = usePublicSiteSeo();
   const cover = episode && episodeThumbnailProps(episode, theme);
   const [copyState, setCopyState] = useState('');
+  const [copyAnnouncement, setCopyAnnouncement] = useState('');
+  const copyTimer = useRef<number | null>(null);
   const origin = usePublicOrigin();
   useEffect(() => {
     if (!episode) return;
@@ -638,15 +637,28 @@ function EpisodeDetail() {
   }, [episode, categories, origin, site]);
   // biome-ignore lint/correctness/useExhaustiveDependencies: Each episode resets share state on navigation.
   useEffect(() => {
+    if (copyTimer.current !== null) window.clearTimeout(copyTimer.current);
+    copyTimer.current = null;
     setCopyState('');
+    setCopyAnnouncement('');
+    return () => {
+      if (copyTimer.current !== null) window.clearTimeout(copyTimer.current);
+    };
   }, [slug, categoryId]);
   async function share() {
+    let message = '链接已复制';
     try {
       await navigator.clipboard.writeText(window.location.href);
-      setCopyState('链接已复制');
     } catch {
-      setCopyState('请复制浏览器中的地址分享');
+      message = '请复制浏览器中的地址分享';
     }
+    setCopyState(message);
+    setCopyAnnouncement((prev) => (prev === message ? `${message}\u00A0` : message));
+    if (copyTimer.current !== null) window.clearTimeout(copyTimer.current);
+    copyTimer.current = window.setTimeout(() => {
+      copyTimer.current = null;
+      setCopyState('');
+    }, 2500);
   }
   if (loading)
     return (
@@ -764,11 +776,15 @@ function EpisodeDetail() {
             </div>
             <div className="detail-actions">
               <button type="button" className="share-link" onClick={share}>
-                {copyState === '链接已复制' ? <Check size={16} /> : <Copy size={16} />}
+                {copyState === '链接已复制' ? (
+                  <Check size={16} aria-hidden="true" />
+                ) : (
+                  <Copy size={16} aria-hidden="true" />
+                )}
                 {copyState || '分享这一期'}
               </button>
               <span className="sr-only" aria-live="polite">
-                {copyState}
+                {copyAnnouncement}
               </span>
             </div>
           </Reveal>

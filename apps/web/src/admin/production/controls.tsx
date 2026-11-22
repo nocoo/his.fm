@@ -158,15 +158,25 @@ export function CopyButton({
         setPending(true);
         try {
           const result = read();
-          const content = result instanceof Promise ? await result : result;
-          if (typeof content === 'string') await navigator.clipboard.writeText(content);
-          else
+          if (result instanceof Promise) {
             await navigator.clipboard.write([
               new ClipboardItem({
-                'text/html': new Blob([content.html], { type: 'text/html' }),
-                'text/plain': new Blob([content.text], { type: 'text/plain' }),
+                'text/plain': result.then(
+                  (value) =>
+                    new Blob([typeof value === 'string' ? value : value.text], { type: 'text/plain' }),
+                ),
               }),
             ]);
+          } else if (typeof result === 'string') {
+            await navigator.clipboard.writeText(result);
+          } else {
+            await navigator.clipboard.write([
+              new ClipboardItem({
+                'text/html': new Blob([result.html], { type: 'text/html' }),
+                'text/plain': new Blob([result.text], { type: 'text/plain' }),
+              }),
+            ]);
+          }
           toast.success('已复制');
         } catch (cause) {
           toast.error(`复制失败，请重试：${errorMessage(cause)}`);

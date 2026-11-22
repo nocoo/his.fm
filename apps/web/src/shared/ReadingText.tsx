@@ -5,7 +5,7 @@ export function ReadingText({ text, className = '' }: { text: string; className?
   const idPrefix = sanitizeReadingIdPrefix(useId());
   const html = useMemo(() => formatReading(text, { idPrefix }), [text, idPrefix]);
   return (
-    <article
+    <div
       className={['studio-reader', 'reading-text', className].filter(Boolean).join(' ')}
       // biome-ignore lint/security/noDangerouslySetInnerHtml: formatReading removes raw HTML/images and allows only escaped HTTPS links.
       dangerouslySetInnerHTML={{ __html: html }}

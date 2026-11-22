@@ -212,11 +212,12 @@ export async function maybeServePublicHtml(request: Request, env: Env): Promise<
       '<html',
       `<html data-public-theme="${theme}" style="--public-paper:${themes[theme].palette[0]};--public-chrome:${chrome}"`,
     )
+    .replace(/<meta name="color-scheme"[^>]*>\s*/g, '')
     .replace(/<meta name="theme-color"[^>]*>\s*/g, '')
     .replace(/<link rel="icon"[^>]*>\s*/g, '')
     .replace(
       '</head>',
-      `<meta name="theme-color" content="${chrome}" /><link rel="icon" type="image/svg+xml" href="${themeFaviconSrc(theme)}" /><link rel="icon" type="image/png" sizes="32x32" href="${themeFaviconPngSrc(theme)}" /></head>`,
+      `<meta name="color-scheme" content="light" /><meta name="theme-color" content="${chrome}" /><link rel="icon" type="image/svg+xml" href="${themeFaviconSrc(theme)}" /><link rel="icon" type="image/png" sizes="32x32" href="${themeFaviconPngSrc(theme)}" /></head>`,
     );
   if (html.includes('</body>')) {
     html = html.replace('</body>', `${TRAKS_BODY_SNIPPET}</body>`);

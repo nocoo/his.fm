@@ -43,8 +43,8 @@ export function ThemeImage({
         width={media.width}
         height={media.height}
         alt={themes[id].imageAlt}
-        loading={priority ? 'eager' : 'lazy'}
-        fetchPriority={priority ? 'high' : 'auto'}
+        loading={priority ? undefined : 'lazy'}
+        fetchPriority={priority ? 'high' : undefined}
         decoding={priority ? 'sync' : 'async'}
       />
     </picture>

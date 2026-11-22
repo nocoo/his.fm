@@ -91,6 +91,9 @@ export function FramedCover({
             src={frameSrc}
             alt=""
             aria-hidden="true"
+            loading={loading}
+            width={coverDesignSize}
+            height={coverDesignSize}
             onError={() => setFailedFrame(frameSrc)}
           />
           <svg
