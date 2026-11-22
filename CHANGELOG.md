@@ -2,6 +2,14 @@
 
 All notable changes to his.fm are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions use the owner’s patch-only deployment policy in `AGENTS.md`, with the authoritative version in `package.json`.
 
+## 2.11.34 - 2026-11-23
+
+### Fixed
+
+- Replace global `<script>` regex nonce injection with explicit CSP nonce placeholders across Vite and Worker HTML, tighten `base-uri 'none'`, add `X-Frame-Options`, `Permissions-Policy`, `Cross-Origin-Opener-Policy`, and `Clear-Site-Data` on logout.
+- Fix audio player and mobile navigation accessibility (mute/menu ARIA state flipping, WCAG 2.5.3 speed label, `touch-action: pan-y` on sliders, `Escape` menu close, reduced-motion spinner and forced-colors borders).
+- Guard `field-sizing: content` with `@supports` so long studio textareas remain scrollable in Firefox, fix `.episode-license` muted color, refine reduced-motion and high-contrast scrollbars, and optimize image loading priority, `color-scheme` metadata, share copy reset, and `<search>` semantics.
+
 ## 2.11.33 - 2026-11-21
 
 ### Changed
