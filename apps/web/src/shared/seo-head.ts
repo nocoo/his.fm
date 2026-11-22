@@ -57,7 +57,7 @@ export function injectSeoIntoHtml(
     ? jsonLd
         .map(
           (block) =>
-            `<script type="application/ld+json">${JSON.stringify(block).replace(/</g, '\\u003c')}</script>`,
+            `<script type="application/ld+json" nonce="__HISFM_CSP_NONCE__">${JSON.stringify(block).replace(/</g, '\\u003c').replaceAll('__HISFM_CSP_NONCE__', '\\u005f_HISFM_CSP_NONCE__')}</script>`,
         )
         .join('\n')
     : '';

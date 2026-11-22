@@ -588,7 +588,9 @@ describe('public podcast catalog', () => {
       expect(html).not.toContain('PRIVATE DRAFT');
       expect(html).not.toContain('<script>alert(1)</script>');
       expect(html).not.toContain('"transcript":');
-      const bootstrap = html.match(/<script id="public-data" type="application\/json">(.*?)<\/script>/s);
+      const bootstrap = html.match(
+        /<script id="public-data" type="application\/json"(?: nonce="[^"]+")?>(.*?)<\/script>/s,
+      );
       expect(bootstrap).not.toBeNull();
       const data = JSON.parse(bootstrap?.[1] ?? '{}');
       expect(data.site).not.toHaveProperty('updatedBy');
@@ -629,6 +631,10 @@ describe('public podcast catalog', () => {
     expect((await call('/login')).status).toBe(200);
     const response = await call('/');
     expect(response.headers.get('Strict-Transport-Security')).toBe('max-age=31536000');
+    expect(response.headers.get('X-Frame-Options')).toBe('DENY');
+    expect(response.headers.get('Permissions-Policy')).toBe('camera=(), microphone=(), geolocation=()');
+    expect(response.headers.get('Cross-Origin-Opener-Policy')).toBe('same-origin-allow-popups');
+    expect(response.headers.get('Content-Security-Policy')).toContain("base-uri 'none'");
     expect(response.headers.get('Content-Security-Policy')).toContain("object-src 'none'");
     const production = await call('/', {}, { ...env, ENVIRONMENT: 'production' });
     const csp = production.headers.get('Content-Security-Policy');
@@ -660,7 +666,8 @@ describe('public podcast catalog', () => {
 
   it('keeps the public cache behind the gateway and gives every cached HTML read a fresh nonce', async () => {
     const { entrypoint, context } = publicCache();
-    const template = '<html><script>trusted()</script><h1>Cached public content</h1></html>';
+    const template =
+      '<html><script nonce="__HISFM_CSP_NONCE__">trusted()</script><h1>Cached public content</h1></html>';
     entrypoint.fetch.mockImplementation(
       async () =>
         new Response(template, {
@@ -695,7 +702,7 @@ describe('public podcast catalog', () => {
       nonces.add(nonce ?? '');
       const html = await response.text();
       if (method === 'HEAD') expect(html).toBe('');
-      else expect(html).toBe(template.replace('<script', `<script nonce="${nonce}"`));
+      else expect(html).toBe(template.replace('nonce="__HISFM_CSP_NONCE__"', `nonce="${nonce}"`));
     }
     expect(nonces.size).toBe(3);
     for (const [forwarded] of entrypoint.fetch.mock.calls) {
@@ -1391,6 +1398,7 @@ describe('local login boundaries', () => {
     expect(login.headers.get('Set-Cookie')).toContain('HttpOnly; SameSite=Strict; Max-Age=28800; Secure');
     const response = await call('/admin/api/logout', { method: 'POST' });
     expect(response.headers.get('Set-Cookie')).toContain('Max-Age=0');
+    expect(response.headers.get('Clear-Site-Data')).toBe('"cookies", "storage"');
     expect(await response.json()).toEqual({ redirect: '/admin' });
     expect((await call('/admin/api/session')).status).toBe(401);
   });
@@ -1442,7 +1450,9 @@ describe('Cloudflare Access verification', () => {
       user: { email: 'editor@example.com', name: null, avatar: null },
       mode: 'access',
     });
-    expect(await (await call('/admin/api/logout', { method: 'POST', headers }, production)).json()).toEqual({
+    const logoutResponse = await call('/admin/api/logout', { method: 'POST', headers }, production);
+    expect(logoutResponse.headers.get('Clear-Site-Data')).toBe('"cookies", "storage"');
+    expect(await logoutResponse.json()).toEqual({
       redirect: '/cdn-cgi/access/logout',
     });
   });

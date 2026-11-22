@@ -22,8 +22,8 @@ import { renderHeroPreloads, renderPublicPage } from './public-render';
 import { preparePublicShellHead } from './public-shell-head';
 import { getSiteSeo } from './seo-store';
 
-const TRAKS_HEAD_SNIPPET = `<script>window.traks=window.traks||function(){(window.traks.q=window.traks.q||[]).push(arguments)}</script>
-<script defer data-site="pb_live_n79lt8f1ry7jcqhl4r74xmt9" src="https://track-collect.nocoo.cloud/t.js"></script>`;
+const TRAKS_BODY_SNIPPET = `<script nonce="__HISFM_CSP_NONCE__">window.traks=window.traks||function(){(window.traks.q=window.traks.q||[]).push(arguments)}</script>
+<script defer nonce="__HISFM_CSP_NONCE__" data-site="pb_live_n79lt8f1ry7jcqhl4r74xmt9" src="https://track-collect.nocoo.cloud/t.js"></script>`;
 
 async function loadShell(request: Request, env: Env) {
   const asset = await env.ASSETS.fetch(new Request(new URL('/', request.url)));
@@ -199,11 +199,13 @@ export async function maybeServePublicHtml(request: Request, env: Env): Promise<
   const renderStartedAt = performance.now();
   const rendered = renderPublicPage(`${path}${url.search}`, data);
   const renderMs = performance.now() - renderStartedAt;
-  const bootstrap = JSON.stringify(data).replace(/</g, '\\u003c');
+  const bootstrap = JSON.stringify(data)
+    .replace(/</g, '\\u003c')
+    .replaceAll('__HISFM_CSP_NONCE__', '\\u005f_HISFM_CSP_NONCE__');
   let html = preparePublicShellHead(injectSeoIntoHtml(shell, seo, jsonLd, origin, extraHead)).replace(
     '<div id="root"></div>',
     () =>
-      `<div id="root">${rendered}</div><script id="public-data" type="application/json">${bootstrap}</script>`,
+      `<div id="root">${rendered}</div><script id="public-data" type="application/json" nonce="__HISFM_CSP_NONCE__">${bootstrap}</script>`,
   );
   html = html
     .replace(
@@ -214,8 +216,11 @@ export async function maybeServePublicHtml(request: Request, env: Env): Promise<
     .replace(/<link rel="icon"[^>]*>\s*/g, '')
     .replace(
       '</head>',
-      `${TRAKS_HEAD_SNIPPET}<meta name="theme-color" content="${chrome}" /><link rel="icon" type="image/svg+xml" href="${themeFaviconSrc(theme)}" /><link rel="icon" type="image/png" sizes="32x32" href="${themeFaviconPngSrc(theme)}" /></head>`,
+      `<meta name="theme-color" content="${chrome}" /><link rel="icon" type="image/svg+xml" href="${themeFaviconSrc(theme)}" /><link rel="icon" type="image/png" sizes="32x32" href="${themeFaviconPngSrc(theme)}" /></head>`,
     );
+  if (html.includes('</body>')) {
+    html = html.replace('</body>', `${TRAKS_BODY_SNIPPET}</body>`);
+  }
   if (path === '/') {
     html = html.replace('</head>', `${renderHeroPreloads(theme)}</head>`);
   }

@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PUBLIC_HTML_CACHE_CONTROL } from '../../src/shared/public-cache-policy';
 import { HttpError } from '../../worker/http';
 import {
+  CSP_NONCE_PLACEHOLDER,
   cacheablePublicRequest,
   freshPublicHtml,
   invalidatesPublicContent,
@@ -176,7 +177,7 @@ describe('public cache boundary', () => {
   });
 
   it('adds a new CSP nonce after every cache read and leaves the cached template unchanged', async () => {
-    const template = '<script>trusted()</script><script src="/app.js"></script><div>public</div>';
+    const template = `<script nonce="${CSP_NONCE_PLACEHOLDER}">trusted()</script><script nonce="${CSP_NONCE_PLACEHOLDER}" src="/app.js"></script><script>untrusted()</script><div>public</div>`;
     const cached = new Response(template, {
       headers: {
         'Content-Type': 'text/html; charset=utf-8',
@@ -193,10 +194,13 @@ describe('public cache boundary', () => {
       const csp = response.headers.get('Content-Security-Policy') ?? '';
       const nonce = /'nonce-([^']+)'/.exec(csp)?.[1];
       expect(nonce).toBeTruthy();
+      expect(csp).toContain("base-uri 'none'");
       expect(csp).not.toContain('unsafe-eval');
       expect(csp).not.toContain('unsafe-inline');
       expect(csp).not.toContain('track-collect.nocoo.cloud');
-      expect(await response.text()).toBe(template.replaceAll('<script', `<script nonce="${nonce}"`));
+      const rendered = await response.text();
+      expect(rendered).toBe(template.replaceAll(`nonce="${CSP_NONCE_PLACEHOLDER}"`, `nonce="${nonce}"`));
+      expect(rendered).toContain('<script>untrusted()</script>');
       nonces.add(nonce ?? '');
       expect(response.headers.get('Cache-Control')).toBe(PUBLIC_HTML_CACHE_CONTROL);
       for (const header of ['Content-Length', 'Content-Encoding', 'ETag', 'Age'])
@@ -207,8 +211,7 @@ describe('public cache boundary', () => {
   });
 
   it('allowlists Traks only when the cached public HTML includes the collector', async () => {
-    const template =
-      '<script>window.traks=window.traks||function(){}</script><script defer src="https://track-collect.nocoo.cloud/t.js"></script>';
+    const template = `<script nonce="${CSP_NONCE_PLACEHOLDER}">window.traks=window.traks||function(){}</script><script defer nonce="${CSP_NONCE_PLACEHOLDER}" src="https://track-collect.nocoo.cloud/t.js"></script>`;
     const response = await freshPublicHtml(
       new Response(template, { headers: { 'Content-Type': 'text/html; charset=utf-8' } }),
     );

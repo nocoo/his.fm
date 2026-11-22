@@ -82,6 +82,8 @@ export async function publicContentResponse(request: Request, env: Env): Promise
   }
 }
 
+export const CSP_NONCE_PLACEHOLDER = '__HISFM_CSP_NONCE__';
+
 export async function freshPublicHtml(response: Response): Promise<Response> {
   const nonce = crypto.randomUUID();
   const headers = new Headers(response.headers);
@@ -95,8 +97,8 @@ export async function freshPublicHtml(response: Response): Promise<Response> {
   const scriptSrc = `'self' 'nonce-${nonce}'${traks ? ' https://track-collect.nocoo.cloud' : ''}`;
   headers.set(
     'Content-Security-Policy',
-    `base-uri 'self'; object-src 'none'; frame-ancestors 'none'; script-src ${scriptSrc}`,
+    `base-uri 'none'; object-src 'none'; frame-ancestors 'none'; script-src ${scriptSrc}`,
   );
-  const html = htmlBody.replace(/<script\b/g, `<script nonce="${nonce}"`);
+  const html = htmlBody.replaceAll(`nonce="${CSP_NONCE_PLACEHOLDER}"`, `nonce="${nonce}"`);
   return new Response(html, { status: response.status, statusText: response.statusText, headers });
 }

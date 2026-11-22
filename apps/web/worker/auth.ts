@@ -84,9 +84,14 @@ export async function logout(request: Request, env: Env) {
       await env.DB.prepare('DELETE FROM local_sessions WHERE token_hash = ?')
         .bind(await tokenHash(token))
         .run();
-    return json({ redirect: '/admin' }, 200, { 'Set-Cookie': sessionCookie(request, '', 0) });
+    return json({ redirect: '/admin' }, 200, {
+      'Set-Cookie': sessionCookie(request, '', 0),
+      'Clear-Site-Data': '"cookies", "storage"',
+    });
   }
-  return json({ redirect: '/cdn-cgi/access/logout' });
+  return json({ redirect: '/cdn-cgi/access/logout' }, 200, {
+    'Clear-Site-Data': '"cookies", "storage"',
+  });
 }
 
 export function accessLogin() {

@@ -7,6 +7,9 @@ import { productionProxy } from './scripts/production-proxy.ts';
 process.env.CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV = 'false';
 
 export default defineConfig(({ mode }) => ({
+  html: {
+    cspNonce: '__HISFM_CSP_NONCE__',
+  },
   define: {
     __BUILD_REVISION__: JSON.stringify(
       execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(),

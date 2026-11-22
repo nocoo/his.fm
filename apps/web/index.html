@@ -24,7 +24,7 @@
     <title>his.fm · 世界很快，你可以慢慢来</title>
   </head>
   <body>
-    <script>
+    <script nonce="__HISFM_CSP_NONCE__">
       let storedTheme = null;
       try {
         storedTheme = localStorage.getItem('hisfm-theme');
@@ -41,6 +41,6 @@
       }
     </script>
     <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
+    <script type="module" nonce="__HISFM_CSP_NONCE__" src="/src/main.tsx"></script>
   </body>
 </html>
