@@ -229,7 +229,7 @@ function Player({
               className="his-audio-tool"
               variant="ghost"
               size="icon"
-              aria-label={muted || volume === 0 ? '取消静音' : '静音'}
+              aria-label="静音"
               title={muted || volume === 0 ? '取消静音' : '静音'}
               aria-pressed={muted || volume === 0}
               onClick={() => {
@@ -282,7 +282,7 @@ function Player({
             className="his-audio-tool his-audio-speed"
             variant="ghost"
             size="sm"
-            aria-label={`播放速度：${speed} 倍，点击切换`}
+            aria-label={`播放速度 ${speed}×，点击切换`}
             title="切换播放速度：0.75 / 1 / 1.25 / 1.5 / 2 倍"
             onClick={() => {
               const audio = audioRef.current;

@@ -109,7 +109,7 @@
   display: flex;
   align-items: center;
   height: 44px;
-  touch-action: none;
+  touch-action: pan-y;
   cursor: pointer;
   user-select: none;
 }
@@ -209,7 +209,7 @@
   padding: 0;
   margin: -1px;
   overflow: hidden;
-  clip: rect(0, 0, 0, 0);
+  clip-path: inset(50%);
   white-space: nowrap;
   border: 0;
 }
@@ -271,8 +271,21 @@
   }
 }
 @media (prefers-reduced-motion: reduce) {
+  .his-audio-player .his-audio-play .his-audio-play-spinner,
   .his-audio-player .his-audio-status svg {
     animation: none;
+  }
+}
+@media (forced-colors: active) {
+  .his-audio-player :is(.his-audio-seek, .his-audio-volume-slider) > span:first-child {
+    border: 1px solid CanvasText;
+  }
+  .his-audio-player :is(.his-audio-seek, .his-audio-volume-slider) > span:first-child > span {
+    background: Highlight;
+  }
+  .his-audio-player [role="slider"] {
+    border-color: CanvasText;
+    background: Highlight;
   }
 }
 @container (max-width: 300px) {

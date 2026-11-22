@@ -13,7 +13,7 @@ import {
   Search,
   X,
 } from '@nocoo/basalt/icons';
-import { createContext, type ReactNode, useContext, useEffect, useState } from 'react';
+import { createContext, type ReactNode, useContext, useEffect, useRef, useState } from 'react';
 import { Outlet, Route, Routes, useLocation, useParams, useSearchParams } from 'react-router';
 import { BrandSymbol } from '../brand/Brand';
 import { BrandLockup } from '../brand/BrandLockup';
@@ -74,11 +74,22 @@ function useLibrary() {
 
 function Header() {
   const [open, setOpen] = useState(false);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
   const location = useLocation();
   // biome-ignore lint/correctness/useExhaustiveDependencies: Navigation resets the mobile menu, including browser history changes.
   useEffect(() => {
     setOpen(false);
   }, [location.pathname]);
+  useEffect(() => {
+    if (!open) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      setOpen(false);
+      menuButtonRef.current?.focus();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [open]);
   return (
     <header className="site-header">
       <Link to="/" className="wordmark">
@@ -88,7 +99,7 @@ function Header() {
         <BrandLockup />
         <span className="brand-caption">中文播客</span>
       </Link>
-      <nav className={`main-nav ${open ? 'is-open' : ''}`} aria-label="主导航">
+      <nav id="public-main-nav" className={`main-nav ${open ? 'is-open' : ''}`} aria-label="主导航">
         <NavLink to="/" end>
           首页
         </NavLink>
@@ -96,16 +107,18 @@ function Header() {
         <NavLink to="/about">关于 his.fm</NavLink>
       </nav>
       <Link className="header-listen" to="/episodes">
-        给自己一点时间 <ArrowUpRight size={17} />
+        给自己一点时间 <ArrowUpRight size={17} aria-hidden="true" />
       </Link>
       <button
+        ref={menuButtonRef}
         type="button"
         className="menu-button"
-        aria-label={open ? '收起导航' : '打开导航'}
+        aria-label="主导航"
+        aria-controls="public-main-nav"
         aria-expanded={open}
         onClick={() => setOpen(!open)}
       >
-        {open ? <X /> : <Menu />}
+        {open ? <X aria-hidden="true" /> : <Menu aria-hidden="true" />}
       </button>
     </header>
   );

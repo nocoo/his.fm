@@ -56,10 +56,10 @@ describe('shared audio player preview behavior', () => {
     expect(container.querySelector('audio')?.hasAttribute('controls')).toBe(false);
     await act(async () => container.querySelector<HTMLButtonElement>('[aria-label="静音"]')?.click());
     expect(container.querySelector('audio')?.muted).toBe(true);
-    expect(container.querySelector('[aria-label="取消静音"]')).not.toBeNull();
+    expect(container.querySelector('[aria-label="静音"]')?.getAttribute('aria-pressed')).toBe('true');
     await act(async () => container.querySelector<HTMLButtonElement>('.his-audio-speed')?.click());
     expect(container.querySelector('audio')?.playbackRate).toBe(1.25);
-    expect(container.querySelector('.his-audio-speed')?.getAttribute('aria-label')).toContain('1.25 倍');
+    expect(container.querySelector('.his-audio-speed')?.getAttribute('aria-label')).toContain('1.25×');
   });
 
   it('omits preview idle and playing copy and retains loading, errors and retry', async () => {
