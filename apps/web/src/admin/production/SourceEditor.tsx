@@ -1,6 +1,6 @@
 import { Button, Field, Input, LayerCard } from '@nocoo/basalt';
-import { InputArea } from '@nocoo/basalt/components/input-area';
 import { PageHeader } from '@nocoo/basalt/components/page-header';
+import { Textarea } from '@nocoo/basalt/components/textarea';
 import { ArrowLeft, ChevronRight, FileText, GitBranch, Link2, Trash2 } from '@nocoo/basalt/icons';
 import { useState } from 'react';
 import { type ProductionBrief, sourceSchema } from '../../shared/production';
@@ -140,7 +140,7 @@ export function SourceEditor({
                     onChange={(content) => onChange({ ...source, content })}
                   />
                 ) : (
-                  <InputArea
+                  <Textarea
                     id="source-content"
                     value={source.content}
                     maxLength={80000}

@@ -1,5 +1,4 @@
 import { Button, Field, Input, LayerCard, Switch, toast } from '@nocoo/basalt';
-import { InputArea } from '@nocoo/basalt/components/input-area';
 import { PageHeader } from '@nocoo/basalt/components/page-header';
 import {
   Select,
@@ -8,6 +7,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@nocoo/basalt/components/select';
+import { Textarea } from '@nocoo/basalt/components/textarea';
 import { ArrowLeft, ArrowUpRight, Save, Trash2 } from '@nocoo/basalt/icons';
 import { type FormEvent, useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
@@ -289,7 +289,7 @@ export function EpisodeEditor() {
                     error={errors.summary}
                     hint="用于列表与分享，告诉听众这一期会聊到什么。"
                   >
-                    <InputArea
+                    <Textarea
                       id="summary"
                       name="summary"
                       defaultValue={value.summary}

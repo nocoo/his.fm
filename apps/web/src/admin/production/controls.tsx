@@ -10,7 +10,6 @@ import {
   Field,
   toast,
 } from '@nocoo/basalt';
-import { InputArea } from '@nocoo/basalt/components/input-area';
 import {
   Select,
   SelectContent,
@@ -20,6 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@nocoo/basalt/components/select';
+import { Textarea } from '@nocoo/basalt/components/textarea';
 import { useState } from 'react';
 import { errorMessage } from '../model';
 
@@ -97,7 +97,7 @@ export function Confirm({
         </AlertDialogHeader>
         {feedback && (
           <Field label="修改意见" htmlFor="review-feedback" required>
-            <InputArea
+            <Textarea
               id="review-feedback"
               value={text}
               onChange={(event) => setText(event.target.value)}
@@ -179,7 +179,7 @@ export function CopyButton({
           }
           toast.success('已复制');
         } catch (cause) {
-          toast.error(`复制失败，请重试：${errorMessage(cause)}`);
+          toast.danger(`复制失败，请重试：${errorMessage(cause)}`);
         } finally {
           setPending(false);
         }

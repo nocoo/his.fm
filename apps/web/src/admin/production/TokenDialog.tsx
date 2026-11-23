@@ -15,7 +15,7 @@ import {
   LayerCard,
   toast,
 } from '@nocoo/basalt';
-import { InputArea } from '@nocoo/basalt/components/input-area';
+import { Textarea } from '@nocoo/basalt/components/textarea';
 import { Plus } from '@nocoo/basalt/icons';
 import { useState } from 'react';
 import type { AgentTokenRecord } from '../../shared/production';
@@ -115,7 +115,7 @@ export function TokenDialog({ onCreated }: { onCreated: (record: AgentTokenRecor
         </DialogHeader>
         {token ? (
           <div className="studio-stack">
-            <InputArea aria-label="新建访问令牌" readOnly value={token} rows={3} />
+            <Textarea aria-label="新建访问令牌" readOnly value={token} rows={3} />
             <DialogFooter>
               <CopyButton label="复制新令牌" read={() => token} />
               <DialogClose asChild>

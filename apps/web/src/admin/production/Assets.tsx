@@ -10,7 +10,7 @@ import {
   TooltipTrigger,
 } from '@nocoo/basalt';
 import { FileDropzone } from '@nocoo/basalt/components/file-dropzone';
-import { InputArea } from '@nocoo/basalt/components/input-area';
+import { Textarea } from '@nocoo/basalt/components/textarea';
 import { CircleHelp, ExternalLink, Link2Off, Replace } from '@nocoo/basalt/icons';
 import { useEffect, useState } from 'react';
 import { AudioPlayer } from '../../components/AudioPlayer';
@@ -293,7 +293,7 @@ export function Assets({
         <strong>发布文案</strong>
         <DraftConflicts fields={draft.conflicts} resolve={draft.resolve} />
         <Field label="节目摘要" htmlFor="production-summary" hint="用于网站列表与分享，最多 2,000 字。">
-          <InputArea
+          <Textarea
             id="production-summary"
             value={draft.value.summary}
             onChange={(event) => draft.change('summary', event.target.value)}

@@ -37,7 +37,7 @@ export function EnvironmentSwitch() {
           if (value === environment) return;
           const target = value as AdminEnvironment;
           if (hasUnsavedChanges()) setNext(target);
-          else void switchEnvironment(target).catch((cause) => toast.error(errorMessage(cause)));
+          else void switchEnvironment(target).catch((cause) => toast.danger(errorMessage(cause)));
         }}
       />
       {next && (

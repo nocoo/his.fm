@@ -148,7 +148,7 @@ export default function AppearancePage() {
                         {theme.number} · {theme.name}
                       </strong>
                       {vm.saved?.theme === id && (
-                        <Badge variant="secondary" className="appearance-current">
+                        <Badge tone="neutral" variant="soft" className="appearance-current">
                           使用中
                         </Badge>
                       )}

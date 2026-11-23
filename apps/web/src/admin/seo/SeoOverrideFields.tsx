@@ -1,5 +1,5 @@
 import { Field, Input, Switch } from '@nocoo/basalt';
-import { InputArea } from '@nocoo/basalt/components/input-area';
+import { Textarea } from '@nocoo/basalt/components/textarea';
 import type { SeoOverride } from '../../shared/seo';
 
 export function SeoOverrideFields({
@@ -30,7 +30,7 @@ export function SeoOverrideFields({
         />
       </Field>
       <Field label="SEO 描述" htmlFor={`${idPrefix}-description`} hint="留空则使用摘要或站点默认描述。">
-        <InputArea
+        <Textarea
           id={`${idPrefix}-description`}
           value={value.description ?? ''}
           rows={3}

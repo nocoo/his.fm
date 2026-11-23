@@ -1,5 +1,4 @@
 import { Button, Field, Input, LayerCard, Switch } from '@nocoo/basalt';
-import { InputArea } from '@nocoo/basalt/components/input-area';
 import { PageHeader } from '@nocoo/basalt/components/page-header';
 import {
   Select,
@@ -8,6 +7,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@nocoo/basalt/components/select';
+import { Textarea } from '@nocoo/basalt/components/textarea';
 import { Check } from '@nocoo/basalt/icons';
 import type { SiteSeo } from '../../shared/seo';
 import { getEnvironment } from '../environment';
@@ -60,7 +60,7 @@ function SiteSeoForm({
             />
           </Field>
           <Field label="默认描述" htmlFor="default-description" required>
-            <InputArea
+            <Textarea
               id="default-description"
               value={value.defaultDescription}
               rows={3}
@@ -89,7 +89,7 @@ function SiteSeoForm({
         )}
         <div className="admin-fields">
           <Field label="播客简介" htmlFor="podcast-description" required>
-            <InputArea
+            <Textarea
               id="podcast-description"
               value={value.podcastDescription}
               rows={4}

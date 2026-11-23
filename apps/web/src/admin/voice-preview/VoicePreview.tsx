@@ -54,11 +54,9 @@ function VoiceSampleCard({ entry, technical }: { entry: VoicePreviewVoice; techn
       </div>
       <div className="voice-sample-meta">
         <div className="voice-sample-tags">
-          <Badge variant={null} className="voice-tag voice-gender-tag">
-            {voiceGenderLabels[entry.gender]}
-          </Badge>
+          <Badge className="voice-tag voice-gender-tag">{voiceGenderLabels[entry.gender]}</Badge>
           {entry.traits.map((trait, index) => (
-            <Badge key={trait} variant={null} className={`voice-tag ${voicePreviewTraitClass(entry, index)}`}>
+            <Badge key={trait} className={`voice-tag ${voicePreviewTraitClass(entry, index)}`}>
               {trait}
             </Badge>
           ))}

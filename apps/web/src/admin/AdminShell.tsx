@@ -270,7 +270,7 @@ export function AdminShell({ session, children }: { session: Session; children: 
       if (session.mode === 'access') window.location.assign('/cdn-cgi/access/logout');
       else navigate('/login');
     } catch (cause) {
-      toast.error(errorMessage(cause));
+      toast.danger(errorMessage(cause));
       setLoggingOut(false);
     }
   }
