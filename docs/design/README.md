@@ -54,7 +54,7 @@ All studies use the same three comparison subjects. Episode 001 refers to the ex
 
 ## Regeneration
 
-Run from the repository root. Image generation is an explicit separate operation that defaults to the installed `system0` `image-generation-gpt` helper (`~/.agents/skills/image-generation-gpt/scripts/generate.py`, overridable via `HISFM_IMAGE_HELPER`) and reads credentials from `~/.config/system0/image-generation.json`. Never put credentials in these files.
+Run from the repository root. Image generation is an explicit separate operation that defaults to the installed `system0-image-generation-gpt` helper (`~/.agents/skills/system0-image-generation-gpt/scripts/generate.py`, overridable via `HISFM_IMAGE_HELPER`) and reads credentials from `~/.config/system0/image-generation.json`. Never put credentials in these files.
 
 ```sh
 python3 artwork/design-20260926/generate.py 05-hero 05-01 05-02 05-03

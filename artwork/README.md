@@ -10,7 +10,7 @@ Illustrations generated with Azure OpenAI `gpt-image-2.5-sunburst`, high quality
 
 ## Regeneration
 
-For initial episode artwork, run from the repository root with the desired asset name. Image generation uses the installed `system0` `image-generation-gpt` skill and credentials from `~/.config/system0/image-generation.json` (never stored in this repository; override the helper path with `HISFM_IMAGE_HELPER` if needed, see `artwork/_image_helper.py`).
+For initial episode artwork, run from the repository root with the desired asset name. Image generation uses the installed `system0-image-generation-gpt` skill and credentials from `~/.config/system0/image-generation.json` (never stored in this repository; override the helper path with `HISFM_IMAGE_HELPER` if needed, see `artwork/_image_helper.py`).
 
 ```sh
 python3 artwork/generate_asset.py episode-01
@@ -24,7 +24,7 @@ uv run --no-project --with Pillow==12.3.0 python3 artwork/optimize_images.py
 
 Append `hero` to rebuild only the current hero derivatives. These use WebP quality 90 at 1752/3504 pixels wide, plus 1168/2336-pixel square mobile crops. Episode covers use quality 85 at 768 pixels. The manifest records crop coordinates, dimensions, SHA-256 digests and byte sizes. Never enlarge a derivative beyond its native original.
 
-The hero must be regenerated through `image-generation-gpt`'s image-edit route (`/images/edits`, multipart `image[]`), with the approved original as the real input, the archived prompt, model `gpt-image-2.5-sunburst`, size `3504x2336`, quality `high` and PNG output. The text-only helper deliberately rejects this asset. Preserve each new generation in a new archive and use new immutable R2 keys when publishing derivatives.
+The hero must be regenerated through `system0-image-generation-gpt`'s image-edit route (`/images/edits`, multipart `image[]`), with the approved original as the real input, the archived prompt, model `gpt-image-2.5-sunburst`, size `3504x2336`, quality `high` and PNG output. The text-only helper deliberately rejects this asset. Preserve each new generation in a new archive and use new immutable R2 keys when publishing derivatives.
 
 The previous 1536×1024 image supplied less than 53% of the physical width needed on 14/16-inch MacBook Retina displays. The new native image covers 2928/3360-pixel display widths. Mobile derivatives retain full vertical resolution and place the person at the 61.8% golden line. HTML `sizes` follows the full image extent under `object-fit: cover`, not just the visible crop width, to avoid selecting undersized assets on tall screens.
 
