@@ -2,6 +2,20 @@
 
 All notable changes to his.fm are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions use the owner’s patch-only deployment policy in `AGENTS.md`, with the authoritative version in `package.json`.
 
+## 2.11.35 - 2026-11-24
+
+### Added
+
+- Add D1 migration `0029_storage_gc_queue.sql` and a daily production Worker Cron (`0 3 * * *` UTC) running `runStorageGc` to auto-purge unreferenced `uploads/` staging keys after 24 hours and other unreferenced R2 objects after a 7-day soft-retention grace window, with `purgeAfter` surfaced in `/admin/storage` and `/api/agent/storage`.
+- Add read-only R2 audit script `scripts/audit-r2.mjs`.
+
+### Changed
+
+- Deduplicate `rendered/` podcast art and share image cache keys into content-addressed `rendered/art/{theme}/{version}/` and `rendered/share/{version}/` prefixes shared across productions and episodes.
+- Narrow R2 cleanup protection to manifest-backed brand/theme WebPs (`assets.json` + `images/episode-01.webp`) and manifest-listed voice-preview MP3s (`voice-preview-manifest.json`), and guard `scripts/upload-brand-assets.mjs` against pushing archival master PNGs to R2.
+- Delete adopted `uploads/` staging audio copies immediately after `POST /productions/:id/assets/audio/bind` succeeds in D1.
+- Upgrade `@nocoo/basalt` to `3.6.0` and align artwork helper script with `system0-image-generation-gpt`.
+
 ## 2.11.34 - 2026-11-23
 
 ### Fixed
