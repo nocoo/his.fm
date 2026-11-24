@@ -25,6 +25,7 @@ export type StorageObject = {
   kind: StorageKind;
   state: 'referenced' | 'protected' | 'recent' | 'unused';
   reasons: string[];
+  purgeAfter?: string | null;
 };
 export type StoragePage = { objects: StorageObject[]; cursor: string | null };
 export type StorageCleanupResult = {

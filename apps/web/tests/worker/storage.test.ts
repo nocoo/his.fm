@@ -5,6 +5,7 @@ import { artLocation } from '../../src/shared/episode-art';
 import type { StorageCleanupResult, StoragePage } from '../../src/shared/storage';
 import worker from '../../worker';
 import { artRecords } from '../../worker/episode-art-cache';
+import { runStorageGc, STORAGE_GC_GRACE_MS, STORAGE_RETENTION_MS } from '../../worker/storage';
 import { readyFixture } from './production-fixture';
 
 vi.setConfig({ testTimeout: 30000, hookTimeout: 30000 });
@@ -93,9 +94,14 @@ beforeAll(async () => {
 }, 30000);
 beforeEach(async () => {
   await env.DB.batch(
-    ['media_provenance', 'episodes', 'productions', 'episode_number_claims', 'channel_profile'].map((table) =>
-      env.DB.prepare(`DELETE FROM ${table}`),
-    ),
+    [
+      'media_provenance',
+      'episodes',
+      'productions',
+      'episode_number_claims',
+      'channel_profile',
+      'storage_gc_queue',
+    ].map((table) => env.DB.prepare(`DELETE FROM ${table}`)),
   );
   await env.DB.batch([
     env.DB.prepare("UPDATE site_seo SET data = '{}' WHERE id = 1"),
@@ -517,7 +523,10 @@ describe('owner R2 inventory and cleanup', () => {
       'transcript.wav',
       'notes.wav',
       'bumper-current.wav',
+      'images/hero-retina-20260926-1752.webp',
+      'images/episode-01.webp',
       'images/hero.webp',
+      'images/brand/stillwood-master.png',
       'reference/voices/Kore.wav',
       'reference/voices/gemini-Kore.mp3',
       'not-ours.wav',
@@ -541,9 +550,16 @@ describe('owner R2 inventory and cleanup', () => {
       'bumper-failed.wav',
     ])
       expect(states[key]).toBe('referenced');
-    for (const key of ['images/hero.webp', 'reference/voices/Kore.wav', 'reference/voices/gemini-Kore.mp3'])
+    for (const key of [
+      'images/hero-retina-20260926-1752.webp',
+      'images/episode-01.webp',
+      'reference/voices/gemini-Kore.mp3',
+    ])
       expect(states[key]).toBe('protected');
     for (const key of [
+      'images/hero.webp',
+      'images/brand/stillwood-master.png',
+      'reference/voices/Kore.wav',
       'unused.mp4',
       'not-ours.wav',
       'audio/production-test/1/active/part-001.wav',
@@ -871,5 +887,123 @@ describe('authenticated streaming previews', () => {
 
   it('rejects invalid storage scan cursors', async () => {
     expect((await call(`?cursor=${'x'.repeat(4097)}`)).status).toBe(400);
+  });
+});
+
+describe('scheduled storage soft-retention GC', () => {
+  it('auto-purges aged uploads after 24h and other unreferenced objects after the 7-day grace window', async () => {
+    vi.spyOn(console, 'info').mockImplementation(() => {});
+    const day0 = Date.parse('2026-11-01T03:00:00.000Z');
+    const oldUpload = await put('uploads/old-staging.png', 'image/png');
+    const freshUpload = await put('uploads/fresh-staging.png', 'image/png');
+    const detachedAudio = await put('productions/p1/audio-1-old.mp3', 'audio/mpeg');
+    const revivedAudio = await put('productions/p1/audio-2-revived.mp3', 'audio/mpeg');
+    const protectedBrand = await put('images/hero-retina-20260926-1752.webp', 'image/webp');
+    await env.DB.prepare('INSERT INTO storage_gc_queue (key, first_unreferenced_at) VALUES (?, ?)')
+      .bind('already-deleted.wav', new Date(day0 - STORAGE_GC_GRACE_MS).toISOString())
+      .run();
+
+    const withUploadTimes = (times: Record<string, number>, base = env): Env => ({
+      ...base,
+      MEDIA: {
+        head: async (key: string) => {
+          const obj = await base.MEDIA.head(key);
+          return obj ? { ...obj, uploaded: new Date(times[key] ?? day0 - 2 * STORAGE_RETENTION_MS) } : null;
+        },
+        list: async (options?: R2ListOptions) => {
+          const page = await base.MEDIA.list(options);
+          return {
+            ...page,
+            objects: page.objects.map((obj) => ({
+              ...obj,
+              uploaded: new Date(times[obj.key] ?? day0 - 2 * STORAGE_RETENTION_MS),
+            })),
+          };
+        },
+        delete: (key: string | string[]) => base.MEDIA.delete(key),
+      } as R2Bucket,
+    });
+
+    const bindings = withUploadTimes({
+      [freshUpload.key]: day0 - 1000,
+    });
+
+    const first = await runStorageGc(bindings, { nowMs: day0 });
+    expect(first).toEqual({
+      scanned: 5,
+      enqueued: 2,
+      dequeued: 1,
+      deleted: 1,
+      deletedBytes: 10,
+      skipped: 0,
+      failed: 0,
+    });
+    expect(await env.MEDIA.head(oldUpload.key)).toBeNull();
+    expect(await env.MEDIA.head(freshUpload.key)).not.toBeNull();
+    expect(await env.MEDIA.head(detachedAudio.key)).not.toBeNull();
+    expect(await env.MEDIA.head(revivedAudio.key)).not.toBeNull();
+    expect(await env.MEDIA.head(protectedBrand.key)).not.toBeNull();
+
+    const scanned = (await scan(bindings)).objects;
+    const queuedObj = scanned.find((obj) => obj.key === detachedAudio.key);
+    expect(queuedObj?.purgeAfter).toBe(new Date(day0 + STORAGE_GC_GRACE_MS).toISOString());
+
+    await env.DB.prepare("INSERT INTO media_provenance VALUES ('revived', ?)")
+      .bind(JSON.stringify({ key: revivedAudio.key }))
+      .run();
+
+    const day3 = day0 + 3 * 24 * 60 * 60 * 1000;
+    const mid = await runStorageGc(bindings, { nowMs: day3 });
+    expect(mid.dequeued).toBe(1);
+    expect(mid.deleted).toBe(1);
+    expect(await env.MEDIA.head(freshUpload.key)).toBeNull();
+    expect(await env.MEDIA.head(detachedAudio.key)).not.toBeNull();
+
+    const day7 = day0 + STORAGE_GC_GRACE_MS;
+    const final = await runStorageGc(bindings, { nowMs: day7 });
+    expect(final.deleted).toBe(1);
+    expect(final.deletedBytes).toBe(10);
+    expect(await env.MEDIA.head(detachedAudio.key)).toBeNull();
+    expect(await env.MEDIA.head(revivedAudio.key)).not.toBeNull();
+    const leftover = await env.DB.prepare('SELECT key FROM storage_gc_queue').all();
+    expect(leftover.results).toEqual([]);
+  });
+
+  it('revalidates before deleting, handles delete failures, and respects maxDeletes and environment', async () => {
+    vi.spyOn(console, 'info').mockImplementation(() => {});
+    const nowMs = Date.parse('2026-11-10T03:00:00.000Z');
+    const dueIso = new Date(nowMs - STORAGE_GC_GRACE_MS - 1000).toISOString();
+    const skippedObj = await put('productions/p2/01-skipped.mp3', 'audio/mpeg');
+    const failObj = await put('productions/p2/02-fail.mp3', 'audio/mpeg');
+    const deferredObj = await put('productions/p2/03-deferred.mp3', 'audio/mpeg');
+    await env.DB.batch(
+      [skippedObj, failObj, deferredObj].map((obj) =>
+        env.DB.prepare('INSERT INTO storage_gc_queue (key, first_unreferenced_at) VALUES (?, ?)').bind(
+          obj.key,
+          dueIso,
+        ),
+      ),
+    );
+    const bindings = aged();
+    const origHead = bindings.MEDIA.head;
+    bindings.MEDIA.head = async (key: string) => {
+      if (key === skippedObj.key) return null;
+      return origHead(key);
+    };
+    const origDelete = bindings.MEDIA.delete;
+    bindings.MEDIA.delete = async (key: string | string[]) => {
+      if (key === failObj.key) throw new Error('R2 delete failed');
+      return origDelete(key);
+    };
+
+    const summary = await runStorageGc(bindings, { nowMs, maxDeletes: 2 });
+    expect(summary).toMatchObject({ scanned: 3, deleted: 0, skipped: 1, failed: 1 });
+    expect(await env.MEDIA.head(deferredObj.key)).not.toBeNull();
+
+    await worker.scheduled({} as ScheduledController, { ...bindings, ENVIRONMENT: 'local' });
+    expect(await env.MEDIA.head(deferredObj.key)).not.toBeNull();
+
+    await worker.scheduled({} as ScheduledController, { ...aged(), ENVIRONMENT: 'production' });
+    expect(await env.MEDIA.head(deferredObj.key)).toBeNull();
   });
 });

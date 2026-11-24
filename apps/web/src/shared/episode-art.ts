@@ -42,7 +42,7 @@ export async function artVersion(
 export async function artLocation(record: ArtRecord, theme: ThemeId | null, size = 1400) {
   const version = await artVersion(record, theme);
   const kind = theme ? 'art' : 'share';
-  const prefix = `rendered/${record.resource}/${encodeURIComponent(record.id)}/${kind}/${theme ?? 'stillwood'}/${version}/`;
+  const prefix = theme ? `rendered/art/${theme}/${version}/` : `rendered/share/${version}/`;
   const query = new URLSearchParams({ v: version });
   if (theme && size !== 1400) query.set('size', String(size));
   return {

@@ -15,7 +15,15 @@ const receipts = new Set(
 );
 let uploaded = 0;
 
+const allowedRuntimeAssetKey = /^images\/identity\/[^/]+\.(?:webp|jpe?g)$/;
+const allowedRuntimeContentTypes = new Set(['image/webp', 'image/jpeg']);
+
 for (const asset of manifest.assets) {
+  if (!allowedRuntimeAssetKey.test(asset.key) || !allowedRuntimeContentTypes.has(asset.contentType)) {
+    throw new Error(
+      `Refusing non-runtime asset upload to R2 (${asset.key}, ${asset.contentType}). Archive master artwork in Google Drive his.fm/brand/ instead.`,
+    );
+  }
   const data = await readFile(asset.file);
   if (createHash('sha256').update(data).digest('hex') !== asset.sha256) {
     throw new Error(`Local digest mismatch: ${asset.file}`);

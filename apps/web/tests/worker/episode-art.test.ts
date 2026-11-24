@@ -170,7 +170,7 @@ describe('versioned artwork edge cache', () => {
         .digest('hex');
       const oldRequest = request('art', `?v=${oldVersion}`);
       await edge.put(oldRequest, new Response(bytes));
-      await env.MEDIA.put(`rendered/episodes/one/art/${theme}/${oldVersion}/1400.jpg`, bytes);
+      await env.MEDIA.put(`rendered/art/${theme}/${oldVersion}/1400.jpg`, bytes);
       const head = vi.fn(env.MEDIA.head.bind(env.MEDIA));
       const response = await routeEpisodeArt(
         oldRequest,
@@ -919,36 +919,40 @@ describe('public episode JPEG artwork', () => {
           put: env.MEDIA.put.bind(env.MEDIA),
         },
       };
-      const record = {
+      const coverKeys = Array.from({ length: 10 }, (_, index) => `productions/p1/queued-cover-${index}.webp`);
+      await Promise.all(
+        coverKeys.map((coverKey) =>
+          env.MEDIA.put(coverKey, source, { httpMetadata: { contentType: 'image/webp' } }),
+        ),
+      );
+      const recordFor = (index: number, id = `queued-${index}`) => ({
         resource: 'episodes' as const,
-        id: 'queued-0',
+        id,
         title: 'Title',
         episodeNumber: 1,
         categoryName: 'Category',
-        coverUrl: `https://f.no.mt/${key}`,
-      };
-      const first = ensureEpisodeArt(bindings, origin, record, null);
+        coverUrl: `https://f.no.mt/${coverKeys[index]}`,
+      });
+      const first = ensureEpisodeArt(bindings, origin, recordFor(0), null);
       const outcome = first.then(
         () => 200,
         (error: HttpError) => error.status,
       );
       await started;
       const queued = Array.from({ length: 7 }, (_, index) =>
-        ensureEpisodeArt(bindings, origin, { ...record, id: `queued-${index + 1}` }, null),
+        ensureEpisodeArt(bindings, origin, recordFor(index + 1), null),
       );
       await vi.waitFor(() => expect(head).toHaveBeenCalledTimes(9));
-      await expect(
-        ensureEpisodeArt(bindings, origin, { ...record, id: 'overflow' }, null),
-      ).rejects.toMatchObject({ status: 503 });
+      await expect(ensureEpisodeArt(bindings, origin, recordFor(8, 'overflow'), null)).rejects.toMatchObject({
+        status: 503,
+      });
       expect(render).toHaveBeenCalledTimes(1);
       const expectedStatus = fail ? 422 : 200;
       release();
       expect(await outcome).toBe(expectedStatus);
       expect((await Promise.all(queued)).every(({ source }) => source === 'rendered')).toBe(true);
       expect(render).toHaveBeenCalledTimes(8);
-      expect((await ensureEpisodeArt(bindings, origin, { ...record, id: 'later' }, null)).source).toBe(
-        'rendered',
-      );
+      expect((await ensureEpisodeArt(bindings, origin, recordFor(9, 'later'), null)).source).toBe('rendered');
     },
   );
 

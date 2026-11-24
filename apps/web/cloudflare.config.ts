@@ -1,4 +1,4 @@
-import { bindings, defineConfig, exports } from 'cf/config';
+import { bindings, defineConfig, exports, triggers } from 'cf/config';
 import * as entrypoint from './worker/entry' with { type: 'cf-worker' };
 
 process.env.MINIFLARE_CACHE_DIR = '.cloudflare/cache';
@@ -15,6 +15,7 @@ export default defineConfig(({ mode }) => {
       workersDev: false,
       previewUrls: false,
       domains: local ? [] : ['his.fm', 'www.his.fm'],
+      ...(!local ? { triggers: [triggers.scheduled({ schedule: '0 3 * * *' })] } : {}),
       observability: { enabled: !local },
       cache: { enabled: false },
       exports: {

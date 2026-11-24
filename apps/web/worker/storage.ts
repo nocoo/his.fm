@@ -1,4 +1,6 @@
 import { isMp3Container, parseMp3 } from '@his-fm/contracts';
+import brandAssets from '../src/brand/assets.json';
+import voicePreviewManifest from '../src/shared/data/voice-preview-manifest.json';
 import type { Actor } from '../src/shared/production';
 import {
   type StorageCleanupResult,
@@ -8,7 +10,7 @@ import {
   storageKind,
 } from '../src/shared/storage';
 import { collectReferenceKeys } from '../src/shared/storage-references';
-import { parseVoicePreviewStorageKey, voicePreviewStoragePrefix } from '../src/shared/voice-preview-prefix';
+import { parseVoicePreviewStorageKey } from '../src/shared/voice-preview-prefix';
 import { parseWav } from './audio';
 import { requireScope } from './authorization';
 import { currentArtPrefixes } from './episode-art-cache';
@@ -18,10 +20,39 @@ import { rasterType } from './media-validation';
 import { readBytes, readJson } from './production-body';
 import { mediaUrl } from './production-store';
 
-const retentionMs = 24 * 60 * 60 * 1000;
+export const STORAGE_RETENTION_MS = 24 * 60 * 60 * 1000;
+export const STORAGE_GC_GRACE_MS = 7 * 24 * 60 * 60 * 1000;
+const maxScheduledDeletesPerRun = 50;
+const gcDeleteChunkSize = 10;
+const gcSqlBatchSize = 50;
 const immutableUploadCacheControl = 'public, max-age=31536000, immutable';
 const voicePreviewReferenceCacheControl = 'public, max-age=300, must-revalidate';
-type References = { keys: Map<string, Set<string>>; artPrefixes: string[] };
+
+const protectedBrandAssetKeys = new Set<string>(['images/episode-01.webp']);
+for (const theme of Object.values(brandAssets)) {
+  for (const value of Object.values(theme)) {
+    if (typeof value !== 'string') continue;
+    for (const key of collectReferenceKeys(value)) protectedBrandAssetKeys.add(key);
+  }
+}
+
+const protectedVoicePreviewKeys = new Set<string>(voicePreviewManifest.map((entry) => entry.objectKey));
+
+type References = {
+  keys: Map<string, Set<string>>;
+  artPrefixes: string[];
+  gcQueue: Map<string, string>;
+};
+
+export type StorageGcSummary = {
+  scanned: number;
+  enqueued: number;
+  dequeued: number;
+  deleted: number;
+  deletedBytes: number;
+  skipped: number;
+  failed: number;
+};
 
 function collect(value: unknown, label: string, keys: References['keys'], property = '') {
   if (typeof value === 'string') {
@@ -39,13 +70,19 @@ function collect(value: unknown, label: string, keys: References['keys'], proper
   }
 }
 
+async function runBatched(db: D1Database, statements: D1PreparedStatement[]) {
+  for (let start = 0; start < statements.length; start += gcSqlBatchSize) {
+    await db.batch(statements.slice(start, start + gcSqlBatchSize));
+  }
+}
+
 async function references(db: D1Database): Promise<References> {
-  const [productions, episodes, provenance, channel, bumpers, categories, siteSeo, topics, mentions] =
+  const [productions, episodes, provenance, channel, bumpers, categories, siteSeo, topics, mentions, gcRows] =
     await db.batch<Record<string, unknown>>([
       db.prepare('SELECT data FROM productions'),
       db.prepare(
         `SELECT title, cover_url, audio_url, transcript, summary, seo, lead, research_note,
-        credits, body FROM episodes`,
+      credits, body FROM episodes`,
       ),
       db.prepare('SELECT data FROM media_provenance'),
       db.prepare('SELECT prompt_slots FROM channel_profile'),
@@ -54,14 +91,19 @@ async function references(db: D1Database): Promise<References> {
       db.prepare('SELECT data FROM site_seo WHERE id = 1'),
       db.prepare('SELECT episode_id, title, detail, source_urls FROM episode_topics'),
       db.prepare('SELECT episode_id, name, description, url FROM episode_mentions'),
+      db.prepare('SELECT key, first_unreferenced_at FROM storage_gc_queue'),
     ]);
   if (
-    [productions, episodes, provenance, channel, bumpers, categories, siteSeo, topics, mentions].some(
+    [productions, episodes, provenance, channel, bumpers, categories, siteSeo, topics, mentions, gcRows].some(
       (result) => !result.success,
     )
   )
     throw new HttpError(503, '资源引用暂时无法读取，请重试');
-  const refs: References = { keys: new Map(), artPrefixes: await currentArtPrefixes(db) };
+  const gcQueue = new Map<string, string>();
+  for (const row of gcRows.results) {
+    gcQueue.set(String(row.key), String(row.first_unreferenced_at));
+  }
+  const refs: References = { keys: new Map(), artPrefixes: await currentArtPrefixes(db), gcQueue };
   for (const row of productions.results) {
     const data = JSON.parse(String(row.data));
     collect(data, `制作：${data.title}`, refs.keys);
@@ -89,7 +131,19 @@ async function references(db: D1Database): Promise<References> {
   return refs;
 }
 
-function describe(object: R2Object, refs: References): StorageObject {
+function isStagingUploadKey(key: string) {
+  return key.startsWith('uploads/');
+}
+
+function purgeTimestamp(object: R2Object, gcQueue: Map<string, string>): string | null {
+  if (isStagingUploadKey(object.key)) {
+    return new Date(object.uploaded.getTime() + STORAGE_RETENTION_MS).toISOString();
+  }
+  const queuedAt = gcQueue.get(object.key);
+  return queuedAt ? new Date(Date.parse(queuedAt) + STORAGE_GC_GRACE_MS).toISOString() : null;
+}
+
+function describe(object: R2Object, refs: References, nowMs = Date.now()): StorageObject {
   let state: StorageObject['state'] = 'unused';
   let reasons = ['未检测到站内引用'];
   const labels = refs.keys.get(object.key);
@@ -99,13 +153,13 @@ function describe(object: R2Object, refs: References): StorageObject {
   } else if (refs.artPrefixes.some((prefix) => object.key.startsWith(prefix))) {
     state = 'referenced';
     reasons = ['当前节目合成图片'];
-  } else if (object.key.startsWith(voicePreviewStoragePrefix)) {
+  } else if (protectedVoicePreviewKeys.has(object.key)) {
     state = 'protected';
     reasons = ['音色预览参考样片'];
-  } else if (object.key.startsWith('images/') || object.key.startsWith('reference/')) {
+  } else if (protectedBrandAssetKeys.has(object.key)) {
     state = 'protected';
-    reasons = ['品牌图片与音色参考'];
-  } else if (Date.now() - object.uploaded.getTime() < retentionMs) {
+    reasons = ['品牌与主题运行期资源'];
+  } else if (nowMs - object.uploaded.getTime() < STORAGE_RETENTION_MS) {
     state = 'recent';
     reasons = ['上传未满 24 小时'];
   }
@@ -119,7 +173,113 @@ function describe(object: R2Object, refs: References): StorageObject {
     kind: storageKind(object.key, contentType),
     state,
     reasons,
+    ...(state === 'unused' ? { purgeAfter: purgeTimestamp(object, refs.gcQueue) } : {}),
   };
+}
+
+export async function runStorageGc(
+  env: Env,
+  options: { nowMs?: number; maxDeletes?: number } = {},
+): Promise<StorageGcSummary> {
+  const nowMs = options.nowMs ?? Date.now();
+  const maxDeletes = options.maxDeletes ?? maxScheduledDeletesPerRun;
+  const nowIso = new Date(nowMs).toISOString();
+
+  const objects: R2Object[] = [];
+  let cursor: string | undefined;
+  do {
+    const page = await env.MEDIA.list({ limit: 1000, cursor, include: ['httpMetadata'] });
+    objects.push(...page.objects);
+    cursor = page.truncated ? page.cursor : undefined;
+  } while (cursor);
+
+  const refs = await references(env.DB);
+  const seenKeys = new Set<string>();
+  const toEnqueue: string[] = [];
+  const toDequeue: string[] = [];
+  const due: { key: string; version: string; size: number }[] = [];
+
+  for (const object of objects) {
+    seenKeys.add(object.key);
+    const info = describe(object, refs, nowMs);
+    if (info.state !== 'unused') {
+      if (refs.gcQueue.has(object.key)) toDequeue.push(object.key);
+      continue;
+    }
+    if (isStagingUploadKey(object.key)) {
+      due.push({ key: object.key, version: object.version, size: object.size });
+      continue;
+    }
+    const queuedAt = refs.gcQueue.get(object.key);
+    if (!queuedAt) {
+      toEnqueue.push(object.key);
+    } else if (Date.parse(queuedAt) + STORAGE_GC_GRACE_MS <= nowMs) {
+      due.push({ key: object.key, version: object.version, size: object.size });
+    }
+  }
+  for (const queuedKey of refs.gcQueue.keys()) {
+    if (!seenKeys.has(queuedKey)) toDequeue.push(queuedKey);
+  }
+
+  const syncStatements: D1PreparedStatement[] = [
+    ...toEnqueue.map((key) =>
+      env.DB.prepare(
+        'INSERT OR IGNORE INTO storage_gc_queue (key, first_unreferenced_at) VALUES (?, ?)',
+      ).bind(key, nowIso),
+    ),
+    ...toDequeue.map((key) => env.DB.prepare('DELETE FROM storage_gc_queue WHERE key = ?').bind(key)),
+  ];
+  await runBatched(env.DB, syncStatements);
+
+  let deleted = 0;
+  let deletedBytes = 0;
+  let skipped = 0;
+  let failed = 0;
+  const deletedKeys: string[] = [];
+  const candidates = due.slice(0, maxDeletes);
+
+  for (let start = 0; start < candidates.length; start += gcDeleteChunkSize) {
+    const chunk = candidates.slice(start, start + gcDeleteChunkSize);
+    const freshRefs = await references(env.DB);
+    for (const item of chunk) {
+      try {
+        const object = await env.MEDIA.head(item.key);
+        const current = object ? describe(object, freshRefs, nowMs) : null;
+        const stillDue =
+          current?.state === 'unused' &&
+          current.version === item.version &&
+          current.purgeAfter != null &&
+          Date.parse(current.purgeAfter) <= nowMs;
+        if (!stillDue) {
+          skipped++;
+          continue;
+        }
+        await env.MEDIA.delete(item.key);
+        deleted++;
+        deletedBytes += current.size;
+        deletedKeys.push(item.key);
+      } catch {
+        failed++;
+      }
+    }
+  }
+
+  await runBatched(
+    env.DB,
+    deletedKeys.map((key) => env.DB.prepare('DELETE FROM storage_gc_queue WHERE key = ?').bind(key)),
+  );
+
+  const summary: StorageGcSummary = {
+    scanned: objects.length,
+    enqueued: toEnqueue.length,
+    dequeued: toDequeue.length,
+    deleted,
+    deletedBytes,
+    skipped,
+    failed,
+  };
+  console.info(JSON.stringify({ event: 'storage_gc_completed', ...summary }));
+  return summary;
 }
 
 async function cleanup(env: Env, items: { key: string; version: string }[]) {
@@ -144,6 +304,7 @@ async function cleanup(env: Env, items: { key: string; version: string }[]) {
         continue;
       }
       await env.MEDIA.delete(item.key);
+      await env.DB.prepare('DELETE FROM storage_gc_queue WHERE key = ?').bind(item.key).run();
       results.push({ key: item.key, status: 'deleted', reason: '已删除', bytes: current.size });
     } catch {
       results.push({ key: item.key, status: 'failed', reason: '删除失败，请重新扫描后重试', bytes: 0 });
@@ -221,7 +382,10 @@ async function upload(request: Request, env: Env) {
   });
   if (!object) throw new HttpError(409, '资源路径已存在，请重试');
   return json(
-    { object: describe(object, { keys: new Map(), artPrefixes: [] }), url: mediaUrl(env, key) },
+    {
+      object: describe(object, { keys: new Map(), artPrefixes: [], gcQueue: new Map() }),
+      url: mediaUrl(env, key),
+    },
     201,
   );
 }

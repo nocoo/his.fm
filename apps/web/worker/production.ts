@@ -193,12 +193,21 @@ async function bindAudio(request: Request, env: Env, id: string, actor: Actor) {
       );
     throw error;
   }
+  let attached: Production;
   try {
-    return await attachProductionAudio(env, id, actor, expectedVersion, adopted.key, adopted.stored);
+    attached = await attachProductionAudio(env, id, actor, expectedVersion, adopted.key, adopted.stored);
   } catch (error) {
     if (input.key.startsWith('uploads/')) await env.MEDIA.delete(adopted.key);
     throw error;
   }
+  if (input.key.startsWith('uploads/')) {
+    await env.MEDIA.delete(input.key).catch((error: unknown) => {
+      console.error(
+        JSON.stringify({ event: 'staging_audio_delete_failed', key: input.key, message: String(error) }),
+      );
+    });
+  }
+  return attached;
 }
 
 async function detachAsset(request: Request, env: Env, id: string, asset: 'cover' | 'audio', actor: Actor) {

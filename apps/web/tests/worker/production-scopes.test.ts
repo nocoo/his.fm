@@ -633,7 +633,7 @@ describe('manual assets and safe detach', () => {
     expect(production.assets.audio?.key).toMatch(
       new RegExp(`^productions/${production.id}/audio-${production.scriptVersion}-`),
     );
-    expect(await env.MEDIA.head(staging)).not.toBeNull();
+    expect(await env.MEDIA.head(staging)).toBeNull();
     const directKey = `productions/${production.id}/audio-${production.scriptVersion}-00000000-0000-4000-8000-000000000011.wav`;
     await env.MEDIA.put(directKey, wav);
     production = await result(
@@ -701,6 +701,7 @@ describe('manual assets and safe detach', () => {
     const response = await call(path, 'POST', { version: 1, key: staging }, writeOnly);
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ production: { id: production.id, version: 2 } });
+    expect(await env.MEDIA.head(staging)).toBeNull();
     const changed = await getProduction(env.DB, production.id);
     expect(changed).toMatchObject({ stage: 'production', approvals: { final: null } });
     const unapproved = await saveProduction(
@@ -708,8 +709,34 @@ describe('manual assets and safe detach', () => {
       { ...changed, approvals: { ...changed.approvals, script: null } },
       changed.version,
     );
-    expect((await call(path, 'POST', { version: unapproved.version, key: staging })).status).toBe(409);
-    expect(await env.MEDIA.head(staging)).not.toBeNull();
+    const stagingNext = 'uploads/00000000-0000-4000-8000-000000000022.wav';
+    await env.MEDIA.put(stagingNext, wav);
+    expect((await call(path, 'POST', { version: unapproved.version, key: stagingNext })).status).toBe(409);
+    expect(await env.MEDIA.head(stagingNext)).not.toBeNull();
+    const reapproved = await saveProduction(
+      env.DB,
+      { ...unapproved, approvals: { ...unapproved.approvals, script: changed.approvals.script } },
+      unapproved.version,
+    );
+    const errorLog = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const flakyDeleteMedia = new Proxy(env.MEDIA, {
+      get(target, prop, receiver) {
+        if (prop === 'delete') {
+          return async (key: string | string[]) => {
+            if (key === stagingNext) throw new Error('Transient R2 delete failure');
+            return target.delete(key);
+          };
+        }
+        return Reflect.get(target, prop, receiver);
+      },
+    });
+    const tolerated = await call(path, 'POST', { version: reapproved.version, key: stagingNext }, writeOnly, {
+      ...env,
+      MEDIA: flakyDeleteMedia,
+    });
+    expect(tolerated.status).toBe(200);
+    expect(errorLog).toHaveBeenCalledWith(expect.stringContaining('staging_audio_delete_failed'));
+    errorLog.mockRestore();
   });
 
   it('cleans only the newly uploaded audio on a production conflict and keeps existing immutable keys', async () => {

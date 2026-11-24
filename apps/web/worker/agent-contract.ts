@@ -321,6 +321,7 @@ export function agentOpenApi(origin: string) {
     kind: z.enum(storageKinds),
     state: z.enum(['referenced', 'protected', 'recent', 'unused']),
     reasons: z.array(z.string()),
+    purgeAfter: stamp.nullable().optional(),
   });
   const cleanupResult = z.object({
     results: z.array(
@@ -711,7 +712,7 @@ export function agentOpenApi(origin: string) {
         post: {
           ...operation(
             'bindProductionAudio',
-            'Attach a validated WAV or MP3 already stored in the his-fm R2 bucket. Requires current script approval, at most 7200 seconds with the same byte caps as PUT; reviewed assets require productions:reopen. Upload out-of-band only with separate infrastructure authorization, then bind by key. Staging sources are retained. Keys must be uploads/<uuid>.{wav|mp3} or productions/{id}/audio-<scriptVersion>-<uuid>.{wav|mp3} for this production.',
+            'Attach a validated WAV or MP3 already stored in the his-fm R2 bucket. Requires current script approval, at most 7200 seconds with the same byte caps as PUT; reviewed assets require productions:reopen. Upload out-of-band only with separate infrastructure authorization, then bind by key. Adopted uploads/ staging sources are deleted after successful attachment; failed attempts keep the staging key. Keys must be uploads/<uuid>.{wav|mp3} or productions/{id}/audio-<scriptVersion>-<uuid>.{wav|mp3} for this production.',
             wrappedProduction,
             ['productions:write', 'storage:write'],
           ),
@@ -967,7 +968,7 @@ export function agentOpenApi(origin: string) {
         get: {
           ...operation(
             'scanStorage',
-            'Scan all cursor pages before cleanup; current references, protected prefixes and 24-hour retention are reported',
+            'Scan all cursor pages before cleanup; reports references, runtime manifest protection, 24-hour upload retention and scheduled purgeAfter timestamps (24h for unreferenced uploads/, 7 days for other unreferenced objects)',
             schema(z.object({ objects: z.array(storageObject), cursor: z.string().nullable() })),
             ['storage:read'],
           ),
@@ -976,7 +977,7 @@ export function agentOpenApi(origin: string) {
         post: {
           ...operation(
             'uploadStorageObject',
-            'Upload validated raster, mono 24 kHz PCM16 WAV or MP3, at most 25 MiB. By default the server generates a new immutable uploads/<uuid> key. Optional query key=reference/voices/<name>.mp3 writes or replaces a voice-preview reference MP3 (audio/mpeg only); no traversal, no other query parameters with key.',
+            'Upload validated raster, mono 24 kHz PCM16 WAV or MP3, at most 25 MiB. R2 stores active production CDN assets only (never archive masters here; upload episode covers directly via PUT /productions/{id}/assets/cover). By default the server generates a new immutable uploads/<uuid> key that expires automatically after 24 hours if unreferenced. Optional query key=reference/voices/<name>.mp3 writes or replaces a voice-preview reference MP3 (audio/mpeg only); no traversal, no other query parameters with key.',
             schema(z.object({ object: storageObject, url: z.string() })),
             ['storage:write'],
             201,

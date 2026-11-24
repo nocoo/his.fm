@@ -53,5 +53,5 @@ export async function currentArtPrefixes(db: D1Database) {
   const locations = await Promise.all(
     records.flatMap((record) => [artLocation(record, theme), artLocation(record, null)]),
   );
-  return locations.map(({ prefix }) => prefix);
+  return [...new Set(locations.map(({ prefix }) => prefix))];
 }

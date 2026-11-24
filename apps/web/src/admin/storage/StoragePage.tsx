@@ -68,7 +68,14 @@ function Preview({ object, close }: { object: StorageObject; close: () => void }
             disabled={getEnvironment() === 'local'}
           />
         </div>
-        <p className="admin-muted">{object.reasons.join('；')}</p>
+        <p className="admin-muted">
+          {object.reasons.join('；')}
+          {object.state === 'unused'
+            ? object.purgeAfter
+              ? ` · 预计自动清理：${dateLabel(object.purgeAfter)}`
+              : ' · 待定时巡检入队（宽限 7 天）'
+            : ''}
+        </p>
       </DialogContent>
     </Dialog>
   );
@@ -125,7 +132,11 @@ export default function StoragePage() {
         />
       </StatGrid>
       <div className="studio-notice">
-        <p>节目引用、品牌素材、生成任务与最近 24 小时的上传受保护。站外使用情况需自行确认，删除不可撤销。</p>
+        <p>
+          R2 仅存生产 CDN 资产（归档文件请存 Google Drive
+          his.fm/）。节目引用、运行期品牌素材、清单内音色样片与最近 24 小时上传受保护；未引用的临时上传满 24
+          小时、其余失引文件满 7 天宽限期后由定时任务自动清理，也可手动提前删除。
+        </p>
       </div>
       <p role="status" className="admin-muted">
         {vm.loading
@@ -282,7 +293,14 @@ export default function StoragePage() {
                       {storageKindLabels[object.kind]} · {dateLabel(object.uploaded)}
                     </span>
                   </div>
-                  <span className="admin-muted">{object.reasons.join('；')}</span>
+                  <span className="admin-muted">
+                    {object.reasons.join('；')}
+                    {object.state === 'unused'
+                      ? object.purgeAfter
+                        ? ` · 预计自动清理：${dateLabel(object.purgeAfter)}`
+                        : ' · 待定时巡检入队（宽限 7 天）'
+                      : ''}
+                  </span>
                 </div>
                 <div className="storage-size">
                   <strong>{formatBytes(object.size)}</strong>

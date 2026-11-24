@@ -132,14 +132,14 @@ describe('versioned managed episode artwork descriptors', () => {
     expect(await artVersion({ ...record, coverUrl: '/media/next.webp' }, null)).not.toBe(version);
   });
 
-  it('keeps every output size under a versioned resource/id/kind/theme managed prefix', async () => {
+  it('keeps every output size under a content-addressed rendered prefix shared across productions and episodes', async () => {
     const square = await artLocation(record, 'stillwood');
     const large = await artLocation(record, 'stillwood', 3000);
     const share = await artLocation(record, null, 3000);
     const encoded = encodeURIComponent(record.id);
     expect(square).toEqual({
-      prefix: `rendered/episodes/${encoded}/art/stillwood/${square.version}/`,
-      key: `rendered/episodes/${encoded}/art/stillwood/${square.version}/1400.jpg`,
+      prefix: `rendered/art/stillwood/${square.version}/`,
+      key: `rendered/art/stillwood/${square.version}/1400.jpg`,
       version: expect.stringMatching(/^[a-f0-9]{64}$/),
       url: `/episodes/${encoded}/art.jpg?v=${square.version}`,
     });
@@ -149,14 +149,17 @@ describe('versioned managed episode artwork descriptors', () => {
       url: `${square.url}&size=3000`,
     });
     expect(share).toEqual({
-      prefix: `rendered/episodes/${encoded}/share/stillwood/${share.version}/`,
-      key: `rendered/episodes/${encoded}/share/stillwood/${share.version}/1200.jpg`,
+      prefix: `rendered/share/${share.version}/`,
+      key: `rendered/share/${share.version}/1200.jpg`,
       version: expect.stringMatching(/^[a-f0-9]{64}$/),
       url: `/episodes/${encoded}/share.jpg?v=${share.version}`,
     });
-    const production = await artLocation({ ...record, resource: 'productions' }, 'interval');
-    expect(production.prefix).toContain(`rendered/productions/${encoded}/art/interval/`);
-    expect(production.key).not.toBe(square.key);
+    const sameProduction = await artLocation({ ...record, resource: 'productions' }, 'stillwood');
+    expect(sameProduction.prefix).toBe(square.prefix);
+    expect(sameProduction.key).toBe(square.key);
+    const otherTheme = await artLocation({ ...record, resource: 'productions' }, 'interval');
+    expect(otherTheme.prefix).toBe(`rendered/art/interval/${otherTheme.version}/`);
+    expect(otherTheme.key).not.toBe(square.key);
   });
 
   it('versions only the automatic share URL without overriding custom SEO artwork or mutating the record', async () => {
@@ -230,7 +233,7 @@ describe('current artwork references', () => {
 
   it('protects all sizes of current square/share records but not old square themes or versions', async () => {
     const prefixes = await currentArtPrefixes(db);
-    expect(prefixes).toHaveLength(8);
+    expect(prefixes).toHaveLength(6);
     const square = await artLocation(record, 'stillwood', 3000);
     const share = await artLocation(record, null);
     expect(prefixes).toContain(square.prefix);
@@ -242,6 +245,10 @@ describe('current artwork references', () => {
     await db
       .prepare('UPDATE episodes SET cover_url = ? WHERE id = ?')
       .bind('/media/new.png', record.id)
+      .run();
+    expect(await currentArtPrefixes(db)).toContain(share.prefix);
+    await db
+      .prepare("UPDATE productions SET data = json_set(data, '$.assets.cover.url', '/media/new.png')")
       .run();
     expect(await currentArtPrefixes(db)).not.toContain(share.prefix);
   });

@@ -30,6 +30,7 @@ import { buildRobotsTxt } from './robots';
 import { getSiteSeo } from './seo-store';
 import { enrichSession } from './session';
 import { buildSitemap } from './sitemap';
+import { runStorageGc } from './storage';
 
 async function media(request: Request, env: Env) {
   if (request.method !== 'GET' && request.method !== 'HEAD') throw new HttpError(405, '不支持这个请求方式');
@@ -314,5 +315,9 @@ export default {
     if (!headers.has('Content-Security-Policy'))
       headers.set('Content-Security-Policy', "base-uri 'none'; object-src 'none'; frame-ancestors 'none'");
     return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
+  },
+  async scheduled(_controller: ScheduledController, env: Env): Promise<void> {
+    if (env.ENVIRONMENT === 'local') return;
+    await runStorageGc(env);
   },
 } satisfies ExportedHandler<Env>;

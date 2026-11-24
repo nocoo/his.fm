@@ -149,4 +149,41 @@ describe('artwork uploader', () => {
       rmSync(root, { recursive: true, force: true });
     }
   });
+
+  it('refuses archival PNG masters before issuing any R2 upload', () => {
+    const root = mkdtempSync(join(tmpdir(), 'hisfm-brand-master-'));
+    try {
+      mkdirSync(join(root, 'artwork/identity/images'), { recursive: true });
+      const bytes = Buffer.from('master png');
+      const asset = {
+        file: 'artwork/identity/images/master.png',
+        key: 'images/brand/master.png',
+        contentType: 'image/png',
+        sha256: createHash('sha256').update(bytes).digest('hex'),
+      };
+      writeFileSync(join(root, asset.file), bytes);
+      writeFileSync(
+        join(root, 'artwork/identity/manifest.json'),
+        JSON.stringify({
+          assets: [asset],
+          cdn: 'https://f.no.mt',
+          cacheControl: 'public, max-age=31536000, immutable',
+        }),
+      );
+      const script = new URL('../../../scripts/upload-brand-assets.mjs', import.meta.url).href;
+      const result = spawnSync(
+        process.execPath,
+        ['--input-type=module', '--eval', `await import(${JSON.stringify(script)})`],
+        {
+          cwd: root,
+          encoding: 'utf8',
+        },
+      );
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain('Refusing non-runtime asset upload to R2');
+      expect(result.stderr).toContain('Google Drive his.fm/brand/');
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
 });
