@@ -29,7 +29,7 @@ jobs:
       - uses: nocoo/base-ci/.github/actions/setup-js@6424d395d36a815d931f10e557762eb635d511c0 # v2026.16
         with:
           package-manager: npm
-          npm-version: ${{ env.NPM_VERSION }}
+          runtime-version: ${{ env.NPM_VERSION }}
           node-version: ${{ env.NODE_VERSION }}
           install-policy: project
       - run: npm run typecheck
@@ -42,7 +42,7 @@ jobs:
       - uses: nocoo/base-ci/.github/actions/setup-js@6424d395d36a815d931f10e557762eb635d511c0 # v2026.16
         with:
           package-manager: npm
-          npm-version: ${{ env.NPM_VERSION }}
+          runtime-version: ${{ env.NPM_VERSION }}
           node-version: ${{ env.NODE_VERSION }}
           install-policy: project
       - run: npm run lint
@@ -99,7 +99,7 @@ jobs:
       - uses: nocoo/base-ci/.github/actions/setup-js@6424d395d36a815d931f10e557762eb635d511c0 # v2026.16
         with:
           package-manager: npm
-          npm-version: ${{ env.NPM_VERSION }}
+          runtime-version: ${{ env.NPM_VERSION }}
           node-version: ${{ env.NODE_VERSION }}
           install-policy: project
       - run: npm run ci:ensure-native-binaries && npm run build
@@ -112,7 +112,7 @@ jobs:
       - uses: nocoo/base-ci/.github/actions/setup-js@6424d395d36a815d931f10e557762eb635d511c0 # v2026.16
         with:
           package-manager: npm
-          npm-version: ${{ env.NPM_VERSION }}
+          runtime-version: ${{ env.NPM_VERSION }}
           node-version: ${{ env.NODE_VERSION }}
           install-policy: project
       - run: npm run ci:ensure-native-binaries && npm run test:coverage && npm run test:gate
