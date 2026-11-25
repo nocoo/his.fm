@@ -205,7 +205,7 @@ function runCommandAsync(command, args, dir, scratch, env = {}, timeoutMs = 1800
         process.kill(-child.pid, 'SIGTERM');
       } catch {}
     }, timeoutMs);
-    child.on('exit', (code, gotSignal) => {
+    child.on('close', (code, gotSignal) => {
       clearTimeout(timer);
       resolve(
         resultOf(scratch, {
@@ -249,7 +249,7 @@ function runHookSignaled(dir, signal, env = {}) {
         process.kill(-child.pid, signal);
       } catch {}
     }, 400);
-    child.on('exit', (code, gotSignal) => {
+    child.on('close', (code, gotSignal) => {
       clearTimeout(timer);
       resolve(
         resultOf(scratch, {
