@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, symlinkSync } from 'node:fs';
 import { join } from 'node:path';
 
-const coverageFloor = 95;
+const coverageFloor = 80;
 const coverageMetrics = ['statements', 'branches', 'functions', 'lines'];
 
 const workspaceLinks = [

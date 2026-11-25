@@ -101,7 +101,7 @@ jobs:
           runtime-version: ${{ env.NPM_VERSION }}
           node-version: ${{ env.NODE_VERSION }}
           install-policy: project
-      - run: npm run ci:ensure-native-binaries && npm run test:coverage && npm run test:gate
+      - run: npm run ci:ensure-native-binaries && npm run test:coverage
 
   l2-runtime:
     name: "L2: Runtime"

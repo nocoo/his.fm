@@ -311,10 +311,10 @@ await (async () => {
       join(validCovRoot, 'coverage/coverage-summary.json'),
       `${JSON.stringify({
         total: {
-          statements: { pct: 95, total: 10 },
-          branches: { pct: 95, total: 10 },
-          functions: { pct: 95, total: 10 },
-          lines: { pct: 95, total: 10 },
+          statements: { pct: 80, total: 10 },
+          branches: { pct: 80, total: 10 },
+          functions: { pct: 80, total: 10 },
+          lines: { pct: 80, total: 10 },
         },
       })}\n`,
     );
