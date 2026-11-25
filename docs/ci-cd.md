@@ -1,6 +1,6 @@
 # CI/CD
 
-Shared actions and deployment workflows come from [nocoo/base-ci](https://github.com/nocoo/base-ci), pinned by full commit SHA in `.github/workflows/quality-slots.yml` and `.github/workflows/release.yml` (currently `v2026.15`). Upgrade by updating the full SHA after a reviewed base-ci release.
+Shared actions and deployment workflows come from [nocoo/base-ci](https://github.com/nocoo/base-ci), pinned by full commit SHA in `.github/workflows/quality-slots.yml` and `.github/workflows/release.yml` (currently `v2026.17`). Upgrade by updating the full SHA after a reviewed base-ci release.
 
 ## CI (`.github/workflows/ci.yml` & `.github/workflows/quality-slots.yml`)
 
