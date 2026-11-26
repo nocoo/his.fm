@@ -23,6 +23,9 @@ export default defineConfig(({ mode }) => ({
       // production bindings of cloudflare.config.ts and talks to the real D1 and R2.
       remoteBindings: mode !== 'development',
       inspectorPort: false,
+      ...(process.env.CLOUDFLARE_PERSIST_STATE
+        ? { persistState: { path: process.env.CLOUDFLARE_PERSIST_STATE } }
+        : {}),
     }),
   ],
   server: {

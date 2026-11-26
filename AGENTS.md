@@ -14,7 +14,7 @@ npm run typecheck          # S1 (runs cf:typegen first)
 npm run lint               # S2 Biome check-only, 0 warnings
 npm run test:coverage      # L1 Vitest >= 80% across all workspaces
 npm run test:gate          # L1 Husky staged-gate self-test probes
-npm run test:e2e           # L4 Playwright against loopback dev stack
+npm run test:e2e           # L4 Playwright (local dev stack, or CI smoke with CI=true)
 npm run build              # B1 critical CSS + cf build -> apps/web/.cloudflare/output/v0
 npm run cf:typegen         # regenerate Worker types without loading .env
 npm run check:cover-frames # verify exported theme cover frame assets
@@ -41,7 +41,7 @@ npm run check:cover-frames # verify exported theme cover frame assets
 
 Follows `system1-quality`; CI slot definitions and pinned `base-ci` revision live in `.github/workflows/quality-slots.yml` (`quality / Z1: Gate` required on `main`). Status vocabulary: `enforced`, `planned`, `manual`, `N/A`.
 
-- **Exceptions / gaps**: `L2 Runtime`, `L3 Integration` and `P1 Package` are `N/A` (Worker bindings in `L1`; no standalone API E2E; private monorepo); `L4 E2E` is `planned` (local Playwright only).
+- **Exceptions / gaps**: `L2 Runtime` and `L3 Integration` are `N/A` (Worker bindings in `L1`; no standalone API E2E). `L4 E2E` (`ci-smoke.spec.ts` against `B1` preview build) and `P1 Package` (`cf deploy --prebuilt --dry-run`) are `enforced`.
 - **Coverage scope**: `L1` enforces 80% (statements/branches/functions/lines) across workspaces, excluding React views and generated types; web Vitest caps at 4 workers ([operations.md](docs/operations.md)).
 - **Local hooks**: `npm run prepare` installs `.husky/pre-commit`, running staged `scripts/check-staged.mjs` (`test:coverage`, `lint`, `typecheck` + 80% floors) without editing the worktree; `pre-push` is `N/A`.
 

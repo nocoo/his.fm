@@ -1,16 +1,16 @@
 # CI/CD
 
-Shared actions and deployment workflows come from [nocoo/base-ci](https://github.com/nocoo/base-ci), pinned by full commit SHA in `.github/workflows/quality-slots.yml` and `.github/workflows/release.yml` (currently `v2026.17`). Upgrade by updating the full SHA after a reviewed base-ci release.
+Shared actions and deployment workflows come from [nocoo/base-ci](https://github.com/nocoo/base-ci), pinned by full commit SHA in `.github/workflows/quality-slots.yml` and `.github/workflows/release.yml` (currently `v2026.18`). Upgrade by updating the full SHA after a reviewed base-ci release.
 
 ## CI (`.github/workflows/ci.yml` & `.github/workflows/quality-slots.yml`)
 
 Runs on every push to `main`, pull requests against `main`, and manual dispatch. `ci.yml` delegates to `.github/workflows/quality-slots.yml` (System1 Native Mode).
 
-Enforced slots: **S1** typecheck, **S2** lint (Biome `--error-on-warnings`), **S3** workflow SHA-pin verification, **G1** secret scan (Gitleaks + `.gitleaks.toml`), **G2** dependency scan (OSV on `package-lock.json`), **B1** build (`ci:ensure-native-binaries && npm run build`), **L1** unit tests with 95% coverage floors (`apps/web` and `packages/contracts`; React views and generated platform declarations excluded) plus `npm run test:gate` (Husky L1 snapshot self-test), and **Z1** gate aggregate.
+Enforced slots: **S1** typecheck, **S2** lint (Biome `--error-on-warnings`), **S3** workflow SHA-pin verification, **G1** secret scan (Gitleaks + `.gitleaks.toml`), **G2** dependency scan (OSV on `package-lock.json`), **B1** build (`ci:ensure-native-binaries && npm run build`, uploading `apps/web/.cloudflare/output/v0`), **L1** unit tests with 80% coverage floors (`apps/web` and `packages/contracts`; React views and generated platform declarations excluded), **L4** E2E (`apps/web/tests/e2e/ci-smoke.spec.ts` running Desktop Chromium against `vite preview` over the `B1` build artifact with isolated local D1 seed), **P1** package (`cf deploy --prebuilt --dry-run --mode production` against the `B1` build artifact), and **Z1** gate aggregate (`nocoo/base-ci/.github/actions/z1-gate`).
 
 Runtime is pinned to Node `26.12.1` and npm `11.19.1` (`packageManager` in root `package.json`) with frozen `npm ci` (`install-policy: project`). CI sets npm retry env vars before install; `.npmrc` mirrors them for local installs. `ci:ensure-native-binaries` verifies lockfile optional native packages, rebuilds `workerd`, and smoke-tests the toolchain. Root `allowScripts` approves pinned `workerd` postinstalls.
 
-**L2** (`Runtime`), **L3** (`Integration`), and **P1** (`Package`) are `N/A` (Miniflare/Worker bindings are covered in L1 Vitest; no standalone HTTP API E2E suite; private monorepo not published to npm). **L4** (`E2E`) is `planned` — Playwright suites exist locally (`npm run test:e2e`) but are not yet wired in CI.
+**L2** (`Runtime`) and **L3** (`Integration`) are `N/A` (Miniflare/Worker bindings are covered in L1 Vitest; no standalone HTTP API E2E suite).
 
 Coverage artifacts: `apps/web/coverage` and `packages/contracts/coverage`. Branch protection requires `quality / Z1: Gate` under workflow **CI**.
 
