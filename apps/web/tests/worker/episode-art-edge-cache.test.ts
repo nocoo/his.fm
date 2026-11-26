@@ -31,7 +31,9 @@ let tinyWebp: Buffer;
 
 beforeAll(async () => {
   tinyWebp = await createTinyWebp();
-  ({ mf, env, assetOverrides, assetReads } = await createEpisodeArtEnv('episode-art-edge-cache-test'));
+  ({ mf, env, assetOverrides, assetReads } = await createEpisodeArtEnv('episode-art-edge-cache-test', {
+    stubImages: true,
+  }));
 });
 
 beforeEach(async () => {

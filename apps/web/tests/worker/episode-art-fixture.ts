@@ -46,9 +46,10 @@ export function makeMockJpeg(size = 1024) {
   return bytes;
 }
 
-export async function createEpisodeArtEnv(workerName: string) {
+export async function createEpisodeArtEnv(workerName: string, options: { stubImages?: boolean } = {}) {
   const assetOverrides = new Map<string, AssetOverride>();
   const assetReads: string[] = [];
+  const tinyWebp = options.stubImages ? await createTinyWebp() : undefined;
   const mf = new Miniflare({
     telemetry: { enabled: false },
     workers: [
@@ -65,7 +66,7 @@ export async function createEpisodeArtEnv(workerName: string) {
           env: {
             DB: { type: 'd1', name: workerName },
             MEDIA: { type: 'r2', name: workerName },
-            IMAGES: { type: 'images', dev: { remote: false } },
+            ...(options.stubImages ? {} : { IMAGES: { type: 'images', dev: { remote: false } } }),
             ENVIRONMENT: { type: 'json', value: 'production' },
             MEDIA_BASE_URL: { type: 'json', value: 'https://f.no.mt' },
             ASSETS: {
@@ -88,6 +89,28 @@ export async function createEpisodeArtEnv(workerName: string) {
     ],
   });
   const env = await mf.getBindings<Env>();
+  if (tinyWebp) {
+    env.IMAGES = {
+      input(stream: ReadableStream<Uint8Array>) {
+        return {
+          transform() {
+            return {
+              async output() {
+                const bytes = new Uint8Array(await new Response(stream).arrayBuffer());
+                const isWebp =
+                  bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46;
+                const isPng =
+                  bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47;
+                const isJpeg = bytes[0] === 0xff && bytes[1] === 0xd8;
+                if (!isWebp && !isPng && !isJpeg) throw new Error('Invalid image');
+                return { response: () => new Response(tinyWebp) };
+              },
+            };
+          },
+        };
+      },
+    } as unknown as ImagesBinding;
+  }
   await env.DB.batch([
     env.DB.prepare(
       'CREATE TABLE episodes (id TEXT PRIMARY KEY, title TEXT, episode_number INTEGER, cover_url TEXT, category TEXT, status TEXT, published_at TEXT)',

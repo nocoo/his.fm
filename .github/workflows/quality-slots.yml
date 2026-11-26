@@ -109,6 +109,15 @@ jobs:
       tested-sha: ${{ steps.record-sha.outputs.sha }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          filter: blob:none
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /*
+            !/artwork/design-20260926/
+            !/artwork/hero-retina-20260926/
+            !/artwork/originals/
+            !/docs/design/assets/fonts/
       - uses: nocoo/base-ci/.github/actions/setup-js@e5876a604547b1ddb0916f16dd841a4f832609a0 # v2026.20
         with:
           package-manager: npm
@@ -132,6 +141,15 @@ jobs:
       tested-sha: ${{ steps.record-sha.outputs.sha }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          filter: blob:none
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /*
+            !/artwork/design-20260926/
+            !/artwork/hero-retina-20260926/
+            !/artwork/originals/
+            !/docs/design/assets/fonts/
       - uses: nocoo/base-ci/.github/actions/setup-js@e5876a604547b1ddb0916f16dd841a4f832609a0 # v2026.20
         with:
           package-manager: npm

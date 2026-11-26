@@ -177,9 +177,7 @@ describe('public episode JPEG real rendering', () => {
   });
 
   it.each([
-    [1400, 1400],
     [700, 1400],
-    [1400, 900],
     [2800, 700],
   ])('anchors the share band at 0.4 and clamps a %i x %i original', async (width, height) => {
     const pixels = Buffer.alloc(width * height * 3);

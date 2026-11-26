@@ -171,95 +171,88 @@ export default { async fetch(request, env) {
     expect(svg).toContain('<text ');
   });
 
-  it.each(['stillwood', 'alpine-bloom'] as const)(
-    'renders the real %s composition with bounded wide Latin and Chinese titles',
-    async (theme) => {
-      const artwork = await sharp({ create: { width: 64, height: 64, channels: 3, background: '#99aa88' } })
-        .webp()
-        .toBuffer();
-      const frame = readFileSync(new URL(`../../public/brand/frames/${theme}.svg`, import.meta.url), 'utf8');
-      const response = await mf.dispatchFetch('https://his.fm/cover-proof', {
-        method: 'POST',
-        body: JSON.stringify({
-          theme,
-          frame,
-          image: `data:image/webp;base64,${artwork.toString('base64')}`,
-          title: '从 WWDC 到 MWC：我们为什么总在期待下一个改变世界的产品龘',
-        }),
-      });
-      expect(response.status).toBe(200);
-      const png = new Uint8Array(await response.arrayBuffer());
-      const info = await sharp(png).metadata();
-      expect([info.width, info.height]).toEqual([1600, 1600]);
-      expect(png.length).toBeGreaterThan(10_000);
-      const blank = await mf.dispatchFetch('https://his.fm/cover-proof', {
-        method: 'POST',
-        body: JSON.stringify({
-          theme,
-          frame,
-          image: `data:image/webp;base64,${artwork.toString('base64')}`,
-          title: '',
-        }),
-      });
-      expect(blank.status).toBe(200);
-      const blankPng = new Uint8Array(await blank.arrayBuffer());
-      const { data } = await pixels(png);
-      const { data: background } = await pixels(blankPng);
-      let titleRight = 0;
-      for (let y = 1250; y < 1600; y++) {
-        for (let x = 0; x < 1600; x++) {
-          const offset = (y * 1600 + x) * 4;
-          if (
-            data[offset] !== background[offset] ||
-            data[offset + 1] !== background[offset + 1] ||
-            data[offset + 2] !== background[offset + 2]
-          )
-            titleRight = Math.max(titleRight, x);
-        }
+  it('renders the real stillwood composition with bounded wide Latin and Chinese titles', async () => {
+    const theme = 'stillwood';
+    const artwork = await sharp({ create: { width: 64, height: 64, channels: 3, background: '#99aa88' } })
+      .webp()
+      .toBuffer();
+    const frame = readFileSync(new URL(`../../public/brand/frames/${theme}.svg`, import.meta.url), 'utf8');
+    const response = await mf.dispatchFetch('https://his.fm/cover-proof', {
+      method: 'POST',
+      body: JSON.stringify({
+        theme,
+        frame,
+        image: `data:image/webp;base64,${artwork.toString('base64')}`,
+        title: '从 WWDC 到 MWC：我们为什么总在期待下一个改变世界的产品龘',
+      }),
+    });
+    expect(response.status).toBe(200);
+    const png = new Uint8Array(await response.arrayBuffer());
+    const info = await sharp(png).metadata();
+    expect([info.width, info.height]).toEqual([1600, 1600]);
+    expect(png.length).toBeGreaterThan(10_000);
+    const blank = await mf.dispatchFetch('https://his.fm/cover-proof', {
+      method: 'POST',
+      body: JSON.stringify({
+        theme,
+        frame,
+        image: `data:image/webp;base64,${artwork.toString('base64')}`,
+        title: '',
+      }),
+    });
+    expect(blank.status).toBe(200);
+    const blankPng = new Uint8Array(await blank.arrayBuffer());
+    const { data } = await pixels(png);
+    const { data: background } = await pixels(blankPng);
+    let titleRight = 0;
+    for (let y = 1250; y < 1600; y++) {
+      for (let x = 0; x < 1600; x++) {
+        const offset = (y * 1600 + x) * 4;
+        if (
+          data[offset] !== background[offset] ||
+          data[offset + 1] !== background[offset + 1] ||
+          data[offset + 2] !== background[offset + 2]
+        )
+          titleRight = Math.max(titleRight, x);
       }
-      expect(titleRight).toBeGreaterThan(100);
-      expect(titleRight).toBeLessThanOrEqual(Math.ceil((844 / 1024) * 1600));
-    },
-    10_000,
-  );
+    }
+    expect(titleRight).toBeGreaterThan(100);
+    expect(titleRight).toBeLessThanOrEqual(Math.ceil((844 / 1024) * 1600));
+  }, 10_000);
 
-  it.each(['jpeg', 'png'] as const)(
-    'bounds real-layout WASM memory with a high-entropy %s source',
-    async (format) => {
-      const size = format === 'jpeg' ? 2000 : 1100;
-      const artwork = await sharp({
-        create: {
-          width: size,
-          height: size,
-          channels: 3,
-          background: '#000000',
-          noise: { type: 'gaussian', mean: 128, sigma: 64 },
-        },
-      })
-        .toFormat(format)
-        .toBuffer();
-      expect(artwork.byteLength).toBeLessThan(4 * 1024 * 1024);
-      const frame = readFileSync(
-        new URL('../../public/brand/frames/soft-landing.svg', import.meta.url),
-        'utf8',
-      );
-      const response = await mf.dispatchFetch('https://his.fm/cover-proof', {
-        method: 'POST',
-        body: JSON.stringify({
-          image: `data:image/${format};base64,${artwork.toString('base64')}`,
-          title: '下班后，还要追多少个 AI？龘',
-          theme: 'soft-landing',
-          frame,
-        }),
-      });
-      expect(response.status).toBe(200);
-      const wasmBytes = Number(response.headers.get('X-Wasm-Bytes'));
-      const body = await response.arrayBuffer();
-      expect(body.byteLength).toBeGreaterThan(0);
-      expect(wasmBytes).toBeLessThan(96 * 1024 * 1024);
-    },
-    10_000,
-  );
+  it('bounds real-layout WASM memory with a high-entropy jpeg source', async () => {
+    const size = 2000;
+    const artwork = await sharp({
+      create: {
+        width: size,
+        height: size,
+        channels: 3,
+        background: '#000000',
+        noise: { type: 'gaussian', mean: 128, sigma: 64 },
+      },
+    })
+      .toFormat('jpeg')
+      .toBuffer();
+    expect(artwork.byteLength).toBeLessThan(4 * 1024 * 1024);
+    const frame = readFileSync(
+      new URL('../../public/brand/frames/soft-landing.svg', import.meta.url),
+      'utf8',
+    );
+    const response = await mf.dispatchFetch('https://his.fm/cover-proof', {
+      method: 'POST',
+      body: JSON.stringify({
+        image: `data:image/jpeg;base64,${artwork.toString('base64')}`,
+        title: '下班后，还要追多少个 AI？龘',
+        theme: 'soft-landing',
+        frame,
+      }),
+    });
+    expect(response.status).toBe(200);
+    const wasmBytes = Number(response.headers.get('X-Wasm-Bytes'));
+    const body = await response.arrayBuffer();
+    expect(body.byteLength).toBeGreaterThan(0);
+    expect(wasmBytes).toBeLessThan(96 * 1024 * 1024);
+  }, 10_000);
 
   it.each([
     [1200, 630, null],

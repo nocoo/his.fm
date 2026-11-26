@@ -46,7 +46,9 @@ function mockRenderJpeg(size = 1024) {
 
 beforeAll(async () => {
   tinyWebp = await createTinyWebp();
-  ({ mf, env, assetOverrides, assetReads } = await createEpisodeArtEnv('episode-art-test'));
+  ({ mf, env, assetOverrides, assetReads } = await createEpisodeArtEnv('episode-art-test', {
+    stubImages: true,
+  }));
 });
 
 beforeEach(async () => {
@@ -294,9 +296,20 @@ describe('public episode JPEG artwork', () => {
         },
       },
     } as unknown as Env;
+    const sharedHead = vi.fn((objectKey: string) => env.MEDIA.head(objectKey));
+    const sharedBindings = {
+      ...env,
+      MEDIA: {
+        head: sharedHead,
+        get: (objectKey: string) => env.MEDIA.get(objectKey),
+        put: (objectKey: string, value: Uint8Array, options: R2PutOptions) =>
+          env.MEDIA.put(objectKey, value, options),
+      },
+    } as unknown as Env;
     const pending = call('share', '', 'GET', bindings);
     await ready;
-    const shared = call('share');
+    const shared = call('share', '', 'GET', sharedBindings);
+    await vi.waitFor(() => expect(sharedHead).toHaveBeenCalledTimes(1));
     release(await env.MEDIA.get(coverKey));
     const responses = await Promise.all([pending, shared]);
     expect(responses.map((response) => response.status)).toEqual([200, 200]);
