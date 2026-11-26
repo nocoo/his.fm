@@ -1,6 +1,6 @@
 # CI/CD
 
-Shared actions and deployment workflows come from [nocoo/base-ci](https://github.com/nocoo/base-ci), pinned by full commit SHA in `.github/workflows/quality-slots.yml` and `.github/workflows/release.yml` (currently `v2026.18`). Upgrade by updating the full SHA after a reviewed base-ci release.
+Shared actions and deployment workflows come from [nocoo/base-ci](https://github.com/nocoo/base-ci), pinned by full commit SHA in `.github/workflows/quality-slots.yml` and `.github/workflows/release.yml` (currently `v2026.19`). Upgrade by updating the full SHA after a reviewed base-ci release.
 
 ## CI (`.github/workflows/ci.yml` & `.github/workflows/quality-slots.yml`)
 
@@ -45,12 +45,12 @@ The locked `cf` CLI (`1.0.0-beta.12`) and Cloudflare Vite plugin (`2.0.0-beta.sh
 
 Release procedure follows `system1-github-versioning` with one project override: every subsequent deployment increments **only the patch version** (`X.Y.Z` → `X.Y.(Z+1)`). Change the major or minor version only when the owner explicitly requests it. Features, database migrations, authentication changes, diff size and elapsed time must not trigger automatic major/minor bumps. Bump root `package.json`, update `CHANGELOG.md`, commit, push, wait for CI to pass on the commit, then tag `vX.Y.Z` and publish the GitHub Release with the changelog as What's New.
 
-## Required repository secrets
+## Required environment credentials
 
-Stored as repository Actions secrets and explicitly passed to the reusable deployment workflow. The deploy job targets the `production` environment; environment secrets with the same name would override repository values. Quality jobs receive no deployment secrets:
+Configured in the GitHub `production` environment; `CLOUDFLARE_API_TOKEN` is explicitly passed as a secret to the reusable deployment workflow, and `CLOUDFLARE_ACCOUNT_ID` is read directly from `vars.CLOUDFLARE_ACCOUNT_ID` by `base-ci`. Quality jobs receive no deployment secrets:
 
-- `CLOUDFLARE_API_TOKEN` — Cloudflare API token. Minimum scopes: Workers Scripts (Edit), D1 (Edit), Workers Routes (Edit, for the `his.fm` custom domain).
-- `CLOUDFLARE_ACCOUNT_ID` — the Cloudflare account ID.
+- `CLOUDFLARE_API_TOKEN` (environment secret) — Cloudflare API token. Minimum scopes: Workers Scripts (Edit), D1 (Edit), Workers Routes (Edit, for the `his.fm` custom domain).
+- `CLOUDFLARE_ACCOUNT_ID` (environment variable) — the Cloudflare account ID.
 
 The website accepts no provider credentials and performs no generation. CI/CD has no model-provider secrets. Removing any historically configured remote secret or resource remains a separate authorized operational action.
 
