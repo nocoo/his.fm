@@ -42,7 +42,6 @@ const episodeInput: EpisodeInput = {
 };
 let mf: Miniflare;
 let env: Env;
-let cookie: string;
 const ensure = vi.mocked(ensureEpisodeArt);
 
 function request(path: string, method = 'GET', data?: unknown) {
@@ -120,6 +119,12 @@ beforeAll(async () => {
     );
   }
 });
+async function devLogin() {
+  const response = await worker.fetch(request('/admin/api/dev-login', 'POST'), env);
+  expect(response.status).toBe(200);
+  return response.headers.get('Set-Cookie')?.split(';')[0] ?? '';
+}
+
 beforeEach(async () => {
   ensure.mockReset().mockResolvedValue({ object: {} as R2Object, source: 'rendered' });
   await env.DB.batch(
@@ -131,9 +136,6 @@ beforeEach(async () => {
     env.DB.prepare("UPDATE site_appearance SET theme = 'stillwood', version = 1"),
     env.DB.prepare("UPDATE categories SET name = '生活', version = 1 WHERE id = 'life'"),
   ]);
-  const response = await worker.fetch(request('/admin/api/dev-login', 'POST'), env);
-  expect(response.status).toBe(200);
-  cookie = response.headers.get('Set-Cookie')?.split(';')[0] ?? '';
 });
 afterEach(() => vi.restoreAllMocks());
 afterAll(() => mf.dispose());
@@ -270,7 +272,7 @@ describe('successful shared management mutations trigger pregeneration', () => {
       const spy = vi.spyOn(pregeneration, 'pregenerateEpisodeArt');
       const headers: Record<string, string> = { 'Content-Type': 'image/png' };
       if (client === 'admin') {
-        headers.Cookie = cookie;
+        headers.Cookie = await devLogin();
         headers.Origin = origin;
       } else {
         const response = await routeAgentTokens(
@@ -528,7 +530,7 @@ describe('successful shared management mutations trigger pregeneration', () => {
       const context = { waitUntil } as unknown as ExecutionContext;
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
       if (client === 'admin') {
-        headers.Cookie = cookie;
+        headers.Cookie = await devLogin();
         headers.Origin = origin;
       } else {
         const issued = await routeAgentTokens(

@@ -102,6 +102,20 @@ function verifyNativeBinariesLoad() {
   runStep('vite', process.execPath, [viteBin, '--version'], { cwd: join(repoRoot, 'apps/web') });
 }
 
+function canRunWorkerd() {
+  try {
+    const workerdBin = resolvePackageBin(repoRoot, 'apps/web', 'workerd', 'bin/workerd');
+    const result = spawnSync(workerdBin, ['--version'], {
+      cwd: join(repoRoot, 'apps/web'),
+      encoding: 'utf8',
+      env: process.env,
+    });
+    return result.status === 0 && result.stdout.trim().startsWith('workerd ');
+  } catch {
+    return false;
+  }
+}
+
 function rebuildWorkerd() {
   execSync('npm rebuild workerd --workspaces --if-present', { cwd: repoRoot, stdio: 'inherit' });
 }
@@ -126,7 +140,11 @@ async function main() {
     console.log('All lockfile platform optional dependencies are present.');
   }
 
-  rebuildWorkerd();
+  if (canRunWorkerd()) {
+    console.log('workerd is already runnable; skipping rebuild.');
+  } else {
+    rebuildWorkerd();
+  }
   verifyNativeBinariesLoad();
   console.log('Native binary smoke checks passed.');
 }

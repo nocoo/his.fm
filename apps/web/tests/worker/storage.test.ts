@@ -1,125 +1,40 @@
-import { readdirSync, readFileSync } from 'node:fs';
-import { Miniflare } from 'miniflare';
+import type { Miniflare } from 'miniflare';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { artLocation } from '../../src/shared/episode-art';
 import type { StorageCleanupResult, StoragePage } from '../../src/shared/storage';
 import worker from '../../worker';
 import { artRecords } from '../../worker/episode-art-cache';
-import { runStorageGc, STORAGE_GC_GRACE_MS, STORAGE_RETENTION_MS } from '../../worker/storage';
 import { readyFixture } from './production-fixture';
+import {
+  agedEnv,
+  callStorage,
+  cleanupStorage,
+  createStorageEnv,
+  origin,
+  putStorageObject,
+  resetStorageEnv,
+  scanStorage,
+} from './storage-fixture';
 
 vi.setConfig({ testTimeout: 30000, hookTimeout: 30000 });
 
-const origin = 'https://hisfm.dev.hexly.ai';
 let mf: Miniflare;
 let env: Env;
 let cookie = '';
 
-async function call(path = '', init: RequestInit = {}, bindings = env) {
-  return worker.fetch(
-    new Request(`${origin}/admin/api/storage${path}`, {
-      ...init,
-      headers: { Cookie: cookie, Origin: origin, 'Content-Type': 'application/json', ...init.headers },
-    }),
-    bindings,
-  );
-}
-async function scan(bindings = env): Promise<StoragePage> {
-  const response = await call('', {}, bindings);
-  expect(response.status).toBe(200);
-  return response.json();
-}
-async function put(key: string, type?: string) {
-  return env.MEDIA.put(key, '0123456789', { httpMetadata: type ? { contentType: type } : undefined });
-}
-function aged(bindings = env): Env {
-  const old = (object: R2Object) => ({ ...object, uploaded: new Date('2020-01-01') });
-  return {
-    ...bindings,
-    MEDIA: {
-      head: async (key: string) => {
-        const object = await bindings.MEDIA.head(key);
-        return object ? old(object) : null;
-      },
-      list: async (options?: R2ListOptions) => {
-        const page = await bindings.MEDIA.list(options);
-        return { ...page, objects: page.objects.map(old) };
-      },
-      delete: (key: string | string[]) => bindings.MEDIA.delete(key),
-    } as R2Bucket,
-  };
-}
-async function remove(items: { key: string; version: string }[], bindings = aged()) {
-  const response = await call('/cleanup', { method: 'POST', body: JSON.stringify({ items }) }, bindings);
-  expect(response.status).toBe(200);
-  return ((await response.json()) as StorageCleanupResult).results;
-}
+const call = (path = '', init: RequestInit = {}, bindings = env) =>
+  callStorage(env, cookie, path, init, bindings);
+const scan = (bindings = env) => scanStorage(env, cookie, bindings);
+const put = (key: string, type?: string) => putStorageObject(env, key, type);
+const aged = (bindings = env) => agedEnv(bindings);
+const remove = (items: { key: string; version: string }[], bindings = aged()) =>
+  cleanupStorage(env, cookie, items, bindings);
 
 beforeAll(async () => {
-  mf = new Miniflare({
-    workers: [
-      {
-        config: {
-          name: 'storage-test',
-          compatibilityDate: '2026-09-24',
-          manifest: {
-            mainModule: 'index.js',
-            modules: {
-              'index.js': {
-                type: 'esm',
-                contents: 'export default { fetch() { return new Response("ok"); } }',
-              },
-            },
-          },
-          env: {
-            DB: { type: 'd1', name: 'storage-test' },
-            MEDIA: { type: 'r2', name: 'storage-test' },
-            ENVIRONMENT: { type: 'json', value: 'local' },
-          },
-        },
-      },
-    ],
-  });
-  env = await mf.getBindings<Env>();
-  for (const name of readdirSync('migrations')
-    .filter((name) => name.endsWith('.sql'))
-    .sort()) {
-    await env.DB.batch(
-      readFileSync(`migrations/${name}`, 'utf8')
-        .split(';')
-        .filter((sql) => sql.trim())
-        .map((sql) => env.DB.prepare(sql)),
-    );
-  }
+  ({ mf, env } = await createStorageEnv('storage-test'));
 }, 30000);
 beforeEach(async () => {
-  await env.DB.batch(
-    [
-      'media_provenance',
-      'episodes',
-      'productions',
-      'episode_number_claims',
-      'channel_profile',
-      'storage_gc_queue',
-    ].map((table) => env.DB.prepare(`DELETE FROM ${table}`)),
-  );
-  await env.DB.batch([
-    env.DB.prepare("UPDATE site_seo SET data = '{}' WHERE id = 1"),
-    env.DB.prepare("UPDATE categories SET seo = '{}', prompt_slots = NULL, prompt_slots_version = 0"),
-    env.DB.prepare("UPDATE site_appearance SET theme = 'stillwood', version = 1"),
-  ]);
-  let objects = await env.MEDIA.list({ limit: 1000 });
-  const keys = objects.objects.map((object) => object.key);
-  while (objects.truncated) {
-    objects = await env.MEDIA.list({ cursor: objects.cursor });
-    keys.push(...objects.objects.map((object) => object.key));
-  }
-  if (keys.length) await env.MEDIA.delete(keys);
-  const login = await worker.fetch(
-    new Request(`${origin}/admin/api/dev-login`, { method: 'POST', headers: { Origin: origin } }),
-    env,
-  );
-  cookie = login.headers.get('Set-Cookie')?.split(';')[0] ?? '';
+  cookie = await resetStorageEnv(env);
 });
 afterEach(() => vi.restoreAllMocks());
 afterAll(async () => {
@@ -178,7 +93,7 @@ describe('owner R2 inventory and cleanup', () => {
       );
     }
     stale.push('rendered/episodes/deleted/art/stillwood/old/1400.jpg');
-    for (const key of [...current, ...stale]) await put(key, 'image/jpeg');
+    await Promise.all([...current, ...stale].map((key) => put(key, 'image/jpeg')));
     const objects = (await scan(aged())).objects;
     for (const key of current) {
       expect(objects.find((object) => object.key === key)).toMatchObject({
@@ -190,12 +105,14 @@ describe('owner R2 inventory and cleanup', () => {
     const results = await remove(objects.map(({ key, version }) => ({ key, version })));
     for (const key of current) {
       expect(results.find((result) => result.key === key)?.status).toBe('skipped');
-      expect(await env.MEDIA.head(key)).not.toBeNull();
     }
     for (const key of stale) {
       expect(results.find((result) => result.key === key)?.status).toBe('deleted');
-      expect(await env.MEDIA.head(key)).toBeNull();
     }
+    await Promise.all([
+      ...current.map(async (key) => expect(await env.MEDIA.head(key)).not.toBeNull()),
+      ...stale.map(async (key) => expect(await env.MEDIA.head(key)).toBeNull()),
+    ]);
   });
 
   it('revalidates newly current rendered prefixes for both resource types instead of trusting an unused scan', async () => {
@@ -206,7 +123,7 @@ describe('owner R2 inventory and cleanup', () => {
         async (record) => (await artLocation({ ...record, title: nextTitle }, 'stillwood', 3000)).key,
       ),
     );
-    for (const key of keys) await put(key, 'image/jpeg');
+    await Promise.all(keys.map((key) => put(key, 'image/jpeg')));
     const objects = (await scan(aged())).objects;
     expect(objects.every((object) => object.state === 'unused')).toBe(true);
     await env.DB.batch([
@@ -217,7 +134,7 @@ describe('owner R2 inventory and cleanup', () => {
     expect(
       results.every((result) => result.status === 'skipped' && result.reason === '当前节目合成图片'),
     ).toBe(true);
-    for (const key of keys) expect(await env.MEDIA.head(key)).not.toBeNull();
+    await Promise.all(keys.map(async (key) => expect(await env.MEDIA.head(key)).not.toBeNull()));
   });
 
   it('rechecks the saved theme on cleanup while keeping theme-independent share objects referenced', async () => {
@@ -226,7 +143,7 @@ describe('owner R2 inventory and cleanup', () => {
       records.map(async (record) => (await artLocation(record, 'stillwood')).key),
     );
     const shares = await Promise.all(records.map(async (record) => (await artLocation(record, null)).key));
-    for (const key of [...squares, ...shares]) await put(key, 'image/jpeg');
+    await Promise.all([...squares, ...shares].map((key) => put(key, 'image/jpeg')));
     const objects = (await scan(aged())).objects;
     expect(objects.every((object) => object.state === 'referenced')).toBe(true);
     await env.DB.prepare("UPDATE site_appearance SET theme = 'interval'").run();
@@ -337,7 +254,7 @@ describe('owner R2 inventory and cleanup', () => {
         crypto.randomUUID(),
       )
       .run();
-    for (const key of keys) await put(key, 'image/png');
+    await Promise.all(keys.map((key) => put(key, 'image/png')));
     const objects = (await scan(aged())).objects;
     expect(objects).toHaveLength(keys.length);
     expect(objects.every((object) => object.state === 'referenced')).toBe(true);
@@ -346,7 +263,7 @@ describe('owner R2 inventory and cleanup', () => {
         (result) => result.status === 'skipped',
       ),
     ).toBe(true);
-    for (const key of keys) expect(await env.MEDIA.head(key)).not.toBeNull();
+    await Promise.all(keys.map(async (key) => expect(await env.MEDIA.head(key)).not.toBeNull()));
   });
 
   it('revalidates newly saved SEO references rather than trusting an earlier unused scan', async () => {
@@ -495,6 +412,7 @@ describe('owner R2 inventory and cleanup', () => {
       .run();
     await env.DB.prepare(`INSERT INTO episodes (id, slug, episode_number, title, summary, transcript, lead, cover_url, category, status, created_at, updated_at)
       VALUES ('episode', 'episode', 1, '目录标题', '', '/media/transcript.wav', 'https://his.fm/media/notes.wav', 'https://f.no.mt/published.webp', 'life', 'draft', 'now', 'now')`).run();
+    const puts: Promise<unknown>[] = [];
     for (const [id] of [
       ['active', 'running'],
       ['queued', 'queued'],
@@ -511,8 +429,7 @@ describe('owner R2 inventory and cleanup', () => {
       await env.DB.prepare('INSERT INTO media_provenance VALUES (?, ?)')
         .bind(id, JSON.stringify(snapshot))
         .run();
-      await put(`audio/${production.id}/1/${id}/part-001.wav`);
-      await put(`bumper-${id}.wav`);
+      puts.push(put(`audio/${production.id}/1/${id}/part-001.wav`), put(`bumper-${id}.wav`));
     }
     for (const key of [
       'cover.png',
@@ -532,7 +449,8 @@ describe('owner R2 inventory and cleanup', () => {
       'not-ours.wav',
       'unused.mp4',
     ])
-      await put(key);
+      puts.push(put(key));
+    await Promise.all(puts);
     const objects = (await scan(aged())).objects;
     const states = Object.fromEntries(objects.map((object) => [object.key, object.state]));
     for (const key of [
@@ -572,7 +490,9 @@ describe('owner R2 inventory and cleanup', () => {
     expect(await remove(protectedItems.map(({ key, version }) => ({ key, version })))).toHaveLength(
       protectedItems.length,
     );
-    for (const object of protectedItems) expect(await env.MEDIA.head(object.key)).not.toBeNull();
+    await Promise.all(
+      protectedItems.map(async (object) => expect(await env.MEDIA.head(object.key)).not.toBeNull()),
+    );
   });
 
   it('collects multiple references separated by CJK punctuation in prose', async () => {
@@ -597,7 +517,7 @@ describe('owner R2 inventory and cleanup', () => {
         ]),
       )
       .run();
-    for (const key of [imageKey, uploadKey]) await put(key, 'image/png');
+    await Promise.all([imageKey, uploadKey].map((key) => put(key, 'image/png')));
     const objects = (await scan(aged())).objects;
     const states = Object.fromEntries(objects.map((object) => [object.key, object.state]));
     expect(states[imageKey]).toBe('referenced');
@@ -627,7 +547,7 @@ describe('owner R2 inventory and cleanup', () => {
         }),
       )
       .run();
-    for (const key of [mediaKey, imageKey]) await put(key, 'image/png');
+    await Promise.all([mediaKey, imageKey].map((key) => put(key, 'image/png')));
     const objects = (await scan(aged())).objects;
     expect(objects.find((candidate) => candidate.key === mediaKey)?.state).toBe('referenced');
     expect(objects.find((candidate) => candidate.key === imageKey)?.state).toBe('referenced');
@@ -661,7 +581,7 @@ describe('owner R2 inventory and cleanup', () => {
     )
       .bind(JSON.stringify({ ogImageUrl: `/media/${episodeKey}` }))
       .run();
-    for (const key of [cdnKey, categoryKey, episodeKey, imagesKey]) await put(key, 'image/png');
+    await Promise.all([cdnKey, categoryKey, episodeKey, imagesKey].map((key) => put(key, 'image/png')));
     const objects = (await scan(aged())).objects;
     const states = Object.fromEntries(objects.map((object) => [object.key, object.state]));
     for (const key of [cdnKey, categoryKey, episodeKey, imagesKey]) {
@@ -790,220 +710,5 @@ describe('owner R2 inventory and cleanup', () => {
       ).status,
     ).toBe(503);
     expect(await env.MEDIA.head(object.key)).not.toBeNull();
-  });
-});
-
-describe('authenticated streaming previews', () => {
-  it('streams full media, HEAD and bounded byte ranges for seeking', async () => {
-    const object = await put('声音 & image.wav', 'audio/wav');
-    const path = `/object?key=${encodeURIComponent(object.key)}`;
-    const full = await call(path);
-    expect(full.status).toBe(200);
-    expect(full.headers.get('Content-Type')).toBe('audio/wav');
-    expect(full.headers.get('Cache-Control')).toContain('no-store');
-    expect(full.headers.get('Content-Disposition')).toContain('inline');
-    expect(await full.text()).toBe('0123456789');
-    const head = await call(path, { method: 'HEAD', headers: { Range: 'bytes=2-4' } });
-    expect(head.status).toBe(200);
-    expect(head.headers.get('Content-Length')).toBe('10');
-    expect(await head.text()).toBe('');
-    for (const [range, expected, contentRange] of [
-      ['bytes=2-4', '234', 'bytes 2-4/10'],
-      ['bytes=8-', '89', 'bytes 8-9/10'],
-      ['bytes=-3', '789', 'bytes 7-9/10'],
-      ['bytes=8-100', '89', 'bytes 8-9/10'],
-      ['bytes=-100', '0123456789', 'bytes 0-9/10'],
-    ]) {
-      const response = await call(path, { headers: { Range: range, 'If-Range': object.httpEtag } });
-      expect(response.status).toBe(206);
-      expect(response.headers.get('Content-Range')).toBe(contentRange);
-      expect(await response.text()).toBe(expected);
-    }
-    const mismatch = await call(path, { headers: { Range: 'bytes=0-2', 'If-Range': '"outdated"' } });
-    expect(mismatch.status).toBe(200);
-    expect(await mismatch.text()).toBe('0123456789');
-    for (const range of [
-      'nonsense',
-      'bytes=-',
-      'bytes=-0',
-      'bytes=30-',
-      'bytes=8-2',
-      'bytes=0-1,4-5',
-      'bytes=999999999999999999999-',
-    ]) {
-      const response = await call(path, { headers: { Range: range } });
-      expect(response.status).toBe(416);
-      expect(response.headers.get('Content-Range')).toBe('bytes */10');
-    }
-  });
-  it('downloads active formats and detects changed objects without buffering', async () => {
-    await put('unsafe.svg', 'image/svg+xml');
-    await put('unknown');
-    for (const key of ['unsafe.svg', 'unknown']) {
-      const response = await call(`/object?key=${key}`);
-      expect(response.headers.get('Content-Type')).toBe('application/octet-stream');
-      expect(response.headers.get('Content-Disposition')).toContain('attachment');
-      await response.body?.cancel();
-    }
-    const object = await put('changed.wav', 'audio/wav');
-    const bindings = {
-      ...env,
-      MEDIA: { head: env.MEDIA.head.bind(env.MEDIA), get: async () => object } as unknown as R2Bucket,
-    };
-    expect((await call('/object?key=changed.wav', {}, bindings)).status).toBe(409);
-    bindings.MEDIA.get = async () => null;
-    expect((await call('/object?key=changed.wav', {}, bindings)).status).toBe(409);
-  });
-
-  it('rejects storage uploads with unexpected query parameters', async () => {
-    expect(
-      (
-        await call('?unexpected=1', {
-          method: 'POST',
-          headers: { 'Content-Type': 'audio/wav' },
-          body: new Uint8Array(44),
-        })
-      ).status,
-    ).toBe(400);
-    expect(
-      (
-        await call('?key=bad%20key&extra=1', {
-          method: 'POST',
-          headers: { 'Content-Type': 'audio/mpeg' },
-          body: new Uint8Array(10),
-        })
-      ).status,
-    ).toBe(400);
-  });
-
-  it('scans references when prompt slot JSON is null', async () => {
-    await env.DB.prepare(
-      `INSERT INTO channel_profile (id, version, updated_at, updated_by, prompt_slots, prompt_slots_version)
-       VALUES (1, 1, 'now', 'owner', NULL, 0)`,
-    ).run();
-    await env.DB.prepare("UPDATE categories SET prompt_slots=NULL WHERE id='life'").run();
-    expect((await scan()).objects).toBeDefined();
-  });
-
-  it('rejects invalid storage scan cursors', async () => {
-    expect((await call(`?cursor=${'x'.repeat(4097)}`)).status).toBe(400);
-  });
-});
-
-describe('scheduled storage soft-retention GC', () => {
-  it('auto-purges aged uploads after 24h and other unreferenced objects after the 7-day grace window', async () => {
-    vi.spyOn(console, 'info').mockImplementation(() => {});
-    const day0 = Date.parse('2026-11-01T03:00:00.000Z');
-    const oldUpload = await put('uploads/old-staging.png', 'image/png');
-    const freshUpload = await put('uploads/fresh-staging.png', 'image/png');
-    const detachedAudio = await put('productions/p1/audio-1-old.mp3', 'audio/mpeg');
-    const revivedAudio = await put('productions/p1/audio-2-revived.mp3', 'audio/mpeg');
-    const protectedBrand = await put('images/hero-retina-20260926-1752.webp', 'image/webp');
-    await env.DB.prepare('INSERT INTO storage_gc_queue (key, first_unreferenced_at) VALUES (?, ?)')
-      .bind('already-deleted.wav', new Date(day0 - STORAGE_GC_GRACE_MS).toISOString())
-      .run();
-
-    const withUploadTimes = (times: Record<string, number>, base = env): Env => ({
-      ...base,
-      MEDIA: {
-        head: async (key: string) => {
-          const obj = await base.MEDIA.head(key);
-          return obj ? { ...obj, uploaded: new Date(times[key] ?? day0 - 2 * STORAGE_RETENTION_MS) } : null;
-        },
-        list: async (options?: R2ListOptions) => {
-          const page = await base.MEDIA.list(options);
-          return {
-            ...page,
-            objects: page.objects.map((obj) => ({
-              ...obj,
-              uploaded: new Date(times[obj.key] ?? day0 - 2 * STORAGE_RETENTION_MS),
-            })),
-          };
-        },
-        delete: (key: string | string[]) => base.MEDIA.delete(key),
-      } as R2Bucket,
-    });
-
-    const bindings = withUploadTimes({
-      [freshUpload.key]: day0 - 1000,
-    });
-
-    const first = await runStorageGc(bindings, { nowMs: day0 });
-    expect(first).toEqual({
-      scanned: 5,
-      enqueued: 2,
-      dequeued: 1,
-      deleted: 1,
-      deletedBytes: 10,
-      skipped: 0,
-      failed: 0,
-    });
-    expect(await env.MEDIA.head(oldUpload.key)).toBeNull();
-    expect(await env.MEDIA.head(freshUpload.key)).not.toBeNull();
-    expect(await env.MEDIA.head(detachedAudio.key)).not.toBeNull();
-    expect(await env.MEDIA.head(revivedAudio.key)).not.toBeNull();
-    expect(await env.MEDIA.head(protectedBrand.key)).not.toBeNull();
-
-    const scanned = (await scan(bindings)).objects;
-    const queuedObj = scanned.find((obj) => obj.key === detachedAudio.key);
-    expect(queuedObj?.purgeAfter).toBe(new Date(day0 + STORAGE_GC_GRACE_MS).toISOString());
-
-    await env.DB.prepare("INSERT INTO media_provenance VALUES ('revived', ?)")
-      .bind(JSON.stringify({ key: revivedAudio.key }))
-      .run();
-
-    const day3 = day0 + 3 * 24 * 60 * 60 * 1000;
-    const mid = await runStorageGc(bindings, { nowMs: day3 });
-    expect(mid.dequeued).toBe(1);
-    expect(mid.deleted).toBe(1);
-    expect(await env.MEDIA.head(freshUpload.key)).toBeNull();
-    expect(await env.MEDIA.head(detachedAudio.key)).not.toBeNull();
-
-    const day7 = day0 + STORAGE_GC_GRACE_MS;
-    const final = await runStorageGc(bindings, { nowMs: day7 });
-    expect(final.deleted).toBe(1);
-    expect(final.deletedBytes).toBe(10);
-    expect(await env.MEDIA.head(detachedAudio.key)).toBeNull();
-    expect(await env.MEDIA.head(revivedAudio.key)).not.toBeNull();
-    const leftover = await env.DB.prepare('SELECT key FROM storage_gc_queue').all();
-    expect(leftover.results).toEqual([]);
-  });
-
-  it('revalidates before deleting, handles delete failures, and respects maxDeletes and environment', async () => {
-    vi.spyOn(console, 'info').mockImplementation(() => {});
-    const nowMs = Date.parse('2026-11-10T03:00:00.000Z');
-    const dueIso = new Date(nowMs - STORAGE_GC_GRACE_MS - 1000).toISOString();
-    const skippedObj = await put('productions/p2/01-skipped.mp3', 'audio/mpeg');
-    const failObj = await put('productions/p2/02-fail.mp3', 'audio/mpeg');
-    const deferredObj = await put('productions/p2/03-deferred.mp3', 'audio/mpeg');
-    await env.DB.batch(
-      [skippedObj, failObj, deferredObj].map((obj) =>
-        env.DB.prepare('INSERT INTO storage_gc_queue (key, first_unreferenced_at) VALUES (?, ?)').bind(
-          obj.key,
-          dueIso,
-        ),
-      ),
-    );
-    const bindings = aged();
-    const origHead = bindings.MEDIA.head;
-    bindings.MEDIA.head = async (key: string) => {
-      if (key === skippedObj.key) return null;
-      return origHead(key);
-    };
-    const origDelete = bindings.MEDIA.delete;
-    bindings.MEDIA.delete = async (key: string | string[]) => {
-      if (key === failObj.key) throw new Error('R2 delete failed');
-      return origDelete(key);
-    };
-
-    const summary = await runStorageGc(bindings, { nowMs, maxDeletes: 2 });
-    expect(summary).toMatchObject({ scanned: 3, deleted: 0, skipped: 1, failed: 1 });
-    expect(await env.MEDIA.head(deferredObj.key)).not.toBeNull();
-
-    await worker.scheduled({} as ScheduledController, { ...bindings, ENVIRONMENT: 'local' });
-    expect(await env.MEDIA.head(deferredObj.key)).not.toBeNull();
-
-    await worker.scheduled({} as ScheduledController, { ...aged(), ENVIRONMENT: 'production' });
-    expect(await env.MEDIA.head(deferredObj.key)).toBeNull();
   });
 });
