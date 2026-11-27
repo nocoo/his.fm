@@ -32,7 +32,7 @@
     "prepare": "husky"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.6.8",
+    "@biomejs/biome": "^2.6.9",
     "@takumi-rs/wasm": "2.22.1",
     "husky": "9.1.7"
   },
