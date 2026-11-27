@@ -28,7 +28,7 @@ jobs:
       tested-sha: ${{ steps.record-sha.outputs.sha }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: nocoo/base-ci/.github/actions/setup-js@3703a073693d598159e87f77f99587e586c14cfe # v2026.24
+      - uses: nocoo/base-ci/.github/actions/setup-js@9933a7461a312cfaac526ccc5907357a7e3f669a # v2026.25
         with:
           package-manager: npm
           runtime-version: ${{ env.NPM_VERSION }}
@@ -46,7 +46,7 @@ jobs:
       tested-sha: ${{ steps.record-sha.outputs.sha }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: nocoo/base-ci/.github/actions/setup-js@3703a073693d598159e87f77f99587e586c14cfe # v2026.24
+      - uses: nocoo/base-ci/.github/actions/setup-js@9933a7461a312cfaac526ccc5907357a7e3f669a # v2026.25
         with:
           package-manager: npm
           runtime-version: ${{ env.NPM_VERSION }}
@@ -66,7 +66,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: nocoo/base-ci/.github/actions/lint-workflows@3703a073693d598159e87f77f99587e586c14cfe # v2026.24
+      - uses: nocoo/base-ci/.github/actions/lint-workflows@9933a7461a312cfaac526ccc5907357a7e3f669a # v2026.25
       - id: record-sha
         if: always()
         run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
@@ -81,7 +81,7 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 1
-      - uses: nocoo/base-ci/.github/actions/scan-secrets@3703a073693d598159e87f77f99587e586c14cfe # v2026.24
+      - uses: nocoo/base-ci/.github/actions/scan-secrets@9933a7461a312cfaac526ccc5907357a7e3f669a # v2026.25
       - id: record-sha
         if: always()
         run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
@@ -95,7 +95,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: nocoo/base-ci/.github/actions/scan-dependencies@3703a073693d598159e87f77f99587e586c14cfe # v2026.24
+      - uses: nocoo/base-ci/.github/actions/scan-dependencies@9933a7461a312cfaac526ccc5907357a7e3f669a # v2026.25
         with:
           lockfiles: "package-lock.json"
       - id: record-sha
@@ -118,7 +118,7 @@ jobs:
             !/artwork/hero-retina-20260926/
             !/artwork/originals/
             !/docs/design/assets/fonts/
-      - uses: nocoo/base-ci/.github/actions/setup-js@3703a073693d598159e87f77f99587e586c14cfe # v2026.24
+      - uses: nocoo/base-ci/.github/actions/setup-js@9933a7461a312cfaac526ccc5907357a7e3f669a # v2026.25
         with:
           package-manager: npm
           runtime-version: ${{ env.NPM_VERSION }}
@@ -150,7 +150,7 @@ jobs:
             !/artwork/hero-retina-20260926/
             !/artwork/originals/
             !/docs/design/assets/fonts/
-      - uses: nocoo/base-ci/.github/actions/setup-js@3703a073693d598159e87f77f99587e586c14cfe # v2026.24
+      - uses: nocoo/base-ci/.github/actions/setup-js@9933a7461a312cfaac526ccc5907357a7e3f669a # v2026.25
         with:
           package-manager: npm
           runtime-version: ${{ env.NPM_VERSION }}
@@ -163,10 +163,30 @@ jobs:
 
   l2-runtime:
     name: "L2: Runtime"
-    if: ${{ vars.ENABLE_L2_RUNTIME == 'true' }}
     runs-on: ubuntu-latest
+    outputs:
+      tested-sha: ${{ steps.record-sha.outputs.sha }}
     steps:
-      - run: echo "N/A - Miniflare/Worker bindings covered in L1 Vitest unit suite"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          filter: blob:none
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /*
+            !/artwork/design-20260926/
+            !/artwork/hero-retina-20260926/
+            !/artwork/originals/
+            !/docs/design/assets/fonts/
+      - uses: nocoo/base-ci/.github/actions/setup-js@9933a7461a312cfaac526ccc5907357a7e3f669a # v2026.25
+        with:
+          package-manager: npm
+          runtime-version: ${{ env.NPM_VERSION }}
+          node-version: ${{ env.NODE_VERSION }}
+          install-policy: project
+      - run: npm run ci:ensure-native-binaries && npm run test:worker
+      - id: record-sha
+        if: always()
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
   l3-integration:
     name: "L3: Integration"
@@ -183,7 +203,7 @@ jobs:
       tested-sha: ${{ steps.record-sha.outputs.sha }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: nocoo/base-ci/.github/actions/setup-js@3703a073693d598159e87f77f99587e586c14cfe # v2026.24
+      - uses: nocoo/base-ci/.github/actions/setup-js@9933a7461a312cfaac526ccc5907357a7e3f669a # v2026.25
         with:
           package-manager: npm
           runtime-version: ${{ env.NPM_VERSION }}
@@ -194,7 +214,7 @@ jobs:
         with:
           name: web-build
           path: apps/web/.cloudflare/output/v0
-      - uses: nocoo/base-ci/.github/actions/setup-playwright@3703a073693d598159e87f77f99587e586c14cfe # v2026.24
+      - uses: nocoo/base-ci/.github/actions/setup-playwright@9933a7461a312cfaac526ccc5907357a7e3f669a # v2026.25
         with:
           working-directory: apps/web
           package-manager: npm
@@ -212,7 +232,7 @@ jobs:
       tested-sha: ${{ steps.record-sha.outputs.sha }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: nocoo/base-ci/.github/actions/setup-js@3703a073693d598159e87f77f99587e586c14cfe # v2026.24
+      - uses: nocoo/base-ci/.github/actions/setup-js@9933a7461a312cfaac526ccc5907357a7e3f669a # v2026.25
         with:
           package-manager: npm
           runtime-version: ${{ env.NPM_VERSION }}
@@ -250,7 +270,7 @@ jobs:
       tested-sha: ${{ steps.gate.outputs.tested-sha }}
     steps:
       - id: gate
-        uses: nocoo/base-ci/.github/actions/z1-gate@3703a073693d598159e87f77f99587e586c14cfe # v2026.24
+        uses: nocoo/base-ci/.github/actions/z1-gate@9933a7461a312cfaac526ccc5907357a7e3f669a # v2026.25
         with:
           needs-json: ${{ toJSON(needs) }}
           expected-sha: ${{ github.sha }}
@@ -262,8 +282,8 @@ jobs:
             g2-dependencies=G2: Dependencies
             b1-build=B1: Build
             l1-unit=L1: Unit
+            l2-runtime=L2: Runtime
             l4-e2e=L4: E2E
             p1-package=P1: Package
           skipped-jobs: |
-            l2-runtime=L2: Runtime
             l3-integration=L3: Integration

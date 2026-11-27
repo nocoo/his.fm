@@ -13,6 +13,7 @@ npm run dev                # migrates & seeds local D1 once -> 127.0.0.1:7056
 npm run typecheck          # S1 (runs cf:typegen first)
 npm run lint               # S2 Biome check-only, 0 warnings
 npm run test:coverage      # L1 Vitest >= 80% across all workspaces
+npm run test:worker        # L2 Miniflare/workerd Worker runtime suite >= 80%
 npm run test:gate          # L1 Husky staged-gate self-test probes
 npm run test:e2e           # L4 Playwright (local dev stack, or CI smoke with CI=true)
 npm run build              # B1 critical CSS + cf build -> apps/web/.cloudflare/output/v0
@@ -39,9 +40,9 @@ npm run check:cover-frames # verify exported theme cover frame assets
 
 ## Quality & Local Gates
 
-Follows `system1-quality`; CI (`pipeline.yml` -> `quality-slots.yml`, `nocoo/base-ci` `v2026.24`) requires `quality / Z1: Gate` on `main`, and CD (`pipeline.yml` `deploy` -> `deploy-worker.yml` D1-D5) deploys the `web-build` artifact on `main` push (or `workflow_dispatch` with `deploy: true`) via `node scripts/deploy.mjs` and verifies `https://his.fm/api/live`. Status vocabulary: `enforced`, `planned`, `manual`, `N/A`.
+Follows `system1-quality`; CI (`pipeline.yml` -> `quality-slots.yml`, `nocoo/base-ci` `v2026.25`) requires `quality / Z1: Gate` on `main`, and CD (`pipeline.yml` `deploy` -> `deploy-worker.yml` D1-D5) deploys the `web-build` artifact on `main` push (or `workflow_dispatch` with `deploy: true`) via `node scripts/deploy.mjs` and verifies `https://his.fm/api/live`. Status vocabulary: `enforced`, `planned`, `manual`, `N/A`.
 
-- **Exceptions / gaps**: `L2 Runtime` and `L3 Integration` are `N/A` (Worker bindings in `L1`; no standalone API E2E). `L4 E2E` (`ci-smoke.spec.ts` against `B1` preview build) and `P1 Package` (`cf deploy --prebuilt --dry-run`) are `enforced`.
+- **Exceptions / gaps**: `L2 Runtime` (`enforced`, `npm run test:worker` Miniflare/workerd Worker suite >= 80%) and `L3 Integration` (`N/A`, no standalone API E2E). `L4 E2E` (`ci-smoke.spec.ts` against `B1` preview build) and `P1 Package` (`cf deploy --prebuilt --dry-run`) are `enforced`.
 - **Coverage scope**: `L1` enforces 80% (statements/branches/functions/lines) across workspaces, excluding React views and generated types; web Vitest caps at 4 workers ([operations.md](docs/operations.md)).
 - **Local hooks**: `npm run prepare` installs `.husky/pre-commit`, running staged `scripts/check-staged.mjs` (`test:coverage`, `lint`, `typecheck` + 80% floors) without editing the worktree; `pre-push` is `N/A`.
 

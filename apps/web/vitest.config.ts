@@ -1,4 +1,4 @@
-import { defineConfig } from 'vitest/config';
+import { configDefaults, defineConfig } from 'vitest/config';
 
 process.env.MINIFLARE_CACHE_DIR = '.cloudflare/cache';
 
@@ -13,6 +13,7 @@ export default defineConfig({
     },
     maxWorkers: 4,
     include: ['tests/**/*.test.ts', 'tests/**/*.test.tsx', 'src/**/*.test.ts'],
+    exclude: [...configDefaults.exclude, 'tests/worker/**'],
     allowOnly: false,
     passWithNoTests: false,
     coverage: {
@@ -23,7 +24,6 @@ export default defineConfig({
         'src/shared/**/*.ts',
         'src/admin/environment.ts',
         'scripts/production-proxy.ts',
-        'worker/**/*.ts',
         'src/**/model.ts',
         'src/**/*.model.ts',
         'src/**/models/**/*.ts',
@@ -37,20 +37,10 @@ export default defineConfig({
         'src/**/*View.ts',
         'src/shared/useResolvedThemeId.ts',
         'src/shared/seo-client.ts',
-        'worker/episode-public.ts',
-        'worker/episode-numbering.ts',
-        'worker/public-html.ts',
         'src/shared/seo-head.ts',
         'src/shared/seo.ts',
-        'worker/feed.ts',
-        'worker/seo-store.ts',
-        'worker/llms-full.ts',
-        'worker/sitemap.ts',
-        'worker/robots.ts',
         'src/shared/seo-resolve.ts',
         'src/shared/mentions-format.ts',
-        'worker/agent-contract.ts',
-        'worker/index.ts',
       ],
       thresholds: {
         statements: 80,
