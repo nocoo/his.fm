@@ -19,7 +19,7 @@
     "deploy": "cf d1 migrations apply 66f7e201-22a8-450d-838d-ecbc382afbc6 --dir migrations && cf deploy --prebuilt --mode production"
   },
   "dependencies": {
-    "@codemirror/commands": "6.11.1",
+    "@codemirror/commands": "6.11.2",
     "@codemirror/lang-markdown": "6.5.2",
     "@codemirror/language": "6.13.1",
     "@codemirror/search": "6.7.2",
