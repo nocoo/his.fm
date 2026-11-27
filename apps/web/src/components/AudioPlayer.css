@@ -176,6 +176,11 @@
   background: transparent;
   box-shadow: none;
 }
+.his-audio-player .his-audio-retry {
+  flex: none;
+  gap: 5px;
+  border-color: var(--player-line);
+}
 .his-audio-player .his-audio-tool:hover,
 .his-audio-player .his-audio-retry:hover {
   background: color-mix(in srgb, var(--player-ink) 7%, transparent);
@@ -231,11 +236,6 @@
   color: var(--player-ink);
   font-size: 12px;
   line-height: 1.6;
-}
-.his-audio-player .his-audio-retry {
-  flex: none;
-  gap: 5px;
-  border-color: var(--player-line);
 }
 .his-audio-player :is(button, [role="slider"]):focus-visible {
   outline: 2px solid var(--player-track);
