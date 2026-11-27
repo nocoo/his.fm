@@ -39,7 +39,7 @@ npm run check:cover-frames # verify exported theme cover frame assets
 
 ## Quality & Local Gates
 
-Follows `system1-quality`; CI slot definitions and pinned `base-ci` revision live in `.github/workflows/quality-slots.yml` (`quality / Z1: Gate` required on `main`). Status vocabulary: `enforced`, `planned`, `manual`, `N/A`.
+Follows `system1-quality`; CI (`pipeline.yml` -> `quality-slots.yml`, `nocoo/base-ci` `v2026.24`) requires `quality / Z1: Gate` on `main`, and CD (`pipeline.yml` `deploy` -> `deploy-worker.yml` D1-D5) deploys the `web-build` artifact on `main` push (or `workflow_dispatch` with `deploy: true`) via `node scripts/deploy.mjs` and verifies `https://his.fm/api/live`. Status vocabulary: `enforced`, `planned`, `manual`, `N/A`.
 
 - **Exceptions / gaps**: `L2 Runtime` and `L3 Integration` are `N/A` (Worker bindings in `L1`; no standalone API E2E). `L4 E2E` (`ci-smoke.spec.ts` against `B1` preview build) and `P1 Package` (`cf deploy --prebuilt --dry-run`) are `enforced`.
 - **Coverage scope**: `L1` enforces 80% (statements/branches/functions/lines) across workspaces, excluding React views and generated types; web Vitest caps at 4 workers ([operations.md](docs/operations.md)).
@@ -51,7 +51,7 @@ Follows `system1-quality`; CI slot definitions and pinned `base-ci` revision liv
 | --- | --- | --- |
 | Dev | `https://hisfm.dev.hexly.ai` -> `127.0.0.1:7056`, D1 `00000000-0000-4000-8000-000000007056` | Local `.cloudflare/state`; `ENVIRONMENT=local` only in `development` mode; preserve local edits |
 | Tests | Ports `17056` (integration), `27056` (browser), `37056` (inspector) | Isolated Miniflare/R2 fixtures (`r2-fixtures.ts`) and synthetic media only |
-| Prod | `https://his.fm` (Worker/D1 `66f7e201-22a8-450d-838d-ecbc382afbc6`/R2 `his-fm`), CDN `https://f.no.mt` | Access protects `his.fm/admin`; `dev:remote` is read-only; deploy via `release.yml` + `/api/live` |
+| Prod | `https://his.fm` (Worker/D1 `66f7e201-22a8-450d-838d-ecbc382afbc6`/R2 `his-fm`), CDN `https://f.no.mt` | Access protects `his.fm/admin`; `dev:remote` is read-only; deploy via `pipeline.yml` + `/api/live` |
 
 ## Retrospective
 
