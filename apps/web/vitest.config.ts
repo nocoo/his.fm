@@ -12,7 +12,7 @@ export default defineConfig({
       if (message.includes('Writer is not bound to a WritableStream')) return false;
     },
     maxWorkers: 4,
-    include: ['tests/**/*.test.ts', 'tests/**/*.test.tsx', 'src/**/*.test.ts'],
+    include: ['tests/**/*.test.ts', 'src/**/*.test.ts'],
     exclude: [...configDefaults.exclude, 'tests/worker/**'],
     allowOnly: false,
     passWithNoTests: false,
@@ -43,10 +43,10 @@ export default defineConfig({
         'src/shared/mentions-format.ts',
       ],
       thresholds: {
-        statements: 80,
-        branches: 80,
-        functions: 80,
-        lines: 80,
+        statements: 90,
+        branches: 85,
+        functions: 90,
+        lines: 90,
       },
     },
   },

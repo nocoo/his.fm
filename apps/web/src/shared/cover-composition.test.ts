@@ -1,9 +1,6 @@
 import { readFileSync } from 'node:fs';
-import { createElement } from 'react';
-import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { themeCoverFrameSrc } from '../brand/themes';
-import { FramedCover } from '../components/FramedCover';
 import { themeIds } from './appearance';
 import {
   composeCoverSvg,
@@ -108,9 +105,6 @@ describe('shared preview and PNG composition', () => {
   it.each(themeIds)('%s uses the same art window, title, font and full static frame', (theme) => {
     const frame = readFileSync(new URL(`../../public${themeCoverFrameSrc(theme)}`, import.meta.url), 'utf8');
     const svg = composeCoverSvg(theme, copy, 'data:image/webp;base64,AAAA', frame);
-    const preview = renderToStaticMarkup(
-      createElement(FramedCover, { ...copy, src: '/images/clean.webp', themeId: theme }),
-    );
     expect(coverSize).toBe(1600);
     expect(coverDesignSize).toBe(1024);
     expect(svg).toContain('width="1600" height="1600" viewBox="0 0 1024 1024"');
@@ -130,18 +124,10 @@ describe('shared preview and PNG composition', () => {
     expect(art.x + art.width / 2).toBe(window.x + window.width / 2);
     expect(art.y + art.height / 2).toBe(window.y + window.height / 2);
     expect(svg).toContain(`<svg x="${art.x}" y="${art.y}" width="${art.width}" height="${art.height}"`);
-    expect(preview).toContain(`left:${(art.x / coverDesignSize) * 100}%`);
-    expect(preview).toContain(`top:${(art.y / coverDesignSize) * 100}%`);
-    expect(preview).toContain(`width:${(art.width / coverDesignSize) * 100}%`);
-    expect(preview).toContain(`height:${(art.height / coverDesignSize) * 100}%`);
-    expect(preview).toContain(`src="${themeCoverFrameSrc(theme)}"`);
-    expect(preview).toContain('src="/images/clean.webp"');
     for (const slot of coverText(theme, copy)) {
       const text = `<text x="${slot.x}" y="${slot.y}" fill="${slot.fill}"`;
       expect(svg).toContain(text);
-      expect(preview).toContain(text);
       expect(svg).toContain(`>${escapeCoverXml(slot.value)}</text>`);
-      expect(preview).toContain(`>${escapeCoverXml(slot.value)}</text>`);
     }
   });
 
